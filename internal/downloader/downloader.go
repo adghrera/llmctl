@@ -73,7 +73,14 @@ func Download(ctx context.Context, m *manifest.ModelDef, onProgress ProgressFn) 
 	if err != nil {
 		return "", err
 	}
-	dest := Destination(m)
+	return DownloadURL(ctx, src, Destination(m), onProgress)
+}
+
+// DownloadURL fetches rawurl to dest with resume support (HTTP Range on a
+// .part side file), progress ticks ~2x/sec, and atomic rename on completion.
+// This is the transport-agnostic core; Download() wraps it with manifest
+// URL resolution.
+func DownloadURL(ctx context.Context, rawurl, dest string, onProgress ProgressFn) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return "", err
 	}
@@ -84,7 +91,7 @@ func Download(ctx context.Context, m *manifest.ModelDef, onProgress ProgressFn) 
 		offset = fi.Size()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, src, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawurl, nil)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +111,7 @@ func Download(ctx context.Context, m *manifest.ModelDef, onProgress ProgressFn) 
 		// resume
 	default:
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", fmt.Errorf("GET %s: %s: %s", src, resp.Status, firstLine(string(body)))
+		return "", fmt.Errorf("GET %s: %s: %s", rawurl, resp.Status, firstLine(string(body)))
 	}
 
 	total := offset

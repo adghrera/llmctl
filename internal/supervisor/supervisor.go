@@ -1,39 +1,54 @@
 // Package supervisor owns backend child processes: launch, health-wait,
-// stop, and reaping zombies (detecting crashed instances).
+// stop, and reaping zombies (detecting crashed instances). It supports three
+// instance kinds:
+//
+//   - http process:  llmctl launches a binary that serves OpenAI HTTP on a
+//     free port (llama.cpp, ...). Reverse-proxied by the gateway.
+//   - stdio process: llmctl launches a binary speaking llmctl-stdio/1 on
+//     stdin/stdout. The live *stdio.Session is held in memory; the gateway
+//     translates OpenAI requests over the pipe.
+//   - attach:        the user runs the server; llmctl only verifies health
+//     and routes to a fixed URL (ollama, vllm, custom, remote).
 package supervisor
 
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"llmctl/internal/manifest"
+	"llmctl/internal/backend"
 	"llmctl/internal/paths"
+	"llmctl/internal/stdio"
 	"llmctl/internal/store"
 )
 
 type Supervisor struct {
-	store   *store.Store
-	reg     *manifest.Registry
-	logger  *slog.Logger
-	httpC   *http.Client
+	store  *store.Store
+	reg    *backend.Registry
+	logger *slog.Logger
+	httpC  *http.Client
+
+	mu       sync.Mutex
+	sessions map[string]*stdio.Session // stdio instance id -> live session
 }
 
-func New(st *store.Store, reg *manifest.Registry, logger *slog.Logger) *Supervisor {
+func New(st *store.Store, reg *backend.Registry, logger *slog.Logger) *Supervisor {
 	return &Supervisor{
-		store:  st,
-		reg:    reg,
-		logger: logger,
-		httpC:  &http.Client{Timeout: 5 * time.Second},
+		store:    st,
+		reg:      reg,
+		logger:   logger,
+		httpC:    &http.Client{Timeout: 5 * time.Second},
+		sessions: map[string]*stdio.Session{},
 	}
 }
 
@@ -47,119 +62,179 @@ func freePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// Start launches (or attaches) an instance for modelID and waits for health.
-func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID string, port int, vars map[string]string) (*store.InstanceRecord, error) {
+// Start launches (or attaches) an instance for modelID using the backend
+// named by backendID (or the model's default backend if backendID is empty).
+// vars are user parameter overrides. It blocks until the instance is healthy.
+func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID string, port int, vars map[string]string) (*store.InstanceRecord, error) {
 	st, err := sv.store.Load()
 	if err != nil {
 		return nil, err
 	}
-	mdef, ok := sv.reg.Model(modelID)
+	mrec, ok := st.Models[modelID]
 	if !ok {
 		return nil, fmt.Errorf("unknown model %q (see: llmctl models list)", modelID)
 	}
-	bdef, ok := sv.reg.Backend(mdef.Backend)
-	if !ok {
-		return nil, fmt.Errorf("model %q references unknown backend %q", modelID, mdef.Backend)
+	if backendID == "" {
+		backendID = mrec.BackendID
 	}
-	brec, ok := st.Backends[bdef.ID]
+	b, ok := sv.reg.Get(backendID)
 	if !ok {
-		return nil, fmt.Errorf("backend %q not installed (see: llmctl backends install %s)", bdef.ID, bdef.ID)
+		return nil, fmt.Errorf("unknown backend %q (see: llmctl backends list)", backendID)
 	}
-	mrec, ok := st.Models[mdef.ID]
-	if !ok {
-		return nil, fmt.Errorf("model %q not downloaded (see: llmctl models install %s)", mdef.ID, mdef.ID)
+	if _, ok := st.Backends[backendID]; !ok && b.Kind() != backend.KindAttach {
+		return nil, fmt.Errorf("backend %q not installed (see: llmctl backends install %s)", backendID, backendID)
 	}
 
-	if port == 0 {
-		if port, err = freePort(); err != nil {
-			return nil, err
-		}
-	}
 	if existing := st.Instances[instanceID]; existing != nil && existing.Status == store.StatusRunning {
-		return nil, fmt.Errorf("instance %q already running on port %d", instanceID, existing.Port)
+		return nil, fmt.Errorf("instance %q already running", instanceID)
 	}
 
 	logDir := paths.InstanceLogDir(instanceID)
 	os.MkdirAll(logDir, 0o755)
 
-	inst := &store.InstanceRecord{
-		ID: instanceID, ModelID: mdef.ID, BackendID: bdef.ID,
-		Port: port, Status: "starting", PID: 0, StartedAt: time.Now(),
-		Vars: vars, LogDir: logDir, APIBasePath: apiBase(bdef),
+	spec, err := b.Spec(mrec, vars)
+	if err != nil {
+		return nil, err
 	}
 
-	// Attach-mode backends (ollama/custom): no child process, just verify.
-	if bdef.Binary.Kind == "path" {
-		if err := sv.waitHealthy(ctx, inst, bdef); err != nil {
-			return nil, fmt.Errorf("attach failed (is the server running on port %d?): %w", port, err)
+	inst := &store.InstanceRecord{
+		ID: instanceID, ModelID: modelID, BackendID: backendID,
+		Transport: spec.Transport, Status: "starting",
+		StartedAt: time.Now(), Vars: vars, LogDir: logDir,
+		APIBasePath: spec.APIBasePath,
+	}
+
+	switch spec.Kind {
+	case backend.KindAttach:
+		return sv.startAttach(ctx, inst, spec)
+	case backend.KindProcess:
+		if spec.Transport == backend.TransportStdio {
+			return sv.startStdio(inst, spec)
 		}
-		inst.Attached = true
-		inst.Status = store.StatusRunning
-		if err := sv.put(inst); err != nil {
+		return sv.startHTTP(ctx, inst, spec, port)
+	default:
+		return nil, fmt.Errorf("unknown kind %q", spec.Kind)
+	}
+}
+
+// startAttach verifies an externally-run server is reachable.
+func (sv *Supervisor) startAttach(ctx context.Context, inst *store.InstanceRecord, spec backend.Spec) (*store.InstanceRecord, error) {
+	base := spec.AttachURL
+	if base == "" {
+		return nil, fmt.Errorf("attach backend %q has no url", inst.BackendID)
+	}
+	if u, err := url.Parse(base); err == nil {
+		if p, err := strconv.Atoi(u.Port()); err == nil {
+			inst.Port = p
+		}
+	}
+	inst.Attached = true
+	hp := spec.HealthPath
+	if hp == "" {
+		hp = "/health"
+	}
+	if err := sv.waitHealthy(ctx, strings.TrimSuffix(base, "/")+hp); err != nil {
+		return nil, fmt.Errorf("attach failed (is the server running at %s?): %w", base, err)
+	}
+	inst.Status = store.StatusRunning
+	sv.put(inst)
+	return inst, nil
+}
+
+// startHTTP launches an OpenAI-HTTP backend on a free port and waits for health.
+func (sv *Supervisor) startHTTP(ctx context.Context, inst *store.InstanceRecord, spec backend.Spec, port int) (*store.InstanceRecord, error) {
+	if port == 0 {
+		var err error
+		if port, err = freePort(); err != nil {
 			return nil, err
 		}
-		return inst, nil
 	}
+	inst.Port = port
+	args := renderPort(spec.Args, port)
+	cmd := exec.Command(spec.Binary, args...)
+	cmd.Dir = filepath.Dir(spec.Binary)
+	cmd.Env = envWith(spec.Env)
 
-	if brec.BinaryPath == "" {
-		return nil, fmt.Errorf("backend %q has no installed binary", bdef.ID)
-	}
-
-	args := buildArgs(bdef, port, mrec.Path, vars)
-	cmd := exec.Command(brec.BinaryPath, args...)
-	cmd.Dir = filepath.Dir(brec.BinaryPath)
-	cmd.Env = append(os.Environ(), bdef.Runtime.EnvExtra...)
-
-	outLog, err := os.OpenFile(filepath.Join(logDir, "stdout.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	outLog, err := os.OpenFile(filepath.Join(inst.LogDir, "stdout.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return nil, err
 	}
-	errLog, err := os.OpenFile(filepath.Join(logDir, "stderr.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	errLog, err := os.OpenFile(filepath.Join(inst.LogDir, "stderr.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return nil, err
 	}
-	cmd.Stdout = io.MultiWriter(outLog)
-	cmd.Stderr = io.MultiWriter(errLog)
-	setSysProc(cmd) // detach process group (unix) / job object flags (windows)
+	cmd.Stdout = outLog
+	cmd.Stderr = errLog
+	setSysProc(cmd)
 
-	sv.logger.Info("launching instance", "id", instanceID, "backend", bdef.ID, "port", port, "args", strings.Join(args, " "))
+	sv.logger.Info("launching instance", "id", inst.ID, "backend", inst.BackendID, "transport", "http", "port", port, "args", strings.Join(args, " "))
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("spawn %s: %w", brec.BinaryPath, err)
+		return nil, fmt.Errorf("spawn %s: %w", spec.Binary, err)
 	}
 	inst.PID = cmd.Process.Pid
 
-	// Reap: when the child exits, mark it stopped.
 	go func() {
-		err := cmd.Wait()
+		werr := cmd.Wait()
 		outLog.Close()
 		errLog.Close()
-		cur, _ := sv.store.Load()
-		if rec := cur.Instances[instanceID]; rec != nil && rec.Status != store.StatusStopped {
-			rec.Status = store.StatusStopped
-			if err != nil {
-				rec.LastError = err.Error()
-			}
-			sv.store.Update(func(s *store.State) error {
-				if r := s.Instances[instanceID]; r != nil {
-					r.Status = store.StatusStopped
-					r.LastError = rec.LastError
-				}
-				return nil
-			})
-			sv.logger.Warn("instance exited", "id", instanceID, "err", err)
-		}
+		sv.markExited(inst.ID, werr)
 	}()
 
-	if err := sv.waitHealthy(ctx, inst, bdef); err != nil {
+	healthPath := spec.HealthPath
+	if healthPath == "" {
+		healthPath = "/health"
+	}
+	if err := sv.waitHealthy(ctx, fmt.Sprintf("http://127.0.0.1:%d%s", port, healthPath)); err != nil {
 		sv.kill(inst)
-		sv.store.Update(func(s *store.State) error { delete(s.Instances, instanceID); return nil })
-		return nil, fmt.Errorf("instance failed health check (logs: %s): %w", logDir, err)
+		sv.forgetInstance(inst.ID)
+		return nil, fmt.Errorf("instance failed health check (logs: %s): %w", inst.LogDir, err)
 	}
 	inst.Status = store.StatusRunning
-	if err := sv.put(inst); err != nil {
-		return nil, err
-	}
+	sv.put(inst)
 	return inst, nil
+}
+
+// startStdio launches a llmctl-stdio/1 backend and holds the live session.
+func (sv *Supervisor) startStdio(inst *store.InstanceRecord, spec backend.Spec) (*store.InstanceRecord, error) {
+	ready := time.Duration(spec.StdioReadyTimeoutS) * time.Second
+	sess, hello, err := stdio.Launch(stdio.LaunchConfig{
+		Binary:       spec.Binary,
+		Args:         spec.Args,
+		Env:          spec.Env,
+		Dir:          filepath.Dir(spec.Binary),
+		StderrLog:    filepath.Join(inst.LogDir, "stderr.log"),
+		ReadyTimeout: ready,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("stdio backend failed to start (logs: %s): %w", inst.LogDir, err)
+	}
+	if p := sess.Process(); p != nil {
+		inst.PID = p.Pid
+	}
+	sv.mu.Lock()
+	sv.sessions[inst.ID] = sess
+	sv.mu.Unlock()
+
+	// Reap: when the backend exits, drop the session and mark stopped.
+	go func() {
+		<-sess.Closed()
+		sv.mu.Lock()
+		delete(sv.sessions, inst.ID)
+		sv.mu.Unlock()
+		sv.markExited(inst.ID, fmt.Errorf("stdio backend exited"))
+	}()
+
+	sv.logger.Info("launched stdio instance", "id", inst.ID, "backend", inst.BackendID, "pid", inst.PID, "hello", hello.Name)
+	inst.Status = store.StatusRunning
+	sv.put(inst)
+	return inst, nil
+}
+
+// Session returns the live stdio session for an instance (nil for http/attach).
+func (sv *Supervisor) Session(instanceID string) *stdio.Session {
+	sv.mu.Lock()
+	defer sv.mu.Unlock()
+	return sv.sessions[instanceID]
 }
 
 // Stop gracefully stops an owned instance (or forgets an attached one).
@@ -178,11 +253,24 @@ func (sv *Supervisor) Stop(instanceID string, force bool) error {
 	if inst.Status != store.StatusRunning {
 		return sv.forgetInstance(instanceID)
 	}
+
+	// stdio: close the session (kills the child).
+	if inst.Transport == backend.TransportStdio {
+		sv.mu.Lock()
+		sess := sv.sessions[instanceID]
+		delete(sv.sessions, instanceID)
+		sv.mu.Unlock()
+		if sess != nil {
+			sess.Close()
+		}
+		return sv.forgetInstance(instanceID)
+	}
+
+	// http process: signal, wait grace, then force kill.
 	proc, err := os.FindProcess(inst.PID)
 	if err != nil {
 		return sv.forgetInstance(instanceID)
 	}
-	grace := 10 * time.Second
 	sv.store.Update(func(s *store.State) error {
 		if r := s.Instances[instanceID]; r != nil {
 			r.Status = "stopping"
@@ -191,7 +279,7 @@ func (sv *Supervisor) Stop(instanceID string, force bool) error {
 	})
 	if !force {
 		terminate(proc)
-		deadline := time.Now().Add(grace)
+		deadline := time.Now().Add(10 * time.Second)
 		for time.Now().Before(deadline) {
 			if !processAlive(inst.PID) {
 				break
@@ -220,6 +308,32 @@ func (sv *Supervisor) StopAll() {
 	}
 }
 
+// markExited marks a dead owned instance as stopped (crash detection).
+func (sv *Supervisor) markExited(id string, werr error) {
+	cur, _ := sv.store.Load()
+	if cur == nil {
+		return
+	}
+	rec := cur.Instances[id]
+	if rec == nil || rec.Status == store.StatusStopped || rec.Attached {
+		return
+	}
+	msg := ""
+	if werr != nil {
+		msg = werr.Error()
+	}
+	sv.store.Update(func(s *store.State) error {
+		if r := s.Instances[id]; r != nil {
+			r.Status = store.StatusStopped
+			if msg != "" {
+				r.LastError = msg
+			}
+		}
+		return nil
+	})
+	sv.logger.Warn("instance exited", "id", id, "err", werr)
+}
+
 // reap marks dead-PID instances as stopped (crash detection).
 func (sv *Supervisor) reap() {
 	st, err := sv.store.Load()
@@ -227,7 +341,7 @@ func (sv *Supervisor) reap() {
 		return
 	}
 	for _, inst := range st.Instances {
-		if inst.Attached || inst.Status != store.StatusRunning {
+		if inst.Attached || inst.Status != store.StatusRunning || inst.PID == 0 {
 			continue
 		}
 		if !processAlive(inst.PID) {
@@ -264,16 +378,12 @@ func (sv *Supervisor) put(inst *store.InstanceRecord) error {
 	})
 }
 
-func (sv *Supervisor) waitHealthy(ctx context.Context, inst *store.InstanceRecord, bdef *manifest.BackendDef) error {
-	timeout := time.Duration(bdef.Runtime.HealthTimeoutS) * time.Second
-	if timeout <= 0 {
-		timeout = 120 * time.Second
-	}
-	deadline := time.Now().Add(timeout)
-	url := fmt.Sprintf("http://127.0.0.1:%d%s", inst.Port, bdef.Runtime.HealthPath)
+// waitHealthy polls url until it returns <500 or the deadline passes.
+func (sv *Supervisor) waitHealthy(ctx context.Context, url string) error {
+	deadline := time.Now().Add(240 * time.Second)
 	for {
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timed out after %v waiting for %s", timeout, url)
+			return fmt.Errorf("timed out waiting for %s", url)
 		}
 		select {
 		case <-ctx.Done():
@@ -298,78 +408,23 @@ func (sv *Supervisor) kill(inst *store.InstanceRecord) {
 	}
 }
 
-// ProcessAlive reports whether a PID is running (exported for daemon
-// stale-file checks).
+// ProcessAlive reports whether a PID is running (exported for daemon checks).
 func ProcessAlive(pid int) bool { return processAlive(pid) }
 
-// buildArgs assembles the CLI line from the manifest templates.
-func buildArgs(bdef *manifest.BackendDef, port int, modelPath string, vars map[string]string) []string {
-	vars = mergeVars(bdef, vars)
-	var out []string
-	if bdef.Runtime.PortFlag != "" {
-		out = append(out, splitArgs(expand(bdef.Runtime.PortFlag, port, modelPath, vars))...)
-	}
-	if bdef.Runtime.ModelFlag != "" {
-		out = append(out, splitArgs(expand(bdef.Runtime.ModelFlag, port, modelPath, vars))...)
-	}
-	if bdef.Runtime.ArgsTemplate != "" {
-		out = append(out, splitArgs(expand(bdef.Runtime.ArgsTemplate, port, modelPath, vars))...)
+// renderPort substitutes {port} in an arg list.
+func renderPort(args []string, port int) []string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		out[i] = strings.ReplaceAll(a, "{port}", fmt.Sprintf("%d", port))
 	}
 	return out
 }
 
-func mergeVars(bdef *manifest.BackendDef, user map[string]string) map[string]string {
-	out := map[string]string{}
-	for _, v := range bdef.Runtime.Vars {
-		out[v.Name] = v.Default
+// envWith merges os env + extra.
+func envWith(extra map[string]string) []string {
+	env := os.Environ()
+	for k, v := range extra {
+		env = append(env, k+"="+v)
 	}
-	for k, v := range user {
-		out[k] = v
-	}
-	return out
-}
-
-func expand(tmpl string, port int, modelPath string, vars map[string]string) string {
-	r := strings.NewReplacer(
-		"{port}", strconv.Itoa(port),
-		"{model}", modelPath,
-		"{model_dir}", modelPath,
-	)
-	s := r.Replace(tmpl)
-	for k, v := range vars {
-		s = strings.ReplaceAll(s, "{"+k+"}", v)
-	}
-	return s
-}
-
-// splitArgs splits respecting double quotes.
-func splitArgs(s string) []string {
-	var out []string
-	var cur strings.Builder
-	inQ := false
-	for _, ch := range s {
-		switch {
-		case ch == '"':
-			inQ = !inQ
-		case ch == ' ' && !inQ:
-			if cur.Len() > 0 {
-				out = append(out, cur.String())
-				cur.Reset()
-			}
-		default:
-			cur.WriteRune(ch)
-		}
-	}
-	if cur.Len() > 0 {
-		out = append(out, cur.String())
-	}
-	return out
-}
-
-// apiBase derives the OpenAI-compatible root path for a backend.
-func apiBase(bdef *manifest.BackendDef) string {
-	if bdef.Runtime.ChatCompletionsPath != "" {
-		return strings.TrimSuffix(bdef.Runtime.ChatCompletionsPath, "/chat/completions")
-	}
-	return "/v1"
+	return env
 }

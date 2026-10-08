@@ -71,7 +71,23 @@ func (b *llamaCppBackend) Health(inst *store.InstanceRecord) (HealthResult, erro
 }
 
 func (b *llamaCppBackend) Install(ctx context.Context, assetHint string, logf func(string)) (string, error) {
-	return installer.Install(ctx, "llama.cpp", llamaCppRepo, assetHint, logf)
+	match := assetHint
+	if match == "" {
+		match = "win-cpu"
+	}
+	if runtime.GOOS == "linux" {
+		match = "linux"
+	}
+	if runtime.GOOS == "darwin" {
+		match = "osx"
+	}
+	version, _, err := installer.InstallGitHubRelease(ctx, paths.BackendDir("llama.cpp"), installer.GitHubRelease{
+		Repo: llamaCppRepo, BinaryName: "llama-server",
+	}, match, logf)
+	if err != nil {
+		return "", err
+	}
+	return version, nil
 }
 
 func (b *llamaCppBackend) Uninstall() error { return os.RemoveAll(paths.BackendDir("llama.cpp")) }
@@ -99,7 +115,7 @@ func (b *ollamaBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec
 }
 
 func (b *ollamaBackend) Health(inst *store.InstanceRecord) (HealthResult, error) {
-	hr := genericHealth(TransportHTTP, inst, "/api/tags", "/v1")
+	hr, _ := genericHealth(TransportHTTP, inst, "/api/tags", "/v1")
 	return hr, nil
 }
 
@@ -272,9 +288,11 @@ func installedBinary(backendID, name string) (string, error) {
 		}
 		cand := filepath.Join(dir, e.Name(), name)
 		if _, err := os.Stat(cand); err == nil {
-			t, err := e.Info().ModTime()
-			if err == nil && (newest == "" || t.After(newestT)) {
-				newest, newestT = cand, t
+			if fi, err := e.Info(); err == nil {
+				t := fi.ModTime()
+				if newest == "" || t.After(newestT) {
+					newest, newestT = cand, t
+				}
 			}
 		}
 	}

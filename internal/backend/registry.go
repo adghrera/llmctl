@@ -86,7 +86,7 @@ func (r *Registry) LoadPlugins() error {
 	}
 	// Drop previously loaded plugins first.
 	r.mu.Lock()
-	for id, m := range r.pluginM {
+	for id := range r.pluginM {
 		delete(r.backends, id)
 		delete(r.pluginM, id)
 	}
@@ -154,11 +154,10 @@ func (r *Registry) RemovePlugin(id string) error {
 	if !ok {
 		return fmt.Errorf("plugin %q not found", id)
 	}
-	if err := r.LoadPlugins(); err != nil {
+	if err := os.Remove(m.SourceFile); err != nil {
 		return err
 	}
-	_ = m
-	return os.Remove(m.SourceFile)
+	return r.LoadPlugins()
 }
 
 func (r *Registry) Get(id string) (Backend, bool) {

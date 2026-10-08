@@ -27,7 +27,20 @@ func runPluginInstall(ctx context.Context, m *PluginMeta, assetHint string, logf
 		if ins.Repo == "" {
 			return "", fmt.Errorf("github-release install needs repo")
 		}
-		return installer.Install(ctx, m.ID, ins.Repo, assetHint, logf)
+		match := assetHint
+		if ins.AssetMatch != nil {
+			if v, ok := ins.AssetMatch[runtime.GOOS]; ok {
+				match = v
+			}
+		}
+		_, binPath, err := installer.InstallGitHubRelease(ctx, dest, installer.GitHubRelease{
+			Repo: ins.Repo, BinaryName: ins.BinaryName,
+		}, match, logf)
+		if err != nil {
+			return "", err
+		}
+		_ = binPath
+		return "github-release", nil
 	case "files":
 		return installFiles(ctx, m, ins, dest, logf)
 	case "":
@@ -52,9 +65,9 @@ func installFromURL(ctx context.Context, m *PluginMeta, ins *PluginInstall, dest
 	}
 	destFile := filepath.Join(dest, name)
 	logf(fmt.Sprintf("downloading %s", u))
-	if err := downloader.DownloadFile(ctx, u, destFile, func(p downloader.Progress) {
+	if _, err := downloader.DownloadURL(ctx, u, destFile, func(p downloader.Progress) {
 		if p.Total > 0 {
-			logf(fmt.Sprintf("  %d%% (%.1f/%.1f MB)", p.Done*100/p.Total, float64(p.Bytes)/1e6, float64(p.Total)/1e6))
+			logf(fmt.Sprintf("  %d%% (%.1f/%.1f MB)", p.Bytes*100/p.Total, float64(p.Bytes)/1e6, float64(p.Total)/1e6))
 		}
 	}); err != nil {
 		return "", err
@@ -69,7 +82,7 @@ func installFiles(ctx context.Context, m *PluginMeta, ins *PluginInstall, dest s
 		u := expandURL(f.URL)
 		destFile := filepath.Join(dest, name)
 		logf(fmt.Sprintf("downloading %s", u))
-		if err := downloader.DownloadFile(ctx, u, destFile, func(p downloader.Progress) {}); err != nil {
+		if _, err := downloader.DownloadURL(ctx, u, destFile, func(p downloader.Progress) {}); err != nil {
 			return "", fmt.Errorf("%s: %w", name, err)
 		}
 		chmodExec(destFile)

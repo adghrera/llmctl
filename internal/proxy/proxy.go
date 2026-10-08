@@ -28,25 +28,27 @@ import (
 type Server struct {
 	addr         string
 	apiKeys      [][]byte // pre-encoded; empty list = auth disabled
+	keyCheck     func(string) bool // hashed-key verifier (overrides apiKeys)
 	limiter      *rateLimiter
 	router       *Router
 	logger       *slog.Logger
 	maxInflight  int64
 	inflight     atomic.Int64
 	requestCount atomic.Int64
-	daemonPort   int // for the self-routing fallback (0 = disabled)
+	handler      http.Handler
 	httpSrv      *http.Server
 }
 
 // Config for NewServer.
 type Config struct {
-	Addr         string
-	APIKeys      []string
-	RateRPS      float64 // sustained requests/sec per client
-	RateBurst    int
-	MaxInflight  int
-	Logger       *slog.Logger
-	DaemonPort   int
+	Addr        string
+	APIKeys     []string // static keys (tests, simple setups)
+	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
+	KeyCheck    func(token string) bool
+	RateRPS     float64 // sustained requests/sec per client
+	RateBurst   int
+	MaxInflight int
+	Logger      *slog.Logger
 }
 
 func NewServer(cfg Config, router *Router) (*Server, error) {
@@ -65,11 +67,11 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	s := &Server{
 		addr:        cfg.Addr,
 		apiKeys:     keys,
+		keyCheck:    cfg.KeyCheck,
 		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst),
 		router:      router,
 		logger:      cfg.Logger,
 		maxInflight: int64(cfg.MaxInflight),
-		daemonPort:  cfg.DaemonPort,
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
@@ -77,15 +79,20 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	mux.HandleFunc("POST /v1/chat/completions", s.auth(s.proxyChat))
 	mux.HandleFunc("POST /v1/completions", s.auth(s.proxyCompletions))
 	mux.HandleFunc("POST /v1/embeddings", s.auth(s.proxyEmbeddings))
+	s.handler = s.recoverer(s.metrics(mux))
 	s.httpSrv = &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           s.recoverer(s.metrics(mux)),
+		Handler:           s.handler,
 		ReadHeaderTimeout: 30 * time.Second,
 		// No global WriteTimeout: streaming responses are long-lived.
 		IdleTimeout: 120 * time.Second,
 	}
 	return s, nil
 }
+
+// Handler returns the gateway's HTTP handler (auth + metrics + routes) so a
+// daemon can mount it on a shared mux alongside the management API and UI.
+func (s *Server) Handler() http.Handler { return s.handler }
 
 // ListenAndServe blocks serving until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context) error {
@@ -134,26 +141,30 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 	})
 }
 
-// auth enforces Authorization: Bearer <key> when keys are configured.
+// auth enforces Authorization: Bearer *** when keys are configured.
 func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if len(s.apiKeys) > 0 {
-			got := bearerToken(r)
-			ok := false
+		got := bearerToken(r)
+		valid := false
+		if s.keyCheck != nil {
+			valid = s.keyCheck(got)
+		} else if len(s.apiKeys) > 0 {
 			for _, k := range s.apiKeys {
 				if subtle.ConstantTimeCompare([]byte(got), k) == 1 {
-					ok = true
+					valid = true
 					break
 				}
 			}
-			if !ok {
+		}
+		if s.keyCheck != nil || len(s.apiKeys) > 0 {
+			if !valid {
 				writeErr(w, http.StatusUnauthorized, "invalid_request_error",
-					"missing or invalid API key (Authorization: Bearer <key>)")
+					"missing or invalid API key (Authorization: Bearer ***")
 				return
 			}
 		}
 		// Per-client rate limit keyed on token (or IP when auth is off).
-		key := bearerToken(r)
+		key := got
 		if key == "" {
 			key = clientIP(r)
 		}
@@ -207,7 +218,8 @@ func (s *Server) proxyCompletions(w http.ResponseWriter, r *http.Request) { s.pr
 func (s *Server) proxyEmbeddings(w http.ResponseWriter, r *http.Request) { s.proxyAny(w, r, "/v1/embeddings") }
 
 // proxyAny peeks the "model" field, resolves an upstream, and streams the
-// request through, preserving SSE framing exactly as the backend emits it.
+// request through. HTTP instances are reverse-proxied (SSE framing preserved
+// exactly); stdio instances are translated over the llmctl-stdio/1 pipe.
 func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<20)) // 64 MiB request cap
 	if err != nil {
@@ -215,7 +227,8 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 		return
 	}
 	var peek struct {
-		Model string `json:"model"`
+		Model  string `json:"model"`
+		Stream bool   `json:"stream"`
 	}
 	_ = json.Unmarshal(body, &peek) // model is optional; default instance may serve
 
@@ -223,6 +236,11 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	if err != nil {
 		status, code := routeError(err)
 		writeErr(w, status, code, err.Error())
+		return
+	}
+
+	if target.Transport == "stdio" {
+		s.proxyStdio(w, r, target, body, path, peek.Stream)
 		return
 	}
 
@@ -247,6 +265,102 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	r.Body = io.NopCloser(strings.NewReader(string(body)))
 	r.ContentLength = int64(len(body))
 	rp.ServeHTTP(w, r)
+}
+
+// proxyStdio translates an OpenAI request into a llmctl-stdio/1 call and
+// writes the response back — as SSE when stream=true, or a single JSON body
+// otherwise.
+func (s *Server) proxyStdio(w http.ResponseWriter, r *http.Request, target *Target, body []byte, path string, stream bool) {
+	var params map[string]any
+	if err := json.Unmarshal(body, &params); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid_request_error", "invalid JSON body")
+		return
+	}
+	// Only chat.completions is translated over stdio; other endpoints fall
+	// back to an error (the reference backend only implements chat).
+	if path != "/v1/chat/completions" {
+		writeErr(w, http.StatusNotImplemented, "not_implemented",
+			"stdio backends currently support /v1/chat/completions only")
+		return
+	}
+	params["stream"] = stream
+	id := newReqID()
+	messages, err := target.Session.Call(r.Context(), id, "chat.completions", params)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, "api_error",
+			fmt.Sprintf("stdio backend unavailable: %v", err))
+		return
+	}
+
+	flusher, _ := w.(http.Flusher)
+	if stream {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.WriteHeader(http.StatusOK)
+		for m := range messages {
+			switch m.Type {
+			case "chunk":
+				fmt.Fprintf(w, "data: %s\n\n", m.Data)
+				if flusher != nil {
+					flusher.Flush()
+				}
+			case "error":
+				msg := "backend error"
+				if m.Error != nil && m.Error.Message != "" {
+					msg = m.Error.Message
+				}
+				writeErrInline(w, msg)
+				return
+			case "done":
+				// Final chunk already streamed as a chunk; send sentinel.
+			}
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return
+	}
+
+	// Non-streaming: collect the final object (last chunk or done.data).
+	var final json.RawMessage
+	for m := range messages {
+		switch m.Type {
+		case "chunk":
+			final = m.Data
+		case "error":
+			msg := "backend error"
+			if m.Error != nil && m.Error.Message != "" {
+				msg = m.Error.Message
+			}
+			writeErr(w, http.StatusBadGateway, "api_error", msg)
+			return
+		case "done":
+			if len(m.Data) > 0 {
+				final = m.Data
+			}
+		}
+	}
+	if len(final) == 0 {
+		writeErr(w, http.StatusBadGateway, "api_error", "stdio backend returned no data")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(final)
+}
+
+// writeErrInline emits an SSE error event (used mid-stream).
+func writeErrInline(w http.ResponseWriter, msg string) {
+	b, _ := json.Marshal(map[string]any{"error": map[string]any{"message": msg, "type": "api_error"}})
+	fmt.Fprintf(w, "data: %s\n\n", b)
+}
+
+// newReqID makes a short unique request id for stdio correlation.
+func newReqID() string {
+	b := make([]byte, 8)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // ---- helpers ----

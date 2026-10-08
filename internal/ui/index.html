@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llmctl</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel2: #1c2330; --border: #2a3340;
+    --fg: #e6edf3; --muted: #8b98a9; --accent: #4f8cff; --accent2: #2ea043;
+    --warn: #d29922; --err: #f85149; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+  a { color: var(--accent); text-decoration: none; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  header .logo { font-weight: 700; font-size: 16px; }
+  header .logo span { color: var(--accent); }
+  header .gw { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  nav { display: flex; gap: 4px; padding: 10px 20px 0; background: var(--panel); border-bottom: 1px solid var(--border); }
+  nav button { background: none; border: none; color: var(--muted); padding: 8px 14px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
+  nav button.active { color: var(--fg); border-bottom-color: var(--accent); }
+  main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .stat .n { font-size: 26px; font-weight: 700; }
+  .stat .l { color: var(--muted); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .b-run { background: #12261e; color: var(--accent2); }
+  .b-stop { background: #232a35; color: var(--muted); }
+  .b-err { background: #2d1517; color: var(--err); }
+  .b-http { background: #132033; color: var(--accent); }
+  .b-stdio { background: #241a33; color: #bc8cff; }
+  .b-inst { background: #12261e; color: var(--accent2); }
+  .b-none { background: #232a35; color: var(--muted); }
+  button.act { background: var(--panel2); border: 1px solid var(--border); color: var(--fg); padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  button.act:hover { border-color: var(--accent); }
+  button.act.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.act.danger { color: var(--err); }
+  button.act:disabled { opacity: .5; cursor: default; }
+  input, select, textarea { background: var(--panel2); border: 1px solid var(--border); color: var(--fg); padding: 7px 10px; border-radius: 6px; font-size: 13px; width: 100%; }
+  label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 140px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .bar { height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); transition: width .3s; }
+  .toast { position: fixed; bottom: 20px; right: 20px; background: var(--panel2); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 6px; max-width: 420px; z-index: 20; }
+  .toast.err { border-left-color: var(--err); }
+  .toast.ok { border-left-color: var(--accent2); }
+  .keybox { background: #0a0d12; border: 1px dashed var(--accent); border-radius: 6px; padding: 12px; font-family: var(--mono); font-size: 13px; word-break: break-all; margin-top: 10px; }
+  .empty { color: var(--muted); padding: 20px; text-align: center; }
+  code { font-family: var(--mono); background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">llm<span>ctl</span></div>
+  <div class="gw" id="gw"></div>
+</header>
+<nav id="nav">
+  <button data-v="overview" class="active">Overview</button>
+  <button data-v="backends">Backends</button>
+  <button data-v="models">Models</button>
+  <button data-v="instances">Instances</button>
+  <button data-v="keys">API Keys</button>
+</nav>
+<main id="view"></main>
+<div id="toasts"></div>
+
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let state = { view: "overview", backends: [], models: [], instances: [], jobs: [], keys: [], status: {} };
+let evtSrc = null;
+
+async function api(path, opts={}) {
+  const r = await fetch("/api/v1" + path, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!r.ok) throw new Error((data && data.error) || (typeof data === "string" ? data : r.status));
+  return data;
+}
+
+function toast(msg, kind="") {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = msg;
+  $("#toasts").appendChild(el);
+  setTimeout(() => el.remove(), kind === "err" ? 8000 : 4000);
+}
+
+function fmtBytes(n) {
+  if (!n) return "";
+  const u = ["B","KB","MB","GB","TB"]; let i = 0;
+  while (n >= 1024 && i < u.length-1) { n /= 1024; i++; }
+  return n.toFixed(n < 10 && i > 1 ? 1 : 0) + " " + u[i];
+}
+
+async function refresh() {
+  try {
+    const [status, backends, models, instances, jobs, keys] = await Promise.all([
+      api("/status"), api("/backends"), api("/models"), api("/instances"), api("/jobs"), api("/keys"),
+    ]);
+    Object.assign(state, { status, backends, models, instances, jobs, keys });
+    $("#gw").textContent = "gateway " + (status.gateway || "");
+    render();
+  } catch (e) { console.error(e); }
+}
+
+function render() {
+  const v = state.view;
+  const el = $("#view");
+  if (v === "overview") el.innerHTML = viewOverview();
+  else if (v === "backends") el.innerHTML = viewBackends();
+  else if (v === "models") el.innerHTML = viewModels();
+  else if (v === "instances") el.innerHTML = viewInstances();
+  else if (v === "keys") el.innerHTML = viewKeys();
+  bind();
+}
+
+function viewOverview() {
+  const s = state.status, run = state.instances.filter(i => i.status === "running");
+  const activeJobs = state.jobs.filter(j => j.status === "running");
+  return `
+  <div class="card"><h2>Status</h2>
+    <div class="grid">
+      <div class="stat"><div class="n">${s.backends ?? 0}</div><div class="l">backends installed</div></div>
+      <div class="stat"><div class="n">${s.models ?? 0}</div><div class="l">models downloaded</div></div>
+      <div class="stat"><div class="n">${run.length}</div><div class="l">instances running</div></div>
+      <div class="stat"><div class="n">${activeJobs.length}</div><div class="l">jobs in progress</div></div>
+    </div>
+  </div>
+  <div class="card"><h2>Running instances</h2>
+    ${run.length ? `<table><tr><th>instance</th><th>model</th><th>backend</th><th>transport</th><th>port</th><th></th></tr>
+      ${run.map(i => `<tr><td class="mono">${esc(i.id)}</td><td>${esc(i.modelId)}</td><td>${esc(i.backendId)}</td>
+        <td><span class="badge b-${i.transport}">${i.transport}</span></td><td>${i.port || "—"}</td>
+        <td><button class="act danger" data-stop="${esc(i.id)}">stop</button></td></tr>`).join("")}
+    </table>` : `<div class="empty">no instances running</div>`}
+  </div>
+  ${activeJobs.length ? `<div class="card"><h2>Active jobs</h2>${activeJobs.map(jobRow).join("")}</div>` : ""}`;
+}
+
+function jobRow(j) {
+  const pct = Math.round((j.progress || 0) * 100);
+  const badge = j.status === "running" ? `<span class="badge b-run">running</span>` :
+                j.status === "done" ? `<span class="badge b-inst">done</span>` : `<span class="badge b-err">error</span>`;
+  return `<div style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;font-size:13px">
+      <span>${esc(j.kind)} <span class="mono">${esc(j.target)}</span> ${badge}</span>
+      <span class="mono">${pct}%</span>
+    </div>
+    <div class="bar" style="margin:6px 0"><div style="width:${pct}%"></div></div>
+    <div class="hint mono">${esc(j.message || j.error || "")}</div>
+  </div>`;
+}
+
+function viewBackends() {
+  return `
+  <div class="card"><h2>Backends</h2>
+    <table><tr><th>id</th><th>description</th><th>transport</th><th>kind</th><th>status</th><th></th></tr>
+    ${state.backends.map(b => `
+      <tr>
+        <td class="mono">${esc(b.id)} ${b.plugin ? '<span class="badge b-stdio">plugin</span>' : ""}</td>
+        <td>${esc(b.description)}</td>
+        <td><span class="badge b-${b.transport}">${b.transport}</span></td>
+        <td>${b.kind}</td>
+        <td>${b.installed ? `<span class="badge b-inst">installed ${esc(b.version||"")}</span>` : '<span class="badge b-none">not installed</span>'}</td>
+        <td>
+          ${b.installed
+            ? `<button class="act danger" data-uninstall="${esc(b.id)}" ${b.plugin?"":"disabled"} title="${b.plugin?"":"built-in" }">uninstall</button>`
+            : `<button class="act primary" data-install="${esc(b.id)}">install</button>`}
+        </td>
+      </tr>`).join("")}
+    </table>
+  </div>
+  <div class="card"><h2>Add plugin backend</h2>
+    <p class="hint">Pluggable backends are JSON descriptors — no recompile. HTTP or stdio transport, installed from a URL, GitHub release, or file list.</p>
+    <label>Plugin JSON</label>
+    <textarea id="plugin-json" rows="8" class="mono" placeholder='{"id":"my-backend","name":"My Backend","transport":"http","kind":"process","binary":"my-server","args":["--port","{port}","--model","{model}"],"healthPath":"/health","install":{"kind":"github-release","repo":"owner/repo","binaryName":"my-server"}}'></textarea>
+    <div style="margin-top:10px"><button class="act primary" id="add-plugin">Add plugin</button></div>
+  </div>`;
+}
+
+function viewModels() {
+  return `
+  <div class="card"><h2>Installed models</h2>
+    ${state.models.length ? `<table><tr><th>id</th><th>backend</th><th>size</th><th>instances</th><th></th></tr>
+      ${state.models.map(m => `<tr>
+        <td class="mono">${esc(m.id)}</td><td>${esc(m.backendId)}</td><td>${fmtBytes(m.sizeBytes)}</td>
+        <td>${m.running ? '<span class="badge b-run">running</span>' : (m.instances?.length || "")}</td>
+        <td><button class="act danger" data-delmodel="${esc(m.id)}" ${m.running?"disabled":""}>delete</button></td>
+      </tr>`).join("")}
+    </table>` : `<div class="empty">no models downloaded yet</div>`}
+  </div>
+  <div class="card"><h2>Download from HuggingFace</h2>
+    <div class="row">
+      <div style="flex:2"><label>Search</label><input id="hf-q" placeholder="e.g. qwen2.5 1.5b gguf"></div>
+      <div style="flex:1;align-self:flex-end"><button class="act" id="hf-search">Search</button></div>
+    </div>
+    <div id="hf-results" style="margin-top:12px"></div>
+  </div>
+  <div class="card"><h2>Install a model</h2>
+    <div class="row">
+      <div><label>Repo (owner/name) or direct URL</label><input id="m-repo" placeholder="Qwen/Qwen2.5-1.5B-Instruct-GGUF"></div>
+      <div><label>File</label><input id="m-file" placeholder="qwen2.5-1.5b-instruct-q4_k_m.gguf"></div>
+    </div>
+    <div class="row">
+      <div><label>Revision</label><input id="m-rev" placeholder="main"></div>
+      <div><label>Backend</label><select id="m-backend">
+        ${state.backends.map(b => `<option value="${esc(b.id)}">${esc(b.id)} (${b.transport})</option>`).join("")}
+      </select></div>
+      <div><label>Model id (optional)</label><input id="m-id" placeholder="auto"></div>
+    </div>
+    <div style="margin-top:12px"><button class="act primary" id="install-model">Download model</button></div>
+    <p class="hint">Lists GGUF files in a repo: <a href="#" id="list-files">list files for the repo above</a></p>
+    <div id="file-list" style="margin-top:10px"></div>
+  </div>`;
+}
+
+function viewInstances() {
+  return `
+  <div class="card"><h2>Instances</h2>
+    ${state.instances.length ? `<table><tr><th>instance</th><th>model</th><th>backend</th><th>transport</th><th>port</th><th>status</th><th>vars</th><th></th></tr>
+      ${state.instances.map(i => `<tr>
+        <td class="mono">${esc(i.id)}</td><td>${esc(i.modelId)}</td><td>${esc(i.backendId)}</td>
+        <td><span class="badge b-${i.transport}">${i.transport}</span></td>
+        <td>${i.port || "—"}</td>
+        <td><span class="badge ${i.status==="running"?"b-run":i.status==="error"?"b-err":"b-stop"}">${i.status}</span></td>
+        <td class="mono" style="font-size:11px">${esc(Object.entries(i.vars||{}).map(([k,v])=>k+"="+v).join(" "))}</td>
+        <td>${i.status==="running" ? `<button class="act danger" data-stop="${esc(i.id)}">stop</button>` : ""}</td>
+      </tr>`).join("")}
+    </table>` : `<div class="empty">no instances</div>`}
+  </div>
+  <div class="card"><h2>Start an instance</h2>
+    <div class="row">
+      <div><label>Model</label><select id="i-model">
+        ${state.models.map(m => `<option value="${esc(m.id)}">${esc(m.id)}</option>`).join("")}
+      </select></div>
+      <div><label>Backend</label><select id="i-backend">
+        ${state.backends.map(b => `<option value="${esc(b.id)}">${esc(b.id)}</option>`).join("")}
+      </select></div>
+      <div><label>Instance name (optional)</label><input id="i-name" placeholder="= model id"></div>
+    </div>
+    <div class="row">
+      <div><label>ctx (context size)</label><input id="i-ctx" placeholder="4096"></div>
+      <div><label>ngl (GPU layers, 0=CPU)</label><input id="i-ngl" placeholder="0"></div>
+      <div><label>parallel (slots)</label><input id="i-par" placeholder="4"></div>
+    </div>
+    <div class="row">
+      <div><label>threads (optional)</label><input id="i-thr" placeholder="auto"></div>
+      <div><label>extra url (attach backends)</label><input id="i-url" placeholder="http://127.0.0.1:11434"></div>
+    </div>
+    <div style="margin-top:12px"><button class="act primary" id="start-inst">Start instance</button>
+    <span class="hint" style="margin-left:10px">starting loads the model; this can take a minute</span></div>
+  </div>`;
+}
+
+function viewKeys() {
+  return `
+  <div class="card"><h2>API keys</h2>
+    ${state.keys.length ? `<table><tr><th>name</th><th>prefix</th><th>created</th><th></th></tr>
+      ${state.keys.map(k => `<tr><td>${esc(k.name)}</td><td class="mono">${esc(k.prefix)}…</td><td>${new Date(k.createdAt).toLocaleString()}</td>
+        <td><button class="act danger" data-revoke="${esc(k.id)}">revoke</button></td></tr>`).join("")}
+    </table>` : `<div class="empty">no keys — create one to call the gateway</div>`}
+  </div>
+  <div class="card"><h2>Create a key</h2>
+    <div class="row"><div><label>Name</label><input id="k-name" placeholder="my-app"></div>
+    <div style="align-self:flex-end"><button class="act primary" id="create-key">Generate</button></div></div>
+    <div id="key-out"></div>
+  </div>
+  <div class="card"><h2>Using the gateway</h2>
+    <p class="mono">POST ${esc(state.status.gateway || "http://127.0.0.1:8080")}/v1/chat/completions<br>
+    Authorization: Bearer &lt;your-key&gt;<br>
+    {"model":"&lt;model-id&gt;","messages":[{"role":"user","content":"hi"}]}</p>
+  </div>`;
+}
+
+function bind() {
+  $$("#nav button").forEach(b => b.onclick = () => {
+    state.view = b.dataset.v;
+    $$("#nav button").forEach(x => x.classList.toggle("active", x === b));
+    render();
+  });
+  $$("[data-install]").forEach(b => b.onclick = async () => {
+    toast("installing " + b.dataset.install + "…");
+    try { await api("/backends/" + encodeURIComponent(b.dataset.install) + "/install", { method: "POST" }); toast("install started", "ok"); }
+    catch (e) { toast(e.message, "err"); }
+    setTimeout(refresh, 1500);
+  });
+  $$("[data-uninstall]").forEach(b => b.onclick = async () => {
+    if (!confirm("Uninstall " + b.dataset.uninstall + "?")) return;
+    try { await api("/backends/" + encodeURIComponent(b.dataset.uninstall) + "/uninstall", { method: "POST" }); toast("uninstalled", "ok"); refresh(); }
+    catch (e) { toast(e.message, "err"); }
+  });
+  $$("[data-delmodel]").forEach(b => b.onclick = async () => {
+    if (!confirm("Delete model " + b.dataset.delmodel + "?")) return;
+    try { await api("/models/" + encodeURIComponent(b.dataset.delmodel), { method: "DELETE" }); toast("deleted", "ok"); refresh(); }
+    catch (e) { toast(e.message, "err"); }
+  });
+  $$("[data-stop]").forEach(b => b.onclick = async () => {
+    try { await api("/instances/" + encodeURIComponent(b.dataset.stop), { method: "DELETE" }); toast("stopped", "ok"); refresh(); }
+    catch (e) { toast(e.message, "err"); }
+  });
+  $$("[data-revoke]").forEach(b => b.onclick = async () => {
+    if (!confirm("Revoke this key?")) return;
+    try { await api("/keys/" + encodeURIComponent(b.dataset.revoke), { method: "DELETE" }); toast("revoked", "ok"); refresh(); }
+    catch (e) { toast(e.message, "err"); }
+  });
+
+  const addPlugin = $("#add-plugin");
+  if (addPlugin) addPlugin.onclick = async () => {
+    let m; try { m = JSON.parse($("#plugin-json").value); } catch (e) { toast("invalid JSON: " + e.message, "err"); return; }
+    try { await api("/backends", { method: "POST", body: m }); toast("plugin added: " + m.id, "ok"); refresh(); }
+    catch (e) { toast(e.message, "err"); }
+  };
+
+  const hfSearch = $("#hf-search");
+  if (hfSearch) hfSearch.onclick = doHfSearch;
+  const hfq = $("#hf-q"); if (hfq) hfq.onkeydown = e => { if (e.key === "Enter") doHfSearch(); };
+  const lf = $("#list-files");
+  if (lf) lf.onclick = async (e) => {
+    e.preventDefault();
+    const repo = $("#m-repo").value.trim(); if (!repo) return toast("enter a repo first", "err");
+    try {
+      const files = await api("/hf/files?repo=" + encodeURIComponent(repo) + "&revision=" + encodeURIComponent($("#m-rev").value));
+      $("#file-list").innerHTML = files.length
+        ? `<div class="hint">GGUF files in ${esc(repo)}:</div>` + files.map(f =>
+            `<div style="padding:4px 0"><label class="mono" style="margin:0;cursor:pointer"><input type="radio" name="hf-file" value="${esc(f.path)}" style="width:auto;margin-right:8px"> ${esc(f.path)} <span class="hint">(${fmtBytes(f.sizeBytes)})</span></label></div>`).join("")
+        : `<div class="empty">no .gguf files found</div>`;
+    } catch (e) { toast(e.message, "err"); }
+  };
+
+  const im = $("#install-model");
+  if (im) im.onclick = async () => {
+    const repo = $("#m-repo").value.trim(); if (!repo) return toast("repo required", "err");
+    let file = $("#m-file").value.trim();
+    const radio = $('input[name="hf-file"]:checked');
+    if (radio) file = radio.value;
+    if (!file && !repo.startsWith("http")) return toast("file required (or a direct URL)", "err");
+    const body = { repo, file, revision: $("#m-rev").value.trim(), backend: $("#m-backend").value, id: $("#m-id").value.trim() };
+    try { const r = await api("/models/install", { method: "POST", body }); toast("downloading " + r.model + "…", "ok"); setTimeout(refresh, 1500); }
+    catch (e) { toast(e.message, "err"); }
+  };
+
+  const si = $("#start-inst");
+  if (si) si.onclick = async () => {
+    const vars = {};
+    for (const [k, id] of [["ctx","i-ctx"],["ngl","i-ngl"],["parallel","i-par"],["threads","i-thr"],["url","i-url"]]) {
+      const v = $("#" + id).value.trim(); if (v) vars[k] = v;
+    }
+    const body = { model: $("#i-model").value, backend: $("#i-backend").value, instance: $("#i-name").value.trim(), vars };
+    si.disabled = true; si.textContent = "starting…";
+    try { const r = await api("/instances", { method: "POST", body }); toast("running: " + r.id, "ok"); refresh(); }
+    catch (e) { toast(e.message, "err"); }
+    finally { si.disabled = false; si.textContent = "Start instance"; }
+  };
+
+  const ck = $("#create-key");
+  if (ck) ck.onclick = async () => {
+    try {
+      const r = await api("/keys", { method: "POST", body: { name: $("#k-name").value.trim() } });
+      $("#key-out").innerHTML = `<div class="keybox">${esc(r.key)}</div><p class="hint">Copy it now — it won't be shown again.</p>`;
+      refresh();
+    } catch (e) { toast(e.message, "err"); }
+  };
+}
+
+async function doHfSearch() {
+  const q = $("#hf-q").value.trim(); if (!q) return;
+  const box = $("#hf-results"); box.innerHTML = `<div class="hint">searching…</div>`;
+  try {
+    const res = await api("/hf/search?q=" + encodeURIComponent(q) + "&limit=15");
+    const models = (res || []).filter(m => /gguf/i.test(m.modelId || m.id || ""));
+    box.innerHTML = models.length
+      ? `<div class="hint">${models.length} GGUF repos (top by downloads):</div>` + models.map(m => {
+          const id = m.modelId || m.id;
+          return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+            <a href="https://huggingface.co/${esc(id)}" target="_blank" rel="noopener">${esc(id)}</a>
+            <button class="act" style="margin-left:8px" data-pick="${esc(id)}">use</button>
+          </div>`;
+        }).join("")
+      : `<div class="empty">no GGUF repos matched</div>`;
+    $$("[data-pick]", box).forEach(b => b.onclick = () => {
+      state.view = "models"; $$("#nav button").forEach(x => x.classList.toggle("active", x.dataset.v === "models"));
+      render(); $("#m-repo").value = b.dataset.pick; toast("repo set — pick a file and download", "ok");
+    });
+  } catch (e) { box.innerHTML = `<div class="empty">search failed: ${esc(e.message)}</div>`; }
+}
+
+// Live job progress via SSE.
+function connectEvents() {
+  if (evtSrc) evtSrc.close();
+  evtSrc = new EventSource("/api/v1/jobs/events");
+  evtSrc.onmessage = () => refresh();
+  evtSrc.addEventListener("snapshot", () => refresh());
+  evtSrc.addEventListener("progress", () => refresh());
+  evtSrc.addEventListener("done", () => refresh());
+  evtSrc.addEventListener("error", () => refresh());
+  evtSrc.onerror = () => { evtSrc.close(); setTimeout(connectEvents, 3000); };
+}
+
+refresh();
+connectEvents();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

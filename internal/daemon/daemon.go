@@ -1,6 +1,13 @@
-// Package daemon wires the gateway, supervisor, and a localhost control
-// API into one process. The CLI talks to the control API; long operations
-// (installs/downloads) run in the CLI itself and only mutate state.json.
+// Package daemon wires the OpenAI gateway, the management API, the embedded
+// UI, and the process supervisor into ONE process and ONE port.
+//
+//	/v1/*            OpenAI-compatible gateway (auth + rate limit + routing)
+//	/healthz         gateway liveness
+//	/api/v1/*        management API (backends, models, instances, keys, jobs)
+//	/*               embedded web UI
+//
+// The CLI talks to the management API; long operations (installs, downloads)
+// run as tracked jobs inside the daemon and stream progress over SSE.
 package daemon
 
 import (
@@ -18,19 +25,21 @@ import (
 	"syscall"
 	"time"
 
-	"llmctl/internal/manifest"
+	"llmctl/internal/api"
+	"llmctl/internal/backend"
+	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
+	"llmctl/internal/ui"
 )
 
 // DaemonFile records where the running daemon listens.
 type DaemonFile struct {
-	GatewayAddr  string `json:"gatewayAddr"`
-	ControlAddr  string `json:"controlAddr"`
-	PID          int    `json:"pid"`
-	StartedAt    time.Time `json:"startedAt"`
+	Addr      string    `json:"addr"`
+	PID       int       `json:"pid"`
+	StartedAt time.Time `json:"startedAt"`
 }
 
 func daemonFilePath() string { return paths.Home() + string(os.PathSeparator) + "daemon.json" }
@@ -45,24 +54,22 @@ func ReadDaemonFile() *DaemonFile {
 	if json.Unmarshal(b, d) != nil {
 		return nil
 	}
-	// Stale file check: is the PID alive?
 	if !supervisor.ProcessAlive(d.PID) {
 		return nil
 	}
 	return d
 }
 
-// Options for running the daemon in the foreground.
+// Options for running the daemon.
 type Options struct {
-	GatewayAddr string // e.g. ":8080"
-	ControlAddr string // e.g. "127.0.0.1:8081"
-	APIKeys     []string
+	Addr        string   // single address, e.g. ":8080"
+	APIKeys     []string // static gateway keys (in addition to stored keys)
 	RateRPS     float64
 	RateBurst   int
 	MaxInflight int
 }
 
-// Run starts everything and blocks until SIGINT/SIGTERM.
+// Run starts everything on one port and blocks until SIGINT/SIGTERM.
 func Run(ctx context.Context, opts Options) error {
 	logger := newLogger()
 	if err := paths.EnsureDirs(); err != nil {
@@ -72,7 +79,7 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
-	reg, err := manifest.Builtin()
+	reg, err := backend.NewRegistry()
 	if err != nil {
 		return err
 	}
@@ -82,6 +89,7 @@ func Run(ctx context.Context, opts Options) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	jm := jobs.NewManager()
 	sv := supervisor.New(st, reg, logger)
 	go sv.ReapLoop(ctx)
 
@@ -96,11 +104,20 @@ func Run(ctx context.Context, opts Options) error {
 		}
 		return s, mod, nil
 	}
-	router := proxy.NewRouter(loadState)
+	router := proxy.NewRouter(loadState, sv.Session)
 
+	// Resolve the actual port (for :0) so the API can report client URLs.
+	ln, err := net.Listen("tcp", opts.Addr)
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", opts.Addr, err)
+	}
+	gwPort := ln.Addr().(*net.TCPAddr).Port
+
+	mgmt := api.New(st, reg, sv, jm, logger, gwPort, cancel)
 	gw, err := proxy.NewServer(proxy.Config{
-		Addr:        opts.GatewayAddr,
+		Addr:        opts.Addr,
 		APIKeys:     opts.APIKeys,
+		KeyCheck:    mgmt.KeyCheck,
 		RateRPS:     opts.RateRPS,
 		RateBurst:   opts.RateBurst,
 		MaxInflight: opts.MaxInflight,
@@ -110,32 +127,23 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 
-	control := &controlAPI{st: st, sv: sv, reg: reg, logger: logger, cancel: cancel}
-	ctrlSrv := &http.Server{
-		Addr:              opts.ControlAddr,
-		Handler:           control.mux(),
-		ReadHeaderTimeout: 10 * time.Second,
+	// One mux: gateway + management API + UI.
+	root := http.NewServeMux()
+	root.Handle("/api/v1/", mgmt.Handler())
+	root.Handle("/v1/", gw.Handler())
+	root.Handle("/healthz", gw.Handler())
+	root.Handle("/", ui.Handler())
+
+	srv := &http.Server{
+		Handler:           root,
+		ReadHeaderTimeout: 30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
-	errCh := make(chan error, 2)
-	go func() { errCh <- gw.ListenAndServe(ctx) }()
-	go func() {
-		ln, err := net.Listen("tcp", opts.ControlAddr)
-		if err != nil {
-			errCh <- fmt.Errorf("control listen: %w", err)
-			return
-		}
-		logger.Info("control API listening", "addr", opts.ControlAddr)
-		errCh <- ctrlSrv.Serve(ln)
-	}()
-
-	// Resolve actual ports (for :0) and publish the daemon file.
-	gwAddr := resolveAddr(opts.GatewayAddr, 8080)
-	ctrlAddr := resolveAddr(opts.ControlAddr, 8081)
-	df := &DaemonFile{GatewayAddr: gwAddr, ControlAddr: ctrlAddr, PID: os.Getpid(), StartedAt: time.Now()}
+	df := &DaemonFile{Addr: ln.Addr().String(), PID: os.Getpid(), StartedAt: time.Now()}
 	b, _ := json.Marshal(df)
 	os.WriteFile(daemonFilePath(), b, 0o644)
-	logger.Info("llmctl daemon up", "gateway", gwAddr, "control", ctrlAddr)
+	logger.Info("llmctl daemon up", "addr", df.Addr)
 
 	defer func() {
 		os.Remove(daemonFilePath())
@@ -143,115 +151,17 @@ func Run(ctx context.Context, opts Options) error {
 		sv.StopAll()
 	}()
 
-	select {
-	case <-ctx.Done():
+	go func() {
+		<-ctx.Done()
+		ctx2, c := context.WithTimeout(context.Background(), 5*time.Second)
+		defer c()
+		srv.Shutdown(ctx2)
+	}()
+	err = srv.Serve(ln)
+	if err == http.ErrServerClosed {
 		return nil
-	case err := <-errCh:
-		return err
 	}
-}
-
-func resolveAddr(addr string, fallback int) string {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil || port != "0" {
-		return addr
-	}
-	return fmt.Sprintf("%s:%d", host, fallback)
-}
-
-// ---- control API ----
-
-type controlAPI struct {
-	st     *store.Store
-	sv     *supervisor.Supervisor
-	reg    *manifest.Registry
-	logger *slog.Logger
-	cancel   func() // cancels the daemon context
-}
-
-func (c *controlAPI) mux() *http.ServeMux {
-	m := http.NewServeMux()
-	m.HandleFunc("GET /_control/status", c.status)
-	m.HandleFunc("GET /_control/instances", c.listInstances)
-	m.HandleFunc("POST /_control/start", c.start)
-	m.HandleFunc("POST /_control/stop", c.stop)
-	m.HandleFunc("POST /_control/shutdown", c.shutdown)
-	m.HandleFunc("GET /_control/catalog", c.catalog)
-	return m
-}
-
-// shutdown triggers graceful daemon exit (used by `llmctl down`).
-func (c *controlAPI) shutdown(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, map[string]any{"ok": true})
-	if c.cancel != nil {
-		go func() { time.Sleep(100 * time.Millisecond); c.cancel() }()
-	}
-}
-
-func (c *controlAPI) status(w http.ResponseWriter, r *http.Request) {
-	st, _ := c.st.Load()
-	writeJSON(w, 200, map[string]any{
-		"ok": true, "backends": len(st.Backends), "models": len(st.Models),
-		"instances": len(st.Instances),
-	})
-}
-
-func (c *controlAPI) catalog(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, c.reg)
-}
-
-func (c *controlAPI) listInstances(w http.ResponseWriter, r *http.Request) {
-	st, err := c.st.Load()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	writeJSON(w, 200, st.Instances)
-}
-
-func (c *controlAPI) start(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Instance string            `json:"instance"`
-		Model    string            `json:"model"`
-		Port     int               `json:"port"`
-		Vars     map[string]string `json:"vars"`
-	}
-	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req) != nil || req.Model == "" {
-		http.Error(w, `{"error":"model required"}`, 400)
-		return
-	}
-	id := req.Instance
-	if id == "" {
-		id = req.Model
-	}
-	inst, err := c.sv.Start(r.Context(), id, req.Model, req.Port, req.Vars)
-	if err != nil {
-		http.Error(w, err.Error(), 409)
-		return
-	}
-	writeJSON(w, 200, inst)
-}
-
-func (c *controlAPI) stop(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Instance string `json:"instance"`
-		Force    bool   `json:"force"`
-	}
-	if json.NewDecoder(r.Body).Decode(&req) != nil || req.Instance == "" {
-		http.Error(w, `{"error":"instance required"}`, 400)
-		return
-	}
-	if err := c.sv.Stop(req.Instance, req.Force); err != nil {
-		http.Error(w, err.Error(), 409)
-		return
-	}
-	writeJSON(w, 200, map[string]any{"ok": true})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+	return err
 }
 
 func newLogger() *slog.Logger {
@@ -273,26 +183,37 @@ func NewControlClient() (*ControlClient, error) {
 	if d == nil {
 		return nil, errors.New("daemon not running (start with: llmctl up)")
 	}
-	return &ControlClient{Base: "http://" + d.ControlAddr, hc: &http.Client{Timeout: 10 * time.Minute}}, nil
+	return &ControlClient{Base: "http://" + d.Addr, hc: &http.Client{Timeout: 10 * time.Minute}}, nil
+}
+
+func (cc *ControlClient) Do(method, path string, body any) (int, []byte, error) {
+	var rdr io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		rdr = strings.NewReader(string(b))
+	}
+	req, err := http.NewRequest(method, cc.Base+path, rdr)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := cc.hc.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	out, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, out, nil
 }
 
 func (cc *ControlClient) Post(path string, body any) (int, []byte, error) {
-	b, _ := json.Marshal(body)
-	resp, err := cc.hc.Post(cc.Base+path, "application/json", strings.NewReader(string(b)))
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-	out, _ := io.ReadAll(resp.Body)
-	return resp.StatusCode, out, nil
+	return cc.Do(http.MethodPost, path, body)
 }
 
 func (cc *ControlClient) Get(path string) (int, []byte, error) {
-	resp, err := cc.hc.Get(cc.Base + path)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-	out, _ := io.ReadAll(resp.Body)
-	return resp.StatusCode, out, nil
+	return cc.Do(http.MethodGet, path, nil)
+}
+
+func (cc *ControlClient) Delete(path string) (int, []byte, error) {
+	return cc.Do(http.MethodDelete, path, nil)
 }

@@ -13,7 +13,6 @@ import (
 
 	"llmctl/internal/paths"
 )
-
 // Status values shared across record types.
 const (
 	StatusInstalled = "installed"
@@ -44,6 +43,8 @@ type InstanceRecord struct {
 	ModelID   string            `json:"modelId"`
 	BackendID string            `json:"backendId"`
 	Port      int               `json:"port"`
+	// Transport: "http" (reverse-proxied) or "stdio" (IPC session).
+	Transport   string          `json:"transport,omitempty"`
 	// APIBasePath is the upstream OpenAI-compatible root, e.g. "/v1".
 	APIBasePath string          `json:"apiBasePath"`
 	Status    string            `json:"status"`
@@ -55,14 +56,30 @@ type InstanceRecord struct {
 	LastError string            `json:"lastError,omitempty"`
 }
 
+// BaseURL returns the HTTP base for an http-transport instance.
+func (i *InstanceRecord) BaseURL() string {
+	return fmt.Sprintf("http://127.0.0.1:%d", i.Port)
+}
+
+// APIKeyRecord is a gateway API key, stored as a sha256 hash (plaintext is
+// shown to the user exactly once, at creation).
+type APIKeyRecord struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Hash      string    `json:"hash"` // sha256 hex of the plaintext key
+	Prefix    string    `json:"prefix"` // first 12 chars, for display
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 type State struct {
-	Backends map[string]*BackendRecord  `json:"backends"`
-	Models   map[string]*ModelRecord    `json:"models"`
-	Instances map[string]*InstanceRecord `json:"instances"`
+	Backends  map[string]*BackendRecord    `json:"backends"`
+	Models    map[string]*ModelRecord      `json:"models"`
+	Instances map[string]*InstanceRecord   `json:"instances"`
+	APIKeys   map[string]*APIKeyRecord     `json:"apiKeys"`
 }
 
 func newState() *State {
-	return &State{Backends: map[string]*BackendRecord{}, Models: map[string]*ModelRecord{}, Instances: map[string]*InstanceRecord{}}
+	return &State{Backends: map[string]*BackendRecord{}, Models: map[string]*ModelRecord{}, Instances: map[string]*InstanceRecord{}, APIKeys: map[string]*APIKeyRecord{}}
 }
 
 // Store is a lock-guarded handle on state.json.
