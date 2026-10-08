@@ -1,0 +1,168 @@
+{
+  "backends": [
+    {
+      "id": "llama.cpp",
+      "name": "llama.cpp (llama-server)",
+      "description": "CPU+GPU GGUF inference from ggml-org/llama.cpp. CPU, CUDA, and Vulkan builds; ships its own OpenAI-compatible server.",
+      "formats": ["gguf"],
+      "binary": {
+        "kind": "github-release",
+        "url": "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+        "assetMatch": {
+          "windows": "cublas",
+          "linux": "cuda-cu12",
+          "darwin": "os-arm64"
+        },
+        "extract": "zip",
+        "binaryName": "llama-server"
+      },
+      "runtime": {
+        "portFlag": "--port {port}",
+        "modelFlag": "--model {model}",
+        "argsTemplate": "--host 127.0.0.1 --ctx-size {ctx} --n-gpu-layers {ngl}",
+        "vars": [
+          { "name": "ctx", "default": "4096" },
+          { "name": "ngl", "default": "99" }
+        ],
+        "healthPath": "/health",
+        "healthTimeoutS": 180,
+        "stopGraceS": 10
+      }
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama (attach)",
+      "description": "Attach to an already-running Ollama daemon. llmctl proxies it; model pulls stay in ollama. Install ollama.com separately.",
+      "formats": ["gguf", "safetensors"],
+      "binary": { "kind": "path", "binaryName": "ollama" },
+      "runtime": {
+        "portFlag": "",
+        "modelFlag": "",
+        "healthPath": "/api/version",
+        "healthTimeoutS": 10,
+        "chatCompletionsPath": "/v1/chat/completions"
+      }
+    },
+    {
+      "id": "vllm",
+      "name": "vLLM (attach)",
+      "description": "Attach to a running vLLM OpenAI server (Linux + NVIDIA, pip install vllm). Highest-throughput continuous-batching engine.",
+      "formats": ["safetensors"],
+      "requiresGpu": true,
+      "binary": { "kind": "path", "binaryName": "vllm" },
+      "runtime": {
+        "portFlag": "--port {port}",
+        "modelFlag": "",
+        "argsTemplate": "serve {model_dir} --host 127.0.0.1 --tensor-parallel-size {tp}",
+        "vars": [{ "name": "tp", "default": "1" }],
+        "healthPath": "/health",
+        "healthTimeoutS": 600
+      }
+    },
+    {
+      "id": "custom",
+      "name": "Custom OpenAI-compatible server (attach)",
+      "description": "Point llmctl at any OpenAI-compatible server already running (LM Studio, TGI, Triton, remote host).",
+      "binary": { "kind": "path", "binaryName": "" },
+      "runtime": {
+        "portFlag": "",
+        "modelFlag": "",
+        "healthPath": "/v1/models",
+        "healthTimeoutS": 10
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "qwen2.5-1.5b-instruct-q4",
+      "name": "Qwen2.5 1.5B Instruct Q4_K_M",
+      "backend": "llama.cpp",
+      "format": "gguf",
+      "sizeGB": 1.0,
+      "contextLength": 4096,
+      "source": {
+        "kind": "huggingface",
+        "repo": "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+        "filename": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        "quant": "Q4_K_M",
+        "license": "apache-2.0"
+      }
+    },
+    {
+      "id": "qwen2.5-7b-instruct-q4",
+      "name": "Qwen2.5 7B Instruct Q4_K_M",
+      "backend": "llama.cpp",
+      "format": "gguf",
+      "sizeGB": 4.7,
+      "minVRAMGB": 6,
+      "contextLength": 8192,
+      "source": {
+        "kind": "huggingface",
+        "repo": "ggml-org/Qwen2.5-7B-Instruct-GGUF",
+        "filename": "qwen2.5-7b-instruct-q4_k_m.gguf",
+        "quant": "Q4_K_M",
+        "license": "apache-2.0"
+      }
+    },
+    {
+      "id": "llama3.2-3b-instruct-q4",
+      "name": "Llama 3.2 3B Instruct Q4_K_M",
+      "backend": "llama.cpp",
+      "format": "gguf",
+      "sizeGB": 2.0,
+      "contextLength": 4096,
+      "source": {
+        "kind": "huggingface",
+        "repo": "ggml-org/Llama-3.2-3B-Instruct-GGUF",
+        "filename": "llama-3.2-3b-instruct-q4_k_m.gguf",
+        "quant": "Q4_K_M",
+        "license": "llama3.2"
+      }
+    },
+    {
+      "id": "phi3.5-mini-q4",
+      "name": "Phi-3.5 Mini 3.8B Instruct Q4_K_M",
+      "backend": "llama.cpp",
+      "format": "gguf",
+      "sizeGB": 2.2,
+      "contextLength": 4096,
+      "source": {
+        "kind": "huggingface",
+        "repo": "ggml-org/Phi-3.5-mini-instruct-GGUF",
+        "filename": "Phi-3.5-mini-instruct-Q4_K_M.gguf",
+        "quant": "Q4_K_M",
+        "license": "mit"
+      }
+    },
+    {
+      "id": "deepseek-r1-1.5b-distill-q4",
+      "name": "DeepSeek-R1-Distill Qwen2-1.5B Q4_K_M",
+      "backend": "llama.cpp",
+      "format": "gguf",
+      "sizeGB": 1.1,
+      "contextLength": 4096,
+      "source": {
+        "kind": "huggingface",
+        "repo": "ggml-org/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
+        "filename": "DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
+        "quant": "Q4_K_M",
+        "license": "mit"
+      }
+    },
+    {
+      "id": "gemma2-2b-it-q4",
+      "name": "Gemma 2 2B Instruct Q4_K_M",
+      "backend": "llama.cpp",
+      "format": "gguf",
+      "sizeGB": 1.6,
+      "contextLength": 4096,
+      "source": {
+        "kind": "huggingface",
+        "repo": "ggml-org/gemma-2-2b-it-GGUF",
+        "filename": "gemma-2-2b-it-Q4_K_M.gguf",
+        "quant": "Q4_K_M",
+        "license": "gemma"
+      }
+    }
+  ]
+}
