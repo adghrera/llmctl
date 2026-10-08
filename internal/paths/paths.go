@@ -33,13 +33,19 @@ func LogsDir() string     { return filepath.Join(Home(), "logs") }
 func BackendDir(id string) string { return filepath.Join(BackendsDir(), id) }
 func ModelDir(id string) string   { return filepath.Join(ModelsDir(), id) }
 func InstanceLogDir(id string) string { return filepath.Join(LogsDir(), id) }
+func PluginsDir() string          { return filepath.Join(Home(), "plugins") }
 
 // EnsureDirs creates the tree if missing.
 func EnsureDirs() error {
-	for _, d := range []string{Home(), BackendsDir(), ModelsDir(), LogsDir()} {
+	for _, d := range []string{Home(), BackendsDir(), ModelsDir(), LogsDir(), PluginsDir()} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// EnsurePluginsDir creates the plugins dir if missing.
+func EnsurePluginsDir() error {
+	return os.MkdirAll(PluginsDir(), 0o755)
 }
