@@ -1,0 +1,20 @@
+{
+  "id": "my-stdio-backend",
+  "name": "My Stdio Backend",
+  "description": "Example: a backend speaking llmctl-stdio/1 over stdin/stdout (no port)",
+  "transport": "stdio",
+  "kind": "process",
+  "binary": "python3",
+  "args": [
+    "{dir}/my_stdio_backend.py",
+    "--model", "{model}",
+    "--ctx", "{var:ctx}"
+  ],
+  "stdioReadyTimeoutS": 30,
+  "install": {
+    "kind": "files",
+    "files": [
+      { "name": "my_stdio_backend.py", "url": "https://example.com/my_stdio_backend.py" }
+    ]
+  }
+}

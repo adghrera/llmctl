@@ -109,9 +109,9 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 		return sv.startAttach(ctx, inst, spec)
 	case backend.KindProcess:
 		if spec.Transport == backend.TransportStdio {
-			return sv.startStdio(inst, spec)
+			return sv.startStdio(inst, spec, mrec.Path, vars)
 		}
-		return sv.startHTTP(ctx, inst, spec, port)
+		return sv.startHTTP(ctx, inst, spec, port, mrec.Path, vars)
 	default:
 		return nil, fmt.Errorf("unknown kind %q", spec.Kind)
 	}
@@ -142,7 +142,7 @@ func (sv *Supervisor) startAttach(ctx context.Context, inst *store.InstanceRecor
 }
 
 // startHTTP launches an OpenAI-HTTP backend on a free port and waits for health.
-func (sv *Supervisor) startHTTP(ctx context.Context, inst *store.InstanceRecord, spec backend.Spec, port int) (*store.InstanceRecord, error) {
+func (sv *Supervisor) startHTTP(ctx context.Context, inst *store.InstanceRecord, spec backend.Spec, port int, modelPath string, vars map[string]string) (*store.InstanceRecord, error) {
 	if port == 0 {
 		var err error
 		if port, err = freePort(); err != nil {
@@ -150,7 +150,7 @@ func (sv *Supervisor) startHTTP(ctx context.Context, inst *store.InstanceRecord,
 		}
 	}
 	inst.Port = port
-	args := renderPort(spec.Args, port)
+	args := renderLaunch(spec.Args, modelPath, vars, port)
 	cmd := exec.Command(spec.Binary, args...)
 	cmd.Dir = filepath.Dir(spec.Binary)
 	cmd.Env = envWith(spec.Env)
@@ -195,11 +195,12 @@ func (sv *Supervisor) startHTTP(ctx context.Context, inst *store.InstanceRecord,
 }
 
 // startStdio launches a llmctl-stdio/1 backend and holds the live session.
-func (sv *Supervisor) startStdio(inst *store.InstanceRecord, spec backend.Spec) (*store.InstanceRecord, error) {
+func (sv *Supervisor) startStdio(inst *store.InstanceRecord, spec backend.Spec, modelPath string, vars map[string]string) (*store.InstanceRecord, error) {
 	ready := time.Duration(spec.StdioReadyTimeoutS) * time.Second
+	args := renderLaunch(spec.Args, modelPath, vars, 0)
 	sess, hello, err := stdio.Launch(stdio.LaunchConfig{
 		Binary:       spec.Binary,
-		Args:         spec.Args,
+		Args:         args,
 		Env:          spec.Env,
 		Dir:          filepath.Dir(spec.Binary),
 		StderrLog:    filepath.Join(inst.LogDir, "stderr.log"),
@@ -411,11 +412,22 @@ func (sv *Supervisor) kill(inst *store.InstanceRecord) {
 // ProcessAlive reports whether a PID is running (exported for daemon checks).
 func ProcessAlive(pid int) bool { return processAlive(pid) }
 
-// renderPort substitutes {port} in an arg list.
-func renderPort(args []string, port int) []string {
+// renderLaunch expands every launch placeholder in an arg list:
+// {model} (absolute model path), {dir} (model dir), {var:key} (user vars),
+// and {port} (the chosen port; empty for stdio). This is the single place
+// launch args are rendered, so both built-in and plugin backends work.
+func renderLaunch(args []string, modelPath string, vars map[string]string, port int) []string {
+	dir := filepath.Dir(modelPath)
+	portS := fmt.Sprintf("%d", port)
 	out := make([]string, len(args))
 	for i, a := range args {
-		out[i] = strings.ReplaceAll(a, "{port}", fmt.Sprintf("%d", port))
+		a = strings.ReplaceAll(a, "{model}", modelPath)
+		a = strings.ReplaceAll(a, "{dir}", dir)
+		for k, v := range vars {
+			a = strings.ReplaceAll(a, "{var:"+k+"}", v)
+		}
+		a = strings.ReplaceAll(a, "{port}", portS)
+		out[i] = a
 	}
 	return out
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -46,6 +47,9 @@ func main(){
 		t.Fatal(err)
 	}
 	bin := dir + "/fake-backend"
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
 	cmd := exec.Command("go", "build", "-o", bin, ".")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()

@@ -1,0 +1,21 @@
+# Build artifacts
+bin/
+*.exe
+*.out
+
+# VCS + editor
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Local state (never ship)
+*.log
+
+# Docs (not needed in the image)
+docs/
+FEATURES.md
+AGENTS.md
+prompts*.md
+*.exe~
+llmctl.exe~

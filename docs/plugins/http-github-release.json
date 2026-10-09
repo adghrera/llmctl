@@ -1,0 +1,27 @@
+{
+  "id": "my-http-server",
+  "name": "My HTTP Server",
+  "description": "Example: an OpenAI-compatible server binary installed from a GitHub release",
+  "transport": "http",
+  "kind": "process",
+  "binary": "my-server",
+  "args": [
+    "--port", "{port}",
+    "--model", "{model}",
+    "--ctx-size", "{var:ctx}"
+  ],
+  "healthPath": "/health",
+  "healthTimeoutS": 180,
+  "apiBasePath": "/v1",
+  "install": {
+    "kind": "github-release",
+    "repo": "owner/my-server",
+    "binaryName": "my-server",
+    "assetMatch": {
+      "windows": "windows-amd64.zip",
+      "linux": "linux-amd64.tar.gz",
+      "darwin": "darwin-arm64.tar.gz"
+    },
+    "extract": "zip"
+  }
+}

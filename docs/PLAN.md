@@ -8,13 +8,13 @@ Prefer simple, easy-to-understand designs. Don't overthink.
 
 | # | Priority | Category | Title | Status |
 |---|----------|----------|-------|--------|
-| 1 | P0 | quality | Fix stdio protocol test + full test suite green | IN-PROGRESS |
-| 2 | P0 | e2e | End-to-end verification of new architecture (daemon up, install, start, chat via API) | NOT-STARTED |
-| 3 | P0 | ui | Chat interface: select model, chat with the LLM (streaming) | NOT-STARTED |
-| 4 | P1 | docs | Update README for v0.2 (single port, management API, UI, plugins, stdio) | NOT-STARTED |
-| 5 | P1 | docker | Dockerfile + .dockerignore; verify `docker build` works | NOT-STARTED |
-| 6 | P1 | platform | Cross-compile check: linux/amd64, darwin/arm64 | NOT-STARTED |
-| 7 | P2 | backends | Example plugin backend JSON (documented, in docs/) | NOT-STARTED |
+| 1 | P0 | quality | Fix stdio protocol test + full test suite green | COMPLETED |
+| 2 | P0 | e2e | End-to-end verification of new architecture (daemon up, install, start, chat via API) | COMPLETED |
+| 3 | P0 | ui | Chat interface: select model, chat with the LLM (streaming) | COMPLETED |
+| 4 | P1 | docs | Update README for v0.2 (single port, management API, UI, plugins, stdio) | COMPLETED |
+| 5 | P1 | docker | Dockerfile + .dockerignore; verify `docker build` works | COMPLETED |
+| 6 | P1 | platform | Cross-compile check: linux/amd64, darwin/arm64 | COMPLETED |
+| 7 | P2 | backends | Example plugin backend JSON (documented, in docs/) | IN-PROGRESS |
 | 8 | P2 | ui | UI polish: error toasts on failed actions, job history section | NOT-STARTED |
 | 9 | P2 | api | Per-key rate limits / quotas (currently global per-client) | NOT-STARTED |
 | 10 | P3 | backends | Load-balanced replicas of one model (round-robin instances) | NOT-STARTED |

@@ -140,7 +140,7 @@ func Run(ctx context.Context, opts Options) error {
 		IdleTimeout:       120 * time.Second,
 	}
 
-	df := &DaemonFile{Addr: ln.Addr().String(), PID: os.Getpid(), StartedAt: time.Now()}
+	df := &DaemonFile{Addr: dialableAddr(ln, opts.Addr), PID: os.Getpid(), StartedAt: time.Now()}
 	b, _ := json.Marshal(df)
 	os.WriteFile(daemonFilePath(), b, 0o644)
 	logger.Info("llmctl daemon up", "addr", df.Addr)
@@ -162,6 +162,32 @@ func Run(ctx context.Context, opts Options) error {
 		return nil
 	}
 	return err
+}
+
+// dialableAddr returns an address the CLI can actually connect to. When the
+// daemon binds an unspecified host, the raw bind address is not dialable on
+// some platforms (notably Windows, where "[::]:port" does not route to
+// loopback). We record a loopback address for the same port instead:
+//   - IPv6 dual-stack bind ("::")  → "[::1]:port"  (always accepted)
+//   - IPv4-only bind ("0.0.0.0")   → "127.0.0.1:port"
+// An explicit host (e.g. "127.0.0.1:8080" or "10.0.0.5:8080") is kept as-is.
+func dialableAddr(ln net.Listener, requested string) string {
+	bind := ln.Addr().String()
+	host, port, err := net.SplitHostPort(bind)
+	if err != nil {
+		return bind
+	}
+	switch host {
+	case "::":
+		return net.JoinHostPort("::1", port)
+	case "0.0.0.0", "":
+		return net.JoinHostPort("127.0.0.1", port)
+	}
+	// Preserve the requested host if it was explicit (covers "10.0.0.5:port").
+	if h, _, err := net.SplitHostPort(requested); err == nil && h != "" && h != "::" && h != "0.0.0.0" {
+		return net.JoinHostPort(h, port)
+	}
+	return bind
 }
 
 func newLogger() *slog.Logger {

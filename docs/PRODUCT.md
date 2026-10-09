@@ -77,6 +77,19 @@ GitHub release, or file list. No recompile.
 - OpenAI error envelope; 401/404/429/502/503 semantics.
 - Per-client rate limit + global in-flight cap.
 
+### Web UI
+Embedded SPA (no CDN deps — works offline). Tabs:
+- **Overview** — status counts, running instances, active jobs.
+- **Backends** — install/uninstall built-ins, add plugin backends (JSON).
+- **Models** — HuggingFace search + file picker, download with live progress.
+- **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.
+- **Chat** — pick a running model, enter/generate an API key, send messages,
+  stream tokens live (SSE), multi-turn history.
+- **API Keys** — generate / list / revoke.
+
+Live job progress streams over SSE. Chat state (key, draft, conversation)
+survives the periodic UI re-render.
+
 ## CLI
 
 ```
@@ -99,5 +112,5 @@ llmctl version
 - Prefer stdio IPC for backends that support it; HTTP otherwise.
 
 ## Not yet (see docs/PLAN.md)
-Chat UI, Docker image, per-key quotas, model replicas, curated catalog,
+Docker image, per-key quotas, model replicas, curated catalog,
 WebSocket passthrough, log viewer, auto-start, metrics.

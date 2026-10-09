@@ -57,6 +57,15 @@
   .keybox { background: #0a0d12; border: 1px dashed var(--accent); border-radius: 6px; padding: 12px; font-family: var(--mono); font-size: 13px; word-break: break-all; margin-top: 10px; }
   .empty { color: var(--muted); padding: 20px; text-align: center; }
   code { font-family: var(--mono); background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .chat-log { max-height: 440px; overflow-y: auto; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .chat-msg { margin-bottom: 14px; }
+  .chat-who { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .chat-msg.user .chat-who { color: var(--accent); }
+  .chat-msg.assistant .chat-who { color: var(--accent2); }
+  .chat-body { white-space: pre-wrap; word-break: break-word; font-size: 14px; }
+  .chat-body.chat-err { color: var(--err); }
+  .chat-body .cursor { display: inline-block; width: 8px; height: 15px; background: var(--accent); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -69,6 +78,7 @@
   <button data-v="backends">Backends</button>
   <button data-v="models">Models</button>
   <button data-v="instances">Instances</button>
+  <button data-v="chat">Chat</button>
   <button data-v="keys">API Keys</button>
 </nav>
 <main id="view"></main>
@@ -80,6 +90,7 @@ const $$ = (s, el=document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 let state = { view: "overview", backends: [], models: [], instances: [], jobs: [], keys: [], status: {} };
+let chat = { msgs: [], busy: false, key: "", draft: "" }; // chat state (survives re-renders)
 let evtSrc = null;
 
 async function api(path, opts={}) {
@@ -127,6 +138,7 @@ function render() {
   else if (v === "backends") el.innerHTML = viewBackends();
   else if (v === "models") el.innerHTML = viewModels();
   else if (v === "instances") el.innerHTML = viewInstances();
+  else if (v === "chat") el.innerHTML = viewChat();
   else if (v === "keys") el.innerHTML = viewKeys();
   bind();
 }
@@ -268,6 +280,44 @@ function viewInstances() {
   </div>`;
 }
 
+function viewChat() {
+  const running = state.instances.filter(i => i.status === "running");
+  const modelOpts = running.length
+    ? running.map(i => `<option value="${esc(i.modelId)}">${esc(i.modelId)} <span class="hint">(${esc(i.backendId)}/${i.transport})</span></option>`).join("")
+    : "";
+  return `
+  <div class="card"><h2>Chat</h2>
+    ${running.length ? "" : `<div class="empty" style="padding:10px 0">No instances running — start one on the Instances tab first.</div>`}
+    <div class="row">
+      <div><label>Model (running instance)</label><select id="c-model">${modelOpts}</select></div>
+      <div><label>API key</label><input id="c-key" class="mono" placeholder="sk-llm-…" autocomplete="off" value="${esc(chat.key)}"></div>
+      <div style="align-self:flex-end"><button class="act" id="c-genkey">generate key</button></div>
+    </div>
+    <div class="row">
+      <div><label>max tokens</label><input id="c-max" placeholder="512"></div>
+      <div><label>temperature</label><input id="c-temp" placeholder="0.7"></div>
+    </div>
+  </div>
+  <div class="card"><h2>Conversation</h2>
+    <div class="chat-log" id="c-log">${chatLogHTML()}</div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <textarea id="c-input" rows="2" placeholder="Type a message… (Enter to send, Shift+Enter for newline)">${esc(chat.draft)}</textarea>
+      <button class="act primary" id="c-send" style="align-self:flex-end">Send</button>
+    </div>
+  </div>`;
+}
+
+// chatLogHTML renders the conversation from chat.msgs (source of truth), so
+// periodic re-renders preserve the conversation.
+function chatLogHTML() {
+  if (!chat.msgs.length) return `<div class="empty">Pick a model and key, then send a message.</div>`;
+  return chat.msgs.map(m => `
+    <div class="chat-msg ${m.role}">
+      <div class="chat-who">${m.role === "user" ? "you" : "assistant"}</div>
+      <div class="chat-body ${m.err ? "chat-err" : ""} ${m.streaming ? "chat-stream" : ""}">${esc(m.content)}${m.streaming ? '<span class="cursor"></span>' : ""}</div>
+    </div>`).join("");
+}
+
 function viewKeys() {
   return `
   <div class="card"><h2>API keys</h2>
@@ -376,6 +426,105 @@ function bind() {
       refresh();
     } catch (e) { toast(e.message, "err"); }
   };
+
+  // ---- chat ----
+  const cSend = $("#c-send");
+  if (cSend) cSend.onclick = sendChat;
+  const cInput = $("#c-input");
+  if (cInput) {
+    cInput.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } };
+    cInput.oninput = () => { chat.draft = cInput.value; };
+  }
+  const cKey = $("#c-key");
+  if (cKey) cKey.oninput = () => { chat.key = cKey.value; };
+  const cGen = $("#c-genkey");
+  if (cGen) cGen.onclick = async () => {
+    try {
+      const r = await api("/keys", { method: "POST", body: { name: "chat" } });
+      chat.key = r.key;
+      const k = $("#c-key"); if (k) k.value = r.key;
+      toast("key generated — stored in the gateway", "ok");
+    } catch (e) { toast(e.message, "err"); }
+  };
+}
+
+// sendChat posts to the gateway /v1/chat/completions (streaming) and appends
+// tokens to the conversation as they arrive.
+async function sendChat() {
+  if (chat.busy) return;
+  const model = $("#c-model")?.value;
+  const key = (chat.key || $("#c-key")?.value || "").trim();
+  const input = $("#c-input");
+  const text = (chat.draft || input?.value || "").trim();
+  if (!model) return toast("no running model — start an instance first", "err");
+  if (!key) return toast("enter an API key (or click generate key)", "err");
+  if (!text) return;
+  chat.draft = ""; if (input) input.value = "";
+  chat.busy = true;
+  const sendBtn = $("#c-send"); if (sendBtn) sendBtn.disabled = true;
+
+  chat.msgs.push({ role: "user", content: text });
+  const asst = { role: "assistant", content: "", streaming: true };
+  chat.msgs.push(asst);
+  renderChatLog();
+
+  // Build the message history (last 20 turns to bound context).
+  const history = chat.msgs.filter(m => !m.err).slice(-20).map(m => ({ role: m.role, content: m.content }));
+  const body = { model, messages: history, stream: true };
+  const max = $("#c-max")?.value.trim(); if (max) body.max_tokens = parseInt(max, 10);
+  const temp = $("#c-temp")?.value.trim(); if (temp) body.temperature = parseFloat(temp);
+
+  try {
+    const r = await fetch("/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      let msg = t; try { msg = JSON.parse(t).error?.message || t; } catch {}
+      asst.streaming = false; asst.err = true; asst.content = "error: " + msg;
+      renderChatLog();
+      return;
+    }
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, idx).trim(); buf = buf.slice(idx + 1);
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data);
+          const delta = j.choices?.[0]?.delta?.content;
+          if (delta) { asst.content += delta; renderChatLog(); }
+        } catch {}
+      }
+    }
+    asst.streaming = false;
+    if (!asst.content) asst.content = "(empty response)";
+  } catch (e) {
+    asst.streaming = false; asst.err = true; asst.content = "error: " + e.message;
+  } finally {
+    chat.busy = false;
+    const sb = $("#c-send"); if (sb) sb.disabled = false;
+    renderChatLog();
+  }
+}
+
+// renderChatLog updates just the log node (no full re-render) so streaming is
+// smooth; it also scrolls to the bottom.
+function renderChatLog() {
+  const log = $("#c-log");
+  if (!log) return;
+  log.innerHTML = chatLogHTML();
+  log.scrollTop = log.scrollHeight;
 }
 
 async function doHfSearch() {

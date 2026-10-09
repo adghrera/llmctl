@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -68,7 +69,8 @@ type Session struct {
 	closeCh chan struct{}
 	closeOnce sync.Once
 
-	readyCh chan struct{} // closed when the hello line is read
+	readyCh    chan struct{} // closed when the hello line is read
+	readyClosed atomic.Bool
 	hello   *Msg
 	helloErr error
 }
@@ -111,10 +113,11 @@ func (s *Session) readLoop() {
 			if s.hello == nil {
 				h := m
 				s.hello = &h
-				s.mu.Unlock()
-				close(s.readyCh)
 			}
 			s.mu.Unlock()
+			if s.hello != nil && m.ID == "" && s.readyClosed.CompareAndSwap(false, true) {
+				close(s.readyCh)
+			}
 			continue
 		}
 		ch, ok := s.pending[m.ID]
@@ -144,7 +147,9 @@ func (s *Session) readLoop() {
 		}
 	}
 	s.mu.Unlock()
-	close(s.readyCh) // unblock any hello waiters
+	if s.readyClosed.CompareAndSwap(false, true) {
+		close(s.readyCh)
+	}
 	close(s.closeCh)
 }
 

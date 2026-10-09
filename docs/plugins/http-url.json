@@ -1,0 +1,18 @@
+{
+  "id": "my-url-server",
+  "name": "My URL Server",
+  "description": "Example: an OpenAI-compatible server binary downloaded from a direct URL",
+  "transport": "http",
+  "kind": "process",
+  "binary": "my-server",
+  "args": [
+    "--port", "{port}",
+    "--model", "{model}"
+  ],
+  "healthPath": "/health",
+  "apiBasePath": "/v1",
+  "install": {
+    "kind": "url",
+    "url": "https://example.com/releases/my-server-{os}-{arch}.{ext}"
+  }
+}

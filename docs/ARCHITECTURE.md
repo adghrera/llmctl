@@ -102,6 +102,20 @@ Single `state.json` under $LLMCTL_HOME: atomic temp+rename writes, advisory
 lock file. The router re-reads it lazily (mtime-checked) so CLI-driven
 changes are picked up without IPC.
 
+### Launch arg rendering (single place)
+Backend `Spec.Args` use placeholders: `{model}` (absolute GGUF path),
+`{dir}` (model dir), `{var:key}` (user vars like ctx/ngl/parallel), and
+`{port}` (chosen free port). The supervisor's `renderLaunch` is the ONLY
+place these are expanded — both the http-process and stdio-process start
+paths call it. (Bug history: v0.2 first rendered only `{port}` in the
+http path, so llama-server received `--ctx-size {var:ctx}` and exited.)
+
+### Dialable daemon address
+`daemon.json` must record an address the CLI can actually connect to. The
+raw bind address for an unspecified host (`[::]:8080` / `0.0.0.0:8080`) is
+not dialable on Windows, so `dialableAddr` maps it to loopback:
+`::` → `[::1]:port`, `0.0.0.0` → `127.0.0.1:port`. Explicit hosts are kept.
+
 ### High-traffic design
 - goroutine-per-connection; no framework overhead
 - per-client token bucket (64 shards) + global in-flight cap → clean 429s
