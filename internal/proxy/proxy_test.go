@@ -74,7 +74,7 @@ func testRouter(t *testing.T, port int) *Router {
 			},
 		},
 	}
-	return NewRouter(func() (*store.State, int64, error) { return st, 1, nil })
+	return NewRouter(func() (*store.State, int64, error) { return st, 1, nil }, nil)
 }
 
 func newTestServer(t *testing.T, port int, keys []string) *Server {
@@ -88,7 +88,7 @@ func newTestServer(t *testing.T, port int, keys []string) *Server {
 	return srv
 }
 
-func (s *Server) testHandler() http.Handler { return s.httpSrv.Handler }
+func (s *Server) testHandler() http.Handler { return s.Handler() }
 
 func TestChatNonStreaming(t *testing.T) {
 	fake := fakeBackend(t, false)
