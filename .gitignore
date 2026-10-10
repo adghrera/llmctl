@@ -1,2 +1,11 @@
+# Go build artifacts
 *.exe
+*.out
+bin/
+
+# Frontend deps (build output dist/ IS committed so `go build` works out of the box)
+frontend/node_modules/
+
+# Local scratch
 prompts1.md
+*.log

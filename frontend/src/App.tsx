@@ -1,0 +1,51 @@
+import { NavLink, Route, Routes } from "react-router-dom";
+import { useStore } from "./state/store";
+import Overview from "./pages/Overview";
+import Backends from "./pages/Backends";
+import Models from "./pages/Models";
+import Instances from "./pages/Instances";
+import Chat from "./pages/Chat";
+import Keys from "./pages/Keys";
+import { Toasts } from "./ui/toast";
+
+const NAV = [
+  { to: "/", label: "Overview", end: true },
+  { to: "/backends", label: "Backends" },
+  { to: "/models", label: "Models" },
+  { to: "/instances", label: "Instances" },
+  { to: "/chat", label: "Chat" },
+  { to: "/keys", label: "API Keys" },
+];
+
+export default function App() {
+  const { status } = useStore();
+
+  return (
+    <>
+      <header>
+        <div className="logo">
+          llm<span>ctl</span>
+        </div>
+        <div className="gw">{status ? `gateway ${status.gateway}` : ""}</div>
+      </header>
+      <nav>
+        {NAV.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? "active" : "")}>
+            {n.label}
+          </NavLink>
+        ))}
+      </nav>
+      <main>
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/backends" element={<Backends />} />
+          <Route path="/models" element={<Models />} />
+          <Route path="/instances" element={<Instances />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/keys" element={<Keys />} />
+        </Routes>
+      </main>
+      <Toasts />
+    </>
+  );
+}

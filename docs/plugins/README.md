@@ -15,7 +15,7 @@ No recompile — plugins are data.
 | `transport` | yes | `http` (OpenAI-compatible server) or `stdio` (llmctl-stdio/1) |
 | `kind` | yes | `process` (llmctl launches it) or `attach` (you run it) |
 | `binary` | process | executable name (resolved in the backend dir or PATH) |
-| `args` | no | launch args; supports `{model}`, `{dir}`, `{var:key}`, `{port}` |
+| `args` | no | launch args; supports `{model}`, `{dir}`, `{backend}`, `{var:key}`, `{port}` |
 | `env` | no | extra env vars for the process |
 | `attachUrl` | attach+http | fixed endpoint, e.g. `http://127.0.0.1:11434` |
 | `healthPath` | no | default `/health` |

@@ -1,0 +1,10 @@
+{
+  "id": "my-remote",
+  "name": "My Remote Server",
+  "description": "Example: attach to an OpenAI-compatible server you run yourself (no install)",
+  "transport": "http",
+  "kind": "attach",
+  "attachUrl": "http://127.0.0.1:1234",
+  "healthPath": "/health",
+  "apiBasePath": "/v1"
+}

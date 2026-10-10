@@ -3,6 +3,9 @@ bin/
 *.exe
 *.out
 
+# Frontend deps (dist/ is committed and needed for go:embed; node_modules is not)
+frontend/node_modules/
+
 # VCS + editor
 .git/
 .gitignore

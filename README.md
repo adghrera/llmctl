@@ -131,9 +131,9 @@ Built-in:
 }
 ```
 
-Placeholders: `{model}` (GGUF path), `{dir}` (model dir), `{var:key}` (user
-vars), `{port}` (chosen free port). Install kinds: `url`, `github-release`,
-`files`.
+Placeholders: `{model}` (GGUF path), `{dir}` (model dir), `{backend}` (the
+backend's install dir), `{var:key}` (user vars), `{port}` (chosen free port).
+Install kinds: `url`, `github-release`, `files`.
 
 ## Management API
 

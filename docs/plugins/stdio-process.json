@@ -6,7 +6,7 @@
   "kind": "process",
   "binary": "python3",
   "args": [
-    "{dir}/my_stdio_backend.py",
+    "{backend}/my_stdio_backend.py",
     "--model", "{model}",
     "--ctx", "{var:ctx}"
   ],

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"llmctl/internal/paths"
 	"llmctl/internal/store"
@@ -218,10 +219,19 @@ func (p *pluginBackend) Transport() string   { return p.m.Transport }
 func (p *pluginBackend) Kind() string        { return p.m.Kind }
 
 func (p *pluginBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
+	bin := p.m.Binary
+	// A bare binary name (no path separator) is resolved against the
+	// backend's install dir first; if not found there it stays bare so the
+	// OS PATH lookup still works (e.g. "python3").
+	if bin != "" && !filepath.IsAbs(bin) && !strings.ContainsRune(bin, os.PathSeparator) {
+		if resolved, err := findBackendBinary(p.m.ID, bin); err == nil {
+			bin = resolved
+		}
+	}
 	s := Spec{
 		Kind:             p.m.Kind,
 		Transport:        p.m.Transport,
-		Binary:           p.m.Binary,
+		Binary:           bin,
 		Args:             renderArgs(p.m.Args, m.Path, filepath.Dir(m.Path), vars),
 		Env:              p.m.Env,
 		AttachURL:        p.m.AttachURL,
@@ -235,6 +245,44 @@ func (p *pluginBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec
 		return Spec{}, err
 	}
 	return s, nil
+}
+
+// findBackendBinary resolves a bare binary name inside a backend's install
+// dir: first <dir>/<name> (url/files installs), then the newest
+// <dir>/<version>/<name> (github-release installs).
+func findBackendBinary(backendID, name string) (string, error) {
+	dir := paths.BackendDir(backendID)
+	if direct := filepath.Join(dir, name); fileExists(direct) {
+		return direct, nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+	var newest string
+	var newestT time.Time
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		cand := filepath.Join(dir, e.Name(), name)
+		fi, err := os.Stat(cand)
+		if err != nil || fi.IsDir() {
+			continue
+		}
+		if newest == "" || fi.ModTime().After(newestT) {
+			newest, newestT = cand, fi.ModTime()
+		}
+	}
+	if newest == "" {
+		return "", fmt.Errorf("binary %q not found under %s", name, dir)
+	}
+	return newest, nil
+}
+
+func fileExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
 }
 
 func (p *pluginBackend) Health(inst *store.InstanceRecord) (HealthResult, error) {

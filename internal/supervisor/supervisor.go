@@ -104,14 +104,22 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 		APIBasePath: spec.APIBasePath,
 	}
 
+	// launchVars adds the backend install dir for {backend} placeholder
+	// rendering. It's a copy so the internal key isn't persisted in inst.Vars.
+	launchVars := make(map[string]string, len(vars)+1)
+	for k, v := range vars {
+		launchVars[k] = v
+	}
+	launchVars["__backend_dir__"] = paths.BackendDir(backendID)
+
 	switch spec.Kind {
 	case backend.KindAttach:
 		return sv.startAttach(ctx, inst, spec)
 	case backend.KindProcess:
 		if spec.Transport == backend.TransportStdio {
-			return sv.startStdio(inst, spec, mrec.Path, vars)
+			return sv.startStdio(inst, spec, mrec.Path, launchVars)
 		}
-		return sv.startHTTP(ctx, inst, spec, port, mrec.Path, vars)
+		return sv.startHTTP(ctx, inst, spec, port, mrec.Path, launchVars)
 	default:
 		return nil, fmt.Errorf("unknown kind %q", spec.Kind)
 	}
@@ -413,16 +421,19 @@ func (sv *Supervisor) kill(inst *store.InstanceRecord) {
 func ProcessAlive(pid int) bool { return processAlive(pid) }
 
 // renderLaunch expands every launch placeholder in an arg list:
-// {model} (absolute model path), {dir} (model dir), {var:key} (user vars),
-// and {port} (the chosen port; empty for stdio). This is the single place
-// launch args are rendered, so both built-in and plugin backends work.
+// {model} (absolute model path), {dir} (model dir), {backend} (the backend's
+// install dir), {var:key} (user vars), and {port} (the chosen port; empty for
+// stdio). This is the single place launch args are rendered, so both built-in
+// and plugin backends work.
 func renderLaunch(args []string, modelPath string, vars map[string]string, port int) []string {
 	dir := filepath.Dir(modelPath)
+	backendDir := vars["__backend_dir__"]
 	portS := fmt.Sprintf("%d", port)
 	out := make([]string, len(args))
 	for i, a := range args {
 		a = strings.ReplaceAll(a, "{model}", modelPath)
 		a = strings.ReplaceAll(a, "{dir}", dir)
+		a = strings.ReplaceAll(a, "{backend}", backendDir)
 		for k, v := range vars {
 			a = strings.ReplaceAll(a, "{var:"+k+"}", v)
 		}
