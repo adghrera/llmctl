@@ -51,9 +51,9 @@ func (b *llamaCppBackend) Spec(m *store.ModelRecord, vars map[string]string) (Sp
 		"--port", "{port}",
 		"--model", "{model}",
 		"--host", "127.0.0.1",
-		"--ctx-size", "{var:ctx}",
-		"--n-gpu-layers", "{var:ngl}",
-		"--parallel", "{var:parallel}",
+		"--ctx-size", v["ctx"],
+		"--n-gpu-layers", v["ngl"],
+		"--parallel", v["parallel"],
 	}
 	if v["threads"] != "" {
 		args = append(args, "--threads", v["threads"])

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -218,7 +217,7 @@ func HFCatalog(repo, revision string) ([]CatalogEntry, error) {
 	if revision == "" {
 		revision = "main"
 	}
-	u := fmt.Sprintf("https://huggingface.co/api/models/%s/tree/%s?recursive=true", url.PathEscape(repo), revision)
+	u := fmt.Sprintf("https://huggingface.co/api/models/%s/tree/%s?recursive=true", repo, revision)
 	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err

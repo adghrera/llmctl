@@ -53,11 +53,13 @@ export default function Chat() {
     const history = next.map((m) => ({ role: m.role, content: m.content }));
     let acc = "";
     try {
+      // Seed a single assistant message; each delta updates it in place.
+      setMsgs((prev) => [...prev, { role: "assistant", content: "" }]);
       for await (const delta of chatStream(key, model, history)) {
         acc += delta;
         setMsgs((prev) => {
           const copy = [...prev];
-          copy.push({ role: "assistant", content: acc });
+          copy[copy.length - 1] = { role: "assistant", content: acc };
           return copy;
         });
       }
