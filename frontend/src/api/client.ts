@@ -62,6 +62,10 @@ export interface ApiKey {
   createdAt: string;
 }
 
+export interface Settings {
+  requireAuth: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -120,6 +124,9 @@ export const api = {
   createKey: (name: string) =>
     req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, { method: "POST", body: JSON.stringify({ name }) }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  settings: () => req<Settings>("/settings"),
+  updateSettings: (body: { requireAuth?: boolean }) =>
+    req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
 };
 
 // Chat via the OpenAI gateway (streaming SSE). Returns an async iterator of

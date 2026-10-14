@@ -7,7 +7,7 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import { api, type Backend, type Instance, type Job, type Model, type ApiKey, type Status } from "../api/client";
+import { api, type Backend, type Instance, type Job, type Model, type ApiKey, type Status, type Settings } from "../api/client";
 
 export interface State {
   status: Status | null;
@@ -16,6 +16,7 @@ export interface State {
   instances: Instance[];
   jobs: Job[];
   keys: ApiKey[];
+  settings: Settings | null;
   loading: boolean;
   error: string | null;
 }
@@ -28,6 +29,7 @@ type Action =
   | { type: "instances"; instances: Instance[] }
   | { type: "jobs"; jobs: Job[] }
   | { type: "keys"; keys: ApiKey[] }
+  | { type: "settings"; settings: Settings }
   | { type: "error"; error: string };
 
 const initial: State = {
@@ -37,6 +39,7 @@ const initial: State = {
   instances: [],
   jobs: [],
   keys: [],
+  settings: null,
   loading: false,
   error: null,
 };

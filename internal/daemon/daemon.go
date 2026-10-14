@@ -113,11 +113,21 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	gwPort := ln.Addr().(*net.TCPAddr).Port
 
-	mgmt := api.New(st, reg, sv, jm, logger, gwPort, cancel)
+	// Read settings to determine if auth is required.
+	requireAuth := true
+	s, err := store.Open()
+	if err == nil {
+		state, loadErr := s.Load()
+		if loadErr == nil && state.Settings != nil {
+			requireAuth = state.Settings.RequireAuth
+		}
+	}
+
 	gw, err := proxy.NewServer(proxy.Config{
 		Addr:        opts.Addr,
 		APIKeys:     opts.APIKeys,
-		KeyCheck:    mgmt.KeyCheck,
+		KeyCheck:    nil, // mgmt.KeyCheck set below
+		RequireAuth: requireAuth,
 		RateRPS:     opts.RateRPS,
 		RateBurst:   opts.RateBurst,
 		MaxInflight: opts.MaxInflight,
@@ -126,6 +136,10 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
+
+	mgmt := api.New(st, reg, sv, jm, logger, gwPort, gw, cancel)
+	// Wire the key checker after mgmt is created (circular ref).
+	gw.SetKeyCheck(mgmt.KeyCheck)
 
 	// One mux: gateway + management API + UI.
 	root := http.NewServeMux()

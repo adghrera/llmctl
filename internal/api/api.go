@@ -23,6 +23,7 @@ import (
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
+	"llmctl/internal/proxy"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
 )
@@ -35,11 +36,12 @@ type Server struct {
 	jobs     *jobs.Manager
 	logger   *slog.Logger
 	gwPort   int // gateway port, for building client URLs
+	gw       *proxy.Server // gateway handle, for runtime setting changes
 	shutdownFn func() // triggers graceful daemon exit
 }
 
-func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, shutdown func()) *Server {
-	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, shutdownFn: shutdown}
+func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
+	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, shutdownFn: shutdown}
 }
 
 // Handler returns the management API mux.
@@ -72,6 +74,9 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
+	// Settings
+	m.HandleFunc("GET /api/v1/settings", s.getSettings)
+	m.HandleFunc("PATCH /api/v1/settings", s.updateSettings)
 	return s.recoverer(m)
 }
 
@@ -535,6 +540,46 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	s.store.Update(func(st *store.State) error { delete(st.APIKeys, id); return nil })
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// ---- settings ----
+
+type settingsView struct {
+	RequireAuth bool `json:"requireAuth"`
+}
+
+func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
+	st, _ := s.store.Load()
+	writeJSON(w, 200, settingsView{
+		RequireAuth: st.Settings.RequireAuth,
+	})
+}
+
+type updateSettingsReq struct {
+	RequireAuth *bool `json:"requireAuth"`
+}
+
+func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
+	var req updateSettingsReq
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid request body")
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if req.RequireAuth != nil {
+			st.Settings.RequireAuth = *req.RequireAuth
+		}
+		return nil
+	})
+	// Apply the change to the gateway immediately (runtime, no restart).
+	if req.RequireAuth != nil && s.gw != nil {
+		s.gw.SetRequireAuth(*req.RequireAuth)
+	}
+	// Return updated settings.
+	st, _ := s.store.Load()
+	writeJSON(w, 200, settingsView{
+		RequireAuth: st.Settings.RequireAuth,
+	})
 }
 
 // ---- helpers ----

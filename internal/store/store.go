@@ -71,15 +71,30 @@ type APIKeyRecord struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// Settings holds daemon-wide configuration.
+type Settings struct {
+	// RequireAuth controls whether the gateway enforces API key auth.
+	// When false, no key is needed (anyone can use the gateway).
+	// When true, a valid Bearer token is required for all /v1/* endpoints.
+	RequireAuth bool `json:"requireAuth"`
+}
+
 type State struct {
 	Backends  map[string]*BackendRecord    `json:"backends"`
 	Models    map[string]*ModelRecord      `json:"models"`
 	Instances map[string]*InstanceRecord   `json:"instances"`
 	APIKeys   map[string]*APIKeyRecord     `json:"apiKeys"`
+	Settings  *Settings                    `json:"settings"`
 }
 
 func newState() *State {
-	return &State{Backends: map[string]*BackendRecord{}, Models: map[string]*ModelRecord{}, Instances: map[string]*InstanceRecord{}, APIKeys: map[string]*APIKeyRecord{}}
+	return &State{
+		Backends:  map[string]*BackendRecord{},
+		Models:    map[string]*ModelRecord{},
+		Instances: map[string]*InstanceRecord{},
+		APIKeys:   map[string]*APIKeyRecord{},
+		Settings:  &Settings{RequireAuth: true},
+	}
 }
 
 // Store is a lock-guarded handle on state.json.

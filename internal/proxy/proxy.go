@@ -29,6 +29,7 @@ type Server struct {
 	addr         string
 	apiKeys      [][]byte // pre-encoded; empty list = auth disabled
 	keyCheck     func(string) bool // hashed-key verifier (overrides apiKeys)
+	requireAuth  *atomic.Bool // if false, no key needed (auth disabled globally)
 	limiter      *rateLimiter
 	router       *Router
 	logger       *slog.Logger
@@ -45,6 +46,7 @@ type Config struct {
 	APIKeys     []string // static keys (tests, simple setups)
 	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
 	KeyCheck    func(token string) bool
+	RequireAuth bool // if false, auth is disabled regardless of keys
 	RateRPS     float64 // sustained requests/sec per client
 	RateBurst   int
 	MaxInflight int
@@ -64,15 +66,23 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 			keys = append(keys, []byte(k))
 		}
 	}
+	// Default: enable auth when keys are configured. Setting RequireAuth:
+	// false explicitly overrides this (useful for tests that want auth off).
+	requireAuth := cfg.RequireAuth
+	if !requireAuth && (len(keys) > 0 || cfg.KeyCheck != nil) {
+		requireAuth = true
+	}
 	s := &Server{
 		addr:        cfg.Addr,
 		apiKeys:     keys,
 		keyCheck:    cfg.KeyCheck,
+		requireAuth: &atomic.Bool{},
 		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst),
 		router:      router,
 		logger:      cfg.Logger,
 		maxInflight: int64(cfg.MaxInflight),
 	}
+	s.requireAuth.Store(requireAuth)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /v1/models", s.auth(s.listModels))
@@ -141,9 +151,25 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 	})
 }
 
-// auth enforces Authorization: Bearer *** when keys are configured.
+// auth enforces Authorization: Bearer *** when keys are configured and
+// requireAuth is true. If requireAuth is false, auth is skipped entirely.
+// The setting is read dynamically on each request so changes to the
+// settings store take effect without a daemon restart.
 func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// If auth is disabled globally, skip key validation.
+		if !s.requireAuth.Load() {
+			// Still apply rate limiting keyed on IP.
+			key := clientIP(r)
+			if !s.limiter.allow(key) {
+				writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
+					"rate limit exceeded; retry shortly")
+				return
+			}
+			next(w, r)
+			return
+		}
+
 		got := bearerToken(r)
 		valid := false
 		if s.keyCheck != nil {
@@ -458,4 +484,14 @@ func GenerateKey() string {
 	b := make([]byte, 20)
 	rand.Read(b)
 	return "sk-llm-" + hex.EncodeToString(b)
+}
+
+// SetRequireAuth updates the gateway's auth requirement at runtime.
+func (s *Server) SetRequireAuth(on bool) {
+	s.requireAuth.Store(on)
+}
+
+// SetKeyCheck updates the hashed-key verifier at runtime.
+func (s *Server) SetKeyCheck(fn func(string) bool) {
+	s.keyCheck = fn
 }
