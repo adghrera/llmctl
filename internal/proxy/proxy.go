@@ -28,7 +28,7 @@ import (
 type Server struct {
 	addr         string
 	apiKeys      [][]byte // pre-encoded; empty list = auth disabled
-	keyCheck     func(string) bool // hashed-key verifier (overrides apiKeys)
+	keyCheck     func(string) *store.APIKeyRecord // hashed-key verifier (overrides apiKeys)
 	requireAuth  *atomic.Bool // if false, no key needed (auth disabled globally)
 	limiter      *rateLimiter
 	router       *Router
@@ -45,7 +45,7 @@ type Config struct {
 	Addr        string
 	APIKeys     []string // static keys (tests, simple setups)
 	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
-	KeyCheck    func(token string) bool
+	KeyCheck    func(token string) *store.APIKeyRecord
 	RequireAuth bool // if false, auth is disabled regardless of keys
 	RateRPS     float64 // sustained requests/sec per client
 	RateBurst   int
@@ -89,7 +89,8 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	mux.HandleFunc("POST /v1/chat/completions", s.auth(s.proxyChat))
 	mux.HandleFunc("POST /v1/completions", s.auth(s.proxyCompletions))
 	mux.HandleFunc("POST /v1/embeddings", s.auth(s.proxyEmbeddings))
-	s.handler = s.recoverer(s.metrics(mux))
+	ts := s.recoverer(s.metrics(mux))
+	s.handler = ts
 	s.httpSrv = &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           s.handler,
@@ -163,7 +164,7 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 			key := clientIP(r)
 			if !s.limiter.allow(key) {
 				writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
-					"rate limit exceeded; retry shortly")
+					fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
 				return
 			}
 			next(w, r)
@@ -171,9 +172,13 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		got := bearerToken(r)
-		valid := false
+		var keyRecord *store.APIKeyRecord
 		if s.keyCheck != nil {
-			valid = s.keyCheck(got)
+			keyRecord = s.keyCheck(got)
+		}
+		valid := false
+		if keyRecord != nil {
+			valid = true
 		} else if len(s.apiKeys) > 0 {
 			for _, k := range s.apiKeys {
 				if subtle.ConstantTimeCompare([]byte(got), k) == 1 {
@@ -185,7 +190,7 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if s.keyCheck != nil || len(s.apiKeys) > 0 {
 			if !valid {
 				writeErr(w, http.StatusUnauthorized, "invalid_request_error",
-					"missing or invalid API key (Authorization: Bearer ***")
+					"missing or invalid API key (Authorization: Bearer ***)")
 				return
 			}
 		}
@@ -196,7 +201,7 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		}
 		if !s.limiter.allow(key) {
 			writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
-				"rate limit exceeded; retry shortly")
+				fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
 			return
 		}
 		next(w, r)
@@ -492,6 +497,6 @@ func (s *Server) SetRequireAuth(on bool) {
 }
 
 // SetKeyCheck updates the hashed-key verifier at runtime.
-func (s *Server) SetKeyCheck(fn func(string) bool) {
+func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 	s.keyCheck = fn
 }

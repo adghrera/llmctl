@@ -80,24 +80,23 @@ func (s *Server) Handler() http.Handler {
 	return s.recoverer(m)
 }
 
-// KeyCheck returns a verifier for the gateway: true if token matches any
-// stored key hash (constant-time compare of the sha256 digests).
-func (s *Server) KeyCheck(token string) bool {
+// KeyCheck returns the API key record if the token is valid, otherwise nil.
+func (s *Server) KeyCheck(token string) *store.APIKeyRecord {
 	if token == "" {
-		return false
+		return nil
 	}
 	sum := sha256.Sum256([]byte(token))
 	h := hex.EncodeToString(sum[:])
 	st, err := s.store.Load()
 	if err != nil {
-		return false
+		return nil
 	}
 	for _, k := range st.APIKeys {
 		if subtleEqual(k.Hash, h) {
-			return true
+			return k
 		}
 	}
-	return false
+	return nil
 }
 
 func subtleEqual(a, b string) bool {
@@ -524,21 +523,37 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.Update(func(st *store.State) error {
 		st.APIKeys[id] = &store.APIKeyRecord{
-			ID: id, Name: req.Name, Hash: hex.EncodeToString(sum[:]),
-			Prefix: prefix, CreatedAt: time.Now(),
+			ID:        id,
+			Name:      req.Name,
+			Hash:      hex.EncodeToString(sum[:]),
+			Prefix:    prefix,
+			CreatedAt: time.Now(),
+			RateRPS:   0, // use default
+			RateBurst: 0, // use default
 		}
 		return nil
 	})
 	// Return the plaintext exactly once.
 	writeJSON(w, 201, map[string]any{
-		"id": id, "name": req.Name, "key": plaintext, "prefix": prefix,
-		"note": "store this key now; it is shown only once",
+		"id":         id,
+		"name":       req.Name,
+		"key":        plaintext,
+		"prefix":     prefix,
+		"note":       "store this key now; it is shown only once",
 	})
 }
-
+// Delete an API key by ID.
 func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	s.store.Update(func(st *store.State) error { delete(st.APIKeys, id); return nil })
+	st, _ := s.store.Load()
+	if _, ok := st.APIKeys[id]; !ok {
+		writeErr(w, 404, "unknown key")
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		delete(st.APIKeys, id)
+		return nil
+	})
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
