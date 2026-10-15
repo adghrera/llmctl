@@ -53,6 +53,7 @@ export interface Job {
   progress: number;
   message?: string;
   error?: string;
+  created: string;
 }
 
 export interface ApiKey {

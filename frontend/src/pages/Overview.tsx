@@ -4,6 +4,10 @@ export default function Overview() {
   const { status, instances, jobs } = useStore();
   const running = instances.filter((i) => i.status === "running");
   const activeJobs = jobs.filter((j) => j.status === "running");
+  const completedJobs = jobs
+    .filter(j => j.status === "done" || j.status === "error")
+    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
+    .slice(0, 5);
 
   return (
     <>
@@ -40,6 +44,18 @@ export default function Overview() {
             {activeJobs.map((j) => (
               <li key={j.id} className="mono">
                 {j.kind} {j.target} — {Math.round(j.progress * 100)}%
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {completedJobs.length > 0 && (
+        <div className="card">
+          <h2>Recent jobs</h2>
+          <ul>
+            {completedJobs.map((j) => (
+              <li key={j.id} className="mono">
+                {j.kind} {j.target} — {Math.round(j.progress * 100)}%{j.status === "error" && ` (error: ${j.error})`}
               </li>
             ))}
           </ul>
