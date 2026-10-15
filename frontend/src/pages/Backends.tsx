@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
+import { ConfirmDialog } from "../ui/confirm";
 
 export default function Backends() {
   const { backends, refreshOne } = useStore();
@@ -10,6 +11,8 @@ export default function Backends() {
     '{\n  "id": "my-backend",\n  "name": "My Backend",\n  "description": "Custom backend",\n  "transport": "http",\n  "kind": "process",\n  "binary": {\n    "url": "https://example.com/my-backend-{platform}",\n    "sha256": ""\n  },\n  "command": ["my-backend", "--port", "{port}"]\n}'
   );
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState<string>("");
 
   const act = async (id: string, fn: () => Promise<unknown>, msg: string) => {
     setBusy(id);
@@ -37,6 +40,21 @@ export default function Backends() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const handleUninstall = (id: string) => {
+    setConfirmId(id);
+    setConfirmMessage(`Uninstall backend ${id}? This cannot be undone.`);
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmId) return;
+    setConfirmId(null);
+    await act(confirmId, () => api.uninstallBackend(confirmId), `uninstalled ${confirmId}`);
+  };
+
+  const handleCancel = () => {
+    setConfirmId(null);
   };
 
   return (
@@ -90,9 +108,30 @@ export default function Backends() {
                 <td>{b.kind}</td>
                 <td>
                   {b.installed ? (
-                    <span className="badge ok">installed{b.version ? ` ${b.version}` : ""}</span>
+                    <>
+                      <button
+                        className="btn sm primary"
+                        disabled={busy === b.id}
+                        onClick={() => act(b.id, () => api.installBackend(b.id), `install started for ${b.id}`)}
+                      >
+                        Install
+                      </button>
+                      <button
+                        className="btn sm danger"
+                        disabled={busy === b.id}
+                        onClick={() => handleUninstall(b.id)}
+                      >
+                        Uninstall
+                      </button>
+                    </>
                   ) : (
-                    <span className="badge">not installed</span>
+                    <button
+                      className="btn sm primary"
+                      disabled={busy === b.id}
+                      onClick={() => act(b.id, () => api.installBackend(b.id), `install started for ${b.id}`)}
+                    >
+                      Install
+                    </button>
                   )}
                 </td>
                 <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -119,6 +158,15 @@ export default function Backends() {
           </tbody>
         </table>
       </div>
+      <ConfirmDialog
+        open={!!confirmId}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        title="Confirm uninstall"
+        message={confirmMessage}
+        confirmText="Uninstall"
+        cancelText="Cancel"
+      />
     </>
   );
 }
