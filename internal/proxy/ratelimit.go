@@ -16,16 +16,21 @@ type rateLimiter struct {
 	getLimits func(string) (float64, int) // returns (rps, burst) for the key; (0,0) means use default
 }
 
+// limiter holds the state of a token bucket for a specific key.
 type limiter struct {
 	tokens   float64
 	last     time.Time
 	lastSeen time.Time
 }
 
+// bucketShard is a shard of the rate limiter to reduce contention.
 type bucketShard struct {
 	mu sync.Mutex
 }
 
+// newRateLimiter returns a new rate limiter with the given default rps and burst.
+// getLimits is a function that returns the effective rps and burst for a given key.
+// If getLimits returns (0,0) for a key, the default rps and burst are used.
 func newRateLimiter(rps float64, burst int, getLimits func(string) (float64, int)) *rateLimiter {
 	if rps <= 0 {
 		rps = 20 // sustained req/s per client
@@ -35,9 +40,9 @@ func newRateLimiter(rps float64, burst int, getLimits func(string) (float64, int
 	}
 	return &rateLimiter{rps: rps, burst: burst, created: map[string]*limiter{}, getLimits: getLimits}
 }
-	return &rateLimiter{rps: rps, burst: burst, created: map[string]*limiter{}}
-}
 
+// allow reports whether the request with the given key is allowed.
+// key can be empty, meaning the request is not authenticated and should use the default limits.
 func (rl *rateLimiter) allow(key string) bool {
 	rl.mu.Lock()
 	l, ok := rl.created[key]
@@ -57,7 +62,7 @@ func (rl *rateLimiter) allow(key string) bool {
 	rl.mu.Unlock()
 
 	l.lastSeen = now
-	elapsed := now.Sub(l.last).Seconds()
+	elapsed := now.Sub(l.last)
 	l.last = now
 	// Determine the effective rps and burst for this key.
 	var rps float64
@@ -82,54 +87,9 @@ func (rl *rateLimiter) allow(key string) bool {
 		}
 	}
 	// Token bucket algorithm.
-	elapsed := now.Sub(l.last).Seconds()
-	l.last = now
-	l.tokens += elapsed * rps
+	l.tokens += elapsed.Seconds() * rps
 	if l.tokens > float64(burst) {
 		l.tokens = float64(burst)
-	}
-	if l.tokens >= 1 {
-		l.tokens--
-		return true
-	}
-	return false
-}
-			}
-		}
-		l = &limiter{tokens: float64(rl.burst), last: now, lastSeen: now}
-		rl.created[key] = l
-	}
-	rl.mu.Unlock()
-
-	l.lastSeen = now
-	elapsed := now.Sub(l.last).Seconds()
-	l.last = now
-	// Determine the effective rps and burst for this key.
-	var rps, burst float64
-	if key == "" {
-		// Use the rate limiter's default rps and burst.
-		rps = float64(rl.rps)
-		burst = float64(rl.burst)
-	} else {
-		if rl.getLimits != nil {
-			rps, burstFloat := rl.getLimits(key)
-			if rps == 0 && burstFloat == 0 {
-				rps = float64(rl.rps)
-				burst = float64(rl.burst)
-			} else {
-				burst = burstFloat
-			}
-		} else {
-			rps = float64(rl.rps)
-			burst = float64(rl.burst)
-		}
-	}
-	// Token bucket algorithm.
-	elapsed := now.Sub(l.last).Seconds()
-	l.last = now
-	l.tokens += elapsed * rps
-	if l.tokens > burst {
-		l.tokens = burst
 	}
 	if l.tokens >= 1 {
 		l.tokens--
