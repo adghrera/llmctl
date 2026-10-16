@@ -69,6 +69,8 @@ type APIKeyRecord struct {
 	Hash      string    `json:"hash"` // sha256 hex of the plaintext key
 	Prefix    string    `json:"prefix"` // first 12 chars, for display
 	CreatedAt time.Time `json:"createdAt"`
+	RateRPS   float64   `json:"rateRPS"` // sustained requests/sec per key (0 means use default)
+	RateBurst int       `json:"rateBurst"` // max burst per key (0 means use default)
 }
 
 // Settings holds daemon-wide configuration.

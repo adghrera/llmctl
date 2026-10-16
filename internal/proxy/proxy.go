@@ -72,12 +72,23 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	if !requireAuth && (len(keys) > 0 || cfg.KeyCheck != nil) {
 		requireAuth = true
 	}
+	var getLimits func(string) (float64, int)
+	if cfg.KeyCheck != nil {
+		getLimits = func(token string) (float64, int) {
+			if rec := cfg.KeyCheck(token); rec != nil {
+				return rec.RateRPS, rec.RateBurst
+			}
+			return 0, 0
+		}
+	} else {
+		getLimits = func(string) (float64, int) { return 0, 0 }
+	}
 	s := &Server{
 		addr:        cfg.Addr,
 		apiKeys:     keys,
 		keyCheck:    cfg.KeyCheck,
 		requireAuth: &atomic.Bool{},
-		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst),
+		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
 		router:      router,
 		logger:      cfg.Logger,
 		maxInflight: int64(cfg.MaxInflight),
