@@ -20,8 +20,8 @@ Prefer simple, easy-to-understand designs. Don't overthink.
 | 10 | P1 | ui | **Proper UI** — port all pages + routing + nav shell | COMPLETED |
 | 11 | P2 | ui | **Proper UI** — reusable component kit + theme tokens | COMPLETED |
 | 12 | P2 | ui | **Proper UI** — cutover: serve new UI, remove old index.html, verify | COMPLETED |
-| 13 | P2 | ui | UI polish: error toasts, job history, confirm dialogs | NOT-STARTED |
-| 14 | P2 | api | Per-key rate limits / quotas | NOT-STARTED |
+| 13 | P2 | ui | UI polish: error toasts, job history, confirm dialogs | COMPLETED |
+| 14 | P2 | api | Per-key rate limits / quotas | COMPLETED |
 | 15 | P3 | backends | Load-balanced replicas of one model | NOT-STARTED |
 | 16 | P3 | models | Model catalog page (curated GGUF, one-click install) | NOT-STARTED |
 | 17 | P4 | api | WebSocket passthrough | NOT-STARTED |
