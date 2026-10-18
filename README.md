@@ -100,9 +100,10 @@ sha256 hashes; the plaintext is shown exactly once.
 | `llmctl status` / `ps` | daemon and instance state |
 | `llmctl backends list\|install\|uninstall\|add\|remove` | manage backend binaries + plugins |
 | `llmctl models list\|install\|remove\|hf-search\|hf-files` | manage model artifacts |
-| `llmctl start <model> [--backend id] [--instance n] [--var k=v]` | launch a model instance |
+| `llmctl start <model> [--backend id] [--instance n] [--var k=v]` | launch a model instance (replicas auto-named `model-2`, `model-3`, …) |
 | `llmctl stop <instance> [--force]` | graceful stop (signal grace, then kill) |
 | `llmctl key generate\|list\|revoke` | gateway API keys |
+| `llmctl autostart list\|add\|remove` | relaunch models automatically at daemon start |
 | `llmctl version` | version |
 
 ## Backends (pluggable)
@@ -146,8 +147,12 @@ All UI features are API-backed (agents/CI use the same surface). Base:
 | `GET /backends` · `POST /backends/{id}/install` · `POST /backends/{id}/uninstall` | backends |
 | `POST /backends` · `DELETE /backends/{id}` | add / remove plugin |
 | `GET /models` · `POST /models/install` · `DELETE /models/{id}` | models |
+| `GET /catalog` · `POST /catalog/install` | curated GGUF catalog + one-click install |
 | `GET /hf/search?q=` · `GET /hf/files?repo=` | HuggingFace search + file list (proxied) |
 | `GET /instances` · `POST /instances` · `DELETE /instances/{id}` | start / stop instances |
+| `GET /instances/{id}/logs?stream=stdout\|stderr&bytes=N` | tail an instance's logs |
+| `GET /autostart` · `POST /autostart` · `DELETE /autostart/{model}` | auto-start specs |
+| `GET /metrics` | gateway metrics: counts, tokens, p50/p90/p99 latency, per-model |
 | `GET /jobs` · `GET /jobs/events` (SSE) | background jobs + live progress |
 | `GET /keys` · `POST /keys` · `DELETE /keys/{id}` | API keys |
 | `POST /shutdown` | graceful daemon stop |
@@ -156,7 +161,8 @@ All UI features are API-backed (agents/CI use the same surface). Base:
 
 - **State**: `~/.llmctl/state.json` — atomic writes + lockfile; CLI and daemon never race.
 - **Instances**: each gets a free port (http) or a stdio pipe, its own log dir (`~/.llmctl/logs/<id>/`), health-gated startup, crash reaping every 5 s.
-- **Routing**: exact model-id match → prefix match → single-instance default (empty `model`).
+- **Routing**: exact model-id match (round-robin across replicas) → prefix match → single-instance default (empty `model`).
+- **Auto-start**: `llmctl autostart add <model>` persists a launch spec; the daemon relaunches all specs at boot (failures logged, never blocking).
 - **Downloads**: resumable (HTTP Range), progress shown live in the UI (SSE), sha256 on request.
 - **Security**: gateway keys are sha256-hashed; the management API and UI are served on the same port — bind to loopback (`127.0.0.1`) unless you add your own auth in front.
 
@@ -175,9 +181,8 @@ launch-arg rendering.
 - Windows graceful stop escalates to `TerminateProcess` (no SIGTERM on Win32).
 - stdio backends currently translate `/v1/chat/completions` only.
 - `models remove` refuses to touch instances still using the file — stop first.
-- Roadmap (see `docs/PLAN.md`): per-key quotas, load-balanced replicas,
-  curated model catalog, WebSocket passthrough, instance log viewer,
-  auto-start on boot, metrics.
+- WebSocket passthrough (`GET /v1/ws?model=…`) proxies the upgrade + raw
+  byte stream; it does not parse WS frames (no per-message middleware).
 
 ## Docker
 
