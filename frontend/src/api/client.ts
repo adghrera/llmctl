@@ -224,3 +224,68 @@ export async function* chatStream(
     }
   }
 }
+
+export interface AgentToolEvent {
+  type: "tool";
+  step: number;
+  name: string;
+  query: string;
+  results?: { title: string; url: string; snippet: string }[];
+  error?: string;
+}
+export interface AgentEvent {
+  type: "delta" | "tool" | "done" | "error";
+  content?: string;
+  step?: number;
+  name?: string;
+  query?: string;
+  results?: { title: string; url: string; snippet: string }[];
+  error?: string;
+  steps?: number;
+}
+
+/** Agent chat: server-side loop with web_search tool. Streams AgentEvents. */
+export async function* agentStream(
+  key: string,
+  body: {
+    model: string;
+    messages: { role: string; content: string }[];
+    maxSteps?: number;
+    temperature?: number;
+  }
+): AsyncGenerator<AgentEvent> {
+  const r = await fetch("/api/v1/chat/agent", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(key ? { Authorization: `Bearer ${key}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok || !r.body) {
+    const t = await r.text();
+    let msg = t;
+    try {
+      msg = (JSON.parse(t).error?.message as string) || t;
+    } catch { /* keep raw */ }
+    throw new ApiError(r.status, msg);
+  }
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, idx).trim();
+      buf = buf.slice(idx + 1);
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      try {
+        yield JSON.parse(data) as AgentEvent;
+      } catch { /* partial line */ }
+    }
+  }
+}

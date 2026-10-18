@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"llmctl/internal/agent"
 	"llmctl/internal/backend"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
@@ -39,6 +40,7 @@ type Server struct {
 	gwPort     int                 // gateway port, for building client URLs
 	gw         *proxy.Server       // gateway handle, for runtime setting changes
 	searcher   *websearch.Searcher // keyless web search (F021)
+	agentTool  agent.Tool          // web_search tool override (tests); nil = WebSearchTool{searcher}
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -83,6 +85,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	// Web search (keyless)
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
+	// Agent chat (SSE, tool-using)
+	m.HandleFunc("POST /api/v1/chat/agent", s.chatAgent)
 	// Keys
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)

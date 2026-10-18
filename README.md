@@ -153,6 +153,8 @@ All UI features are API-backed (agents/CI use the same surface). Base:
 | `GET /instances/{id}/logs?stream=stdout\|stderr&bytes=N` | tail an instance's logs |
 | `GET /autostart` · `POST /autostart` · `DELETE /autostart/{model}` | auto-start specs |
 | `GET /metrics` | gateway metrics: counts, tokens, p50/p90/p99 latency, per-model |
+| `GET /search?q=&max=` | keyless web search (DuckDuckGo, Bing fallback) |
+| `POST /chat/agent` (SSE) | agent chat: model + web_search loop, streams deltas + tool events |
 | `GET /jobs` · `GET /jobs/events` (SSE) | background jobs + live progress |
 | `GET /keys` · `POST /keys` · `DELETE /keys/{id}` | API keys |
 | `POST /shutdown` | graceful daemon stop |
