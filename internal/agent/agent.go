@@ -82,6 +82,13 @@ var (
 	paramFenceRe = regexp.MustCompile(`(?is)<parameter\s*=\s*([a-zA-Z0-9_.\-]+)\s*>(.*?)</parameter\s*>`)
 	// ```tool_call / ```tool / ```functions.x fenced JSON (Llama 3.x)
 	toolFenceRe = regexp.MustCompile("(?is)```(?:tool_call|tool|functions?)[._a-z0-9\\-]*\\s*\\n(.*?)```")
+	// <|tool_call_start|> [fn(query='x'), fn2(query="y")] <|tool_call_end|>
+	// (Llama-4 / Ollama "pythonic" style). Tolerates a missing end tag.
+	pySentinelRe = regexp.MustCompile(`(?is)<\|\s*tool_call_start\s*\|>(.*?)(?:<\|\s*tool_call_end\s*\|>|$)`)
+	// one pythonic call: name(args) with up to one level of nested parens
+	pyCallRe = regexp.MustCompile(`([a-zA-Z0-9_.\-]+)\s*\(((?:[^()]|\([^()]*\))*)\)`)
+	// one kwarg inside a pythonic call (quoted value or bare token)
+	pyArgRe = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*('(?:\\.|[^'])*'|"(?:\\.|[^"])*"|[^,()]+)`)
 	// bare JSON object with name+arguments (up to 3 levels of nesting)
 	bareJSONRe = regexp.MustCompile(`(?s)\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*"name"\s*:\s*"[a-zA-Z0-9_.\-]+"\s*,(?:[^{}]|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*"arguments"\s*:\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|"(?:\\.|[^"\\])*")(?:[^{}]|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*\}`)
 )
@@ -89,7 +96,7 @@ var (
 // suppressionMarkers: if any appears in streamed text, stop emitting deltas
 // until we know whether it was a real tool call (false positives are
 // re-flushed by the caller).
-var suppressionMarkers = []string{"<search", "<tool_call", "<function=", "```tool", `"arguments"`}
+var suppressionMarkers = []string{"<search", "<tool_call", "<function=", "```tool", `"arguments"`, "<|tool_call"}
 
 // extractToolCalls finds tool calls in every supported format.
 func extractToolCalls(text string) []toolCall {
@@ -151,6 +158,14 @@ func extractToolCalls(text string) []toolCall {
 		if tc, ok := parseCallJSON(m); ok {
 			tc.Raw = m
 			add(tc)
+		}
+	}
+
+	// 6. <|tool_call_start|> [fn(query='x'), …] <|tool_call_end|> (pythonic)
+	for _, m := range pySentinelRe.FindAllStringSubmatch(text, -1) {
+		for _, c := range parsePythonicCalls(m[1]) {
+			c.Raw = m[0]
+			add(c)
 		}
 	}
 
@@ -249,12 +264,132 @@ func parseCallJSON(s string) (toolCall, bool) {
 	return toolCall{Name: strings.ToLower(name), Query: strings.TrimSpace(q), ArgsJSON: string(args)}, true
 }
 
+// parsePythonicCalls parses a pythonic call list body such as
+// "[web_search(query='a'), other(x=1, y='two')]" into tool calls.
+// Positional string args become "query"; quoted literals are unquoted.
+func parsePythonicCalls(body string) []toolCall {
+	body = strings.TrimSpace(body)
+	body = strings.TrimPrefix(body, "[")
+	body = strings.TrimSuffix(body, "]")
+	var out []toolCall
+	for _, m := range pyCallRe.FindAllStringSubmatch(body, -1) {
+		name := strings.ToLower(strings.TrimSpace(m[1]))
+		argsRaw := strings.TrimSpace(m[2])
+		args := map[string]string{}
+		var positional []string
+		if argsRaw != "" {
+			for _, a := range pyArgRe.FindAllStringSubmatch(argsRaw, -1) {
+				key := strings.ToLower(strings.TrimSpace(a[1]))
+				val := unquotePy(strings.TrimSpace(a[2]))
+				if key == "self" {
+					continue
+				}
+				args[key] = val
+			}
+			// pyArgRe only catches kwargs; grab positional args too by
+			// splitting top-level commas and taking bare values.
+			positional = positionalPyArgs(argsRaw)
+			if len(args) == 0 {
+				for i, p := range positional {
+					if i == 0 {
+						args["query"] = p
+					} else {
+						args[fmt.Sprintf("arg%d", i)] = p
+					}
+				}
+			}
+		}
+		q := args["query"]
+		if q == "" {
+			q = args["q"]
+		}
+		if q == "" && len(positional) > 0 {
+			q = positional[0]
+		}
+		argsJSON, _ := json.Marshal(args)
+		out = append(out, toolCall{Name: name, Query: q, ArgsJSON: string(argsJSON)})
+	}
+	return out
+}
+
+// positionalPyArgs returns unquoted positional (non-kwarg) argument values.
+func positionalPyArgs(argsRaw string) []string {
+	var out []string
+	depth := 0
+	inStr := byte(0)
+	start := 0
+	emit := func(part string) {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return
+		}
+		// kwarg? (identifier = …) at top level
+		if i := strings.IndexByte(part, '='); i > 0 && strings.IndexByte(part, '(') < 0 {
+			// check all before '=' is identifier chars
+			isKw := true
+			for j := 0; j < i; j++ {
+				c := part[j]
+				if !(c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || j == 0 && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')) {
+					isKw = false
+					break
+				}
+			}
+			if isKw {
+				return
+			}
+		}
+		out = append(out, unquotePy(part))
+	}
+	for i := 0; i < len(argsRaw); i++ {
+		c := argsRaw[i]
+		if inStr != 0 {
+			if c == '\\' {
+				i++
+			} else if c == inStr {
+				inStr = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"':
+			inStr = c
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				emit(argsRaw[start:i])
+				start = i + 1
+			}
+		}
+	}
+	emit(argsRaw[start:])
+	return out
+}
+
+// unquotePy strips matching single/double quotes from a Python literal.
+func unquotePy(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 {
+		if (s[0] == '\'' && s[len(s)-1] == '\'') || (s[0] == '"' && s[len(s)-1] == '"') {
+			inner := s[1 : len(s)-1]
+			inner = strings.ReplaceAll(inner, `\'`, `'`)
+			inner = strings.ReplaceAll(inner, `\"`, `"`)
+			inner = strings.ReplaceAll(inner, `\\`, `\`)
+			return inner
+		}
+	}
+	return s
+}
+
 // stripToolCalls removes every recognized tool-call block from model text.
 func stripToolCalls(text string) string {
 	s := searchRe.ReplaceAllString(text, "")
 	s = toolCallTagRe.ReplaceAllString(s, "")
 	s = funcFenceRe.ReplaceAllString(s, "")
 	s = toolFenceRe.ReplaceAllString(s, "")
+	s = pySentinelRe.ReplaceAllString(s, "")
 	s = bareJSONRe.ReplaceAllString(s, "")
 	return strings.TrimSpace(s)
 }

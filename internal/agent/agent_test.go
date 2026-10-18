@@ -319,6 +319,63 @@ func TestExtractToolCallsNativeFormats(t *testing.T) {
 	}
 }
 
+func TestExtractToolCallsPythonic(t *testing.T) {
+	// exact user-reported format: Llama-4 pythonic with two calls
+	text := `<|tool_call_start|>[web_search(query='best stocks to buy next week 2026 stock market recommendations'), web_search(query='top stock picks for next week 2026 market analysis')]<|tool_call_end|>`
+	calls := extractToolCalls(text)
+	if len(calls) != 2 {
+		t.Fatalf("got %d calls: %+v", len(calls), calls)
+	}
+	if calls[0].Name != "web_search" || calls[0].Query != "best stocks to buy next week 2026 stock market recommendations" {
+		t.Errorf("call 0 = %+v", calls[0])
+	}
+	if calls[1].Name != "web_search" || calls[1].Query != "top stock picks for next week 2026 market analysis" {
+		t.Errorf("call 1 = %+v", calls[1])
+	}
+	if stripped := stripToolCalls(text); stripped != "" {
+		t.Errorf("strip left %q", stripped)
+	}
+	// missing end tag tolerated
+	calls = extractToolCalls(`<|tool_call_start|>[web_search(query='fed rate'])]`)
+	if len(calls) != 1 || calls[0].Query != "fed rate" {
+		t.Fatalf("no-end-tag: %+v", calls)
+	}
+	// double quotes + positional arg
+	calls = extractToolCalls(`<|tool_call_start|>[web_search("gold price 2026")]<|tool_call_end|>`)
+	if len(calls) != 1 || calls[0].Query != "gold price 2026" {
+		t.Fatalf("positional: %+v", calls)
+	}
+	// prose with parens must not be stripped or parsed
+	if calls := extractToolCalls("I looked (today) at web_search (a search engine)"); len(calls) != 0 {
+		t.Errorf("false positive: %+v", calls)
+	}
+	if s := stripToolCalls("I looked (today)"); s != "I looked (today)" {
+		t.Errorf("prose stripped: %q", s)
+	}
+}
+
+func TestAgentPythonicLoop(t *testing.T) {
+	script1 := `<|tool_call_start|>[web_search(query='best stocks next week'), web_search(query='market analysis next week')]<|tool_call_end|>`
+	script2 := "Based on the searches: watch MU and NVDA."
+	events, fw, tool := runAgent(t,
+		[]string{script1, script2},
+		Request{Model: "m", Messages: []Message{{Role: "user", Content: "stocks next week?"}}},
+	)
+	if fw.calls != 2 {
+		t.Fatalf("calls = %d", fw.calls)
+	}
+	if len(tool.queries) != 2 || tool.queries[0] != "best stocks next week" || tool.queries[1] != "market analysis next week" {
+		t.Fatalf("queries = %v", tool.queries)
+	}
+	pt := plainText(events)
+	if strings.Contains(pt, "tool_call_start") || strings.Contains(pt, "web_search(") {
+		t.Fatalf("raw markup leaked: %q", pt)
+	}
+	if !strings.Contains(pt, "watch MU and NVDA") {
+		t.Fatalf("answer missing: %q", pt)
+	}
+}
+
 func TestExtractToolCallsNoFalsePositives(t *testing.T) {
 	// ordinary prose and JSON examples must NOT be treated as calls
 	plain := []string{
