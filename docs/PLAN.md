@@ -22,12 +22,12 @@ Prefer simple, easy-to-understand designs. Don't overthink.
 | 12 | P2 | ui | **Proper UI** — cutover: serve new UI, remove old index.html, verify | COMPLETED |
 | 13 | P2 | ui | UI polish: error toasts, job history, confirm dialogs | COMPLETED |
 | 14 | P2 | api | Per-key rate limits / quotas | COMPLETED |
-| 15 | P3 | backends | Load-balanced replicas of one model | NOT-STARTED |
-| 16 | P3 | models | Model catalog page (curated GGUF, one-click install) | NOT-STARTED |
-| 17 | P4 | api | WebSocket passthrough | NOT-STARTED |
-| 18 | P4 | ui | Instance log viewer (tail stderr.log via API) | NOT-STARTED |
-| 19 | P5 | ops | Auto-start configured instances on boot | NOT-STARTED |
-| 20 | P5 | api | Metrics endpoint | NOT-STARTED |
+| 15 | P3 | backends | Load-balanced replicas of one model | COMPLETED |
+| 16 | P3 | models | Model catalog page (curated GGUF, one-click install) | COMPLETED |
+| 17 | P4 | api | WebSocket passthrough | COMPLETED |
+| 18 | P4 | ui | Instance log viewer (tail stderr.log via API) | COMPLETED |
+| 19 | P5 | ops | Auto-start configured instances on boot | COMPLETED |
+| 20 | P5 | api | Metrics endpoint | COMPLETED |
 
 ## Proper UI — design note (shipped)
 
