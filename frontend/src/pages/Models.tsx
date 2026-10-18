@@ -98,6 +98,32 @@ export default function Models() {
     }
   };
 
+  // per-model context size (tokens); 0/empty = backend default
+  const [ctxDraft, setCtxDraft] = useState<Record<string, string>>({});
+  const saveCtx = async (id: string) => {
+    const raw = (ctxDraft[id] ?? "").trim();
+    const n = raw === "" ? 0 : Number(raw);
+    if (Number.isNaN(n) || n < 0 || n > 1000000) {
+      err("ctx must be 0–1000000 (0 = backend default)");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await api.setModelCtx(id, n);
+      ok(res.restartRequired ? `ctx ${n || "default"} saved — restart running instance to apply` : `ctx ${n || "default"} saved`);
+      setCtxDraft((d) => {
+        const c = { ...d };
+        delete c[id];
+        return c;
+      });
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const installedIds = new Set(models.map((m) => m.id));
 
   return (
@@ -237,6 +263,7 @@ export default function Models() {
                 <th>ID</th>
                 <th>Backend</th>
                 <th>Size</th>
+                <th>Context</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -247,6 +274,28 @@ export default function Models() {
                   <td className="mono">{m.id}</td>
                   <td>{m.backendId}</td>
                   <td>{fmtBytes(m.sizeBytes)}</td>
+                  <td>
+                    <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                      <input
+                        style={{ width: 92 }}
+                        list="ctx-sizes"
+                        inputMode="numeric"
+                        placeholder={m.ctxSize ? String(m.ctxSize) : "default"}
+                        value={ctxDraft[m.id] ?? ""}
+                        disabled={busy}
+                        onChange={(e) => setCtxDraft((d) => ({ ...d, [m.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveCtx(m.id);
+                        }}
+                      />
+                      {(ctxDraft[m.id] ?? "") !== "" && (
+                        <button className="btn sm" disabled={busy} onClick={() => saveCtx(m.id)}>
+                          Set
+                        </button>
+                      )}
+                      {!m.ctxSize && (ctxDraft[m.id] ?? "") === "" && <span className="muted">default</span>}
+                    </span>
+                  </td>
                   <td>
                     {m.running ? (
                       <span className="badge run">running</span>
@@ -268,6 +317,11 @@ export default function Models() {
         ) : (
           <div className="empty">no models installed</div>
         )}
+        <datalist id="ctx-sizes">
+          {[2048, 4096, 8192, 16384, 32768, 65536, 131072].map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
       </div>
     </>
   );

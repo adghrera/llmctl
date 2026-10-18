@@ -129,7 +129,7 @@ export default function Instances() {
           </div>
         </div>
         <div style={{ marginTop: 10 }}>
-          <label>Extra vars (JSON, optional — e.g. {"{"}num_ctx: 8192{"}"})</label>
+          <label>{`Extra vars (JSON, optional — e.g. {"ctx": 8192} for context size; empty uses the model's default)`}</label>
           <input className="mono" style={{ width: "100%" }} value={vars} onChange={(e) => setVars(e.target.value)} />
         </div>
         <label style={{ display: "inline-flex", gap: 6, alignItems: "center", marginTop: 10 }}>

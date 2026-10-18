@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"llmctl/internal/daemon"
@@ -75,6 +76,7 @@ Usage:
   llmctl models list
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id>
+  llmctl models ctx <model-id> <tokens|0>
   llmctl models hf-search <query>
   llmctl models hf-files <repo>
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
@@ -310,9 +312,13 @@ func cmdModels(args []string) error {
 			fmt.Println("no models downloaded")
 			return nil
 		}
-		fmt.Printf("%-40s %-12s %-10s %s\n", "ID", "BACKEND", "SIZE", "RUNNING")
+		fmt.Printf("%-40s %-12s %-10s %-9s %s\n", "ID", "BACKEND", "SIZE", "CTX", "RUNNING")
 		for _, m := range list {
-			fmt.Printf("%-40s %-12s %-10v %v\n", m["id"], m["backendId"], m["sizeBytes"], m["running"])
+			ctxv := "-"
+			if v, ok := m["ctxSize"].(float64); ok && v > 0 {
+				ctxv = fmt.Sprintf("%d", int(v))
+			}
+			fmt.Printf("%-40s %-12s %-10v %-9s %v\n", m["id"], m["backendId"], m["sizeBytes"], ctxv, m["running"])
 		}
 		return nil
 	case "install":
@@ -348,6 +354,28 @@ func cmdModels(args []string) error {
 		fmt.Println(string(out))
 		if code != 200 {
 			return fmt.Errorf("remove returned %d", code)
+		}
+		return nil
+	case "ctx":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl models ctx <model-id> <tokens|0>  (0 = backend default)")
+		}
+		id := rest[0]
+		n := 0
+		if len(rest) > 1 {
+			v, err := strconv.Atoi(rest[1])
+			if err != nil {
+				return fmt.Errorf("invalid token count: %s", rest[1])
+			}
+			n = v
+		}
+		code, out, err := cc.Do("PUT", "/api/v1/models/"+urlEscape(id)+"/ctx", map[string]any{"ctxSize": n})
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("ctx returned %d", code)
 		}
 		return nil
 	case "hf-search":

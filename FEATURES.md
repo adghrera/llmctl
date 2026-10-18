@@ -27,6 +27,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F020 | P2 | 20 | ui | Proper UI: cutover | COMPLETED | Removed the old single-file internal/ui/index.html (dead — embed is all:dist). Daemon now serves only the React SPA. Verified in a real browser: root serves hashed JS+CSS bundle, deep-link refresh to /chat works (full page load → React renders), all 6 pages render. go build + go vet clean. |
 | F021 | P1 | 21 | chat | Free web search | COMPLETED | Keyless web search: GET /api/v1/search?q= proxies DuckDuckGo HTML (Bing fallback), returns title/url/snippet JSON. Powers agent tool use. |
 | F022 | P1 | 22 | chat | Interactive agent chat | COMPLETED | POST /api/v1/chat/agent (SSE): server-side agent loop — parses tool calls in any common format (<search> text protocol, <tool_call> JSON/XML, <function=> XML, ```tool_call fences, bare {"name","arguments"} JSON, <|tool_call_start|> pythonic call lists), daemon executes keyless web search, feeds results back, streams deltas + tool activity to the Chat UI (Agent toggle, expandable sources). |
+| F023 | P2 | 23 | models | Per-model context size | COMPLETED | ModelRecord.CtxSize: per-model default context window (tokens). PUT /api/v1/models/{id}/ctx {"ctxSize": N} (0 = backend default); shown/edited inline in the Models page; `llmctl models ctx <id> <tokens>`; applied at instance start via vars["ctx"] unless the start request sets ctx explicitly (per-start override wins). |
 
 ## Shipped (v0.2 architecture, this iteration)
 

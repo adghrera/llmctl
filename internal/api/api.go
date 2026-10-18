@@ -67,6 +67,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/catalog", s.listCatalog)
 	m.HandleFunc("POST /api/v1/catalog/install", s.installCatalogModel)
 	m.HandleFunc("DELETE /api/v1/models/{id}", s.removeModel)
+	m.HandleFunc("PUT /api/v1/models/{id}/ctx", s.setModelCtx)
 	m.HandleFunc("GET /api/v1/hf/search", s.hfSearch)
 	m.HandleFunc("GET /api/v1/hf/files", s.hfFiles)
 	// Instances
@@ -255,13 +256,14 @@ type modelView struct {
 	Running    bool     `json:"running"`
 	Instances  []string `json:"instances,omitempty"`
 	Downloaded bool     `json:"downloaded"`
+	CtxSize    int      `json:"ctxSize,omitempty"`
 }
 
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []modelView{}
 	for id, m := range st.Models {
-		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true}
+		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize}
 		for _, inst := range st.Instances {
 			if inst.ModelID == id {
 				v.Instances = append(v.Instances, inst.ID)
@@ -337,6 +339,45 @@ func (s *Server) installModel(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 	writeJSON(w, 202, map[string]any{"job": job.ID, "model": id})
+}
+
+// setModelCtx sets the default context window (tokens) for a model.
+// Body: {"ctxSize": 8192}. ctxSize 0 clears the override (backend default).
+// Takes effect on the next start of an instance of this model.
+func (s *Server) setModelCtx(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		CtxSize *int `json:"ctxSize"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.CtxSize == nil {
+		writeErr(w, 400, "expected {\"ctxSize\": <tokens>}")
+		return
+	}
+	if *req.CtxSize < 0 || *req.CtxSize > 1_000_000 {
+		writeErr(w, 400, "ctxSize must be between 0 and 1000000 (0 = backend default)")
+		return
+	}
+	st, _ := s.store.Load()
+	if _, ok := st.Models[id]; !ok {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	if err := s.store.Update(func(st *store.State) error {
+		st.Models[id].CtxSize = *req.CtxSize
+		return nil
+	}); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	running := false
+	st, _ = s.store.Load()
+	for _, inst := range st.Instances {
+		if inst.ModelID == id && inst.Status == store.StatusRunning {
+			running = true
+		}
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "model": id, "ctxSize": *req.CtxSize,
+		"restartRequired": running})
 }
 
 func (s *Server) removeModel(w http.ResponseWriter, r *http.Request) {

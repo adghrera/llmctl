@@ -90,6 +90,10 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 		return nil, fmt.Errorf("instance %q already running", instanceID)
 	}
 
+	// Per-model context-size default: applies unless the start request
+	// explicitly sets vars["ctx"].
+	vars = applyModelCtxDefault(vars, mrec)
+
 	logDir := paths.InstanceLogDir(instanceID)
 	os.MkdirAll(logDir, 0o755)
 

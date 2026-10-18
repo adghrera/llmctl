@@ -29,6 +29,7 @@ export interface Model {
   downloaded: boolean;
   running?: boolean;
   instances?: string[];
+  ctxSize?: number;
 }
 
 export interface Instance {
@@ -149,6 +150,8 @@ export const api = {
   installModel: (body: { repo: string; file?: string; revision?: string; backend?: string; id?: string }) =>
     req<{ job: string; status: string; model: string }>("/models/install", { method: "POST", body: JSON.stringify(body) }),
   removeModel: (id: string) => req<{ ok: boolean }>(`/models/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setModelCtx: (id: string, ctxSize: number) =>
+    req<{ ok: boolean; restartRequired?: boolean }>(`/models/${encodeURIComponent(id)}/ctx`, { method: "PUT", body: JSON.stringify({ ctxSize }) }),
   hfSearch: (q: string, limit = 15) =>
     req<Array<{ modelId?: string; id?: string; downloads?: number }>>(`/hf/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   hfFiles: (repo: string, revision = "main") =>

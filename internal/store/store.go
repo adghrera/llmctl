@@ -35,6 +35,10 @@ type ModelRecord struct {
 	Path        string    `json:"path"` // .gguf file or model dir
 	SizeBytes   int64     `json:"sizeBytes"`
 	DownloadedAt time.Time `json:"downloadedAt"`
+	// CtxSize is the default context window (tokens) used when starting
+	// instances of this model; 0 = backend default. Overridable per start
+	// via vars["ctx"].
+	CtxSize int `json:"ctxSize,omitempty"`
 }
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.
