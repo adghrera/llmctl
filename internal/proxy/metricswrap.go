@@ -1,8 +1,10 @@
 package proxy
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"net"
 	"net/http"
 )
 
@@ -49,6 +51,16 @@ func (w *recordingResponseWriter) Flush() {
 	if f, ok := w.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
+}
+
+// Hijack forwards to the underlying Hijacker so WebSocket upgrades work
+// through the metrics wrapper.
+func (w *recordingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return h.Hijack()
 }
 
 // Unwrap lets http.ResponseController reach the real writer.

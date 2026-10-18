@@ -102,6 +102,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	mux.HandleFunc("POST /v1/chat/completions", s.auth(s.proxyChat))
 	mux.HandleFunc("POST /v1/completions", s.auth(s.proxyCompletions))
 	mux.HandleFunc("POST /v1/embeddings", s.auth(s.proxyEmbeddings))
+	mux.HandleFunc("GET /v1/ws", s.auth(s.handleWS))
 	ts := s.recoverer(s.metrics(mux))
 	s.handler = ts
 	s.httpSrv = &http.Server{
@@ -444,6 +445,13 @@ func bearerToken(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	if strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimSpace(h[7:])
+	}
+	// WebSocket clients (browsers) cannot set headers; allow the key as a
+	// query parameter on upgrade requests.
+	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		if t := r.URL.Query().Get("access_token"); t != "" {
+			return t
+		}
 	}
 	return ""
 }

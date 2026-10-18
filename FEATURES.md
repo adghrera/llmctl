@@ -16,7 +16,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F009 | P2 | 9 | api | Per-key quotas | COMPLETED | Rate limits per API key (not just per client IP) with configurable rps/burst per key. |
 | F010 | P3 | 10 | backends | Model replicas | COMPLETED | Start N instances of one model; gateway round-robins across them. |
 | F011 | P3 | 11 | models | Curated model catalog | COMPLETED | Built-in list of popular GGUF models (name, size, quant) with one-click install in UI. |
-| F012 | P4 | 12 | api | WebSocket passthrough | NOT-STARTED | Proxy /v1/ws (or similar) for backends exposing WebSocket APIs. |
+| F012 | P4 | 12 | api | WebSocket passthrough | COMPLETED | Proxy /v1/ws (or similar) for backends exposing WebSocket APIs. |
 | F013 | P4 | 13 | ui | Instance log viewer | COMPLETED | API endpoint + UI panel to tail an instance's stderr.log. |
 | F014 | P5 | 14 | ops | Auto-start on boot | COMPLETED | Instances marked auto-start relaunch when the daemon starts. |
 | F015 | P5 | 15 | api | Metrics endpoint | COMPLETED | /api/v1/metrics: request counts, in-flight, tokens served, latency percentiles. |
