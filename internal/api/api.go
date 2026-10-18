@@ -26,22 +26,24 @@ import (
 	"llmctl/internal/proxy"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
+	"llmctl/internal/websearch"
 )
 
 // Server is the management API.
 type Server struct {
-	store    *store.Store
-	reg      *backend.Registry
-	sv       *supervisor.Supervisor
-	jobs     *jobs.Manager
-	logger   *slog.Logger
-	gwPort   int // gateway port, for building client URLs
-	gw       *proxy.Server // gateway handle, for runtime setting changes
-	shutdownFn func() // triggers graceful daemon exit
+	store      *store.Store
+	reg        *backend.Registry
+	sv         *supervisor.Supervisor
+	jobs       *jobs.Manager
+	logger     *slog.Logger
+	gwPort     int                 // gateway port, for building client URLs
+	gw         *proxy.Server       // gateway handle, for runtime setting changes
+	searcher   *websearch.Searcher // keyless web search (F021)
+	shutdownFn func()              // triggers graceful daemon exit
 }
 
 func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
-	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, shutdownFn: shutdown}
+	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, searcher: websearch.New(), shutdownFn: shutdown}
 }
 
 // Handler returns the management API mux.
@@ -79,6 +81,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
+	// Web search (keyless)
+	m.HandleFunc("GET /api/v1/search", s.searchHandler)
 	// Keys
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
@@ -125,12 +129,12 @@ func (s *Server) shutdown(w http.ResponseWriter, r *http.Request) {
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	writeJSON(w, 200, map[string]any{
-		"ok": true,
-		"version": "0.2.0",
-		"backends": len(st.Backends),
-		"models": len(st.Models),
+		"ok":        true,
+		"version":   "0.2.0",
+		"backends":  len(st.Backends),
+		"models":    len(st.Models),
 		"instances": len(st.Instances),
-		"gateway": fmt.Sprintf("http://127.0.0.1:%d", s.gwPort),
+		"gateway":   fmt.Sprintf("http://127.0.0.1:%d", s.gwPort),
 	})
 }
 
@@ -420,11 +424,11 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 type startInstanceReq struct {
-	Instance  string            `json:"instance"`
-	Model     string            `json:"model"`
-	Backend   string            `json:"backend"`
-	Port      int               `json:"port"`
-	Vars      map[string]string `json:"vars"`
+	Instance string            `json:"instance"`
+	Model    string            `json:"model"`
+	Backend  string            `json:"backend"`
+	Port     int               `json:"port"`
+	Vars     map[string]string `json:"vars"`
 }
 
 func (s *Server) startInstance(w http.ResponseWriter, r *http.Request) {
@@ -549,11 +553,11 @@ func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"instance": id,
-		"stream":   strings.TrimSuffix(name, ".log"),
-		"size":     size,
+		"instance":  id,
+		"stream":    strings.TrimSuffix(name, ".log"),
+		"size":      size,
 		"truncated": size > int64(maxBytes),
-		"logs":     string(tail),
+		"logs":      string(tail),
 	})
 }
 
@@ -684,13 +688,14 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	})
 	// Return the plaintext exactly once.
 	writeJSON(w, 201, map[string]any{
-		"id":         id,
-		"name":       req.Name,
-		"key":        plaintext,
-		"prefix":     prefix,
-		"note":       "store this key now; it is shown only once",
+		"id":     id,
+		"name":   req.Name,
+		"key":    plaintext,
+		"prefix": prefix,
+		"note":   "store this key now; it is shown only once",
 	})
 }
+
 // Delete an API key by ID.
 func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
