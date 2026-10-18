@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -470,16 +471,54 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 type startInstanceReq struct {
-	Instance string            `json:"instance"`
-	Model    string            `json:"model"`
-	Backend  string            `json:"backend"`
-	Port     int               `json:"port"`
-	Vars     map[string]string `json:"vars"`
+	Instance string `json:"instance"`
+	Model    string `json:"model"`
+	Backend  string `json:"backend"`
+	Port     int    `json:"port"`
+	Vars     any    `json:"vars"` // map of scalars; numbers/bools coerced to strings
+}
+
+// coerceVars accepts {"ctx": "64000"} and {"ctx": 64000} alike, mapping
+// JSON scalars to strings. Returns an error if vars is not an object of
+// scalars.
+func coerceVars(v any) (map[string]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("vars must be a JSON object")
+	}
+	out := make(map[string]string, len(m))
+	for k, val := range m {
+		switch t := val.(type) {
+		case string:
+			out[k] = t
+		case float64:
+			out[k] = strconv.FormatFloat(t, 'f', -1, 64)
+		case bool:
+			out[k] = strconv.FormatBool(t)
+		case nil:
+			// skip nulls
+		default:
+			return nil, fmt.Errorf("vars[%q] must be a string, number, or bool", k)
+		}
+	}
+	return out, nil
 }
 
 func (s *Server) startInstance(w http.ResponseWriter, r *http.Request) {
 	var req startInstanceReq
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil || strings.TrimSpace(req.Model) == "" {
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body: "+err.Error())
+		return
+	}
+	vars, verr := coerceVars(req.Vars)
+	if verr != nil {
+		writeErr(w, 400, "invalid vars: "+verr.Error())
+		return
+	}
+	if strings.TrimSpace(req.Model) == "" {
 		avail := []string{}
 		if s.store != nil {
 			if st, err := s.store.Load(); err == nil {
@@ -517,7 +556,7 @@ func (s *Server) startInstance(w http.ResponseWriter, r *http.Request) {
 	// Start can be slow (model load). Run in a job so the UI can show progress,
 	// but also return the instance once ready. We block here (bounded by the
 	// health timeout) — the UI opens the request with a long timeout.
-	inst, err := s.sv.Start(r.Context(), id, req.Model, req.Backend, req.Port, req.Vars)
+	inst, err := s.sv.Start(r.Context(), id, req.Model, req.Backend, req.Port, vars)
 	if err != nil {
 		writeErr(w, 409, err.Error())
 		return
@@ -552,10 +591,23 @@ func (s *Server) listAutoStart(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) setAutoStart(w http.ResponseWriter, r *http.Request) {
 	var spec store.AutoStartSpec
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&spec); err != nil {
+	var raw struct {
+		Name      string `json:"name"`
+		ModelID   string `json:"modelId"`
+		BackendID string `json:"backendId"`
+		Port      int    `json:"port"`
+		Vars      any    `json:"vars"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&raw); err != nil {
 		writeErr(w, 400, "invalid JSON: "+err.Error())
 		return
 	}
+	vars, verr := coerceVars(raw.Vars)
+	if verr != nil {
+		writeErr(w, 400, "invalid vars: "+verr.Error())
+		return
+	}
+	spec = store.AutoStartSpec{Name: raw.Name, ModelID: raw.ModelID, BackendID: raw.BackendID, Port: raw.Port, Vars: vars}
 	if err := s.sv.SetAutoStart(spec); err != nil {
 		writeErr(w, 400, err.Error())
 		return
