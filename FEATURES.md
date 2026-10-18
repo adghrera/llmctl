@@ -26,7 +26,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F019 | P2 | 19 | ui | Proper UI: component kit | COMPLETED | Delivered as part of F018: dark theme as CSS design tokens (:root vars) + reusable kit in index.css (btn/primary/danger/sm, badge ok/run/err/warn, table, progress, toast, keybox, chat/msg, row, grid2) + Toast React component (ui/toast.tsx: notify/ok/err emitters + <Toasts/> mounted in App). |
 | F020 | P2 | 20 | ui | Proper UI: cutover | COMPLETED | Removed the old single-file internal/ui/index.html (dead — embed is all:dist). Daemon now serves only the React SPA. Verified in a real browser: root serves hashed JS+CSS bundle, deep-link refresh to /chat works (full page load → React renders), all 6 pages render. go build + go vet clean. |
 | F021 | P1 | 21 | chat | Free web search | COMPLETED | Keyless web search: GET /api/v1/search?q= proxies DuckDuckGo HTML (Bing fallback), returns title/url/snippet JSON. Powers agent tool use. |
-| F022 | P1 | 22 | chat | Interactive agent chat | COMPLETED | POST /api/v1/chat/agent (SSE): server-side agent loop — model emits <search>query</search> text-protocol tool calls, daemon executes keyless web search, feeds results back, streams deltas + tool activity to the Chat UI (Agent toggle, expandable sources). |
+| F022 | P1 | 22 | chat | Interactive agent chat | COMPLETED | POST /api/v1/chat/agent (SSE): server-side agent loop — parses tool calls in any common format (<search> text protocol, <tool_call> JSON/XML, <function=> XML, ```tool_call fences, bare {"name","arguments"} JSON), daemon executes keyless web search, feeds results back, streams deltas + tool activity to the Chat UI (Agent toggle, expandable sources). |
 
 ## Shipped (v0.2 architecture, this iteration)
 

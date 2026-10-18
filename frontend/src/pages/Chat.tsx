@@ -162,7 +162,7 @@ export default function Chat() {
                   {m.tools.map((t, j) => (
                     <details key={j} className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
                       <summary style={{ cursor: "pointer" }}>
-                        🔍 searched: {t.query}
+                        🔍 {t.name && t.name !== "web_search" ? `${t.name}:` : "searched:"} {t.query || "(no query)"}
                         {t.error ? " (error)" : ` — ${t.results?.length ?? 0} results`}
                       </summary>
                       <ul style={{ margin: "4px 0 4px 18px", padding: 0 }}>
