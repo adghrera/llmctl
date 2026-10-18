@@ -17,7 +17,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F010 | P3 | 10 | backends | Model replicas | NOT-STARTED | Start N instances of one model; gateway round-robins across them. |
 | F011 | P3 | 11 | models | Curated model catalog | NOT-STARTED | Built-in list of popular GGUF models (name, size, quant) with one-click install in UI. |
 | F012 | P4 | 12 | api | WebSocket passthrough | NOT-STARTED | Proxy /v1/ws (or similar) for backends exposing WebSocket APIs. |
-| F013 | P4 | 13 | ui | Instance log viewer | NOT-STARTED | API endpoint + UI panel to tail an instance's stderr.log. |
+| F013 | P4 | 13 | ui | Instance log viewer | COMPLETED | API endpoint + UI panel to tail an instance's stderr.log. |
 | F014 | P5 | 14 | ops | Auto-start on boot | NOT-STARTED | Instances marked auto-start relaunch when the daemon starts. |
 | F015 | P5 | 15 | api | Metrics endpoint | NOT-STARTED | /api/v1/metrics: request counts, in-flight, tokens served, latency percentiles. |
 | F016 | P1 | 16 | ui | Proper UI: scaffold | COMPLETED | `frontend/` Vite+React+TS project; `npm run build` → `internal/ui/dist/`; Go `//go:embed all:dist` serves it with SPA fallback (client-side routing works on refresh/deep-link). Dev-time build dep only — binary stays self-contained. Verified: build produces dist, binary serves React UI, nav + routing work in a real browser, `go build ./...` + `go test ./...` green. dist/ committed so `go build` works out of the box. |
