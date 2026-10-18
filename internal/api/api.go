@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -478,8 +479,21 @@ type startInstanceReq struct {
 
 func (s *Server) startInstance(w http.ResponseWriter, r *http.Request) {
 	var req startInstanceReq
-	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil || req.Model == "" {
-		writeErr(w, 400, "model required")
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil || strings.TrimSpace(req.Model) == "" {
+		avail := []string{}
+		if s.store != nil {
+			if st, err := s.store.Load(); err == nil {
+				for id := range st.Models {
+					avail = append(avail, id)
+				}
+			}
+		}
+		sort.Strings(avail)
+		if len(avail) == 0 {
+			writeErr(w, 400, "model required — no models installed (install one on the Models page)")
+		} else {
+			writeErr(w, 400, "model required — installed: "+strings.Join(avail, ", "))
+		}
 		return
 	}
 	id := req.Instance

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 
 	"llmctl/internal/agent"
+	"llmctl/internal/store"
 )
 
 // agentChatReq is the POST /api/v1/chat/agent body.
@@ -38,8 +40,29 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Model) == "" {
-		writeErr(w, 400, "model required")
-		return
+		// Empty model is OK when exactly one instance is running (the
+		// gateway routes it); otherwise tell the caller what to pick.
+		var running []string
+		if s.store != nil {
+			if st, err := s.store.Load(); err == nil {
+				for _, inst := range st.Instances {
+					if inst.Status == store.StatusRunning {
+						running = append(running, inst.ModelID)
+					}
+				}
+			}
+		}
+		switch len(running) {
+		case 0:
+			writeErr(w, 400, "no running instances — start one on the Instances page (llmctl start <model>)")
+			return
+		case 1:
+			// fall through: gateway will route the empty model to it
+		default:
+			sort.Strings(running)
+			writeErr(w, 400, "model required — running: "+strings.Join(running, ", "))
+			return
+		}
 	}
 	if len(req.Messages) == 0 {
 		writeErr(w, 400, "messages required")
