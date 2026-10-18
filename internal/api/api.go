@@ -434,6 +434,20 @@ func (s *Server) startInstance(w http.ResponseWriter, r *http.Request) {
 	id := req.Instance
 	if id == "" {
 		id = req.Model
+		// Default id taken? Derive model-2, model-3, ... so replicas of one
+		// model can be started without naming each one.
+		st, err := s.store.Load()
+		if err == nil {
+			running := func(candidate string) bool {
+				if inst, ok := st.Instances[candidate]; ok && inst.Status == store.StatusRunning {
+					return true
+				}
+				return false
+			}
+			for n := 2; running(id); n++ {
+				id = fmt.Sprintf("%s-%d", req.Model, n)
+			}
+		}
 	}
 	// Start can be slow (model load). Run in a job so the UI can show progress,
 	// but also return the instance once ready. We block here (bounded by the

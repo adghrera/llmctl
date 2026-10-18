@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"llmctl/internal/backend"
 	"llmctl/internal/stdio"
@@ -29,18 +30,24 @@ type Target struct {
 // Router resolves model names to running instances. It re-reads state.json
 // lazily (mtime-checked), so `llmctl start` from another process is picked
 // up by the running gateway without IPC.
+//
+// When several instances serve the same model (replicas), requests are
+// distributed round-robin across them.
 type Router struct {
 	mu         sync.RWMutex
 	cached     *store.State
 	cacheMod   int64
 	load       func() (*store.State, int64, error)
 	sessionFor func(instanceID string) *stdio.Session
+
+	rrMu    sync.Mutex
+	rrCount map[string]*atomic.Uint64 // model id -> next-replica index
 }
 
 // NewRouter builds a router over the given state loader
 // (state, modtime-unix-nano) and an optional stdio session resolver.
 func NewRouter(load func() (*store.State, int64, error), sessionFor func(instanceID string) *stdio.Session) *Router {
-	return &Router{load: load, sessionFor: sessionFor}
+	return &Router{load: load, sessionFor: sessionFor, rrCount: map[string]*atomic.Uint64{}}
 }
 
 func (rt *Router) state() (*store.State, error) {
@@ -73,9 +80,25 @@ func (rt *Router) RunningInstances() []*store.InstanceRecord {
 	return out
 }
 
+// nextReplica rotates through matches round-robin, keyed by model id.
+func (rt *Router) nextReplica(key string, matches []*store.InstanceRecord) *store.InstanceRecord {
+	if len(matches) == 1 {
+		return matches[0]
+	}
+	rt.rrMu.Lock()
+	counter := rt.rrCount[key]
+	if counter == nil {
+		counter = &atomic.Uint64{}
+		rt.rrCount[key] = counter
+	}
+	rt.rrMu.Unlock()
+	idx := counter.Add(1) % uint64(len(matches))
+	return matches[idx]
+}
+
 // Resolve maps a requested model name to an upstream target.
-// Matching order: exact model id match > prefix match > single running
-// instance as default when model is empty.
+// Matching order: exact model id match (round-robin over replicas) >
+// prefix match > single running instance as default when model is empty.
 func (rt *Router) Resolve(model string) (*Target, error) {
 	insts := rt.RunningInstances()
 	if len(insts) == 0 {
@@ -84,18 +107,24 @@ func (rt *Router) Resolve(model string) (*Target, error) {
 
 	var chosen *store.InstanceRecord
 	if model != "" {
+		var exact []*store.InstanceRecord
 		for _, inst := range insts {
 			if strings.EqualFold(inst.ModelID, model) {
-				chosen = inst
-				break
+				exact = append(exact, inst)
 			}
 		}
+		if len(exact) > 0 {
+			chosen = rt.nextReplica(strings.ToLower(model), exact)
+		}
 		if chosen == nil {
+			var prefix []*store.InstanceRecord
 			for _, inst := range insts {
 				if strings.HasPrefix(strings.ToLower(model), strings.ToLower(inst.ModelID)) {
-					chosen = inst
-					break
+					prefix = append(prefix, inst)
 				}
+			}
+			if len(prefix) > 0 {
+				chosen = rt.nextReplica("prefix:"+strings.ToLower(model), prefix)
 			}
 		}
 	}

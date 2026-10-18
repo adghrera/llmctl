@@ -14,7 +14,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F007 | P2 | 7 | backends | Example plugin backend | COMPLETED | Documented examples in docs/plugins/ (http-github-release, http-url, stdio-process, attach-remote) + a fields/install-kinds reference. Found+fixed a real bug while doing it: plugin `Spec()` returned a bare binary name that `exec.Command` couldn't resolve (installed binaries live in `~/.llmctl/backends/<id>/`, not PATH). Added `findBackendBinary` (url/files + versioned layouts) + a `{backend}` placeholder for the install dir. 3 new unit tests. |
 || F008 | P2 | 8 | ui | UI polish | COMPLETED | Error toasts on failed actions, job history (recent jobs with results), confirm dialogs where destructive. Added confirm dialog for backend uninstall and recent jobs to Overview page. |
 | F009 | P2 | 9 | api | Per-key quotas | COMPLETED | Rate limits per API key (not just per client IP) with configurable rps/burst per key. |
-| F010 | P3 | 10 | backends | Model replicas | NOT-STARTED | Start N instances of one model; gateway round-robins across them. |
+| F010 | P3 | 10 | backends | Model replicas | COMPLETED | Start N instances of one model; gateway round-robins across them. |
 | F011 | P3 | 11 | models | Curated model catalog | NOT-STARTED | Built-in list of popular GGUF models (name, size, quant) with one-click install in UI. |
 | F012 | P4 | 12 | api | WebSocket passthrough | NOT-STARTED | Proxy /v1/ws (or similar) for backends exposing WebSocket APIs. |
 | F013 | P4 | 13 | ui | Instance log viewer | COMPLETED | API endpoint + UI panel to tail an instance's stderr.log. |
