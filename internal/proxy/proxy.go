@@ -36,6 +36,7 @@ type Server struct {
 	maxInflight  int64
 	inflight     atomic.Int64
 	requestCount atomic.Int64
+	collector    *metricsCollector
 	handler      http.Handler
 	httpSrv      *http.Server
 }
@@ -92,6 +93,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		router:      router,
 		logger:      cfg.Logger,
 		maxInflight: int64(cfg.MaxInflight),
+		collector:   newMetricsCollector(),
 	}
 	s.requireAuth.Store(requireAuth)
 	mux := http.NewServeMux()
@@ -115,6 +117,14 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 // Handler returns the gateway's HTTP handler (auth + metrics + routes) so a
 // daemon can mount it on a shared mux alongside the management API and UI.
 func (s *Server) Handler() http.Handler { return s.handler }
+
+// Metrics returns a snapshot of gateway traffic metrics (request counts,
+// latency percentiles, tokens served, per-model breakdown).
+func (s *Server) Metrics() map[string]any {
+	snap := s.collector.Snapshot()
+	snap["inflight"] = s.inflight.Load()
+	return snap
+}
 
 // ListenAndServe blocks serving until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context) error {
@@ -159,7 +169,13 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 			return
 		}
 		defer s.inflight.Add(-1)
-		next.ServeHTTP(w, r)
+		// Record latency + status + tokens for /api/v1/metrics.
+		holder := &modelRef{}
+		r = r.WithContext(withModelRef(r.Context(), holder))
+		start := time.Now()
+		rec := newRecordingResponseWriter(w)
+		next.ServeHTTP(rec, r)
+		s.collector.record(holder.Model, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes())
 	})
 }
 
@@ -273,6 +289,11 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 		Stream bool   `json:"stream"`
 	}
 	_ = json.Unmarshal(body, &peek) // model is optional; default instance may serve
+
+	if ref := modelRefFrom(r.Context()); ref != nil {
+		ref.Model = peek.Model
+		ref.Stream = peek.Stream
+	}
 
 	target, err := s.router.Resolve(peek.Model)
 	if err != nil {

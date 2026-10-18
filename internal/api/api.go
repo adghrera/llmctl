@@ -71,6 +71,8 @@ func (s *Server) Handler() http.Handler {
 	// Jobs
 	m.HandleFunc("GET /api/v1/jobs", s.listJobs)
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
+	// Metrics
+	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	// Keys
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
@@ -448,6 +450,15 @@ func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// metricsSnapshot serves gateway traffic metrics.
+func (s *Server) metricsSnapshot(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway not running")
+		return
+	}
+	writeJSON(w, 200, s.gw.Metrics())
 }
 
 // instanceLogs returns the tail of an instance's stderr.log (and optionally

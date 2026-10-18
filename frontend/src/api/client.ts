@@ -53,6 +53,15 @@ export interface InstanceLogTail {
   logs: string;
 }
 
+export interface GatewayMetrics {
+  requests_total: number;
+  inflight: number;
+  tokens: { prompt: number; completion: number; total: number };
+  latency: { p50_ms?: number; p90_ms?: number; p99_ms?: number; samples?: number };
+  status_classes: Record<string, number>;
+  models: Record<string, { requests: number; errors: number; prompt_tokens: number; completion_tokens: number }>;
+}
+
 export interface Job {
   id: string;
   kind: string;
@@ -130,6 +139,7 @@ export const api = {
   stopInstance: (id: string) => req<{ ok: boolean }>(`/instances/${encodeURIComponent(id)}`, { method: "DELETE" }),
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
+  metrics: () => req<GatewayMetrics>("/metrics"),
   jobs: () => req<Job[]>("/jobs"),
   keys: () => req<ApiKey[]>("/keys"),
   createKey: (name: string) =>
