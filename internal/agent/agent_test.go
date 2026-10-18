@@ -175,7 +175,7 @@ func TestAgentSearchLoop(t *testing.T) {
 	foundResult := false
 	for _, m := range msgs {
 		mm := m.(map[string]any)
-		if mm["role"] == "user" && strings.Contains(mm["content"].(string), "Web search results") {
+		if mm["role"] == "user" && strings.Contains(mm["content"].(string), "Tool results") {
 			foundResult = true
 		}
 	}
@@ -216,7 +216,7 @@ func TestAgentMaxSteps(t *testing.T) {
 		t.Fatalf("calls = %d, want 2 (MaxSteps)", fw.calls)
 	}
 	pt := plainText(events)
-	if !strings.Contains(pt, "maximum number of search steps") {
+	if !strings.Contains(pt, "maximum number of tool steps") {
 		t.Fatalf("no cap message: %q", pt)
 	}
 	last := events[len(events)-1]
@@ -237,11 +237,145 @@ func TestAgentUpstreamError(t *testing.T) {
 }
 
 func TestExtractSearchQueries(t *testing.T) {
-	qs := extractSearchQueries("a <SEARCH> X </search> b <search>y</search>")
-	if len(qs) != 2 || qs[0] != "X" || qs[1] != "y" {
+	qs := extractToolCalls("a <SEARCH> X </search> b <search>y</search>")
+	if len(qs) != 2 || qs[0].Query != "X" || qs[1].Query != "y" {
 		t.Fatalf("got %v", qs)
 	}
-	if len(extractSearchQueries("no markers here")) != 0 {
+	if len(extractToolCalls("no markers here")) != 0 {
 		t.Fatal("expected none")
+	}
+}
+
+func TestExtractToolCallsNativeFormats(t *testing.T) {
+	cases := []struct {
+		name     string
+		text     string
+		wantName string
+		wantQ    string
+	}{
+		{
+			name:     "hermes JSON tool_call tag",
+			text:     `Let me check. <tool_call>{"name": "web_search", "arguments": {"query": "mu earnings q4"}}</tool_call> done`,
+			wantName: "web_search",
+			wantQ:    "mu earnings q4",
+		},
+		{
+			name:     "tool_call tag stringified arguments",
+			text:     `<tool_call>{"name":"web_search","arguments":"{\"query\": \"gold price\"}"}</tool_call>`,
+			wantName: "web_search",
+			wantQ:    "gold price",
+		},
+		{
+			name:     "Qwen XML function inside tool_call",
+			text:     "<tool_call>\n<function=web_search>\n<parameter=query>\nopenai news today\n</parameter>\n</function>\n</tool_call>",
+			wantName: "web_search",
+			wantQ:    "openai news today",
+		},
+		{
+			name:     "bare function XML no wrapper",
+			text:     "<function=search>\n<parameter=q>\ntesla deliveries\n</parameter>\n</function>",
+			wantName: "search",
+			wantQ:    "tesla deliveries",
+		},
+		{
+			name:     "tool_call fence JSON",
+			text:     "checking:\n```tool_call\n{\"name\": \"web_search\", \"arguments\": {\"query\": \"fed rate\"}}\n```",
+			wantName: "web_search",
+			wantQ:    "fed rate",
+		},
+		{
+			name:     "bare JSON name+arguments",
+			text:     `{"name": "web_search", "arguments": {"query": "micron stock"}}`,
+			wantName: "web_search",
+			wantQ:    "micron stock",
+		},
+		{
+			name:     "name+parameters variant",
+			text:     `<tool_call>{"name": "web_search", "parameters": {"query": "nvda earnings"}}</tool_call>`,
+			wantName: "web_search",
+			wantQ:    "nvda earnings",
+		},
+	}
+	for _, c := range cases {
+		calls := extractToolCalls(c.text)
+		if len(calls) != 1 {
+			t.Errorf("%s: got %d calls: %+v", c.name, len(calls), calls)
+			continue
+		}
+		_, _, ok := resolveTool(map[string]Tool{"web_search": &fakeTool{}}, calls[0].Name)
+		if !ok {
+			t.Errorf("%s: name %q does not resolve", c.name, calls[0].Name)
+		}
+		if calls[0].Query != c.wantQ {
+			t.Errorf("%s: query = %q want %q", c.name, calls[0].Query, c.wantQ)
+		}
+		// strip must leave no tool markup behind
+		stripped := stripToolCalls(c.text)
+		for _, marker := range []string{"tool_call", "<function", "<parameter", `"arguments"`} {
+			if strings.Contains(strings.ToLower(stripped), marker) {
+				t.Errorf("%s: strip left %q in %q", c.name, marker, stripped)
+			}
+		}
+	}
+}
+
+func TestExtractToolCallsNoFalsePositives(t *testing.T) {
+	// ordinary prose and JSON examples must NOT be treated as calls
+	plain := []string{
+		`The config looks like {"name": "Alice", "age": 30}.`,
+		"Here is a code block:\n```json\n{\"name\": \"myapp\", \"version\": \"1.0\"}\n```",
+		"We should search the web for that. (I can't though.)",
+	}
+	for _, p := range plain {
+		if calls := extractToolCalls(p); len(calls) != 0 {
+			t.Errorf("false positive on %q: %+v", p, calls)
+		}
+	}
+}
+
+func TestAgentNativeToolCallLoop(t *testing.T) {
+	// Model emits a Hermes-style native tool call; loop must execute it.
+	script1 := `Looking it up. <tool_call>{"name": "web_search", "arguments": {"query": "record revenue"}}</tool_call>`
+	script2 := "MU reported record revenue."
+	events, fw, tool := runAgent(t,
+		[]string{script1, script2},
+		Request{Model: "m", Messages: []Message{{Role: "user", Content: "MU earnings?"}}},
+	)
+	if fw.calls != 2 {
+		t.Fatalf("gateway calls = %d, want 2", fw.calls)
+	}
+	if len(tool.queries) != 1 || tool.queries[0] != "record revenue" {
+		t.Fatalf("tool queries = %v", tool.queries)
+	}
+	pt := plainText(events)
+	if strings.Contains(pt, "tool_call") || strings.Contains(pt, "arguments") {
+		t.Fatalf("raw tool call leaked to UI: %q", pt)
+	}
+	if !strings.Contains(pt, "Looking it up.") || !strings.Contains(pt, "record revenue") {
+		t.Fatalf("text missing: %q", pt)
+	}
+}
+
+func TestAgentUnknownToolFedBack(t *testing.T) {
+	script1 := `<tool_call>{"name": "get_weather", "arguments": {"city": "Paris"}}</tool_call>`
+	script2 := "Sorry, I can't check weather."
+	events, fw, _ := runAgent(t,
+		[]string{script1, script2},
+		Request{Model: "m", Messages: []Message{{Role: "user", Content: "weather in Paris?"}}},
+	)
+	if fw.calls != 2 {
+		t.Fatalf("calls = %d", fw.calls)
+	}
+	var sawErr bool
+	for _, e := range events {
+		if e.Type == "tool" && strings.Contains(e.Error, "unknown tool") {
+			sawErr = true
+		}
+	}
+	if !sawErr {
+		t.Fatalf("no unknown-tool error event: %+v", events)
+	}
+	if !strings.Contains(plainText(events), "can't check weather") {
+		t.Fatalf("final answer missing")
 	}
 }
