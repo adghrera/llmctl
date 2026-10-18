@@ -60,6 +60,8 @@ func (s *Server) Handler() http.Handler {
 	// Models
 	m.HandleFunc("GET /api/v1/models", s.listModels)
 	m.HandleFunc("POST /api/v1/models/install", s.installModel)
+	m.HandleFunc("GET /api/v1/catalog", s.listCatalog)
+	m.HandleFunc("POST /api/v1/catalog/install", s.installCatalogModel)
 	m.HandleFunc("DELETE /api/v1/models/{id}", s.removeModel)
 	m.HandleFunc("GET /api/v1/hf/search", s.hfSearch)
 	m.HandleFunc("GET /api/v1/hf/files", s.hfFiles)

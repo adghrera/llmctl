@@ -53,6 +53,18 @@ export interface InstanceLogTail {
   logs: string;
 }
 
+export interface CatalogEntry {
+  id: string;
+  name: string;
+  description: string;
+  repo: string;
+  file: string;
+  backend: string;
+  sizeGB: string;
+  quant: string;
+  tags?: string[];
+}
+
 export interface AutoStartSpec {
   name: string;
   modelId: string;
@@ -148,6 +160,9 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  catalog: () => req<CatalogEntry[]>("/catalog"),
+  installCatalogModel: (id: string) =>
+    req<{ job: string; model: string }>("/catalog/install", { method: "POST", body: JSON.stringify({ id }) }),
   autoStart: () => req<AutoStartSpec[]>("/autostart"),
   setAutoStart: (body: AutoStartSpec) =>
     req<{ ok: boolean }>("/autostart", { method: "POST", body: JSON.stringify(body) }),

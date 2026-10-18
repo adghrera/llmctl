@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { api } from "../api/client";
+import { useState, useEffect } from "react";
+import { api, type CatalogEntry } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -12,6 +12,26 @@ function fmtBytes(n: number): string {
 
 export default function Models() {
   const { models, backends, refreshOne } = useStore();
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
+  const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.catalog().then(setCatalog).catch(() => setCatalog([]));
+  }, []);
+
+  const installCatalog = async (entry: CatalogEntry) => {
+    setCatalogBusy(entry.id);
+    try {
+      await api.installCatalogModel(entry.id);
+      ok(`installing ${entry.name} (${entry.sizeGB} GB) — see Jobs`);
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCatalogBusy(null);
+    }
+  };
+
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Array<{ modelId?: string; id?: string; downloads?: number }>>([]);
   const [searched, setSearched] = useState(false);
@@ -78,8 +98,52 @@ export default function Models() {
     }
   };
 
+  const installedIds = new Set(models.map((m) => m.id));
+
   return (
     <>
+      {catalog.length > 0 && (
+        <div className="card">
+          <h2>Featured models</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Quant</th>
+                <th>Size</th>
+                <th>Tags</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {catalog.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <div>{c.name}</div>
+                    <div className="muted" style={{ fontSize: 12 }}>{c.description}</div>
+                  </td>
+                  <td className="mono">{c.quant}</td>
+                  <td>{c.sizeGB} GB</td>
+                  <td className="muted">{(c.tags || []).join(", ")}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {installedIds.has(c.id) ? (
+                      <span className="badge ok">installed</span>
+                    ) : (
+                      <button
+                        className="btn sm primary"
+                        disabled={catalogBusy !== null}
+                        onClick={() => installCatalog(c)}
+                      >
+                        {catalogBusy === c.id ? "Starting…" : "Install"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="card">
         <h2>Install a model</h2>
         <div className="row">
