@@ -67,6 +67,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/instances", s.listInstances)
 	m.HandleFunc("POST /api/v1/instances", s.startInstance)
 	m.HandleFunc("DELETE /api/v1/instances/{id}", s.stopInstance)
+	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	// Jobs
 	m.HandleFunc("GET /api/v1/jobs", s.listJobs)
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
@@ -447,6 +448,86 @@ func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// instanceLogs returns the tail of an instance's stderr.log (and optionally
+// stdout.log). Query params: stream=stdout|stderr (default stderr),
+// bytes=max bytes to return from the end (default 64 KiB, max 1 MiB).
+func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	inst, ok := st.Instances[id]
+	if !ok || inst.LogDir == "" {
+		writeErr(w, 404, "unknown instance or no log dir: "+id)
+		return
+	}
+	name := "stderr.log"
+	if r.URL.Query().Get("stream") == "stdout" {
+		name = "stdout.log"
+	}
+	maxBytes := 64 << 10
+	if v := r.URL.Query().Get("bytes"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			if n > 1<<20 {
+				n = 1 << 20
+			}
+			maxBytes = n
+		}
+	}
+	tail, size, err := tailFile(filepath.Join(inst.LogDir, name), maxBytes)
+	if err != nil {
+		writeErr(w, 500, "read log: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"instance": id,
+		"stream":   strings.TrimSuffix(name, ".log"),
+		"size":     size,
+		"truncated": size > int64(maxBytes),
+		"logs":     string(tail),
+	})
+}
+
+// tailFile reads up to maxBytes from the end of path. Returns the bytes,
+// the full file size, and any error. A missing file yields empty content.
+func tailFile(path string, maxBytes int) ([]byte, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, 0, nil
+		}
+		return nil, 0, err
+	}
+	defer f.Close()
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	size := fi.Size()
+	start := int64(0)
+	if size > int64(maxBytes) {
+		start = size - int64(maxBytes)
+		// Avoid splitting a UTF-8 sequence: skip continuation bytes.
+		for start < size {
+			buf := make([]byte, 1)
+			if _, err := f.ReadAt(buf, start); err != nil {
+				break
+			}
+			if buf[0]&0xC0 != 0x80 { // not a continuation byte
+				break
+			}
+			start++
+		}
+	}
+	if _, err := f.Seek(start, io.SeekStart); err != nil {
+		return nil, size, err
+	}
+	tail, err := io.ReadAll(io.LimitReader(f, int64(maxBytes)))
+	if err != nil {
+		return nil, size, err
+	}
+	return tail, size, nil
 }
 
 // ---- jobs ----

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api/client";
+import { api, type InstanceLogTail } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -10,6 +10,33 @@ export default function Instances() {
   const [port, setPort] = useState("");
   const [vars, setVars] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [logFor, setLogFor] = useState<string | null>(null);
+  const [logStream, setLogStream] = useState<"stdout" | "stderr">("stderr");
+  const [logData, setLogData] = useState<InstanceLogTail | null>(null);
+  const [logBusy, setLogBusy] = useState(false);
+
+  const loadLogs = async (id: string, stream: "stdout" | "stderr") => {
+    setLogBusy(true);
+    try {
+      setLogData(await api.instanceLogs(id, stream));
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+      setLogData(null);
+    } finally {
+      setLogBusy(false);
+    }
+  };
+
+  const openLogs = (id: string) => {
+    setLogFor(id);
+    setLogStream("stderr");
+    void loadLogs(id, "stderr");
+  };
+
+  const switchStream = (stream: "stdout" | "stderr") => {
+    setLogStream(stream);
+    if (logFor) void loadLogs(logFor, stream);
+  };
 
   const start = async () => {
     if (!model) return;
@@ -126,6 +153,9 @@ export default function Instances() {
                     )}
                   </td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
+                      Logs
+                    </button>
                     {i.status === "running" || i.status === "starting" ? (
                       <button
                         className="btn sm danger"
@@ -148,6 +178,56 @@ export default function Instances() {
           <div className="empty">no instances</div>
         )}
       </div>
+      {logFor && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>
+              Logs — <span className="mono">{logFor}</span>{" "}
+              {logData && (
+                <span style={{ fontWeight: 400, color: "var(--muted-foreground, #888)", fontSize: 12 }}>
+                  ({logData.truncated ? `tail of ${logData.size} bytes` : `${logData.size} bytes`})
+                </span>
+              )}
+            </h2>
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                className={`btn sm${logStream === "stderr" ? " primary" : ""}`}
+                onClick={() => switchStream("stderr")}
+              >
+                stderr
+              </button>
+              <button
+                className={`btn sm${logStream === "stdout" ? " primary" : ""}`}
+                onClick={() => switchStream("stdout")}
+              >
+                stdout
+              </button>
+              <button className="btn sm" disabled={logBusy} onClick={() => void loadLogs(logFor, logStream)}>
+                {logBusy ? "Loading…" : "Refresh"}
+              </button>
+              <button className="btn sm" onClick={() => { setLogFor(null); setLogData(null); }}>
+                Close
+              </button>
+            </div>
+          </div>
+          <pre
+            className="mono"
+            style={{
+              marginTop: 10,
+              maxHeight: 360,
+              overflow: "auto",
+              background: "rgba(0,0,0,0.35)",
+              padding: 10,
+              borderRadius: 6,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all",
+              fontSize: 12,
+            }}
+          >
+            {logBusy && !logData ? "loading…" : logData?.logs || "(empty)"}
+          </pre>
+        </div>
+      )}
     </>
   );
 }

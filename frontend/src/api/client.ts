@@ -45,6 +45,14 @@ export interface Instance {
   lastError?: string;
 }
 
+export interface InstanceLogTail {
+  instance: string;
+  stream: string;
+  size: number;
+  truncated: boolean;
+  logs: string;
+}
+
 export interface Job {
   id: string;
   kind: string;
@@ -120,6 +128,8 @@ export const api = {
   startInstance: (body: { model: string; backend?: string; instance?: string; port?: number; vars?: Record<string, string> }) =>
     req<Instance>("/instances", { method: "POST", body: JSON.stringify(body) }),
   stopInstance: (id: string) => req<{ ok: boolean }>(`/instances/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
+    req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   jobs: () => req<Job[]>("/jobs"),
   keys: () => req<ApiKey[]>("/keys"),
   createKey: (name: string) =>
