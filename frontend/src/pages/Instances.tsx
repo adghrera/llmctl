@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { api, type InstanceLogTail } from "../api/client";
+import { useEffect, useState } from "react";
+import { api, type AutoStartSpec, type InstanceLogTail } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -14,6 +14,12 @@ export default function Instances() {
   const [logStream, setLogStream] = useState<"stdout" | "stderr">("stderr");
   const [logData, setLogData] = useState<InstanceLogTail | null>(null);
   const [logBusy, setLogBusy] = useState(false);
+  const [autoStart, setAutoStart] = useState(false);
+  const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
+
+  useEffect(() => {
+    api.autoStart().then(setAutoSpecs).catch(() => setAutoSpecs([]));
+  }, []);
 
   const loadLogs = async (id: string, stream: "stdout" | "stderr") => {
     setLogBusy(true);
@@ -53,7 +59,16 @@ export default function Instances() {
         port: port ? Number(port) : undefined,
         vars: v,
       });
-      ok(`started ${model}`);
+      if (autoStart) {
+        await api.setAutoStart({
+          name: "",
+          modelId: model,
+          backendId: backend,
+          port: port ? Number(port) : 0,
+          vars: v,
+        });
+      }
+      ok(`started ${model}${autoStart ? " (auto-start enabled)" : ""}`);
       await refreshOne("instances");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -117,7 +132,55 @@ export default function Instances() {
           <label>Extra vars (JSON, optional — e.g. {"{"}num_ctx: 8192{"}"})</label>
           <input className="mono" style={{ width: "100%" }} value={vars} onChange={(e) => setVars(e.target.value)} />
         </div>
+        <label style={{ display: "inline-flex", gap: 6, alignItems: "center", marginTop: 10 }}>
+          <input
+            type="checkbox"
+            checked={autoStart}
+            onChange={(e) => setAutoStart(e.target.checked)}
+          />
+          Auto-start this model when the daemon starts
+        </label>
       </div>
+      {autoSpecs.length > 0 && (
+        <div className="card">
+          <h2>Auto-start entries</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Backend</th>
+                <th>Port</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {autoSpecs.map((s) => (
+                <tr key={s.modelId}>
+                  <td className="mono">{s.modelId}</td>
+                  <td className="mono">{s.backendId || "—"}</td>
+                  <td>{s.port || "auto"}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <button
+                      className="btn sm danger"
+                      onClick={async () => {
+                        try {
+                          await api.clearAutoStart(s.modelId);
+                          setAutoSpecs((cur) => cur.filter((x) => x.modelId !== s.modelId));
+                          ok(`auto-start removed for ${s.modelId}`);
+                        } catch (e) {
+                          err(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="card">
         <h2>Instances</h2>
         {instances.length ? (

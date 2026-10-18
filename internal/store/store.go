@@ -81,12 +81,23 @@ type Settings struct {
 	RequireAuth bool `json:"requireAuth"`
 }
 
+// AutoStartSpec is a persistent "relaunch me at daemon start" declaration.
+// Instance records are forgotten on stop, so the spec lives separately.
+type AutoStartSpec struct {
+	Name      string            `json:"name"`      // desired instance id ("" = derive from model)
+	ModelID   string            `json:"modelId"`
+	BackendID string            `json:"backendId,omitempty"`
+	Port      int               `json:"port,omitempty"` // 0 = auto-assign
+	Vars      map[string]string `json:"vars,omitempty"`
+}
+
 type State struct {
 	Backends  map[string]*BackendRecord    `json:"backends"`
 	Models    map[string]*ModelRecord      `json:"models"`
 	Instances map[string]*InstanceRecord   `json:"instances"`
 	APIKeys   map[string]*APIKeyRecord     `json:"apiKeys"`
 	Settings  *Settings                    `json:"settings"`
+	AutoStart map[string]*AutoStartSpec    `json:"autoStart,omitempty"` // keyed by model id
 }
 
 func newState() *State {

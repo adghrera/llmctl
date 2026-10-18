@@ -42,6 +42,8 @@ func main() {
 		err = cmdStop(args)
 	case "key":
 		err = cmdKey(args)
+	case "autostart":
+		err = cmdAutoStart(args)
 	case "version", "--version", "-v":
 		fmt.Printf("llmctl %s\n", version)
 	case "help", "--help", "-h":
@@ -80,6 +82,9 @@ Usage:
   llmctl key generate [name]
   llmctl key list
   llmctl key revoke <id>
+  llmctl autostart list
+  llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
+  llmctl autostart remove <model>
   llmctl version
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
@@ -522,4 +527,74 @@ func (s *stringList) Map() map[string]string {
 func urlEscape(s string) string {
 	repl := strings.NewReplacer("%", "%25", " ", "+", "&", "%26", "=", "%3D")
 	return repl.Replace(s)
+}
+
+func cmdAutoStart(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: llmctl autostart <list|add|remove>")
+	}
+	sub, rest := args[0], args[1:]
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	switch sub {
+	case "list":
+		_, out, err := cc.Get("/api/v1/autostart")
+		if err != nil {
+			return err
+		}
+		var list []map[string]any
+		json.Unmarshal(out, &list)
+		if len(list) == 0 {
+			fmt.Println("no auto-start entries")
+			return nil
+		}
+		for _, s := range list {
+			fmt.Printf("%-24s model=%-24s backend=%-12s port=%v\n", s["name"], s["modelId"], s["backendId"], s["port"])
+		}
+		return nil
+	case "add":
+		fs := flag.NewFlagSet("autostart add", flag.ExitOnError)
+		backend := fs.String("backend", "", "backend id")
+		instance := fs.String("instance", "", "instance name")
+		port := fs.Int("port", 0, "fixed port (0 = auto)")
+		var vars stringList
+		fs.Var(&vars, "var", "parameter k=v (repeatable)")
+		fs.Parse(reorderFlags(rest))
+		if fs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl autostart add <model> [--backend id] [--instance name] [--port N] [--var k=v ...]")
+		}
+		body := map[string]any{
+			"modelId":   fs.Arg(0),
+			"backendId": *backend,
+			"name":      *instance,
+			"port":      *port,
+			"vars":      vars.Map(),
+		}
+		code, out, err := cc.Post("/api/v1/autostart", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("add failed: %s", string(out))
+		}
+		fmt.Printf("auto-start enabled for %q (relaunches when the daemon starts)\n", fs.Arg(0))
+		return nil
+	case "remove":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl autostart remove <model>")
+		}
+		code, out, err := cc.Delete("/api/v1/autostart/" + urlEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("remove failed: %s", string(out))
+		}
+		fmt.Printf("auto-start removed for %q\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown autostart subcommand: %s", sub)
+	}
 }

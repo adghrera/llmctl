@@ -53,6 +53,14 @@ export interface InstanceLogTail {
   logs: string;
 }
 
+export interface AutoStartSpec {
+  name: string;
+  modelId: string;
+  backendId?: string;
+  port?: number;
+  vars?: Record<string, string>;
+}
+
 export interface GatewayMetrics {
   requests_total: number;
   inflight: number;
@@ -140,6 +148,11 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  autoStart: () => req<AutoStartSpec[]>("/autostart"),
+  setAutoStart: (body: AutoStartSpec) =>
+    req<{ ok: boolean }>("/autostart", { method: "POST", body: JSON.stringify(body) }),
+  clearAutoStart: (model: string) =>
+    req<{ ok: boolean }>(`/autostart/${encodeURIComponent(model)}`, { method: "DELETE" }),
   jobs: () => req<Job[]>("/jobs"),
   keys: () => req<ApiKey[]>("/keys"),
   createKey: (name: string) =>

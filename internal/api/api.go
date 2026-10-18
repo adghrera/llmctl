@@ -68,6 +68,10 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/instances", s.startInstance)
 	m.HandleFunc("DELETE /api/v1/instances/{id}", s.stopInstance)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
+	// Auto-start specs
+	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
+	m.HandleFunc("POST /api/v1/autostart", s.setAutoStart)
+	m.HandleFunc("DELETE /api/v1/autostart/{model}", s.clearAutoStart)
 	// Jobs
 	m.HandleFunc("GET /api/v1/jobs", s.listJobs)
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
@@ -447,6 +451,43 @@ func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {
 	force := r.URL.Query().Get("force") == "true"
 	if err := s.sv.Stop(id, force); err != nil {
 		writeErr(w, 409, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// ---- auto-start specs ----
+
+func (s *Server) listAutoStart(w http.ResponseWriter, r *http.Request) {
+	specs, err := s.sv.AutoStartSpecs()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	out := make([]store.AutoStartSpec, 0, len(specs))
+	for _, v := range specs {
+		out = append(out, *v)
+	}
+	writeJSON(w, 200, out)
+}
+
+func (s *Server) setAutoStart(w http.ResponseWriter, r *http.Request) {
+	var spec store.AutoStartSpec
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&spec); err != nil {
+		writeErr(w, 400, "invalid JSON: "+err.Error())
+		return
+	}
+	if err := s.sv.SetAutoStart(spec); err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+func (s *Server) clearAutoStart(w http.ResponseWriter, r *http.Request) {
+	model := r.PathValue("model")
+	if err := s.sv.ClearAutoStart(model); err != nil {
+		writeErr(w, 500, err.Error())
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})

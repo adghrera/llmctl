@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -450,4 +451,89 @@ func envWith(extra map[string]string) []string {
 		env = append(env, k+"="+v)
 	}
 	return env
+}
+
+// ---- auto-start specs ----
+
+// SetAutoStart records (or replaces) an auto-start declaration for a model.
+func (sv *Supervisor) SetAutoStart(spec store.AutoStartSpec) error {
+	if spec.ModelID == "" {
+		return fmt.Errorf("modelId is required")
+	}
+	st, err := sv.store.Load()
+	if err != nil {
+		return err
+	}
+	if _, ok := st.Models[spec.ModelID]; !ok {
+		return fmt.Errorf("unknown model %q", spec.ModelID)
+	}
+	cp := spec
+	return sv.store.Update(func(s *store.State) error {
+		if s.AutoStart == nil {
+			s.AutoStart = map[string]*store.AutoStartSpec{}
+		}
+		s.AutoStart[spec.ModelID] = &cp
+		return nil
+	})
+}
+
+// ClearAutoStart removes the auto-start declaration for a model.
+func (sv *Supervisor) ClearAutoStart(modelID string) error {
+	return sv.store.Update(func(s *store.State) error {
+		delete(s.AutoStart, modelID)
+		return nil
+	})
+}
+
+// AutoStartSpecs returns all auto-start declarations, keyed by model id.
+func (sv *Supervisor) AutoStartSpecs() (map[string]*store.AutoStartSpec, error) {
+	st, err := sv.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]*store.AutoStartSpec{}
+	for k, v := range st.AutoStart {
+		out[k] = v
+	}
+	return out, nil
+}
+
+// AutoStartAll relaunches every declared instance. Failures are logged and
+// skipped so one bad spec can't block the daemon from booting.
+func (sv *Supervisor) AutoStartAll(ctx context.Context) {
+	specs, err := sv.AutoStartSpecs()
+	if err != nil || len(specs) == 0 {
+		return
+	}
+	ids := make([]string, 0, len(specs))
+	for id := range specs {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, modelID := range ids {
+		spec := specs[modelID]
+		if err := ctx.Err(); err != nil {
+			return
+		}
+		name := spec.Name
+		if name == "" {
+			name = modelID
+		}
+		st, err := sv.store.Load()
+		if err != nil {
+			sv.logger.Warn("auto-start: state load failed", "model", modelID, "err", err)
+			continue
+		}
+		if inst, ok := st.Instances[name]; ok && inst.Status == store.StatusRunning {
+			continue // already up (e.g. attach-declared)
+		}
+		cctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+		inst, err := sv.Start(cctx, name, spec.ModelID, spec.BackendID, spec.Port, spec.Vars)
+		cancel()
+		if err != nil {
+			sv.logger.Warn("auto-start failed", "model", modelID, "err", err)
+			continue
+		}
+		sv.logger.Info("auto-started instance", "instance", inst.ID, "model", modelID, "port", inst.Port)
+	}
 }
