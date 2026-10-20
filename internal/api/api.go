@@ -23,6 +23,7 @@ import (
 
 	"llmctl/internal/agent"
 	"llmctl/internal/backend"
+	"llmctl/internal/chatstore"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
@@ -43,11 +44,13 @@ type Server struct {
 	gw         *proxy.Server       // gateway handle, for runtime setting changes
 	searcher   *websearch.Searcher // keyless web search (F021)
 	agentTool  agent.Tool          // web_search tool override (tests); nil = WebSearchTool{searcher}
+	chats      *chatstore.Store    // persisted chat conversations (F025)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
 func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
-	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, searcher: websearch.New(), shutdownFn: shutdown}
+	cs, _ := chatstore.Open() // nil-safe: handlers report 503 if unavailable
+	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, searcher: websearch.New(), chats: cs, shutdownFn: shutdown}
 }
 
 // Handler returns the management API mux.
@@ -92,6 +95,11 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	// Web search (keyless)
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
+	m.HandleFunc("GET /api/v1/chats", s.listChats)
+	m.HandleFunc("POST /api/v1/chats", s.saveChat)
+	m.HandleFunc("GET /api/v1/chats/{id}", s.getChat)
+	m.HandleFunc("PUT /api/v1/chats/{id}", s.saveChat)
+	m.HandleFunc("DELETE /api/v1/chats/{id}", s.deleteChat)
 	// Agent chat (SSE, tool-using)
 	m.HandleFunc("POST /api/v1/chat/agent", s.chatAgent)
 	// Keys

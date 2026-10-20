@@ -83,6 +83,32 @@ export interface PresetSpec {
   vars?: Record<string, string>;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  tools?: AgentToolEvent[];
+}
+
+export interface ChatConversation {
+  id: string;
+  title: string;
+  model?: string;
+  agentMode?: boolean;
+  messages: ChatMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatSummary {
+  id: string;
+  title: string;
+  model?: string;
+  agentMode?: boolean;
+  messages: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface GatewayMetrics {
   requests_total: number;
   inflight: number;
@@ -172,6 +198,13 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  chats: () => req<ChatSummary[]>("/chats"),
+  getChat: (id: string) => req<ChatConversation>(`/chats/${encodeURIComponent(id)}`),
+  createChat: (c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
+    req<ChatConversation>("/chats", { method: "POST", body: JSON.stringify(c) }),
+  saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
+    req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
+  deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
   presets: () => req<PresetSpec[]>("/presets"),
   savePreset: (p: PresetSpec) => req<PresetSpec>("/presets", { method: "POST", body: JSON.stringify(p) }),
   deletePreset: (name: string) => req<{ ok: boolean }>(`/presets/${encodeURIComponent(name)}`, { method: "DELETE" }),

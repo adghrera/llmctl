@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { agentStream, chatStream, type AgentToolEvent } from "../api/client";
+import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary } from "../api/client";
 import { useStore } from "../state/store";
-import { err } from "../ui/toast";
+import { err, ok } from "../ui/toast";
 
 interface Msg {
   role: "user" | "assistant";
@@ -24,6 +24,85 @@ export default function Chat() {
   const [streaming, setStreaming] = useState(false);
   const [showKey, setShowKey] = useState(!key);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // ---- saved conversations (F025) ----
+  const [convId, setConvId] = useState<string | null>(null);
+  const [chats, setChats] = useState<ChatSummary[]>([]);
+  const convIdRef = useRef<string | null>(null);
+  convIdRef.current = convId;
+
+  const loadChats = () => api.chats().then(setChats).catch(() => setChats([]));
+  useEffect(() => {
+    loadChats();
+  }, []);
+
+  // Persist current messages: create on first save, then update in place.
+  const persist = async (messages: Msg[]) => {
+    if (!messages.length) return;
+    const payload = {
+      model,
+      agentMode,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+        tools: (m.tools || []).map((t) => ({ name: t.name, query: t.query, results: t.results })),
+      })),
+    };
+    try {
+      if (convIdRef.current) {
+        await api.saveChat(convIdRef.current, payload);
+      } else {
+        const created = await api.createChat(payload);
+        setConvId(created.id);
+      }
+      await loadChats();
+    } catch (e) {
+      err(`could not save conversation: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const newChat = () => {
+    if (streaming) return;
+    setMsgs([]);
+    setConvId(null);
+    setInput("");
+  };
+
+  const openChat = async (id: string) => {
+    if (streaming) return;
+    try {
+      const c = await api.getChat(id);
+      setMsgs(
+        (c.messages || []).map((m) => ({
+          role: m.role,
+          content: m.content,
+          tools: (m.tools || []).map((t, j) => ({
+            type: "tool" as const,
+            step: j + 1,
+            name: t.name || "web_search",
+            query: t.query || "",
+            results: t.results as AgentToolEvent["results"],
+          })),
+        })),
+      );
+      setConvId(c.id);
+      if (c.model) setModel(c.model);
+      if (typeof c.agentMode === "boolean") setAgentMode(c.agentMode);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const removeChat = async (id: string) => {
+    try {
+      await api.deleteChat(id);
+      if (id === convId) newChat();
+      ok("conversation deleted");
+      await loadChats();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem(KEY_STORAGE, key);
@@ -92,11 +171,55 @@ export default function Chat() {
       err(e instanceof Error ? e.message : String(e));
     } finally {
       setStreaming(false);
+      // Save once the turn completes (assistant message settled).
+      const done = next.concat([{ role: "assistant", content: acc, tools }]);
+      persist(done);
     }
   };
 
   return (
     <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Conversations</h2>
+          <button className="btn sm primary" onClick={newChat} disabled={streaming}>
+            + New chat
+          </button>
+        </div>
+        {chats.length === 0 ? (
+          <div className="empty muted" style={{ padding: "10px 0" }}>no saved conversations yet</div>
+        ) : (
+          <table>
+            <tbody>
+              {chats.map((c) => (
+                <tr key={c.id} style={c.id === convId ? { background: "rgba(128,128,128,0.08)" } : undefined}>
+                  <td>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openChat(c.id);
+                      }}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {c.title || "Untitled"}
+                    </a>{" "}
+                    {c.agentMode && <span className="badge">agent</span>}
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {c.model} · {c.messages} msgs · {new Date(c.updatedAt).toLocaleString()}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: "right", verticalAlign: "middle" }}>
+                    <button className="btn sm danger" disabled={streaming} onClick={() => removeChat(c.id)}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
       <div className="card">
         <div className="row">
           <div>
