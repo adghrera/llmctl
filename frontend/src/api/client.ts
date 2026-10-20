@@ -74,6 +74,15 @@ export interface AutoStartSpec {
   vars?: Record<string, string>;
 }
 
+export interface PresetSpec {
+  name: string;
+  instance?: string;
+  modelId: string;
+  backendId?: string;
+  port?: number;
+  vars?: Record<string, string>;
+}
+
 export interface GatewayMetrics {
   requests_total: number;
   inflight: number;
@@ -163,6 +172,11 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  presets: () => req<PresetSpec[]>("/presets"),
+  savePreset: (p: PresetSpec) => req<PresetSpec>("/presets", { method: "POST", body: JSON.stringify(p) }),
+  deletePreset: (name: string) => req<{ ok: boolean }>(`/presets/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  startPreset: (name: string, overrides?: { port?: number; vars?: Record<string, string> }) =>
+    req<Instance>(`/presets/${encodeURIComponent(name)}/start`, { method: "POST", body: JSON.stringify(overrides ?? {}) }),
   catalog: () => req<CatalogEntry[]>("/catalog"),
   installCatalogModel: (id: string) =>
     req<{ job: string; model: string }>("/catalog/install", { method: "POST", body: JSON.stringify({ id }) }),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type AutoStartSpec, type InstanceLogTail } from "../api/client";
+import { api, type AutoStartSpec, type PresetSpec, type InstanceLogTail } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -92,6 +92,80 @@ export default function Instances() {
 
   const readyModels = models.filter((m) => m.downloaded);
 
+  // ---- saved instance configs (presets) ----
+  const [presets, setPresets] = useState<PresetSpec[]>([]);
+  const [presetName, setPresetName] = useState("");
+  const loadPresets = () => api.presets().then(setPresets).catch(() => setPresets([]));
+  useEffect(() => {
+    loadPresets();
+  }, []);
+
+  const saveConfig = async () => {
+    if (!model) {
+      err("select a model first");
+      return;
+    }
+    const name = presetName.trim();
+    if (!name) {
+      err("give the config a name first");
+      return;
+    }
+    let v: Record<string, string> | undefined;
+    if (vars.trim()) {
+      try {
+        v = JSON.parse(vars);
+      } catch {
+        err("vars must be valid JSON");
+        return;
+      }
+    }
+    setBusy("preset");
+    try {
+      await api.savePreset({ name, modelId: model, backendId: backend, port: port ? Number(port) : 0, vars: v });
+      ok(`saved config "${name}"`);
+      setPresetName("");
+      await loadPresets();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const startPreset = async (name: string) => {
+    setBusy(`p:${name}`);
+    try {
+      const inst = await api.startPreset(name);
+      ok(`started ${inst.id}`);
+      await refreshOne("instances");
+      await loadPresets();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deletePreset = async (name: string) => {
+    setBusy(`p:${name}`);
+    try {
+      await api.deletePreset(name);
+      ok(`deleted config "${name}"`);
+      await loadPresets();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const loadPresetIntoForm = (p: PresetSpec) => {
+    setModel(p.modelId);
+    if (p.backendId) setBackend(p.backendId);
+    setPort(p.port ? String(p.port) : "");
+    setVars(p.vars && Object.keys(p.vars).length ? JSON.stringify(p.vars) : "");
+  };
+
   return (
     <>
       <div className="card">
@@ -140,7 +214,53 @@ export default function Instances() {
           />
           Auto-start this model when the daemon starts
         </label>
+        <div className="row" style={{ marginTop: 12, alignItems: "flex-end" }}>
+          <div style={{ flex: 1 }}>
+            <label>Save this configuration</label>
+            <input style={{ width: "100%" }} placeholder='name it, e.g. "qwen big-ctx"' value={presetName} onChange={(e) => setPresetName(e.target.value)} />
+          </div>
+          <button className="btn" disabled={busy === "preset" || !model || !presetName.trim()} onClick={saveConfig}>
+            {busy === "preset" ? "Saving…" : "Save config"}
+          </button>
+        </div>
       </div>
+      {presets.length > 0 && (
+        <div className="card">
+          <h2>Saved configs</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Model</th>
+                <th>Backend</th>
+                <th>Port</th>
+                <th>Vars</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {presets.map((p) => (
+                <tr key={p.name}>
+                  <td>{p.name}</td>
+                  <td className="mono">{p.modelId}</td>
+                  <td>{p.backendId || "auto"}</td>
+                  <td>{p.port || "auto"}</td>
+                  <td className="mono muted">{p.vars && Object.keys(p.vars).length ? JSON.stringify(p.vars) : "—"}</td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <button className="btn sm" onClick={() => loadPresetIntoForm(p)}>Edit</button>{" "}
+                    <button className="btn sm primary" disabled={busy === `p:${p.name}`} onClick={() => startPreset(p.name)}>
+                      Start
+                    </button>{" "}
+                    <button className="btn sm danger" disabled={busy === `p:${p.name}`} onClick={() => deletePreset(p.name)}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {autoSpecs.length > 0 && (
         <div className="card">
           <h2>Auto-start entries</h2>

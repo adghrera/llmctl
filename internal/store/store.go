@@ -95,6 +95,18 @@ type AutoStartSpec struct {
 	Vars      map[string]string `json:"vars,omitempty"`
 }
 
+// PresetSpec is a saved instance configuration (name → how to start it).
+// Starting a preset goes through the normal start-instance path, so
+// per-start vars still override the preset's.
+type PresetSpec struct {
+	Name      string            `json:"name"` // unique preset name
+	Instance  string            `json:"instance,omitempty"`
+	ModelID   string            `json:"modelId"`
+	BackendID string            `json:"backendId,omitempty"`
+	Port      int               `json:"port,omitempty"` // 0 = auto-assign
+	Vars      map[string]string `json:"vars,omitempty"`
+}
+
 type State struct {
 	Backends  map[string]*BackendRecord    `json:"backends"`
 	Models    map[string]*ModelRecord      `json:"models"`
@@ -102,6 +114,7 @@ type State struct {
 	APIKeys   map[string]*APIKeyRecord     `json:"apiKeys"`
 	Settings  *Settings                    `json:"settings"`
 	AutoStart map[string]*AutoStartSpec    `json:"autoStart,omitempty"` // keyed by model id
+	Presets   map[string]*PresetSpec       `json:"presets,omitempty"`   // keyed by preset name
 }
 
 func newState() *State {

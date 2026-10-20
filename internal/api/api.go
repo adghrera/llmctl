@@ -79,6 +79,10 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	// Auto-start specs
 	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
+	m.HandleFunc("GET /api/v1/presets", s.listPresets)
+	m.HandleFunc("POST /api/v1/presets", s.savePreset)
+	m.HandleFunc("DELETE /api/v1/presets/{name}", s.deletePreset)
+	m.HandleFunc("POST /api/v1/presets/{name}/start", s.startPreset)
 	m.HandleFunc("POST /api/v1/autostart", s.setAutoStart)
 	m.HandleFunc("DELETE /api/v1/autostart/{model}", s.clearAutoStart)
 	// Jobs
@@ -556,6 +560,12 @@ func (s *Server) startInstance(w http.ResponseWriter, r *http.Request) {
 	// Start can be slow (model load). Run in a job so the UI can show progress,
 	// but also return the instance once ready. We block here (bounded by the
 	// health timeout) — the UI opens the request with a long timeout.
+	s.startInstanceInternal(w, r, req, vars, id)
+}
+
+// startInstanceInternal performs the shared start flow for direct starts
+// and preset starts (id already derived, vars already merged).
+func (s *Server) startInstanceInternal(w http.ResponseWriter, r *http.Request, req startInstanceReq, vars map[string]string, id string) {
 	inst, err := s.sv.Start(r.Context(), id, req.Model, req.Backend, req.Port, vars)
 	if err != nil {
 		writeErr(w, 409, err.Error())
