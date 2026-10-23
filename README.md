@@ -158,9 +158,35 @@ All UI features are API-backed (agents/CI use the same surface). Base:
 | `GET /search?q=&max=` | keyless web search (DuckDuckGo, Bing fallback) |
 | `POST /chat/agent` (SSE) | agent chat: tools — web_search, fetch_url, calculator, current_time; streams deltas + tool events |
 | `GET /chats` · `POST /chats` · `GET/PUT/DELETE /chats/{id}` | saved chat conversations (~/.llmctl/chats/) |
+| `GET /tools` · `POST /tools/install` · `POST /tools/{id}/enabled` · `POST /tools/{id}/sandbox` · `POST /tools/{id}/run` · `DELETE /tools/{id}` | pluggable agent tools: install (zip URL or local dir), enable/disable, sandbox toggle, test-run, uninstall |
 | `GET /jobs` · `GET /jobs/events` (SSE) | background jobs + live progress |
 | `GET /keys` · `POST /keys` · `DELETE /keys/{id}` | API keys |
 | `POST /shutdown` | graceful daemon stop |
+
+## Agent tools (pluggable, sandboxed)
+
+Install your own tools on the **Tools** page (or via the API). A tool package is a
+directory — or a `.zip` of one — containing `llmctl-tool.json`:
+
+```json
+{
+  "name": "Word Counter",
+  "description": "Counts words, lines and characters in a text",
+  "entry": "main.py",
+  "runtime": "python",
+  "sandbox": true,
+  "params": { "text": { "type": "string", "description": "text to analyze", "required": true } }
+}
+```
+
+with an entry file defining `def run(args) -> str | dict`. By default tools execute
+**inside the [llm-sandbox](https://github.com/vndee/llm-sandbox) framework** — a
+container (podman/docker backend) with no network, 512 MB memory and 128 PID caps —
+through a Go→python bridge; the first sandbox run pulls the image. Uncheck *sandbox*
+per tool to run it directly on the host (`runtime: "command"` tools are always
+host-only). Enabled tools are exposed to the agent chat as `tool:<id>` and the model
+can call them like built-ins. Requirements for sandbox mode: `python -m pip install
+"llm-sandbox[podman,docker]"` plus a running podman machine or Docker daemon.
 
 ## Operational model
 

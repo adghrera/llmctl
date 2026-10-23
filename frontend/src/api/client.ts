@@ -83,6 +83,40 @@ export interface PresetSpec {
   vars?: Record<string, string>;
 }
 
+export interface ToolParam {
+  type?: string;
+  description?: string;
+  required?: boolean;
+}
+
+export interface ToolRecord {
+  id: string;
+  dir: string;
+  manifest: {
+    name: string;
+    description?: string;
+    entry: string;
+    runtime?: string;
+    sandbox?: boolean;
+    params?: Record<string, ToolParam>;
+  };
+  enabled: boolean;
+  sandbox: boolean;
+  source: string;
+  installedAt: string;
+}
+
+export interface ToolRunResult {
+  ok: boolean;
+  result?: string;
+  stderr?: string;
+  exitCode: number;
+  error?: string;
+  sandbox: boolean;
+  backend?: string;
+  duration: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -205,6 +239,16 @@ export const api = {
   saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  tools: () => req<ToolRecord[]>("/tools"),
+  installTool: (body: { url?: string; dir?: string; id?: string }) =>
+    req<ToolRecord>("/tools/install", { method: "POST", body: JSON.stringify(body) }),
+  setToolEnabled: (id: string, enabled: boolean) =>
+    req<{ ok: boolean }>(`/tools/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
+  setToolSandbox: (id: string, sandbox: boolean) =>
+    req<{ ok: boolean }>(`/tools/${encodeURIComponent(id)}/sandbox`, { method: "POST", body: JSON.stringify({ sandbox }) }),
+  runTool: (id: string, args: Record<string, unknown>, timeoutSec = 60) =>
+    req<ToolRunResult>(`/tools/${encodeURIComponent(id)}/run`, { method: "POST", body: JSON.stringify({ args, timeoutSec }) }),
+  deleteTool: (id: string) => req<{ ok: boolean }>(`/tools/${encodeURIComponent(id)}`, { method: "DELETE" }),
   presets: () => req<PresetSpec[]>("/presets"),
   savePreset: (p: PresetSpec) => req<PresetSpec>("/presets", { method: "POST", body: JSON.stringify(p) }),
   deletePreset: (name: string) => req<{ ok: boolean }>(`/presets/${encodeURIComponent(name)}`, { method: "DELETE" }),

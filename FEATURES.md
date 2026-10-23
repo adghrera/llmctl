@@ -42,6 +42,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F030 | P1 | 30 | agent | History trimming to fit context | NOT-STARTED | Long chats currently 400/hang the backend. Estimate tokens (~4 chars/token), trim oldest pairs until under model ctx minus response reserve; keep system + last N turns; show "history trimmed" note. Model ctx from F023 CtxSize. |
 | F031 | P2 | 31 | chat | Export conversation (Markdown / JSON) | NOT-STARTED | Client-side blob download from the loaded conversation; Markdown includes tool searches as footnote links. |
 | F032 | P2 | 32 | chat | Token usage per conversation | NOT-STARTED | Gateway already parses usage; surface prompt/completion tokens per message + conversation totals in the Chat UI and chatstore Summary. |
+| F033 | P0 | 33 | tools | Pluggable tool registry + sandbox | COMPLETED | Install agent tools from a URL (zip) or local directory (~/.llmctl/tools/<id>/). Manifest llmctl-tool.json (name/entry/runtime/sandbox/params). Tools speak a JSON stdin/stdout protocol (python entry: def run(args)->str). Default execution inside the llm-sandbox framework (vndee/llm-sandbox via podman/docker backend, network-less, mem/pid caps) through a Go→python bridge; per-tool toggle to run on host. New Tools page: list, install, enable/disable, uninstall, test-run. Enabled tools join the agent's tool map in chat. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

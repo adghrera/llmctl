@@ -5,6 +5,7 @@ import Backends from "./pages/Backends";
 import Models from "./pages/Models";
 import Instances from "./pages/Instances";
 import Chat from "./pages/Chat";
+import Tools from "./pages/Tools";
 import Keys from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
 import { Toasts } from "./ui/toast";
@@ -15,6 +16,7 @@ const NAV = [
   { to: "/models", label: "Models" },
   { to: "/instances", label: "Instances" },
   { to: "/chat", label: "Chat" },
+  { to: "/tools", label: "Tools" },
   { to: "/keys", label: "API Keys" },
   { to: "/settings", label: "Settings" },
 ];
@@ -44,6 +46,7 @@ export default function App() {
           <Route path="/models" element={<Models />} />
           <Route path="/instances" element={<Instances />} />
           <Route path="/chat" element={<Chat />} />
+          <Route path="/tools" element={<Tools />} />
           <Route path="/keys" element={<Keys />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

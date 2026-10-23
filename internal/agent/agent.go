@@ -45,12 +45,13 @@ type Message struct {
 
 // Request for Run.
 type Request struct {
-	Model       string
-	Messages    []Message // conversation WITHOUT system prompt
-	MaxSteps    int       // default 5, cap 10
-	MaxTokens   int
-	Temperature *float64
-	APIKey      string // forwarded to the gateway as Bearer
+	Model          string
+	Messages       []Message // conversation WITHOUT system prompt
+	MaxSteps       int       // default 5, cap 10
+	MaxTokens      int
+	Temperature    *float64
+	APIKey         string // forwarded to the gateway as Bearer
+	ExtraToolsText string // appended to the system prompt (installed tools, F033)
 }
 
 const systemPrompt = `You are llmctl, a helpful assistant with tools.
@@ -407,10 +408,15 @@ func resolveTool(tools map[string]Tool, name string) (string, Tool, bool) {
 		t, ok := tools["web_search"]
 		return "web_search", t, ok
 	}
-	if t, ok := tools[name]; ok {
-		return name, t, true
+	name = strings.TrimSpace(name)
+	norm := strings.TrimPrefix(name, "tool:")
+	if t, ok := tools[norm]; ok {
+		return norm, t, true
 	}
-	if _, ok := tools["web_search"]; ok && strings.Contains(name, "search") {
+	if t, ok := tools["tool:"+norm]; ok {
+		return "tool:" + norm, t, true
+	}
+	if _, ok := tools["web_search"]; ok && strings.Contains(norm, "search") {
 		return "web_search", tools["web_search"], true
 	}
 	return name, nil, false
@@ -438,7 +444,11 @@ func Run(ctx context.Context, gw http.Handler, tools map[string]Tool, req Reques
 	}
 
 	messages := make([]Message, 0, len(req.Messages)+4)
-	messages = append(messages, Message{Role: "system", Content: systemPrompt})
+	sysPrompt := systemPrompt
+	if req.ExtraToolsText != "" {
+		sysPrompt += "\n" + req.ExtraToolsText
+	}
+	messages = append(messages, Message{Role: "system", Content: sysPrompt})
 	messages = append(messages, req.Messages...)
 
 	step := 0
@@ -635,3 +645,8 @@ func (r *streamRecorder) Write(p []byte) (int, error) {
 
 // Flush satisfies http.Flusher (the gateway flushes per SSE chunk).
 func (r *streamRecorder) Flush() {}
+
+// ResolveToolForTest exposes resolveTool for cross-package tests.
+func ResolveToolForTest(tools map[string]Tool, name string) (string, Tool, bool) {
+	return resolveTool(tools, name)
+}

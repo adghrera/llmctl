@@ -99,6 +99,13 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		Temperature: req.Temperature,
 		APIKey:      apiKey,
 	}
+	// Installed user tools (F033) join the tool map and the prompt.
+	if extra := s.enabledAgentTools(); len(extra) > 0 {
+		for k, v := range extra {
+			tools[k] = v
+		}
+		areq.ExtraToolsText = s.installedToolsPrompt(extra)
+	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

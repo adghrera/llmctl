@@ -24,6 +24,7 @@ import (
 	"llmctl/internal/agent"
 	"llmctl/internal/backend"
 	"llmctl/internal/chatstore"
+	"llmctl/internal/toolstore"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
@@ -45,6 +46,7 @@ type Server struct {
 	searcher   *websearch.Searcher // keyless web search (F021)
 	agentTool  agent.Tool          // web_search tool override (tests); nil = WebSearchTool{searcher}
 	chats      *chatstore.Store    // persisted chat conversations (F025)
+	tools      *toolstore.Store    // installed agent tools (F033)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -83,6 +85,12 @@ func (s *Server) Handler() http.Handler {
 	// Auto-start specs
 	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
 	m.HandleFunc("GET /api/v1/presets", s.listPresets)
+	m.HandleFunc("GET /api/v1/tools", s.listTools)
+	m.HandleFunc("POST /api/v1/tools/install", s.installTool)
+	m.HandleFunc("POST /api/v1/tools/{id}/enabled", s.setToolEnabled)
+	m.HandleFunc("POST /api/v1/tools/{id}/sandbox", s.setToolSandbox)
+	m.HandleFunc("POST /api/v1/tools/{id}/run", s.runTool)
+	m.HandleFunc("DELETE /api/v1/tools/{id}", s.deleteTool)
 	m.HandleFunc("POST /api/v1/presets", s.savePreset)
 	m.HandleFunc("DELETE /api/v1/presets/{name}", s.deletePreset)
 	m.HandleFunc("POST /api/v1/presets/{name}/start", s.startPreset)
