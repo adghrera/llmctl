@@ -53,15 +53,21 @@ type Request struct {
 	APIKey      string // forwarded to the gateway as Bearer
 }
 
-const systemPrompt = `You are llmctl, a helpful assistant with web access.
-To search the web, reply with ONLY one or more lines of the form:
-<search>your query here</search>
-(You may instead use: <tool_call>{"name": "web_search", "arguments": {"query": "your query"}}</tool_call> )
-You may issue up to 3 searches in one reply. After search results arrive, answer using them, citing URLs inline.
+const systemPrompt = `You are llmctl, a helpful assistant with tools.
+Available tools — to call one, reply with ONLY one or more lines of the form:
+  <search>your query here</search>                                          (web_search)
+  <tool_call>{"name": "web_search", "arguments": {"query": "..."}}</tool_call>
+  <tool_call>{"name": "fetch_url", "arguments": {"url": "https://..."}}</tool_call>
+  <tool_call>{"name": "calculator", "arguments": {"expression": "2*(3+4)^2"}}</tool_call>
+  <tool_call>{"name": "current_time", "arguments": {}}</tool_call>
+You may issue up to 3 tool calls in one reply. After results arrive, answer using them, citing URLs inline.
 Rules:
-- Search when the question needs current facts (news, prices, releases, versions) or when you are unsure.
-- Never invent search results or URLs.
-- If no search is needed, just answer normally.`
+- web_search when the question needs current facts (news, prices, releases, versions) or when you are unsure.
+- fetch_url to read a specific page (e.g. a search result that looks most relevant, or a URL the user gave).
+- calculator for ANY arithmetic — never compute mentally.
+- current_time for questions about today's date or the current time.
+- Never invent tool results or URLs.
+- If no tool is needed, just answer normally.`
 
 // --- tool-call parsing (multi-format) -------------------------------------
 

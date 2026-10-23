@@ -156,7 +156,7 @@ All UI features are API-backed (agents/CI use the same surface). Base:
 | `PUT /models/{id}/ctx` | per-model default context size (0 = backend default) |
 | `GET /metrics` | gateway metrics: counts, tokens, p50/p90/p99 latency, per-model |
 | `GET /search?q=&max=` | keyless web search (DuckDuckGo, Bing fallback) |
-| `POST /chat/agent` (SSE) | agent chat: model + web_search loop, streams deltas + tool events |
+| `POST /chat/agent` (SSE) | agent chat: tools — web_search, fetch_url, calculator, current_time; streams deltas + tool events |
 | `GET /chats` · `POST /chats` · `GET/PUT/DELETE /chats/{id}` | saved chat conversations (~/.llmctl/chats/) |
 | `GET /jobs` · `GET /jobs/events` (SSE) | background jobs + live progress |
 | `GET /keys` · `POST /keys` · `DELETE /keys/{id}` | API keys |

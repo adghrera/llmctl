@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"llmctl/internal/agent"
+	"llmctl/internal/agenttools"
 	"llmctl/internal/store"
 )
 
@@ -85,7 +86,10 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tools := map[string]agent.Tool{
-		"web_search": s.agentSearchTool(),
+		"web_search":   s.agentSearchTool(),
+		"fetch_url":    &agenttools.FetchURLTool{},
+		"calculator":   &agenttools.CalcTool{},
+		"current_time": &agenttools.TimeTool{},
 	}
 	areq := agent.Request{
 		Model:       req.Model,
