@@ -31,6 +31,18 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F024 | P1 | 24 | instances | Save instance configs (presets) | COMPLETED | Named instance presets: model + backend + port + vars saved to state; GET/POST /api/v1/presets, DELETE /api/v1/presets/{name}, POST /api/v1/presets/{name}/start (optional per-start port/vars overrides; shared start path with id derivation). Instances page: "Save config" from the form + Saved configs table (Edit→load form, Start, Delete). Verified live: preset with {"ctx":64000} starts llama-server with --ctx-size 64000. |
 | F025 | P1 | 25 | chat | Chat conversations | COMPLETED | Conversations persisted as one JSON file per chat under ~/.llmctl/chats/ (internal/chatstore; atomic writes, safe 16-hex IDs). REST: GET /api/v1/chats (summaries, newest first), POST /api/v1/chats (create, title derived from first user message), GET/PUT/DELETE /api/v1/chats/{id}. Chat page: Conversations card (+ New chat, click to reopen with inline search results restored, per-row Delete), auto-save after each completed turn (agent tool events persisted with the assistant message). |
 
+## Planned — agent capability round (next)
+
+| ID | Pri | # | Area | Feature | Status | Notes |
+|----|-----|---|------|---------|--------|-------|
+| F026 | P0 | 26 | agent | Agent toolset: fetch_url, calculator, current_time | NOT-STARTED | The agent's biggest quality gap: it can search but cannot *read*. fetch_url: GET + strip HTML to text (stdlib), size-capped, private-IP/localhost blocked (SSRF), redirects limited. calculator: safe arithmetic evaluator (numbers, + - * / % ^ parens). current_time: real UTC/local clock. Register in agent tools map; extend system prompt with per-tool format lines; UI tool events already render any tool name. |
+| F027 | P0 | 27 | chat | Stop generation + regenerate | NOT-STARTED | AbortController on chatStream/agentStream fetch; Stop button while streaming (server request dies with the connection — gateway already cancels upstream). Regenerate: drop last assistant msg, re-send history. |
+| F028 | P1 | 28 | chat | Markdown rendering + code blocks | NOT-STARTED | Models emit markdown; UI shows raw text. Small stdlib-free renderer: headings, bold/italic, lists, links (rel=noopener), fenced code blocks with language label + copy button. No new npm deps if hand-rolled; otherwise markedown lib decision point. |
+| F029 | P1 | 29 | chat | Per-conversation custom instructions | NOT-STARTED | Conversation.Instructions field; agent + plain chat send it as the system message (agent: replaces hardcoded llmctl prompt, tool instructions appended). Editable in Chat UI, persisted with the conversation. |
+| F030 | P1 | 30 | agent | History trimming to fit context | NOT-STARTED | Long chats currently 400/hang the backend. Estimate tokens (~4 chars/token), trim oldest pairs until under model ctx minus response reserve; keep system + last N turns; show "history trimmed" note. Model ctx from F023 CtxSize. |
+| F031 | P2 | 31 | chat | Export conversation (Markdown / JSON) | NOT-STARTED | Client-side blob download from the loaded conversation; Markdown includes tool searches as footnote links. |
+| F032 | P2 | 32 | chat | Token usage per conversation | NOT-STARTED | Gateway already parses usage; surface prompt/completion tokens per message + conversation totals in the Chat UI and chatstore Summary. |
+
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
