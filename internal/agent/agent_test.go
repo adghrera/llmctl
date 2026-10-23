@@ -436,3 +436,60 @@ func TestAgentUnknownToolFedBack(t *testing.T) {
 		t.Fatalf("final answer missing")
 	}
 }
+
+// stubTool is a no-op agent.Tool for resolution tests.
+type stubTool struct{ name string }
+
+func (s *stubTool) Name() string { return s.name }
+func (s *stubTool) Execute(ctx context.Context, argsJSON string) (string, any, error) {
+	return "ok", nil, nil
+}
+
+func TestResolveInstalledToolFuzzy(t *testing.T) {
+	tools := map[string]Tool{
+		"web_search":                &stubTool{"web_search"},
+		"tool:stock-quotes-686039":  &stubTool{"tool:stock-quotes-686039"},
+		"tool:word-counter-9476f4":  &stubTool{"tool:word-counter-9476f4"},
+	}
+	cases := []struct {
+		in   string
+		want string // "" = must NOT resolve
+	}{
+		{"tool:stock-quotes-686039", "tool:stock-quotes-686039"}, // exact
+		{"stock-quotes-686039", "tool:stock-quotes-686039"},      // no prefix
+		{"stock-quotes", "tool:stock-quotes-686039"},             // slug only
+		{"stock_quotes", "tool:stock-quotes-686039"},              // underscore
+		{"Stock Quotes", "tool:stock-quotes-686039"},              // display name w/ space
+		{"STOCK.QUOTES", "tool:stock-quotes-686039"},              // dots + case
+		{"word-counter", "tool:word-counter-9476f4"},
+		{"calculator", ""}, // built-in not present here — must not fuzzy-match
+		{"completely-unknown", ""},
+	}
+	for _, c := range cases {
+		name, _, ok := resolveTool(tools, c.in)
+		if c.want == "" {
+			if ok {
+				t.Errorf("resolveTool(%q) resolved to %q, want no match", c.in, name)
+			}
+			continue
+		}
+		if !ok || name != c.want {
+			t.Errorf("resolveTool(%q) = %q, %v; want %q", c.in, name, ok, c.want)
+		}
+	}
+}
+
+func TestStripPartialMarkers(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"<tool_<tool_Based on the tool, MU is $856.", "Based on the tool, MU is $856."},
+		{"<tool_<tool_call>\nMU is $856.", "MU is $856."},
+		{"Answer: 42<|tool_call_start|>", "Answer: 42"},
+		{"plain answer stays", "plain answer stays"},
+		{"<function=stock", ""},
+	}
+	for _, c := range cases {
+		if got := stripToolCalls(c.in); got != c.want {
+			t.Errorf("stripToolCalls(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

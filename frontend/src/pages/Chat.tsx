@@ -156,7 +156,12 @@ export default function Chat() {
             updateLast((m) => ({ ...m, content: acc }));
           } else if (ev.type === "tool") {
             tools.push(ev as AgentToolEvent);
-            updateLast((m) => ({ ...m, tools: [...tools] }));
+            // Any text accumulated before a tool event is pre-marker
+            // noise from the tool-call turn (possibly a truncated marker
+            // fragment). The real answer streams after tool results, so
+            // drop the stale prefix.
+            acc = "";
+            updateLast((m) => ({ ...m, content: acc, tools: [...tools] }));
           } else if (ev.type === "error") {
             err(ev.error || "agent error");
           }

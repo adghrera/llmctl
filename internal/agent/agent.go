@@ -103,7 +103,7 @@ var (
 // suppressionMarkers: if any appears in streamed text, stop emitting deltas
 // until we know whether it was a real tool call (false positives are
 // re-flushed by the caller).
-var suppressionMarkers = []string{"<search", "<tool_call", "<function=", "```tool", `"arguments"`, "<|tool_call"}
+var suppressionMarkers = []string{"<search", "<tool_call", "<tool_", "<function=", "```tool", `"arguments"`, "<|tool_call"}
 
 // extractToolCalls finds tool calls in every supported format.
 func extractToolCalls(text string) []toolCall {
@@ -398,8 +398,25 @@ func stripToolCalls(text string) string {
 	s = toolFenceRe.ReplaceAllString(s, "")
 	s = pySentinelRe.ReplaceAllString(s, "")
 	s = bareJSONRe.ReplaceAllString(s, "")
+	// Truncated marker fragments: small models sometimes emit a partial
+	// "<tool_" (token cut mid-marker) with no closing tag, which survives the
+	// full-pattern strips above and renders as garbage at the start of the
+	// answer. Remove any leftover marker openers.
+	s = partialMarkerRe.ReplaceAllString(s, "")
 	return strings.TrimSpace(s)
 }
+
+// partialMarkerRe matches leftover tool-call marker openers, including the
+// truncated forms ("<tool_", "<|tool_call", "<function=", "<parameter=").
+// Alternatives are explicit literal truncations of each marker (RE2 has no
+// lookahead and open-ended classes would swallow following words).
+var partialMarkerRe = regexp.MustCompile(`(?is)` +
+	`<\|\s*tool_call\s*_?\s*start\s*\|?\s*>?|<\|\s*tool_call\s*_?\s*end\s*\|?\s*>?|<\|\s*tool_call[a-z_]*|<\|\s*tool[a-z_]*|<\|>` +
+	`|<tool_call[^>]*>?|<tool_c(?:a(?:l(?:l)?)?)?(?:_[a-z]+)?>?|<tool_` +
+	`|<search\b[^>]*|</search\s*>` +
+	`|<function\s*=?[^>]*|</function\s*>` +
+	`|<parameter\s*=?[^>]*|</parameter\s*>` +
+	`|<\|\s*im_start\s*\|>[a-z]*|<\|\s*im_end\s*\|>`)
 
 // resolveTool maps a parsed call to a registered tool. Empty names default
 // to web_search; exact names win; search-ish names fall back to web_search.
@@ -416,10 +433,79 @@ func resolveTool(tools map[string]Tool, name string) (string, Tool, bool) {
 	if t, ok := tools["tool:"+norm]; ok {
 		return "tool:" + norm, t, true
 	}
+	// Installed tools carry a random id suffix (word-counter-9476f4); models
+	// naturally drop it and emit stock_quotes, stock-quotes, or Stock Quotes.
+	// Match on the normalized name against every "tool:" entry.
+	if key, ok := matchInstalledTool(tools, norm); ok {
+		return key, tools[key], true
+	}
 	if _, ok := tools["web_search"]; ok && strings.Contains(norm, "search") {
 		return "web_search", tools["web_search"], true
 	}
 	return name, nil, false
+}
+
+// normalizeToolKey lowercases and collapses _/-/space runs so "Stock Quotes",
+// "stock_quotes" and "stock-quotes" all compare equal.
+func normalizeToolKey(s string) string {
+	s = strings.ToLower(s)
+	var b strings.Builder
+	prevDash := false
+	for _, r := range s {
+		switch r {
+		case '_', '-', ' ', '.':
+			if !prevDash {
+				b.WriteByte('-')
+				prevDash = true
+			}
+		default:
+			b.WriteRune(r)
+			prevDash = false
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+// matchInstalledTool finds a "tool:<id>" entry whose id equals the wanted
+// name, starts with "<name>-" (id suffix dropped by the model), or whose
+// normalized form matches. Ambiguous prefixes resolve to the shortest id.
+func matchInstalledTool(tools map[string]Tool, wanted string) (string, bool) {
+	wantNorm := normalizeToolKey(wanted)
+	if wantNorm == "" {
+		return "", false
+	}
+	best := ""
+	var bestID string
+	for key := range tools {
+		if !strings.HasPrefix(key, "tool:") {
+			continue
+		}
+		id := key[len("tool:"):]
+		if id == wanted || normalizeToolKey(id) == wantNorm {
+			return key, true
+		}
+		// id is "<slug>-<6hex>"; the model emits just the slug
+		if base, ok := stripIDSuffix(id); ok {
+			if normalizeToolKey(base) == wantNorm {
+				if best == "" || len(id) < len(bestID) {
+					best, bestID = key, id
+				}
+			}
+		}
+	}
+	return best, best != ""
+}
+
+// idSuffixRe matches the random 6-hex suffix genID appends to tool ids.
+var idSuffixRe = regexp.MustCompile(`-[0-9a-f]{6}$`)
+
+// stripIDSuffix removes the genID hex suffix: "stock-quotes-686039" ->
+// "stock-quotes".
+func stripIDSuffix(id string) (string, bool) {
+	if m := idSuffixRe.FindString(id); m != "" {
+		return strings.TrimSuffix(id, m), true
+	}
+	return "", false
 }
 
 func containsMarker(s string) bool {
