@@ -201,6 +201,11 @@ try:
         "pids_limit": 128,
         "security_opt": ["no-new-privileges"],
     }
+    # Tools that declare "network": true in their manifest get egress;
+    # everything else stays fully isolated. Caps and no-new-privileges hold
+    # either way.
+    if req.get("network"):
+        runtime_configs["network_mode"] = "bridge"
     runtime_configs.update(req.get("runtime_configs") or {})
     # podman's Docker-API accepts "no-new-privileges" but not ":true"; if the
     # backend rejects the option, retry without it rather than failing the run.
@@ -257,6 +262,7 @@ type bridgeInput struct {
 	Files   map[string]string `json:"files"`
 	Entry   string            `json:"entry"`
 	Args    string            `json:"args"`
+	Network bool              `json:"network,omitempty"`
 	Timeout int               `json:"timeout"`
 }
 
@@ -302,7 +308,7 @@ func runSandboxed(ctx context.Context, rec *toolstore.Record, argsJSON string, t
 
 	var lastErr string
 	for _, backend := range sandboxBackends() {
-		res := runBridge(ctx, py, backend, files, filepath.Base(rec.Manifest.Entry), orEmptyArgs(argsJSON), timeout)
+		res := runBridge(ctx, py, backend, files, filepath.Base(rec.Manifest.Entry), orEmptyArgs(argsJSON), rec.Network, timeout)
 		if res != nil {
 			res.Backend = backend
 			if res.OK || !isBackendMissing(res) {
@@ -324,12 +330,13 @@ func isBackendMissing(res *Result) bool {
 		strings.Contains(s, "filenotfound") || strings.Contains(s, "errorconnect")
 }
 
-func runBridge(ctx context.Context, py, backend string, files map[string]string, entry, argsJSON string, timeout time.Duration) *Result {
+func runBridge(ctx context.Context, py, backend string, files map[string]string, entry, argsJSON string, network bool, timeout time.Duration) *Result {
 	inp, _ := json.Marshal(bridgeInput{
 		Backend: backend,
 		Files:   files,
 		Entry:   entry,
 		Args:    argsJSON,
+		Network: network,
 		Timeout: int(timeout.Seconds()),
 	})
 	cctx, cancel := context.WithTimeout(ctx, timeout+30*time.Second)

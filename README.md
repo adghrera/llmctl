@@ -182,7 +182,9 @@ directory — or a `.zip` of one — containing `llmctl-tool.json`:
 with an entry file defining `def run(args) -> str | dict`. By default tools execute
 **inside the [llm-sandbox](https://github.com/vndee/llm-sandbox) framework** — a
 container (podman/docker backend) with no network, 512 MB memory and 128 PID caps —
-through a Go→python bridge; the first sandbox run pulls the image. Uncheck *sandbox*
+through a Go→python bridge; the first sandbox run pulls the image. A tool that
+needs outbound network declares `"network": true` in its manifest (bridge-mode
+container; caps still apply) — see `samples/stock-quotes`. Uncheck *sandbox*
 per tool to run it directly on the host (`runtime: "command"` tools are always
 host-only). Enabled tools are exposed to the agent chat as `tool:<id>` and the model
 can call them like built-ins. Requirements for sandbox mode: `python -m pip install

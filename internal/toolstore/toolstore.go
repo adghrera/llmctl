@@ -53,6 +53,7 @@ type Manifest struct {
 	Entry       string            `json:"entry"`
 	Runtime     string            `json:"runtime,omitempty"` // python (default) | command
 	Sandbox     *bool             `json:"sandbox,omitempty"` // nil = default true
+	Network     bool              `json:"network,omitempty"` // sandbox: allow outbound network (default off)
 	Params      map[string]Param  `json:"params,omitempty"`
 }
 
@@ -62,6 +63,7 @@ type Record struct {
 	Manifest    Manifest  `json:"manifest"`
 	Enabled     bool      `json:"enabled"`
 	Sandbox     bool      `json:"sandbox"`     // effective (manifest default)
+	Network     bool      `json:"network"`     // sandbox network opt-in (manifest-driven)
 	Source      string    `json:"source"`      // url or local path it came from
 	InstalledAt time.Time `json:"installedAt"`
 }
@@ -154,7 +156,7 @@ func (s *Store) load(id string) (*Record, error) {
 		installed = fi.ModTime()
 	}
 	return &Record{ID: id, Dir: dir, Manifest: m, Enabled: enabled, Sandbox: sandbox,
-		Source: string(src), InstalledAt: installed}, nil
+		Network: m.Network, Source: string(src), InstalledAt: installed}, nil
 }
 
 // List returns all installed tools sorted by name.

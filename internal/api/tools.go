@@ -264,6 +264,9 @@ func (s *Server) installedToolsPrompt(extra map[string]agent.Tool) string {
 		mode := "runs on this machine"
 		if t.rec.SandboxEnabled() {
 			mode = "runs sandboxed"
+			if t.rec.Network {
+				mode = "runs sandboxed (network allowed)"
+			}
 		}
 		b.WriteString(fmt.Sprintf("  <tool_call>{\"name\": %q, \"arguments\": {<params>}}</tool_call> — %s (%s; params: %s)\n",
 			k, t.rec.Manifest.Description, mode, strings.Join(params, "; ")))

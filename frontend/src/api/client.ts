@@ -102,6 +102,7 @@ export interface ToolRecord {
   };
   enabled: boolean;
   sandbox: boolean;
+  network?: boolean;
   source: string;
   installedAt: string;
 }

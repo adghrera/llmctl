@@ -1,0 +1,15 @@
+{
+  "name": "Stock Quotes",
+  "description": "Fetches current stock quotes (price, change, day range, volume) for up to 10 ticker symbols from Yahoo Finance",
+  "entry": "main.py",
+  "runtime": "python",
+  "sandbox": true,
+  "network": true,
+  "params": {
+    "symbols": {
+      "type": "string",
+      "description": "Comma-separated ticker symbols, e.g. \"AAPL, MSFT, NVDA\"",
+      "required": true
+    }
+  }
+}

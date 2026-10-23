@@ -136,6 +136,14 @@ export default function Tools() {
                   <div style={{ opacity: 0.55, fontSize: 12, marginTop: 2 }}>
                     runtime: {t.manifest.runtime || "python"} · entry: {t.manifest.entry} · from{" "}
                     {t.source || "local"}
+                    {t.sandbox && (
+                      <>
+                        {" · "}
+                        <span style={{ color: t.network ? "#c90" : "#3a6" }}>
+                          {t.network ? "sandbox + network" : "sandbox, no network"}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="row">
