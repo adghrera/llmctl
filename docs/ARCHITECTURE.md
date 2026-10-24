@@ -44,7 +44,7 @@ management API and web UI — all on **one port**.
 | `internal/daemon` | Wires gateway + management API + UI onto one listener; daemon.json; signal handling. |
 | `internal/proxy` | OpenAI gateway: auth (hashed keys, constant-time), per-client token bucket, in-flight cap, model→instance router, HTTP reverse proxy (FlushInterval -1), stdio translator. |
 | `internal/api` | Management API handlers; job submission; HF search/files proxy; key management (sha256 hashes only). |
-| `internal/chatstore` | Persisted chat conversations as one JSON file per chat under $LLMCTL_HOME/chats/ (atomic writes, safe 16-hex IDs). REST: GET/POST/GET/PUT/DELETE /api/v1/chats, plus GET /api/v1/chats/search?q= for full-text search across titles and message content (F037). |
+| `internal/chatstore` | Persisted chat conversations as one JSON file per chat under $LLMCTL_HOME/chats/ (atomic writes, safe 16-hex IDs). REST: GET/POST/GET/PUT/DELETE /api/v1/chats, GET /api/v1/chats/search?q= for full-text search, POST /api/v1/chats/{id}/fork to branch a conversation at any message index (F039). |
 | `internal/backend` | Pluggable backend system: `Backend` interface, Registry (built-ins + JSON plugins), installers (GitHub release / URL / files). |
 | `internal/stdio` | llmctl-stdio/1 protocol: Session (read loop, id-correlated pending map), Launch (spawn + pipes + hello wait). |
 | `internal/supervisor` | Instance lifecycle: start (http/stdio/attach), health wait, stop, reap loop, in-memory stdio session map. |

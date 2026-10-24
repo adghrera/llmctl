@@ -110,6 +110,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   (titles and message content) via `GET /api/v1/chats/search?q=`. Returns
   matching conversations with message snippets. Search bar in the Chat UI's
   Conversations card; click a result to open it.
+- **Conversation fork** — fork a saved conversation at any message index via
+  `POST /api/v1/chats/{id}/fork` with body `{"forkAt": N, "title": "..."}`.
+  Creates a new conversation copying the first N messages. Frontend: Fork
+  button on each conversation opens a dialog to pick fork point and title.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

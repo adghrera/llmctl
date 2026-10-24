@@ -111,6 +111,29 @@ func (s *Server) deleteChat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// forkChat handles POST /api/v1/chats/{id}/fork.
+// Body: {"forkAt": <number of leading messages to keep>, "title": "<new title>"}
+func (s *Server) forkChat(w http.ResponseWriter, r *http.Request) {
+	if s.chats == nil {
+		writeErr(w, 503, "chat store unavailable")
+		return
+	}
+	var req struct {
+		ForkAt int    `json:"forkAt"`
+		Title  string `json:"title"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON: "+err.Error())
+		return
+	}
+	c, err := s.chats.Fork(r.PathValue("id"), req.ForkAt, req.Title)
+	if err != nil {
+		writeErr(w, statusFor(err), err.Error())
+		return
+	}
+	writeJSON(w, 201, c)
+}
+
 // searchChats handles GET /api/v1/chats/search?q=.
 // Returns conversations whose title or message content contains q.
 func (s *Server) searchChats(w http.ResponseWriter, r *http.Request) {

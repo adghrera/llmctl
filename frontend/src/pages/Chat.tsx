@@ -32,6 +32,13 @@ export default function Chat() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchChatResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [forkDialog, setForkDialog] = useState<{
+    id: string | null;
+    title: string;
+    messages: number;
+  } | null>(null);
+  const [forkAt, setForkAt] = useState(0);
+  const [forkTitle, setForkTitle] = useState("");
   const convIdRef = useRef<string | null>(null);
   convIdRef.current = convId;
 
@@ -128,6 +135,17 @@ export default function Chat() {
       await api.deleteChat(id);
       if (id === convId) newChat();
       ok("conversation deleted");
+      await loadChats();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const forkChat = async (id: string, forkAt: number, title: string) => {
+    try {
+      const c = await api.forkChat(id, { forkAt, title });
+      ok(`forked as "${c.title}"`);
+      setForkDialog(null);
       await loadChats();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -339,6 +357,17 @@ export default function Chat() {
                   <td style={{ textAlign: "right", verticalAlign: "middle" }}>
                     <button className="btn sm danger" disabled={streaming} onClick={() => removeChat(c.id)}>
                       Delete
+                    </button>{" "}
+                    <button
+                      className="btn sm"
+                      disabled={streaming || c.messages === 0}
+                      onClick={() => {
+                        setForkAt(0);
+                        setForkTitle((c.title || "Untitled") + " (fork)");
+                        setForkDialog({ id: c.id, title: c.title || "Untitled", messages: c.messages });
+                      }}
+                    >
+                      Fork
                     </button>
                   </td>
                 </tr>
@@ -498,6 +527,70 @@ export default function Chat() {
           </div>
         </div>
       </div>
+      {forkDialog && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h2 style={{ margin: "0 0 12px 0" }}>Fork conversation</h2>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: "block", fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+              Fork at message
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={forkDialog.messages}
+              value={forkAt}
+              onChange={(e) => setForkAt(Math.max(0, Math.min(forkDialog.messages, Number(e.target.value) || 0)))}
+              style={{
+                width: "100%",
+                padding: 6,
+                fontSize: 13,
+                border: "1px solid var(--border, #333)",
+                borderRadius: 4,
+                marginBottom: 8,
+              }}
+            />
+            <p style={{ fontSize: 11, opacity: 0.7, margin: 0 }}>
+              Keep the first N messages (0 = none, {forkDialog.messages} = all)
+            </p>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: "block", fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+              New title
+            </label>
+            <input
+              type="text"
+              value={forkTitle}
+              onChange={(e) => setForkTitle(e.target.value)}
+              placeholder={forkDialog.title}
+              style={{
+                width: "100%",
+                padding: 6,
+                fontSize: 13,
+                border: "1px solid var(--border, #333)",
+                borderRadius: 4,
+              }}
+            />
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              className="btn sm"
+              onClick={() => {
+                setForkDialog(null);
+                setForkAt(0);
+                setForkTitle("");
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn sm primary"
+              onClick={() => forkChat(forkDialog.id!, forkAt, forkTitle)}
+            >
+              Fork
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

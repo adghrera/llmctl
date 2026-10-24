@@ -198,6 +198,28 @@ func (s *Store) Delete(id string) error {
 	return err
 }
 
+// Fork creates a new conversation that copies messages[0:forkAt] from an
+// existing conversation. forkAt is the number of leading messages to keep
+// (0 = empty, len = full copy). The forked conversation gets a new ID and
+// the given title (or derived from the first message).
+func (s *Store) Fork(id string, forkAt int, title string) (*Conversation, error) {
+	src, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	if forkAt < 0 || forkAt > len(src.Messages) {
+		return nil, fmt.Errorf("forkAt %d out of range (0-%d)", forkAt, len(src.Messages))
+	}
+	c := &Conversation{
+		Title:     title,
+		Model:     src.Model,
+		AgentMode: src.AgentMode,
+		Messages:  make([]Message, forkAt),
+	}
+	copy(c.Messages, src.Messages[:forkAt])
+	return s.Save(c)
+}
+
 // SearchResult is one match from a conversation search.
 type SearchResult struct {
 	ConversationID string   `json:"conversationId"`

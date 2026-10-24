@@ -289,6 +289,11 @@ export const api = {
   saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  forkChat: (id: string, body: { forkAt: number; title?: string }) =>
+    req<ChatConversation>(`/chats/${encodeURIComponent(id)}/fork`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   searchChats: (q: string, limit = 20, maxMatches = 5) =>
     req<SearchChatResult[]>(`/chats/search?q=${encodeURIComponent(q)}&limit=${limit}&maxMatches=${maxMatches}`),
   tools: () => req<ToolRecord[]>("/tools"),
