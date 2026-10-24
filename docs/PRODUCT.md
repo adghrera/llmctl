@@ -126,6 +126,11 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a
   conversation JSON body for import. Frontend: Export JSON/MD buttons per
   conversation, Import file-upload button in the Conversations card.
+- **Prompt templates** — curated built-in prompt templates (code review,
+  explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
+  in internal/prompt/templates.go. REST API: GET /api/v1/prompts,
+  GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
+  page with category filtering and copy-to-clipboard.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

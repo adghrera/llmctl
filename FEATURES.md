@@ -52,6 +52,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F040 | P1 | 40 | chat | Agent memory | COMPLETED | Persistent long-term memory entries stored at ~/.llmctl/memory/<id>/ with entry.json (content, tags, source, timestamps). REST API: GET/POST/GET/PUT/DELETE /api/v1/memory, GET /api/v1/memory/search?q=. During agent chat, relevant memories are searched using the last user message and injected as system context. Dedicated Memory page to add/delete entries.
 | F041 | P1 | 41 | chat | Model comparison / side-by-side | COMPLETED | New /compare page: select multiple running instances, send the same prompt to all simultaneously via SSE, display responses side-by-side in columns. No new backend API needed — uses existing /v1/chat/completions endpoint.
 | F042 | P2 | 42 | chat | Export/import conversations | COMPLETED | GET /api/v1/chats/{id}/export?format=json|markdown downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a conversation JSON body for import. Frontend: Export JSON/MD buttons per conversation, Import file-upload button in Conversations card.
+| F043 | P2 | 43 | chat | Prompt templates library | COMPLETED | Built-in prompt templates (code review, explain, summarize, translate, brainstorm, critique, debate, rewrite) stored in internal/prompt/templates.go. REST API: GET /api/v1/prompts, GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts page with category filtering and copy-to-clipboard.
 
 ## Shipped (v0.2 architecture, this iteration)
 

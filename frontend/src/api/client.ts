@@ -152,6 +152,14 @@ export interface MemoryEntry {
   source: string;
 }
 
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  content: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -338,6 +346,9 @@ export const api = {
   deleteMemory: (id: string) => req<{ ok: boolean }>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE" }),
   searchMemory: (q: string, limit = 10) =>
     req<MemoryEntry[]>(`/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  prompts: () => req<PromptTemplate[]>("/prompts"),
+  promptCategories: () => req<string[]>("/prompts/categories"),
+  prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),
   presets: () => req<PresetSpec[]>("/presets"),
   savePreset: (p: PresetSpec) => req<PresetSpec>("/presets", { method: "POST", body: JSON.stringify(p) }),
   deletePreset: (name: string) => req<{ ok: boolean }>(`/presets/${encodeURIComponent(name)}`, { method: "DELETE" }),
