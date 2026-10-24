@@ -119,6 +119,9 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   GET/POST/GET/PUT/DELETE /api/v1/memory, GET /api/v1/memory/search?q=. During
   agent chat, relevant memories are searched using the last user message and
   injected as system context. Dedicated Memory page to add/delete entries.
+- **Model comparison** — send the same prompt to multiple running instances
+  simultaneously and view responses side by side on the Compare page.
+  Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
