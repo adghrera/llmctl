@@ -27,6 +27,7 @@ import (
 	"llmctl/internal/skills"
 	"llmctl/internal/toolstore"
 	"llmctl/internal/memory"
+	"llmctl/internal/files"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
@@ -51,6 +52,7 @@ type Server struct {
 	tools      *toolstore.Store    // installed agent tools (F033)
 	skills     *skills.Store       // user-defined skill templates (F036)
 	memory     *memory.Store       // persistent agent memory entries (F040)
+	files      *files.Store        // user-uploaded files (F044)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -109,6 +111,11 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PUT /api/v1/memory/{id}", s.updateMemory)
 	m.HandleFunc("DELETE /api/v1/memory/{id}", s.deleteMemory)
 	m.HandleFunc("GET /api/v1/memory/search", s.searchMemory)
+	// Files (F044)
+	m.HandleFunc("GET /api/v1/files", s.listFiles)
+	m.HandleFunc("POST /api/v1/files", s.uploadFile)
+	m.HandleFunc("GET /api/v1/files/{id}/content", s.getFileContent)
+	m.HandleFunc("DELETE /api/v1/files/{id}", s.deleteFile)
 	// Prompt templates (F043)
 	m.HandleFunc("GET /api/v1/prompts", s.listPrompts)
 	m.HandleFunc("GET /api/v1/prompts/categories", s.categoriesPrompt)

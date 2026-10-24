@@ -10,6 +10,7 @@ import Skills from "./pages/Skills";
 import Memory from "./pages/Memory";
 import Compare from "./pages/Compare";
 import Prompts from "./pages/Prompts";
+import Files from "./pages/Files";
 import Usage from "./pages/Usage";
 import Keys from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
@@ -26,6 +27,7 @@ const NAV = [
   { to: "/memory", label: "Memory" },
   { to: "/compare", label: "Compare" },
   { to: "/prompts", label: "Prompts" },
+  { to: "/files", label: "Files" },
   { to: "/usage", label: "Usage" },
   { to: "/keys", label: "API Keys" },
   { to: "/settings", label: "Settings" },
@@ -61,6 +63,7 @@ export default function App() {
           <Route path="/memory" element={<Memory />} />
           <Route path="/compare" element={<Compare />} />
           <Route path="/prompts" element={<Prompts />} />
+          <Route path="/files" element={<Files />} />
           <Route path="/usage" element={<Usage />} />
           <Route path="/keys" element={<Keys />} />
           <Route path="/settings" element={<SettingsPage />} />

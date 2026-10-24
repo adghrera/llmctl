@@ -213,9 +213,34 @@ export default function Chat() {
       }
     }
 
+    // Check for file reference: /file <filename>
+    let fileMsg: Msg | null = null;
+    const fileMatch = text.match(/^\/file\s+(.+)$/);
+    if (fileMatch) {
+      const fileName = fileMatch[1].trim();
+      try {
+        const files = await api.files();
+        const f = files.find((f) => f.entry.filename === fileName);
+        if (!f) {
+          err(`file "${fileName}" not found`);
+          return;
+        }
+        if (!isTextFile(f.entry.contentType, f.entry.filename)) {
+          err(`file "${fileName}" is not text-based`);
+          return;
+        }
+        const content = await api.getFileContent(f.id);
+        fileMsg = { role: "user", content: `File: ${f.entry.filename}\n\n${content}` };
+        userMsg = { role: "user", content: text.replace(fileMatch[0], "").trim() || "Please analyze this file." };
+      } catch (e) {
+        err(e instanceof Error ? e.message : `failed to load file "${fileName}"`);
+        return;
+      }
+    }
+
     const next: Msg[] = skillMsg
-      ? [...msgs, skillMsg, userMsg]
-      : [...msgs, userMsg];
+      ? [...msgs, skillMsg, fileMsg, userMsg].filter((m): m is Msg => m != null)
+      : [...msgs, fileMsg, userMsg].filter((m): m is Msg => m != null);
     setMsgs(next);
     setInput("");
     setStreaming(true);
@@ -642,4 +667,13 @@ export default function Chat() {
       )}
     </>
   );
+}
+
+function isTextFile(contentType: string, filename: string): boolean {
+  const ct = contentType.toLowerCase();
+  if (ct.startsWith("text/")) return true;
+  if (ct === "application/json" || ct === "application/javascript" || ct === "application/xml") return true;
+  const ext = filename.toLowerCase().substring(filename.lastIndexOf("."));
+  const textExts = [".txt", ".md", ".py", ".js", ".ts", ".json", ".xml", ".html", ".css", ".go", ".rs", ".java", ".c", ".h", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".conf", ".log"];
+  return textExts.includes(ext);
 }

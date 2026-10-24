@@ -57,6 +57,7 @@ management API and web UI — all on **one port**.
 | `internal/toolexec` | Tool execution: host (python `run(args)` via stdin/stdout bridge, or raw command) or sandboxed via the llm-sandbox framework (podman/docker backend, network-less, mem/pid caps, no-new-privileges) with a Go→python bridge embedding tool files. |
 | `internal/skills` | User-defined skill templates at $LLMCTL_HOME/skills/<id>/ (skill.json manifest); create/read/update/delete via REST, enable/disable toggle, template rendering with {{input}}/{{conversation}} placeholders (F036). |
 | `internal/memory` | Persistent agent memory at $LLMCTL_HOME/memory/<id>/ (entry.json with content, tags, source); CRUD and keyword search via REST; entries injected as system context during agent chat (F040). |
+| `internal/files` | User-uploaded files at $LLMCTL_HOME/files/<id>/ (entry.json + content); CRUD via REST; /file <filename> injection in chat (F044). |
 | `internal/ui` | Embedded SPA (embed.FS). |
 | `internal/manifest` | Legacy v0.1 manifest (still used by nothing critical; slated for removal). |
 

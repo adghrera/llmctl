@@ -131,6 +131,12 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   in internal/prompt/templates.go. REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering and copy-to-clipboard.
+- **File upload** — upload text-based files stored at
+  `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
+  GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
+  In chat, `/file <filename>` injects file content as a user message.
+  Dedicated Files page for upload/list/delete. Only text-based files supported
+  (PDF/DOCX need external libraries).
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

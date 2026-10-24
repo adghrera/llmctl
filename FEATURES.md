@@ -53,6 +53,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F041 | P1 | 41 | chat | Model comparison / side-by-side | COMPLETED | New /compare page: select multiple running instances, send the same prompt to all simultaneously via SSE, display responses side-by-side in columns. No new backend API needed — uses existing /v1/chat/completions endpoint.
 | F042 | P2 | 42 | chat | Export/import conversations | COMPLETED | GET /api/v1/chats/{id}/export?format=json|markdown downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a conversation JSON body for import. Frontend: Export JSON/MD buttons per conversation, Import file-upload button in Conversations card.
 | F043 | P2 | 43 | chat | Prompt templates library | COMPLETED | Built-in prompt templates (code review, explain, summarize, translate, brainstorm, critique, debate, rewrite) stored in internal/prompt/templates.go. REST API: GET /api/v1/prompts, GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts page with category filtering and copy-to-clipboard.
+| F044 | P2 | 44 | chat | File upload / document chat | COMPLETED | Upload text-based files stored at ~/.llmctl/files/<id>/ with entry.json metadata. REST API: POST /api/v1/files (multipart), GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}. In chat, /file <filename> injects file content as a user message. Dedicated Files page for upload/list/delete. Only text-based files supported (PDF/DOCX need external libs).
 
 ## Shipped (v0.2 architecture, this iteration)
 

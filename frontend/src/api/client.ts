@@ -152,6 +152,20 @@ export interface MemoryEntry {
   source: string;
 }
 
+export interface FileEntry {
+  id: string;
+  dir: string;
+  entry: {
+    id: string;
+    filename: string;
+    contentType: string;
+    size: number;
+    source: string;
+    created_at: string;
+  };
+  source: string;
+}
+
 export interface PromptTemplate {
   id: string;
   name: string;
@@ -346,6 +360,29 @@ export const api = {
   deleteMemory: (id: string) => req<{ ok: boolean }>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE" }),
   searchMemory: (q: string, limit = 10) =>
     req<MemoryEntry[]>(`/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  files: () => req<FileEntry[]>("/files"),
+  uploadFile: (formData: FormData) =>
+    fetch("/api/v1/files", {
+      method: "POST",
+      body: formData,
+    }).then(async (r) => {
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || `HTTP ${r.status}`);
+      }
+      return r.json() as Promise<FileEntry>;
+    }),
+  getFileContent: (id: string) =>
+    fetch(`/api/v1/files/${encodeURIComponent(id)}/content`, {
+      method: "GET",
+    }).then(async (r) => {
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || `HTTP ${r.status}`);
+      }
+      return r.text();
+    }),
+  deleteFile: (id: string) => req<{ ok: boolean }>(`/files/${encodeURIComponent(id)}`, { method: "DELETE" }),
   prompts: () => req<PromptTemplate[]>("/prompts"),
   promptCategories: () => req<string[]>("/prompts/categories"),
   prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),
