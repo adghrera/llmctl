@@ -244,14 +244,14 @@ export default function Chat() {
       }
     }
 
-    // KB context retrieval
+    // KB context retrieval via vector search
     let kbMsg: Msg | null = null;
-    if (selectedKB && searchQuery.trim()) {
+    if (selectedKB && text.trim()) {
       try {
         const kbResults = await api.searchKBDocs(selectedKB.id, { q: text, limit: 3 });
         if (kbResults.length > 0) {
           const kbContext = kbResults
-            .map((d) => `Document: ${d.filename}\n${d.content}`)
+            .map((r) => `Document: ${r.filename} (relevance: ${(r.score * 100).toFixed(1)}%)\n${r.chunk_text}`)
             .join("\n\n---\n\n");
           kbMsg = {
             role: "user",

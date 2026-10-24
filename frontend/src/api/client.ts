@@ -223,6 +223,14 @@ export interface KBDocContent {
   content: string;
 }
 
+export interface KBSearchResult {
+  doc_id: string;
+  filename: string;
+  chunk_text: string;
+  score: number;
+  chunk_index: number;
+}
+
 export interface PromptTemplate {
   id: string;
   name: string;
@@ -472,7 +480,7 @@ export const api = {
   deleteKBDoc: (kbId: string, docId: string) =>
     req<{ ok: boolean }>(`/knowledge-bases/${encodeURIComponent(kbId)}/documents/${encodeURIComponent(docId)}`, { method: "DELETE" }),
   searchKBDocs: (kbId: string, body: { q: string; limit?: number }) =>
-    req<KBDoc[]>(`/knowledge-bases/${encodeURIComponent(kbId)}/search`, { method: "POST", body: JSON.stringify(body) }),
+    req<KBSearchResult[]>(`/knowledge-bases/${encodeURIComponent(kbId)}/search`, { method: "POST", body: JSON.stringify(body) }),
   costSummary: () => req<CostSummary>("/cost"),
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),

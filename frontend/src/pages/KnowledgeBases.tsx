@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, KB, KBDoc } from "../api/client";
+import { api, KB, KBDoc, KBSearchResult } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function KnowledgeBases() {
@@ -11,7 +11,7 @@ export default function KnowledgeBases() {
   const [selectedKB, setSelectedKB] = useState<KB | null>(null);
   const [docContent, setDocContent] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<KBDoc[]>([]);
+  const [searchResults, setSearchResults] = useState<KBSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   const load = () =>
@@ -270,6 +270,24 @@ export default function KnowledgeBases() {
           {searchQuery.trim() && searchResults.length === 0 && !searching && (
             <div className="empty muted" style={{ padding: "10px 0" }}>
               No documents matched "{searchQuery}"
+            </div>
+          )}
+          {searchResults.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 6 }}>
+                Search results for "{searchQuery}" ({searchResults.length})
+              </p>
+              {searchResults.map((r, i) => (
+                <div key={i} style={{ border: "1px solid var(--border, #333)", borderRadius: 4, padding: 8, marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <b style={{ fontSize: 13 }}>{r.filename}</b>
+                    <span style={{ fontSize: 11, opacity: 0.7 }}>score: {r.score.toFixed(4)}</span>
+                  </div>
+                  <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", margin: 0, opacity: 0.85, maxHeight: 120, overflow: "auto" }}>
+                    {r.chunk_text}
+                  </pre>
+                </div>
+              ))}
             </div>
           )}
           {selectedKB.docs.length > 0 && (
