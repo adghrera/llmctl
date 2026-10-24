@@ -23,6 +23,11 @@ func TestFindBackendBinary(t *testing.T) {
 	os.MkdirAll(ghDir, 0o755)
 	os.WriteFile(filepath.Join(ghDir, "my-server"), []byte("x"), 0o755)
 
+	// nested github-release layout: <dir>/<version>/<archive-dir>/bin/<name>
+	nestedDir := filepath.Join(os.Getenv("LLMCTL_HOME"), "backends", "nestedbe", "b11850", "llama-b11850", "bin")
+	os.MkdirAll(nestedDir, 0o755)
+	os.WriteFile(filepath.Join(nestedDir, "llama-server"), []byte("x"), 0o755)
+
 	got, err := findBackendBinary("urlbe", "my-server")
 	if err != nil {
 		t.Fatalf("urlbe: %v", err)
@@ -37,6 +42,14 @@ func TestFindBackendBinary(t *testing.T) {
 	}
 	if want := filepath.Join(ghDir, "my-server"); got != want {
 		t.Fatalf("ghbe = %q, want %q", got, want)
+	}
+
+	got, err = findBackendBinary("nestedbe", "llama-server")
+	if err != nil {
+		t.Fatalf("nestedbe: %v", err)
+	}
+	if want := filepath.Join(nestedDir, "llama-server"); got != want {
+		t.Fatalf("nestedbe = %q, want %q", got, want)
 	}
 
 	// Missing binary -> error.

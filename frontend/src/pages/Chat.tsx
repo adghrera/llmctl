@@ -130,11 +130,6 @@ export default function Chat() {
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
-    if (!key) {
-      err("enter an API key first (create one on the API Keys page)");
-      setShowKey(true);
-      return;
-    }
     if (!model) {
       err("no running instance — start one on the Instances page");
       return;
@@ -268,7 +263,8 @@ export default function Chat() {
         )}
         {showKey && (
           <p className="muted small" style={{ marginTop: 8 }}>
-            The key is stored only in this browser (localStorage). Create keys on the API Keys page.
+            API key is optional unless gateway auth is enabled (Settings → Require API Key).
+            The key is stored only in this browser (localStorage).
           </p>
         )}
         {!running.length && (

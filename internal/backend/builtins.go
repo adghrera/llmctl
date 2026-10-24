@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,11 +36,13 @@ type llamaCppBackend struct{}
 
 const llamaCppRepo = "ggml-org/llama.cpp"
 
-func (b *llamaCppBackend) ID() string          { return "llama.cpp" }
-func (b *llamaCppBackend) Name() string        { return "llama.cpp" }
-func (b *llamaCppBackend) Description() string { return "GGUF inference on CPU/CUDA/Vulkan (llama-server, OpenAI-compatible HTTP)" }
-func (b *llamaCppBackend) Transport() string   { return TransportHTTP }
-func (b *llamaCppBackend) Kind() string        { return KindProcess }
+func (b *llamaCppBackend) ID() string   { return "llama.cpp" }
+func (b *llamaCppBackend) Name() string { return "llama.cpp" }
+func (b *llamaCppBackend) Description() string {
+	return "GGUF inference on CPU/CUDA/Vulkan (llama-server, OpenAI-compatible HTTP)"
+}
+func (b *llamaCppBackend) Transport() string { return TransportHTTP }
+func (b *llamaCppBackend) Kind() string      { return KindProcess }
 
 func (b *llamaCppBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
 	bin, err := installedBinary("llama.cpp", "llama-server"+OSExt())
@@ -96,11 +99,13 @@ func (b *llamaCppBackend) Uninstall() error { return os.RemoveAll(paths.BackendD
 
 type ollamaBackend struct{}
 
-func (b *ollamaBackend) ID() string          { return "ollama" }
-func (b *ollamaBackend) Name() string        { return "Ollama" }
-func (b *ollamaBackend) Description() string { return "Attach to a running Ollama daemon (OpenAI-compatible /v1)" }
-func (b *ollamaBackend) Transport() string   { return TransportHTTP }
-func (b *ollamaBackend) Kind() string        { return KindAttach }
+func (b *ollamaBackend) ID() string   { return "ollama" }
+func (b *ollamaBackend) Name() string { return "Ollama" }
+func (b *ollamaBackend) Description() string {
+	return "Attach to a running Ollama daemon (OpenAI-compatible /v1)"
+}
+func (b *ollamaBackend) Transport() string { return TransportHTTP }
+func (b *ollamaBackend) Kind() string      { return KindAttach }
 
 func (b *ollamaBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
 	base := "http://127.0.0.1:11434"
@@ -129,11 +134,13 @@ func (b *ollamaBackend) Uninstall() error { return nil }
 
 type vllmBackend struct{}
 
-func (b *vllmBackend) ID() string          { return "vllm" }
-func (b *vllmBackend) Name() string        { return "vLLM" }
-func (b *vllmBackend) Description() string { return "Attach to a vLLM server (run: vllm serve <model>)" }
-func (b *vllmBackend) Transport() string   { return TransportHTTP }
-func (b *vllmBackend) Kind() string        { return KindAttach }
+func (b *vllmBackend) ID() string   { return "vllm" }
+func (b *vllmBackend) Name() string { return "vLLM" }
+func (b *vllmBackend) Description() string {
+	return "Attach to a vLLM server (run: vllm serve <model>)"
+}
+func (b *vllmBackend) Transport() string { return TransportHTTP }
+func (b *vllmBackend) Kind() string      { return KindAttach }
 
 func (b *vllmBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
 	base := "http://127.0.0.1:8000"
@@ -161,11 +168,13 @@ func (b *vllmBackend) Uninstall() error { return nil }
 
 type customBackend struct{}
 
-func (b *customBackend) ID() string          { return "custom" }
-func (b *customBackend) Name() string        { return "Custom OpenAI-compatible" }
-func (b *customBackend) Description() string { return "Any OpenAI-compatible HTTP server (LM Studio, TGI, remote, ...)" }
-func (b *customBackend) Transport() string   { return TransportHTTP }
-func (b *customBackend) Kind() string        { return KindAttach }
+func (b *customBackend) ID() string   { return "custom" }
+func (b *customBackend) Name() string { return "Custom OpenAI-compatible" }
+func (b *customBackend) Description() string {
+	return "Any OpenAI-compatible HTTP server (LM Studio, TGI, remote, ...)"
+}
+func (b *customBackend) Transport() string { return TransportHTTP }
+func (b *customBackend) Kind() string      { return KindAttach }
 
 func (b *customBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
 	base := vars["url"]
@@ -201,11 +210,13 @@ func (b *customBackend) Uninstall() error { return nil }
 
 type refStdioBackend struct{}
 
-func (b *refStdioBackend) ID() string          { return "ref-stdio" }
-func (b *refStdioBackend) Name() string        { return "Reference stdio backend" }
-func (b *refStdioBackend) Description() string { return "llmctl-stdio/1 reference implementation (python, GGUF via llama.cpp CLI if available; echo fallback otherwise)" }
-func (b *refStdioBackend) Transport() string   { return TransportStdio }
-func (b *refStdioBackend) Kind() string        { return KindProcess }
+func (b *refStdioBackend) ID() string   { return "ref-stdio" }
+func (b *refStdioBackend) Name() string { return "Reference stdio backend" }
+func (b *refStdioBackend) Description() string {
+	return "llmctl-stdio/1 reference implementation (python, GGUF via llama.cpp CLI if available; echo fallback otherwise)"
+}
+func (b *refStdioBackend) Transport() string { return TransportStdio }
+func (b *refStdioBackend) Kind() string      { return KindProcess }
 
 func (b *refStdioBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
 	py := "python3"
@@ -259,6 +270,59 @@ func (b *refStdioBackend) Uninstall() error {
 	return os.RemoveAll(filepath.Join(paths.Home(), "backends", "ref-stdio"))
 }
 
+// installedBinary locates the newest installed copy of binary name inside a
+// backend's install dir. GitHub-release tarballs extract into versioned,
+// possibly nested subdirectories (e.g.
+// backends/llama.cpp/<version>/<archive-dir>/bin/<name>), so we walk each
+// version subdir recursively rather than checking only one level deep.
+func installedBinary(backendID, name string) (string, error) {
+	dir := paths.BackendDir(backendID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", fmt.Errorf("backend %q not installed (run: llmctl backends install %s)", backendID, backendID)
+	}
+	var newest string
+	var newestT time.Time
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		cand := findBinaryRecursive(filepath.Join(dir, e.Name()), name)
+		if cand == "" {
+			continue
+		}
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+		t := fi.ModTime()
+		if newest == "" || t.After(newestT) {
+			newest, newestT = cand, t
+		}
+	}
+	if newest == "" {
+		return "", fmt.Errorf("binary %s not found under %s (run: llmctl backends install %s)", name, dir, backendID)
+	}
+	return newest, nil
+}
+
+// findBinaryRecursive walks root and returns the path of the first file
+// named name, or "" if none exists.
+func findBinaryRecursive(root, name string) string {
+	var found string
+	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if d.Name() == name {
+			found = p
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
 // ---- shared helpers ---------------------------------------------------------
 
 func defaults(vars, defs map[string]string) map[string]string {
@@ -272,34 +336,6 @@ func defaults(vars, defs map[string]string) map[string]string {
 		}
 	}
 	return out
-}
-
-func installedBinary(backendID, name string) (string, error) {
-	dir := paths.BackendDir(backendID)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", fmt.Errorf("backend %q not installed (run: llmctl backends install %s)", backendID, backendID)
-	}
-	var newest string
-	var newestT time.Time
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		cand := filepath.Join(dir, e.Name(), name)
-		if _, err := os.Stat(cand); err == nil {
-			if fi, err := e.Info(); err == nil {
-				t := fi.ModTime()
-				if newest == "" || t.After(newestT) {
-					newest, newestT = cand, t
-				}
-			}
-		}
-	}
-	if newest == "" {
-		return "", fmt.Errorf("binary %s not found under %s (run: llmctl backends install %s)", name, dir, backendID)
-	}
-	return newest, nil
 }
 
 // genericHealth does an HTTP GET on base+healthPath and, if apiPath is set,

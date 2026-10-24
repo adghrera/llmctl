@@ -115,7 +115,9 @@ func Run(ctx context.Context, opts Options) error {
 	gwPort := ln.Addr().(*net.TCPAddr).Port
 
 	// Read settings to determine if auth is required.
-	requireAuth := true
+	// Defaults to OFF so a fresh install works without an API key; flip it
+	// ON in Settings (or via --api-key) to require Authorization on /v1/*.
+	requireAuth := false
 	s, err := store.Open()
 	if err == nil {
 		state, loadErr := s.Load()

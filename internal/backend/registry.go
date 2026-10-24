@@ -24,20 +24,20 @@ type Registry struct {
 
 // PluginMeta is the on-disk plugin descriptor.
 type PluginMeta struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Transport   string            `json:"transport"` // http | stdio
-	Kind        string            `json:"kind"`      // process | attach
-	Binary      string            `json:"binary,omitempty"`
-	Args        []string          `json:"args,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
-	AttachURL   string            `json:"attachUrl,omitempty"`
-	HealthPath  string            `json:"healthPath,omitempty"`
-	HealthTimeoutS int            `json:"healthTimeoutS,omitempty"`
-	APIBasePath string            `json:"apiBasePath,omitempty"`
-	StdioReadyTimeoutS int        `json:"stdioReadyTimeoutS,omitempty"`
-	StopGraceS  int               `json:"stopGraceS,omitempty"`
+	ID                 string            `json:"id"`
+	Name               string            `json:"name"`
+	Description        string            `json:"description"`
+	Transport          string            `json:"transport"` // http | stdio
+	Kind               string            `json:"kind"`      // process | attach
+	Binary             string            `json:"binary,omitempty"`
+	Args               []string          `json:"args,omitempty"`
+	Env                map[string]string `json:"env,omitempty"`
+	AttachURL          string            `json:"attachUrl,omitempty"`
+	HealthPath         string            `json:"healthPath,omitempty"`
+	HealthTimeoutS     int               `json:"healthTimeoutS,omitempty"`
+	APIBasePath        string            `json:"apiBasePath,omitempty"`
+	StdioReadyTimeoutS int               `json:"stdioReadyTimeoutS,omitempty"`
+	StopGraceS         int               `json:"stopGraceS,omitempty"`
 	// Installer: how to obtain the binary.
 	Install *PluginInstall `json:"install,omitempty"`
 	// SourceFile: path of the plugin JSON (for UI + removal).
@@ -229,17 +229,17 @@ func (p *pluginBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec
 		}
 	}
 	s := Spec{
-		Kind:             p.m.Kind,
-		Transport:        p.m.Transport,
-		Binary:           bin,
-		Args:             renderArgs(p.m.Args, m.Path, filepath.Dir(m.Path), vars),
-		Env:              p.m.Env,
-		AttachURL:        p.m.AttachURL,
-		HealthPath:       p.m.HealthPath,
-		HealthTimeoutS:   p.m.HealthTimeoutS,
-		APIBasePath:      p.m.APIBasePath,
+		Kind:               p.m.Kind,
+		Transport:          p.m.Transport,
+		Binary:             bin,
+		Args:               renderArgs(p.m.Args, m.Path, filepath.Dir(m.Path), vars),
+		Env:                p.m.Env,
+		AttachURL:          p.m.AttachURL,
+		HealthPath:         p.m.HealthPath,
+		HealthTimeoutS:     p.m.HealthTimeoutS,
+		APIBasePath:        p.m.APIBasePath,
 		StdioReadyTimeoutS: p.m.StdioReadyTimeoutS,
-		StopGraceS:       p.m.StopGraceS,
+		StopGraceS:         p.m.StopGraceS,
 	}
 	if err := validateSpec(s); err != nil {
 		return Spec{}, err
@@ -248,8 +248,9 @@ func (p *pluginBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec
 }
 
 // findBackendBinary resolves a bare binary name inside a backend's install
-// dir: first <dir>/<name> (url/files installs), then the newest
-// <dir>/<version>/<name> (github-release installs).
+// dir: first <dir>/<name> (url/files installs), then recursively inside the
+// newest version subdir (github-release installs may nest the binary deeper,
+// e.g. <dir>/<version>/<archive-dir>/bin/<name>).
 func findBackendBinary(backendID, name string) (string, error) {
 	dir := paths.BackendDir(backendID)
 	if direct := filepath.Join(dir, name); fileExists(direct) {
@@ -265,13 +266,17 @@ func findBackendBinary(backendID, name string) (string, error) {
 		if !e.IsDir() {
 			continue
 		}
-		cand := filepath.Join(dir, e.Name(), name)
-		fi, err := os.Stat(cand)
-		if err != nil || fi.IsDir() {
+		cand := findBinaryRecursive(filepath.Join(dir, e.Name()), name)
+		if cand == "" {
 			continue
 		}
-		if newest == "" || fi.ModTime().After(newestT) {
-			newest, newestT = cand, fi.ModTime()
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+		t := fi.ModTime()
+		if newest == "" || t.After(newestT) {
+			newest, newestT = cand, t
 		}
 	}
 	if newest == "" {

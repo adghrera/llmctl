@@ -136,13 +136,30 @@ func resolveRelease(ctx context.Context, repo, assetHint string, logf func(strin
 }
 
 // defaultCandidates are the fallback asset substrings when no hint is given.
+// Host architecture candidates are tried first so the correct binary is
+// picked (e.g. x86_64 on amd64, aarch64 on arm64) instead of an unrelated
+// arch build that merely matches the OS token.
 func defaultCandidates() []string {
+	archCands := archCandidates(runtime.GOARCH)
 	switch runtime.GOOS {
 	case "windows":
-		return []string{"win-cpu", "cpu", "vulkan"}
+		return append(archCands, "win-cpu", "cpu", "vulkan")
 	case "darwin":
-		return []string{"osx", "arm64", "cpu"}
+		return append(archCands, "osx", "arm64", "cpu")
 	default:
-		return []string{"linux", "cpu", "vulkan"}
+		return append(archCands, "linux", "cpu", "vulkan")
 	}
+}
+
+// archCandidates returns common asset arch name substrings for goarch.
+func archCandidates(goarch string) []string {
+	switch goarch {
+	case "amd64":
+		return []string{"x86_64", "amd64"}
+	case "arm64":
+		return []string{"aarch64", "arm64"}
+	case "386":
+		return []string{"i686", "i386"}
+	}
+	return nil
 }

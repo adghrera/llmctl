@@ -52,6 +52,8 @@ management API and web UI — all on **one port**.
 | `internal/installer` | Backend binary install: GitHub release asset resolution (scans releases list, OS-token filtering), zip/tar.gz extract, direct URL. |
 | `internal/store` | state.json: atomic writes + advisory file lock; backends, models, instances, api keys. |
 | `internal/paths` | Disk layout under $LLMCTL_HOME (default ~/.llmctl). |
+| `internal/toolstore` | Installed agent tools at $LLMCTL_HOME/tools/<id>/ (llmctl-tool.json manifest); install from URL (.zip) or local dir, enable/disable, per-tool sandbox toggle, uninstall (F033). |
+| `internal/toolexec` | Tool execution: host (python `run(args)` via stdin/stdout bridge, or raw command) or sandboxed via the llm-sandbox framework (podman/docker backend, network-less, mem/pid caps, no-new-privileges) with a Go→python bridge embedding tool files. |
 | `internal/ui` | Embedded SPA (embed.FS). |
 | `internal/manifest` | Legacy v0.1 manifest (still used by nothing critical; slated for removal). |
 

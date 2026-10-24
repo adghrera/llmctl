@@ -44,8 +44,9 @@ GitHub release, or file list. No recompile.
 
 ### API keys
 - Generate in UI or CLI; shown once, stored as sha256 hash.
-- Gateway rejects requests without a valid key (401).
-- Revoke anytime.
+- Gateway auth (require API key on /v1/*) is OFF by default on a fresh install — chat works without a key.
+- Turn it ON in Settings → Require API Key (or start with `--api-key K`) to reject requests without a valid key (401).
+- Revoke keys anytime on the API Keys page.
 
 ### Management API (all UI features are API-backed)
 | Endpoint | Purpose |
@@ -85,6 +86,12 @@ Embedded SPA (no CDN deps — works offline). Tabs:
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history.
+- **Tools** — install agent tools from a URL (.zip) or a local folder
+  (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python
+  `def run(args)` entry). Tools run inside the llm-sandbox framework
+  (container, no network, memory & PID caps) by default; a per-tool toggle
+  opts out to host execution. List, enable/disable, test-run with args, and
+  uninstall. Enabled tools join the agent's tool set in Chat.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
