@@ -128,6 +128,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PUT /api/v1/chats/{id}", s.saveChat)
 	m.HandleFunc("DELETE /api/v1/chats/{id}", s.deleteChat)
 	m.HandleFunc("POST /api/v1/chats/{id}/fork", s.forkChat)
+	m.HandleFunc("GET /api/v1/chats/{id}/export", s.exportChat)
 	// Agent chat (SSE, tool-using)
 	m.HandleFunc("POST /api/v1/chat/agent", s.chatAgent)
 	// Keys

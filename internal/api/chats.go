@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -109,6 +110,68 @@ func (s *Server) deleteChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// exportChat handles GET /api/v1/chats/{id}/export?format=json|markdown.
+func (s *Server) exportChat(w http.ResponseWriter, r *http.Request) {
+	if s.chats == nil {
+		writeErr(w, 503, "chat store unavailable")
+		return
+	}
+	id := r.PathValue("id")
+	c, err := s.chats.Get(id)
+	if err != nil {
+		writeErr(w, 404, err.Error())
+		return
+	}
+	format := r.URL.Query().Get("format")
+	switch format {
+	case "markdown", "md":
+		md := exportChatMarkdown(c)
+		w.Header().Set("Content-Type", "text/markdown")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+c.Title+`.md"`)
+		w.WriteHeader(200)
+		w.Write([]byte(md))
+		return
+	case "json", "":
+		b, err := json.MarshalIndent(c, "", "  ")
+		if err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+c.ID+`.json"`)
+		w.WriteHeader(200)
+		w.Write(b)
+		return
+	default:
+		writeErr(w, 400, "format must be json or markdown")
+		return
+	}
+}
+
+// exportChatMarkdown renders a conversation as Markdown.
+func exportChatMarkdown(c *chatstore.Conversation) string {
+	var b strings.Builder
+	b.WriteString("# " + c.Title + "\n\n")
+	b.WriteString("**Model:** " + c.Model + "\n")
+	b.WriteString("**Agent mode:** " + fmt.Sprintf("%v", c.AgentMode) + "\n")
+	b.WriteString("**Created:** " + c.CreatedAt.Format("2006-01-02 15:04:05") + "\n")
+	b.WriteString("**Updated:** " + c.UpdatedAt.Format("2006-01-02 15:04:05") + "\n\n")
+	b.WriteString("---\n\n")
+	for _, m := range c.Messages {
+		role := strings.ToUpper(string(m.Role[0])) + m.Role[1:]
+		b.WriteString("## " + role + "\n\n")
+		b.WriteString(m.Content + "\n\n")
+		if len(m.Tools) > 0 {
+			b.WriteString("**Tools used:**\n")
+			for _, t := range m.Tools {
+				b.WriteString("- " + t.Name + ": " + t.Query + "\n")
+			}
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
 }
 
 // forkChat handles POST /api/v1/chats/{id}/fork.

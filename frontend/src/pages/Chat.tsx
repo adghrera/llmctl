@@ -358,6 +358,22 @@ export default function Chat() {
                     <button className="btn sm danger" disabled={streaming} onClick={() => removeChat(c.id)}>
                       Delete
                     </button>{" "}
+                    <a
+                      href={`/api/v1/chats/${encodeURIComponent(c.id)}/export?format=json`}
+                      download={c.id + ".json"}
+                    >
+                      <button className="btn sm" disabled={streaming}>
+                        Export JSON
+                      </button>
+                    </a>{" "}
+                    <a
+                      href={`/api/v1/chats/${encodeURIComponent(c.id)}/export?format=markdown`}
+                      download={c.title + ".md"}
+                    >
+                      <button className="btn sm" disabled={streaming}>
+                        Export MD
+                      </button>
+                    </a>{" "}
                     <button
                       className="btn sm"
                       disabled={streaming || c.messages === 0}
@@ -375,6 +391,39 @@ export default function Chat() {
             </tbody>
           </table>
         )}
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border, #333)" }}>
+          <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Import conversation</h3>
+          <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+            Upload a JSON conversation file to import it.
+          </p>
+          <input
+            type="file"
+            accept=".json"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                if (!data.messages || !Array.isArray(data.messages)) {
+                  err("invalid conversation file: missing messages array");
+                  return;
+                }
+                const created = await api.createChat({
+                  title: data.title || file.name.replace(".json", ""),
+                  model: data.model,
+                  agentMode: data.agentMode || false,
+                  messages: data.messages,
+                });
+                ok("imported as \"" + created.title + "\"");
+                await loadChats();
+              } catch (err_) {
+                err(err_ instanceof Error ? err_.message : "failed to import");
+              }
+              e.target.value = "";
+            }}
+          />
+        </div>
       </div>
       <div className="card">
         <div className="row">

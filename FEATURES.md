@@ -51,6 +51,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F039 | P1 | 39 | chat | Conversation branching/fork | COMPLETED | Fork a saved conversation at any message index via POST /api/v1/chats/{id}/fork with body {forkAt, title}. Creates a new conversation copying messages[0:forkAt]. Frontend: Fork button on each conversation in the Chat UI opens a dialog to pick fork point and new title.
 | F040 | P1 | 40 | chat | Agent memory | COMPLETED | Persistent long-term memory entries stored at ~/.llmctl/memory/<id>/ with entry.json (content, tags, source, timestamps). REST API: GET/POST/GET/PUT/DELETE /api/v1/memory, GET /api/v1/memory/search?q=. During agent chat, relevant memories are searched using the last user message and injected as system context. Dedicated Memory page to add/delete entries.
 | F041 | P1 | 41 | chat | Model comparison / side-by-side | COMPLETED | New /compare page: select multiple running instances, send the same prompt to all simultaneously via SSE, display responses side-by-side in columns. No new backend API needed — uses existing /v1/chat/completions endpoint.
+| F042 | P2 | 42 | chat | Export/import conversations | COMPLETED | GET /api/v1/chats/{id}/export?format=json|markdown downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a conversation JSON body for import. Frontend: Export JSON/MD buttons per conversation, Import file-upload button in Conversations card.
 
 ## Shipped (v0.2 architecture, this iteration)
 

@@ -122,6 +122,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page.
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
+- **Export/import conversations** — GET /api/v1/chats/{id}/export?format=json|markdown
+  downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a
+  conversation JSON body for import. Frontend: Export JSON/MD buttons per
+  conversation, Import file-upload button in the Conversations card.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
