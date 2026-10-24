@@ -4,13 +4,17 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"llmctl/internal/daemon"
 )
@@ -45,6 +49,8 @@ func main() {
 		err = cmdKey(args)
 	case "autostart":
 		err = cmdAutoStart(args)
+	case "chat":
+		err = cmdChat(args)
 	case "version", "--version", "-v":
 		fmt.Printf("llmctl %s\n", version)
 	case "help", "--help", "-h":
@@ -87,6 +93,7 @@ Usage:
   llmctl autostart list
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
+  llmctl chat [--model ID] [--key KEY]
   llmctl version
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
@@ -625,4 +632,176 @@ func cmdAutoStart(args []string) error {
 	default:
 		return fmt.Errorf("unknown autostart subcommand: %s", sub)
 	}
+}
+
+func cmdChat(args []string) error {
+	fs := flag.NewFlagSet("chat", flag.ExitOnError)
+	modelFlag := fs.String("model", "", "model id to chat with")
+	keyFlag := fs.String("key", "", "API key (if auth is enabled)")
+	fs.Parse(reorderFlags(args))
+
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+
+	// List running instances to pick a model.
+	_, out, err := cc.Get("/api/v1/instances")
+	if err != nil {
+		return err
+	}
+	var insts []map[string]any
+	if err := json.Unmarshal(out, &insts); err != nil {
+		return err
+	}
+	running := []map[string]any{}
+	for _, i := range insts {
+		if fmt.Sprint(i["status"]) == "running" {
+			running = append(running, i)
+		}
+	}
+	if len(running) == 0 {
+		return fmt.Errorf("no running instances — start one with: llmctl start <model-id>")
+	}
+
+	model := *modelFlag
+	if model == "" {
+		if len(running) == 1 {
+			model = fmt.Sprint(running[0]["modelId"])
+		} else {
+			fmt.Println("Running instances:")
+			for i, inst := range running {
+				fmt.Printf("  %d) %s (%s)\n", i+1, inst["modelId"], inst["backendId"])
+			}
+			fi, _ := os.Stdin.Stat()
+			if fi.Mode()&os.ModeCharDevice == 0 {
+				return fmt.Errorf("multiple instances running — specify --model ID")
+			}
+			fmt.Print("Pick instance number: ")
+			sc := bufio.NewScanner(os.Stdin)
+			sc.Scan()
+			sel, serr := strconv.Atoi(strings.TrimSpace(sc.Text()))
+			if serr != nil || sel < 1 || sel > len(running) {
+				return fmt.Errorf("invalid selection")
+			}
+			model = fmt.Sprint(running[sel-1]["modelId"])
+		}
+	}
+
+	// Get API key.
+	key := *keyFlag
+	if key == "" {
+		fi, _ := os.Stdin.Stat()
+		if fi.Mode()&os.ModeCharDevice != 0 {
+			// stdin is a terminal: prompt interactively
+			fmt.Print("API key (or leave blank if auth is off): ")
+			sc := bufio.NewScanner(os.Stdin)
+			sc.Scan()
+			key = strings.TrimSpace(sc.Text())
+		}
+	}
+
+	fmt.Printf("\nChatting with model %q. Type your message (Ctrl-D or /quit to exit).\n\n", model)
+
+	reader := bufio.NewReader(os.Stdin)
+	history := []map[string]any{}
+	outW := bufio.NewWriter(os.Stdout)
+
+	for {
+		outW.WriteString("> ")
+		outW.Flush()
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println()
+				break
+			}
+			return err
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if line == "/quit" || line == "/exit" {
+			break
+		}
+
+		// Append user message.
+		history = append(history, map[string]any{"role": "user", "content": line})
+
+		body := map[string]any{
+			"model":    model,
+			"messages": history,
+			"stream":   true,
+		}
+		b, _ := json.Marshal(body)
+
+		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		if key != "" {
+			req.Header.Set("Authorization", "Bearer "+key)
+		}
+
+		hc := &http.Client{Timeout: 10 * time.Minute}
+		resp, err := hc.Do(req)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("chat returned %d: %s", resp.StatusCode, string(bodyBytes))
+		}
+		defer resp.Body.Close()
+
+		outW.WriteString("< ")
+		outW.Flush()
+		var acc strings.Builder
+		rd := bufio.NewReader(resp.Body)
+		for {
+			l, err := rd.ReadString('\n')
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+			l = strings.TrimSpace(l)
+			if !strings.HasPrefix(l, "data:") {
+				continue
+			}
+			data := strings.TrimSpace(l[len("data:"):])
+			if data == "[DONE]" {
+				break
+			}
+			var chunk struct {
+				Choices []struct {
+					Delta struct {
+						Content string `json:"content"`
+					} `json:"delta"`
+				} `json:"choices"`
+			}
+			if json.Unmarshal([]byte(data), &chunk) != nil {
+				continue
+			}
+			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
+				outW.WriteString(chunk.Choices[0].Delta.Content)
+				outW.Flush()
+				acc.WriteString(chunk.Choices[0].Delta.Content)
+			}
+		}
+		outW.WriteString("\n")
+		outW.Flush()
+
+		// Append assistant message to history.
+		if acc.Len() > 0 {
+			history = append(history, map[string]any{"role": "assistant", "content": acc.String()})
+		}
+	}
+	outW.Flush()
+	return nil
 }

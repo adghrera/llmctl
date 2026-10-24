@@ -127,6 +127,7 @@ llmctl models list|install|remove|hf-search|hf-files
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl key generate|list|revoke
+llmctl chat [--model ID] [--key KEY]
 llmctl version
 ```
 
