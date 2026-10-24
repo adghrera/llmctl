@@ -168,6 +168,19 @@ export interface CostSummary {
   cost_usd: number;
 }
 
+export interface ScheduleSpec {
+  id: string;
+  name: string;
+  cron_expr: string;
+  model: string;
+  prompt: string;
+  enabled: boolean;
+  last_run: string;
+  next_run: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FileEntry {
   id: string;
   dir: string;
@@ -402,6 +415,15 @@ export const api = {
   costSummary: () => req<CostSummary>("/cost"),
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
+  schedules: () => req<ScheduleSpec[]>("/scheduler"),
+  createSchedule: (body: { name: string; cron_expr: string; model: string; prompt: string }) =>
+    req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
+  getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
+  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean }) =>
+    req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setScheduleEnabled: (id: string, enabled: boolean) =>
+    req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   prompts: () => req<PromptTemplate[]>("/prompts"),
   promptCategories: () => req<string[]>("/prompts/categories"),
   prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),

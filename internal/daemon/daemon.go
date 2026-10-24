@@ -11,6 +11,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -30,6 +31,7 @@ import (
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
+	"llmctl/internal/scheduler"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
 	"llmctl/internal/ui"
@@ -143,6 +145,13 @@ func Run(ctx context.Context, opts Options) error {
 	mgmt := api.New(st, reg, sv, jm, logger, gwPort, gw, cancel)
 	// Wire the key checker after mgmt is created (circular ref).
 	gw.SetKeyCheck(mgmt.KeyCheck)
+
+	// Initialize scheduler and start the scheduler loop.
+	sch, err := scheduler.Open()
+	if err != nil {
+		return err
+	}
+	go schedulerLoop(ctx, sch, gw, logger)
 
 	// One mux: gateway + management API + UI.
 	root := http.NewServeMux()
@@ -259,4 +268,109 @@ func (cc *ControlClient) Get(path string) (int, []byte, error) {
 
 func (cc *ControlClient) Delete(path string) (int, []byte, error) {
 	return cc.Do(http.MethodDelete, path, nil)
+}
+
+// schedulerLoop runs scheduled tasks at their configured times.
+func schedulerLoop(ctx context.Context, sch *scheduler.Store, gw *proxy.Server, logger *slog.Logger) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			due, err := sch.Due()
+			if err != nil {
+				logger.Error("scheduler: failed to list due tasks", "error", err)
+				continue
+			}
+			for _, rec := range due {
+				go runScheduledTask(ctx, sch, rec, gw, logger)
+			}
+		}
+	}
+}
+
+// runScheduledTask executes a single scheduled task by making a chat
+// completion request and saving the result as a new conversation.
+func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.Record, gw *proxy.Server, logger *slog.Logger) {
+	// Build the chat request body.
+	body := map[string]any{
+		"model":    rec.Spec.Model,
+		"messages": []map[string]string{{"role": "user", "content": rec.Spec.Prompt}},
+		"stream":   false,
+	}
+	b, _ := json.Marshal(body)
+
+	// Use the daemon's own address to make the request.
+	cc, err := NewControlClient()
+	if err != nil {
+		logger.Error("scheduler: cannot create control client", "error", err)
+		return
+	}
+
+	// Build the request URL.
+	req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", bytes.NewReader(b))
+	if err != nil {
+		logger.Error("scheduler: failed to create request", "error", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := cc.hc.Do(req)
+	if err != nil {
+		logger.Error("scheduler: failed to execute task", "task", rec.ID, "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		logger.Error("scheduler: task execution failed", "task", rec.ID, "status", resp.StatusCode)
+		return
+	}
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		logger.Error("scheduler: failed to decode response", "task", rec.ID, "error", err)
+		return
+	}
+
+	if len(result.Choices) == 0 {
+		logger.Error("scheduler: no response choices", "task", rec.ID)
+		return
+	}
+
+	assistantContent := result.Choices[0].Message.Content
+
+	// Save the conversation.
+	chatReq := map[string]any{
+		"model":    rec.Spec.Model,
+		"messages": []map[string]string{
+			{"role": "user", "content": rec.Spec.Prompt},
+			{"role": "assistant", "content": assistantContent},
+		},
+	}
+	chatB, _ := json.Marshal(chatReq)
+	chatReq2, _ := http.NewRequest(http.MethodPost, cc.Base+"/api/v1/chats", bytes.NewReader(chatB))
+	chatReq2.Header.Set("Content-Type", "application/json")
+	if _, err := cc.hc.Do(chatReq2); err != nil {
+		logger.Error("scheduler: failed to save conversation", "task", rec.ID, "error", err)
+		return
+	}
+
+	// Update next run time.
+	if err := sch.UpdateNextRun(rec.ID); err != nil {
+		logger.Error("scheduler: failed to update next run", "task", rec.ID, "error", err)
+	}
+
+	logger.Info("scheduler: task executed", "task", rec.ID, "name", rec.Spec.Name)
 }

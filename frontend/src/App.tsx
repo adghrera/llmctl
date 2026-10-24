@@ -12,6 +12,7 @@ import Compare from "./pages/Compare";
 import Prompts from "./pages/Prompts";
 import Files from "./pages/Files";
 import Cost from "./pages/Cost";
+import Scheduler from "./pages/Scheduler";
 import Usage from "./pages/Usage";
 import Keys from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
@@ -30,6 +31,7 @@ const NAV = [
   { to: "/prompts", label: "Prompts" },
   { to: "/files", label: "Files" },
   { to: "/cost", label: "Cost" },
+  { to: "/scheduler", label: "Scheduler" },
   { to: "/usage", label: "Usage" },
   { to: "/keys", label: "API Keys" },
   { to: "/settings", label: "Settings" },
@@ -67,6 +69,7 @@ export default function App() {
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/files" element={<Files />} />
           <Route path="/cost" element={<Cost />} />
+          <Route path="/scheduler" element={<Scheduler />} />
           <Route path="/usage" element={<Usage />} />
           <Route path="/keys" element={<Keys />} />
           <Route path="/settings" element={<SettingsPage />} />

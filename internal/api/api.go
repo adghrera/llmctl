@@ -28,6 +28,7 @@ import (
 	"llmctl/internal/toolstore"
 	"llmctl/internal/memory"
 	"llmctl/internal/cost"
+	"llmctl/internal/scheduler"
 	"llmctl/internal/files"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
@@ -55,6 +56,7 @@ type Server struct {
 	memory     *memory.Store       // persistent agent memory entries (F040)
 	files      *files.Store        // user-uploaded files (F044)
 	cost       *cost.Tracker       // token usage and cost tracking (F045)
+	sched      *scheduler.Store    // scheduled agent tasks (F046)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -122,6 +124,13 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/cost", s.costSummary)
 	m.HandleFunc("GET /api/v1/cost/keys", s.costKeys)
 	m.HandleFunc("GET /api/v1/cost/models", s.costModels)
+	// Scheduler (F046)
+	m.HandleFunc("GET /api/v1/scheduler", s.listSchedules)
+	m.HandleFunc("POST /api/v1/scheduler", s.createSchedule)
+	m.HandleFunc("GET /api/v1/scheduler/{id}", s.getSchedule)
+	m.HandleFunc("PUT /api/v1/scheduler/{id}", s.updateSchedule)
+	m.HandleFunc("DELETE /api/v1/scheduler/{id}", s.deleteSchedule)
+	m.HandleFunc("POST /api/v1/scheduler/{id}/enabled", s.setScheduleEnabled)
 	// Prompt templates (F043)
 	m.HandleFunc("GET /api/v1/prompts", s.listPrompts)
 	m.HandleFunc("GET /api/v1/prompts/categories", s.categoriesPrompt)
