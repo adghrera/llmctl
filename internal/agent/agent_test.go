@@ -493,3 +493,92 @@ func TestStripPartialMarkers(t *testing.T) {
 		}
 	}
 }
+
+// ---- context compaction tests (F030) ----
+
+func TestEstimateTokens(t *testing.T) {
+	if got := estimateTokens(""); got != 0 {
+		t.Errorf("estimateTokens(\"\") = %d, want 0", got)
+	}
+	if got := estimateTokens("   "); got != 0 {
+		t.Errorf("estimateTokens(\"   \") = %d, want 0", got)
+	}
+	if got := estimateTokens("abcd"); got != 1 {
+		t.Errorf("estimateTokens(\"abcd\") = %d, want 1", got)
+	}
+	if got := estimateTokens("abcde"); got != 2 {
+		t.Errorf("estimateTokens(\"abcde\") = %d, want 2", got)
+	}
+}
+
+func TestCompactMessagesNoOp(t *testing.T) {
+	// Small context, no compaction needed.
+	msgs := []Message{
+		{Role: "system", Content: "system prompt"},
+		{Role: "user", Content: "hello"},
+		{Role: "assistant", Content: "hi"},
+	}
+	out, trimmed := compactMessages(msgs, 4096)
+	if trimmed {
+		t.Error("compactMessages returned true, want false")
+	}
+	if len(out) != 3 {
+		t.Errorf("len(out) = %d, want 3 (unchanged)", len(out))
+	}
+}
+
+func TestCompactMessagesTrims(t *testing.T) {
+	// 4096 token limit, 98% = 4014 tokens. Reserve 256 => effective limit 3840.
+	// Each long message is 4000 chars ≈ 1000 tokens.
+	long := strings.Repeat("x", 4000)
+	msgs := []Message{
+		{Role: "system", Content: "system prompt"},
+		{Role: "user", Content: long},   // ~1000
+		{Role: "assistant", Content: long}, // ~1000
+		{Role: "user", Content: long},   // ~1000
+		{Role: "assistant", Content: long}, // ~1000
+		{Role: "user", Content: long},   // ~1000
+		{Role: "assistant", Content: long}, // ~1000
+	}
+	// Total ≈ 6000 tokens > 4014 (98% of 4096), so compaction should trigger.
+	out, trimmed := compactMessages(msgs, 4096)
+	if !trimmed {
+		t.Error("compactMessages returned false, want true (context over 98%)")
+	}
+	// System message must never be removed.
+	if out[0].Role != "system" {
+		t.Error("system message was removed")
+	}
+	// After trimming, total should be under 98%.
+	total := estimateTokens(out[0].Content)
+	for i := 1; i < len(out); i++ {
+		total += estimateTokens(out[i].Content)
+	}
+	pct := float64(total) / 4096 * 100
+	if pct >= 98 {
+		t.Errorf("after compact, pct = %.1f%%, want < 98%%", pct)
+	}
+	t.Logf("trimmed to %d msgs, pct=%.1f%%", len(out), pct)
+}
+
+func TestCompactMessagesKeepsSystemAndOneTurn(t *testing.T) {
+	// Even with huge messages, keep system message (trim as much as possible).
+	long := strings.Repeat("z", 50000) // ~12500 tokens each
+	msgs := []Message{
+		{Role: "system", Content: long},
+		{Role: "user", Content: long},
+		{Role: "assistant", Content: long},
+	}
+	out, trimmed := compactMessages(msgs, 4096)
+	if !trimmed {
+		t.Error("compactMessages returned false, want true")
+	}
+	// System message must never be removed; may be the only one left if even
+	// it alone exceeds 98%.
+	if len(out) < 1 || len(out) > 2 {
+		t.Errorf("len(out) = %d, want 1 or 2", len(out))
+	}
+	if out[0].Role != "system" {
+		t.Error("system message removed")
+	}
+}

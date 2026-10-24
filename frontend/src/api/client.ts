@@ -122,6 +122,11 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   tools?: AgentToolEvent[];
+  tokens?: {
+    prompt?: number;
+    completion?: number;
+    total?: number;
+  };
 }
 
 export interface ChatConversation {
@@ -132,6 +137,11 @@ export interface ChatConversation {
   messages: ChatMessage[];
   createdAt: string;
   updatedAt: string;
+  context?: {
+    usedTokens: number;
+    limitTokens: number;
+    pct: number;
+  };
 }
 
 export interface ChatSummary {
@@ -142,6 +152,11 @@ export interface ChatSummary {
   messages: number;
   createdAt: string;
   updatedAt: string;
+  context?: {
+    usedTokens: number;
+    limitTokens: number;
+    pct: number;
+  };
 }
 
 export interface GatewayMetrics {
@@ -329,7 +344,7 @@ export interface AgentToolEvent {
   error?: string;
 }
 export interface AgentEvent {
-  type: "delta" | "tool" | "done" | "error";
+  type: "delta" | "tool" | "done" | "error" | "system";
   content?: string;
   step?: number;
   name?: string;

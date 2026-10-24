@@ -62,6 +62,19 @@ func (s *Server) saveChat(w http.ResponseWriter, r *http.Request) {
 		msgs = append(msgs, m)
 	}
 	c.Messages = msgs
+	// Compute context-window usage for this conversation. Estimate tokens
+	// for messages that don't carry real usage values.
+	used := chatstore.ConversationTokens(msgs)
+	limit := 0
+	if c.Model != "" && s.store != nil {
+		if st, err := s.store.Load(); err == nil {
+			if m, ok := st.Models[c.Model]; ok {
+				limit = m.CtxSize
+			}
+		}
+	}
+	c.Context = chatstore.ComputeContext(used, limit)
+
 	if id := r.PathValue("id"); id != "" {
 		c.ID = id // path wins over body
 	}

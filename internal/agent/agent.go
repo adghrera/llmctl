@@ -52,6 +52,7 @@ type Request struct {
 	Temperature    *float64
 	APIKey         string // forwarded to the gateway as Bearer
 	ExtraToolsText string // appended to the system prompt (installed tools, F033)
+	CtxSize        int    // model context window (tokens); 0 = unknown, no compaction
 }
 
 const systemPrompt = `You are llmctl, a helpful assistant with tools.
@@ -544,6 +545,17 @@ func Run(ctx context.Context, gw http.Handler, tools map[string]Tool, req Reques
 			return
 		}
 
+		// Auto-compact: when context usage reaches 98% of the model's
+		// context window, trim the oldest user/assistant message pairs
+		// (keeping the system prompt and most recent turns).
+		if req.CtxSize > 0 {
+			var trimmed bool
+			messages, trimmed = compactMessages(messages, req.CtxSize)
+			if trimmed {
+				emit(Event{Type: "system", Content: "(context window near limit — older messages trimmed)"})
+			}
+		}
+
 		// One model turn. Deltas stream to the UI until a tool-call
 		// marker appears; from then on output is suppressed and
 		// buffered so raw tool-call text never leaks. emittedLen
@@ -619,6 +631,53 @@ func Run(ctx context.Context, gw http.Handler, tools map[string]Tool, req Reques
 	}
 	emit(Event{Type: "delta", Content: "\n\n(stopped: reached the maximum number of tool steps)"})
 	emit(Event{Type: "done", Steps: step})
+}
+
+// estimateTokens estimates token count from text using the ~4 chars/token
+// heuristic. Returns at least 1 for non-empty text.
+func estimateTokens(text string) int {
+	if strings.TrimSpace(text) == "" {
+		return 0
+	}
+	n := (len(text) + 3) / 4
+	if n < 1 {
+		n = 1
+	}
+	return n
+}
+
+// compactMessages trims the oldest user/assistant message pairs when total
+// estimated token usage reaches 98% of ctxSize. The system message (index 0)
+// is never removed. Returns the (possibly shortened) slice and true if any
+// messages were removed.
+func compactMessages(msgs []Message, ctxSize int) ([]Message, bool) {
+	const reserve = 256 // reserve tokens for the model's response
+	limit := ctxSize - reserve
+	if limit <= 0 || len(msgs) < 3 {
+		return msgs, false
+	}
+
+	total := estimateTokens(msgs[0].Content) // system prompt
+	for i := 1; i < len(msgs); i++ {
+		total += estimateTokens(msgs[i].Content)
+	}
+	if float64(total)/float64(ctxSize)*100 < 98 {
+		return msgs, false
+	}
+
+	// Remove oldest user+assistant pairs (indices 1,2 then 3,4, etc.)
+	// until under the limit or only system + one turn remains.
+	for len(msgs) > 2 {
+		msgs = append(msgs[:1], msgs[3:]...)
+		total = estimateTokens(msgs[0].Content)
+		for i := 1; i < len(msgs); i++ {
+			total += estimateTokens(msgs[i].Content)
+		}
+		if float64(total)/float64(ctxSize)*100 < 98 {
+			break
+		}
+	}
+	return msgs, true
 }
 
 func errStr(err error) string {

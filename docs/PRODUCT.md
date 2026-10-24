@@ -85,7 +85,13 @@ Embedded SPA (no CDN deps — works offline). Tabs:
 - **Models** — HuggingFace search + file picker, download with live progress.
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.
 - **Chat** — pick a running model, enter/generate an API key, send messages,
-  stream tokens live (SSE), multi-turn history.
+  stream tokens live (SSE), multi-turn history. Each message carries estimated
+  token usage (~4 chars/token); the conversation shows a context-window bar
+  (used vs. model limit). When context reaches 98% of the model's limit,
+  older messages are auto-trimmed (system prompt and recent turns kept).
+- **Usage** — per-model token bar chart (from /api/v1/metrics) and
+  per-conversation token table (from /api/v1/chats). Shows prompt/completion
+  totals, request counts, and per-conversation context percentage.
 - **Tools** — install agent tools from a URL (.zip) or a local folder
   (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python
   `def run(args)` entry). Tools run inside the llm-sandbox framework

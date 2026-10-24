@@ -99,6 +99,14 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		Temperature: req.Temperature,
 		APIKey:      apiKey,
 	}
+	// Look up the model's context window for auto-compaction (F030).
+	if req.Model != "" && s.store != nil {
+		if st, err := s.store.Load(); err == nil {
+			if m, ok := st.Models[req.Model]; ok {
+				areq.CtxSize = m.CtxSize
+			}
+		}
+	}
 	// Installed user tools (F033) join the tool map and the prompt.
 	if extra := s.enabledAgentTools(); len(extra) > 0 {
 		for k, v := range extra {

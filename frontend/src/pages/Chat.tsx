@@ -28,6 +28,7 @@ export default function Chat() {
   // ---- saved conversations (F025) ----
   const [convId, setConvId] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [context, setContext] = useState<{ usedTokens: number; limitTokens: number; pct: number } | null>(null);
   const convIdRef = useRef<string | null>(null);
   convIdRef.current = convId;
 
@@ -56,6 +57,13 @@ export default function Chat() {
         setConvId(created.id);
       }
       await loadChats();
+      // Refresh context usage from the server after saving.
+      if (convIdRef.current) {
+        try {
+          const c = await api.getChat(convIdRef.current);
+          if (c.context) setContext(c.context);
+        } catch { /* context refresh is best-effort */ }
+      }
     } catch (e) {
       err(`could not save conversation: ${e instanceof Error ? e.message : e}`);
     }
@@ -159,6 +167,8 @@ export default function Chat() {
             updateLast((m) => ({ ...m, content: acc, tools: [...tools] }));
           } else if (ev.type === "error") {
             err(ev.error || "agent error");
+          } else if (ev.type === "system") {
+            err(ev.content || "agent notice");
           }
         }
       } else {
@@ -273,6 +283,44 @@ export default function Chat() {
           </p>
         )}
       </div>
+      {context && (
+        <div className="card">
+          <div className="row" style={{ alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, opacity: 0.8 }}>Context window</span>
+            <div
+              style={{
+                flex: 1,
+                height: 6,
+                background: "rgba(127,127,127,0.2)",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: Math.min(context.pct, 100) + "%",
+                  background:
+                    context.pct >= 98
+                      ? "#c44"
+                      : context.pct >= 80
+                        ? "#c90"
+                        : "#3a6",
+                  borderRadius: 3,
+                  transition: "width 0.2s",
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 12, minWidth: 50, textAlign: "right" }}>
+              {context.usedTokens} / {context.limitTokens || "?"} tokens
+              {context.limitTokens > 0 ? ` (${context.pct.toFixed(0)}%)` : ""}
+            </span>
+            {context.pct >= 98 && (
+              <span style={{ fontSize: 12, color: "#c44" }}>(auto-compact soon)</span>
+            )}
+          </div>
+        </div>
+      )}
       <div className="card">
         <div className="chat">
           {msgs.length === 0 && (
