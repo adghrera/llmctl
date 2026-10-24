@@ -145,6 +145,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   Each scheduled task sends a prompt to the model and saves the result as a
   new conversation. REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page.
+- **RAG knowledge bases** — create/delete/edit knowledge bases at
+  ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove text
+  documents via REST API. In chat, /file <filename> or KB selection injects
+  document content as context. Dedicated Knowledge Bases page.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

@@ -60,6 +60,7 @@ management API and web UI — all on **one port**.
 | `internal/files` | User-uploaded files at $LLMCTL_HOME/files/<id>/ (entry.json + content); CRUD via REST; /file <filename> injection in chat (F044). |
 | `internal/cost` | Token usage and cost tracking per API key and per model; populated by the gateway proxy on chat responses; REST: GET /api/v1/cost, /api/v1/cost/keys, /api/v1/cost/models (F045). |
 | `internal/scheduler` | Scheduled agent tasks at $LLMCTL_HOME/scheduler/<id>/ (spec.json with cron expression, model, prompt). CRUD via REST; daemon runs a scheduler loop that executes due tasks as chat completions (F046). |
+| `internal/rag` | Knowledge bases at $LLMCTL_HOME/knowledge/<kb_id>/ with kb.json manifest and documents under docs/<doc_id>/; CRUD + keyword search via REST; document content injection in chat (F047). |
 | `internal/ui` | Embedded SPA (embed.FS). |
 | `internal/manifest` | Legacy v0.1 manifest (still used by nothing critical; slated for removal). |
 

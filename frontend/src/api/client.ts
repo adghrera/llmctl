@@ -195,6 +195,34 @@ export interface FileEntry {
   source: string;
 }
 
+export interface KB {
+  id: string;
+  dir: string;
+  kb: {
+    id: string;
+    name: string;
+    description?: string;
+    created_at: string;
+    updated_at: string;
+    doc_count: number;
+  };
+  docs: KBDoc[];
+}
+
+export interface KBDoc {
+  id: string;
+  filename: string;
+  content_type: string;
+  size: number;
+  source: string;
+  created_at: string;
+  content?: string;
+}
+
+export interface KBDocContent {
+  content: string;
+}
+
 export interface PromptTemplate {
   id: string;
   name: string;
@@ -412,6 +440,39 @@ export const api = {
       return r.text();
     }),
   deleteFile: (id: string) => req<{ ok: boolean }>(`/files/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  knowledgeBases: () => req<KB[]>("/knowledge-bases"),
+  createKB: (body: { name: string; description?: string }) =>
+    req<KB>("/knowledge-bases", { method: "POST", body: JSON.stringify(body) }),
+  getKB: (id: string) => req<KB>(`/knowledge-bases/${encodeURIComponent(id)}`),
+  updateKB: (id: string, body: { name?: string; description?: string }) =>
+    req<KB>(`/knowledge-bases/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteKB: (id: string) => req<{ ok: boolean }>(`/knowledge-bases/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  listKBDocs: (kbId: string) => req<KBDoc[]>(`/knowledge-bases/${encodeURIComponent(kbId)}/documents`),
+  uploadKBDoc: (kbId: string, formData: FormData) =>
+    fetch(`/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/documents`, {
+      method: "POST",
+      body: formData,
+    }).then(async (r) => {
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || `HTTP ${r.status}`);
+      }
+      return r.json() as Promise<KBDoc>;
+    }),
+  getKBDocContent: (kbId: string, docId: string) =>
+    fetch(`/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/documents/${encodeURIComponent(docId)}/content`, {
+      method: "GET",
+    }).then(async (r) => {
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(t || `HTTP ${r.status}`);
+      }
+      return r.text();
+    }),
+  deleteKBDoc: (kbId: string, docId: string) =>
+    req<{ ok: boolean }>(`/knowledge-bases/${encodeURIComponent(kbId)}/documents/${encodeURIComponent(docId)}`, { method: "DELETE" }),
+  searchKBDocs: (kbId: string, body: { q: string; limit?: number }) =>
+    req<KBDoc[]>(`/knowledge-bases/${encodeURIComponent(kbId)}/search`, { method: "POST", body: JSON.stringify(body) }),
   costSummary: () => req<CostSummary>("/cost"),
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),

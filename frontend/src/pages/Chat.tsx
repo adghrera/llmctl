@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch } from "../api/client";
+import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
 
@@ -25,6 +25,10 @@ export default function Chat() {
   const [showKey, setShowKey] = useState(!key);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // ---- knowledge bases (F047) ----
+  const [kbs, setKBs] = useState<KB[]>([]);
+  const [selectedKB, setSelectedKB] = useState<KB | null>(null);
+
   // ---- saved conversations (F025) ----
   const [convId, setConvId] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
@@ -43,8 +47,10 @@ export default function Chat() {
   convIdRef.current = convId;
 
   const loadChats = () => api.chats().then(setChats).catch(() => setChats([]));
+  const loadKBs = () => api.knowledgeBases().then(setKBs).catch(() => setKBs([]));
   useEffect(() => {
     loadChats();
+    loadKBs();
   }, []);
 
   const searchConversations = async (q: string) => {
@@ -238,9 +244,28 @@ export default function Chat() {
       }
     }
 
+    // KB context retrieval
+    let kbMsg: Msg | null = null;
+    if (selectedKB && searchQuery.trim()) {
+      try {
+        const kbResults = await api.searchKBDocs(selectedKB.id, { q: text, limit: 3 });
+        if (kbResults.length > 0) {
+          const kbContext = kbResults
+            .map((d) => `Document: ${d.filename}\n${d.content}`)
+            .join("\n\n---\n\n");
+          kbMsg = {
+            role: "user",
+            content: `Relevant context from knowledge base "${selectedKB.kb.name}":\n\n${kbContext}`,
+          };
+        }
+      } catch (e) {
+        // KB search failure is non-fatal; continue without KB context
+      }
+    }
+
     const next: Msg[] = skillMsg
-      ? [...msgs, skillMsg, fileMsg, userMsg].filter((m): m is Msg => m != null)
-      : [...msgs, fileMsg, userMsg].filter((m): m is Msg => m != null);
+      ? [...msgs, skillMsg, fileMsg, kbMsg, userMsg].filter((m): m is Msg => m != null)
+      : [...msgs, fileMsg, kbMsg, userMsg].filter((m): m is Msg => m != null);
     setMsgs(next);
     setInput("");
     setStreaming(true);
@@ -484,6 +509,26 @@ export default function Chat() {
               <input type="checkbox" checked={agentMode} onChange={(e) => setAgentMode(e.target.checked)} />
               Agent (web search)
             </label>
+          </div>
+          <div style={{ alignSelf: "flex-end", marginTop: 8 }}>
+            <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+              <input type="checkbox" checked={!!selectedKB} onChange={() => setSelectedKB(selectedKB ? null : kbs[0])} />
+              Knowledge base
+            </label>{" "}
+            {kbs.length > 0 && (
+              <select
+                value={selectedKB?.id || ""}
+                onChange={(e) => setSelectedKB(kbs.find((k) => k.id === e.target.value) || null)}
+                disabled={kbs.length === 0}
+              >
+                <option value="">— select KB —</option>
+                {kbs.map((kb) => (
+                  <option key={kb.id} value={kb.id}>
+                    {kb.kb.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
         {agentMode && (

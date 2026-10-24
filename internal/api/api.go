@@ -28,15 +28,16 @@ import (
 	"llmctl/internal/toolstore"
 	"llmctl/internal/memory"
 	"llmctl/internal/cost"
-	"llmctl/internal/scheduler"
 	"llmctl/internal/files"
-	"llmctl/internal/downloader"
+	"llmctl/internal/rag"
+	"llmctl/internal/scheduler"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
 	"llmctl/internal/websearch"
+	"llmctl/internal/downloader"
 )
 
 // Server is the management API.
@@ -57,6 +58,7 @@ type Server struct {
 	files      *files.Store        // user-uploaded files (F044)
 	cost       *cost.Tracker       // token usage and cost tracking (F045)
 	sched      *scheduler.Store    // scheduled agent tasks (F046)
+	rag        *rag.Store          // knowledge bases for RAG (F047)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -120,6 +122,17 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/files", s.uploadFile)
 	m.HandleFunc("GET /api/v1/files/{id}/content", s.getFileContent)
 	m.HandleFunc("DELETE /api/v1/files/{id}", s.deleteFile)
+	// Knowledge bases (F047)
+	m.HandleFunc("GET /api/v1/knowledge-bases", s.listKBs)
+	m.HandleFunc("POST /api/v1/knowledge-bases", s.createKB)
+	m.HandleFunc("GET /api/v1/knowledge-bases/{id}", s.getKB)
+	m.HandleFunc("PUT /api/v1/knowledge-bases/{id}", s.updateKB)
+	m.HandleFunc("DELETE /api/v1/knowledge-bases/{id}", s.deleteKB)
+	m.HandleFunc("GET /api/v1/knowledge-bases/{id}/documents", s.listKBDocs)
+	m.HandleFunc("POST /api/v1/knowledge-bases/{id}/documents", s.uploadKBDoc)
+	m.HandleFunc("GET /api/v1/knowledge-bases/{id}/documents/{doc_id}/content", s.getKBDocContent)
+	m.HandleFunc("DELETE /api/v1/knowledge-bases/{id}/documents/{doc_id}", s.deleteKBDoc)
+	m.HandleFunc("POST /api/v1/knowledge-bases/{id}/search", s.searchKBDocs)
 	// Cost (F045)
 	m.HandleFunc("GET /api/v1/cost", s.costSummary)
 	m.HandleFunc("GET /api/v1/cost/keys", s.costKeys)
