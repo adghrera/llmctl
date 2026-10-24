@@ -152,6 +152,22 @@ export interface MemoryEntry {
   source: string;
 }
 
+export interface CostCounter {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  requests: number;
+  cost_usd: number;
+  updated_at: string;
+}
+
+export interface CostSummary {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+}
+
 export interface FileEntry {
   id: string;
   dir: string;
@@ -383,6 +399,9 @@ export const api = {
       return r.text();
     }),
   deleteFile: (id: string) => req<{ ok: boolean }>(`/files/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  costSummary: () => req<CostSummary>("/cost"),
+  costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
+  costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   prompts: () => req<PromptTemplate[]>("/prompts"),
   promptCategories: () => req<string[]>("/prompts/categories"),
   prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),

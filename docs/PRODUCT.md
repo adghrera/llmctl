@@ -137,6 +137,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   In chat, `/file <filename>` injects file content as a user message.
   Dedicated Files page for upload/list/delete. Only text-based files supported
   (PDF/DOCX need external libraries).
+- **Cost tracking** — track token usage and estimate costs per API key and per
+  model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
+  GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
+  tables showing token counts and estimated USD costs.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

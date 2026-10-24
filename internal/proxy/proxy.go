@@ -176,7 +176,7 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := newRecordingResponseWriter(w)
 		next.ServeHTTP(rec, r)
-		s.collector.record(holder.Model, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes())
+		s.collector.record(holder.Model, holder.Key, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes())
 	})
 }
 
@@ -231,6 +231,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
 				fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
 			return
+		}
+		// Store key prefix on modelRef for per-key cost tracking.
+		if ref := modelRefFrom(r.Context()); ref != nil {
+			ref.Key = keyPrefix(key)
 		}
 		next(w, r)
 	}
@@ -539,4 +543,13 @@ func (s *Server) SetRequireAuth(on bool) {
 // SetKeyCheck updates the hashed-key verifier at runtime.
 func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 	s.keyCheck = fn
+}
+
+// keyPrefix returns the first 8 chars of a key for per-key cost tracking,
+// or the raw value if shorter.
+func keyPrefix(key string) string {
+	if len(key) > 8 {
+		return key[:8]
+	}
+	return key
 }

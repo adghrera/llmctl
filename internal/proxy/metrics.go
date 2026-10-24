@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"sort"
 	"sync"
+	"time"
+
+	"llmctl/internal/cost"
 )
 
 // metricsCollector tracks gateway traffic: request counts, latency samples
@@ -22,6 +25,9 @@ type metricsCollector struct {
 
 	byStatus map[string]int64    // "2xx", "4xx", ...
 	byModel  map[string]*modelMt // per requested model
+
+	keyCounters map[string]*costCounter // per API key prefix
+	pricing     map[string]cost.ModelPricing
 }
 
 type modelMt struct {
@@ -31,17 +37,36 @@ type modelMt struct {
 	compTok   int64
 }
 
+type costCounter struct {
+	mu        sync.Mutex
+	InputTok  int64
+	OutputTok int64
+	TotalTok  int64
+	Requests  int64
+	Cost      float64
+	UpdatedAt time.Time
+}
+
 const reservoirSize = 2048
 
 func newMetricsCollector() *metricsCollector {
 	return &metricsCollector{
-		byStatus: map[string]int64{},
-		byModel:  map[string]*modelMt{},
+		byStatus:    map[string]int64{},
+		byModel:     map[string]*modelMt{},
+		keyCounters: map[string]*costCounter{},
+		pricing:     make(map[string]cost.ModelPricing),
 	}
 }
 
+func (m *metricsCollector) pricingFor(model string) cost.ModelPricing {
+	if p, ok := m.pricing[model]; ok {
+		return p
+	}
+	return cost.DefaultPricing["default"]
+}
+
 // record adds one completed gateway request. model may be "" (unknown).
-func (m *metricsCollector) record(model string, status int, latencyMs float64, stream bool, respBody []byte) {
+func (m *metricsCollector) record(model, key string, status int, latencyMs float64, stream bool, respBody []byte) {
 	var pTok, cTok int64
 	if stream {
 		pTok, cTok = scanUsageSSE(respBody)
@@ -68,6 +93,24 @@ func (m *metricsCollector) record(model string, status int, latencyMs float64, s
 	}
 	mm.promptTok += pTok
 	mm.compTok += cTok
+
+	// Per-key tracking.
+	if key != "" {
+		kc := m.keyCounters[key]
+		if kc == nil {
+			kc = &costCounter{}
+			m.keyCounters[key] = kc
+		}
+		kc.mu.Lock()
+		kc.InputTok += pTok
+		kc.OutputTok += cTok
+		kc.TotalTok += pTok + cTok
+		kc.Requests++
+		kc.Cost += float64(pTok)/1e6 * m.pricingFor(model).InputPerM
+		kc.Cost += float64(cTok)/1e6 * m.pricingFor(model).OutputPerM
+		kc.UpdatedAt = time.Now().UTC()
+		kc.mu.Unlock()
+	}
 
 	// Reservoir sample latencies so memory stays bounded.
 	if len(m.latSamples) < reservoirSize {

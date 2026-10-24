@@ -74,6 +74,7 @@ func (w *recordingResponseWriter) Unwrap() http.ResponseWriter { return w.Respon
 type modelRef struct {
 	Model  string
 	Stream bool
+	Key    string // API key prefix (first 8 chars) for per-key cost tracking
 }
 
 type modelRefKey struct{}
