@@ -6,6 +6,7 @@ import Models from "./pages/Models";
 import Instances from "./pages/Instances";
 import Chat from "./pages/Chat";
 import Tools from "./pages/Tools";
+import Skills from "./pages/Skills";
 import Usage from "./pages/Usage";
 import Keys from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
@@ -18,6 +19,7 @@ const NAV = [
   { to: "/instances", label: "Instances" },
   { to: "/chat", label: "Chat" },
   { to: "/tools", label: "Tools" },
+  { to: "/skills", label: "Skills" },
   { to: "/usage", label: "Usage" },
   { to: "/keys", label: "API Keys" },
   { to: "/settings", label: "Settings" },
@@ -49,6 +51,7 @@ export default function App() {
           <Route path="/instances" element={<Instances />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/tools" element={<Tools />} />
+          <Route path="/skills" element={<Skills />} />
           <Route path="/usage" element={<Usage />} />
           <Route path="/keys" element={<Keys />} />
           <Route path="/settings" element={<SettingsPage />} />

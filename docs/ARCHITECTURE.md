@@ -54,6 +54,7 @@ management API and web UI — all on **one port**.
 | `internal/paths` | Disk layout under $LLMCTL_HOME (default ~/.llmctl). |
 | `internal/toolstore` | Installed agent tools at $LLMCTL_HOME/tools/<id>/ (llmctl-tool.json manifest); install from URL (.zip) or local dir, enable/disable, per-tool sandbox toggle, uninstall (F033). |
 | `internal/toolexec` | Tool execution: host (python `run(args)` via stdin/stdout bridge, or raw command) or sandboxed via the llm-sandbox framework (podman/docker backend, network-less, mem/pid caps, no-new-privileges) with a Go→python bridge embedding tool files. |
+| `internal/skills` | User-defined skill templates at $LLMCTL_HOME/skills/<id>/ (skill.json manifest); create/read/update/delete via REST, enable/disable toggle, template rendering with {{input}}/{{conversation}} placeholders (F036). |
 | `internal/ui` | Embedded SPA (embed.FS). |
 | `internal/manifest` | Legacy v0.1 manifest (still used by nothing critical; slated for removal). |
 

@@ -118,6 +118,26 @@ export interface ToolRunResult {
   duration: string;
 }
 
+export interface SkillRecord {
+  id: string;
+  dir: string;
+  manifest: {
+    id: string;
+    short_name: string;
+    name: string;
+    description?: string;
+    prompt_template: string;
+    tags?: string[];
+    enabled: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+  enabled: boolean;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -265,6 +285,15 @@ export const api = {
   runTool: (id: string, args: Record<string, unknown>, timeoutSec = 60) =>
     req<ToolRunResult>(`/tools/${encodeURIComponent(id)}/run`, { method: "POST", body: JSON.stringify({ args, timeoutSec }) }),
   deleteTool: (id: string) => req<{ ok: boolean }>(`/tools/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  skills: () => req<SkillRecord[]>("/skills"),
+  createSkill: (body: { short_name: string; name?: string; description?: string; prompt_template: string; tags?: string[] }) =>
+    req<SkillRecord>("/skills", { method: "POST", body: JSON.stringify(body) }),
+  getSkill: (id: string) => req<SkillRecord>(`/skills/${encodeURIComponent(id)}`),
+  updateSkill: (id: string, body: { short_name?: string; name?: string; description?: string; prompt_template?: string; tags?: string[] }) =>
+    req<SkillRecord>(`/skills/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteSkill: (id: string) => req<{ ok: boolean }>(`/skills/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setSkillEnabled: (id: string, enabled: boolean) =>
+    req<{ ok: boolean }>(`/skills/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   presets: () => req<PresetSpec[]>("/presets"),
   savePreset: (p: PresetSpec) => req<PresetSpec>("/presets", { method: "POST", body: JSON.stringify(p) }),
   deletePreset: (name: string) => req<{ ok: boolean }>(`/presets/${encodeURIComponent(name)}`, { method: "DELETE" }),

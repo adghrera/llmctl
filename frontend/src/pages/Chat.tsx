@@ -142,7 +142,40 @@ export default function Chat() {
       err("no running instance — start one on the Instances page");
       return;
     }
-    const next: Msg[] = [...msgs, { role: "user", content: text }];
+
+    // Check for skill invocation: /s.<short_name> <rest>
+    const skillMatch = text.match(/^\/s\.([a-z0-9][a-z0-9_-]*)\s+(.*)$/s);
+    let skillMsg: Msg | null = null;
+    let userMsg: Msg = { role: "user", content: text };
+
+    if (skillMatch) {
+      const shortName = skillMatch[1];
+      const rest = skillMatch[2];
+      try {
+        const skill = await api.getSkill(shortName);
+        if (!skill.enabled) {
+          err(`skill "${shortName}" is disabled`);
+          return;
+        }
+        // Format prior conversation history for {{conversation}}
+        const historyForSkill = msgs
+          .slice(-10) // last 10 messages for context
+          .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+          .join("\n");
+        const rendered = skill.manifest.prompt_template
+          .split("{{input}}").join(rest)
+          .split("{{conversation}}").join(historyForSkill || "(none)");
+        skillMsg = { role: "user", content: rendered };
+        userMsg = { role: "user", content: rest };
+      } catch (e) {
+        err(e instanceof Error ? e.message : `skill "${shortName}" not found`);
+        return;
+      }
+    }
+
+    const next: Msg[] = skillMsg
+      ? [...msgs, skillMsg, userMsg]
+      : [...msgs, userMsg];
     setMsgs(next);
     setInput("");
     setStreaming(true);

@@ -45,6 +45,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F031 | P2 | 31 | chat | Export conversation (Markdown / JSON) | NOT-STARTED | Client-side blob download from the loaded conversation; Markdown includes tool searches as footnote links. |
 | F032 | P2 | 32 | chat | Token usage per conversation | COMPLETED | Per-message MessageTokens (prompt/completion/total) and ConversationContext (usedTokens/limitTokens/pct); computed on saveChat from model CtxSize (~4 chars/token estimate); /api/v1/metrics serves per-model usage; shown as context bar in Chat UI and table in Usage page. |
 | F035 | P2 | 35 | chat | Usage charts page | COMPLETED | New /usage page: per-model token bar chart (from /api/v1/metrics), per-conversation token table (from /api/v1/chats), token consumption summary; hand-rolled CSS bars, no new npm deps.
+| F036 | P2 | 36 | chat | Skills: reusable prompt templates via /s.<skill> | COMPLETED | Skills stored as directories at ~/.llmctl/skills/<id>/ with skill.json manifest (short_name, name, description, prompt_template with {{input}}/{{conversation}} placeholders, tags, enabled flag). REST API: GET/POST/GET/PUT/DELETE /api/v1/skills, POST /api/v1/skills/{id}/enabled. Dedicated Skills page (add/edit/remove/enable/disable). Invoked in chat via /s.<short_name> <text>; skill prompt inserted as a user message before the user's input in both agent and plain chat modes.
 
 ## Shipped (v0.2 architecture, this iteration)
 

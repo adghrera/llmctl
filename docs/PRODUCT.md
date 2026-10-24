@@ -98,6 +98,14 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   (container, no network, memory & PID caps) by default; a per-tool toggle
   opts out to host execution. List, enable/disable, test-run with args, and
   uninstall. Enabled tools join the agent's tool set in Chat.
+- **Skills** — create reusable prompt templates invoked in chat via
+  `/s.<short_name> <text>`. Each skill has a short name, display name,
+  description, prompt template (with {{input}} and {{conversation}} placeholders),
+  tags, and an enabled flag. Stored as directories at
+  `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable.
+  When invoked, the rendered skill prompt is inserted as a user message right
+  before the user's input, after prior conversation history. Works in both agent
+  and plain chat modes.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

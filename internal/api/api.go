@@ -24,6 +24,7 @@ import (
 	"llmctl/internal/agent"
 	"llmctl/internal/backend"
 	"llmctl/internal/chatstore"
+	"llmctl/internal/skills"
 	"llmctl/internal/toolstore"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
@@ -47,6 +48,7 @@ type Server struct {
 	agentTool  agent.Tool          // web_search tool override (tests); nil = WebSearchTool{searcher}
 	chats      *chatstore.Store    // persisted chat conversations (F025)
 	tools      *toolstore.Store    // installed agent tools (F033)
+	skills     *skills.Store       // user-defined skill templates (F036)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -91,6 +93,13 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/tools/{id}/sandbox", s.setToolSandbox)
 	m.HandleFunc("POST /api/v1/tools/{id}/run", s.runTool)
 	m.HandleFunc("DELETE /api/v1/tools/{id}", s.deleteTool)
+	// Skills (F036)
+	m.HandleFunc("GET /api/v1/skills", s.listSkills)
+	m.HandleFunc("POST /api/v1/skills", s.createSkill)
+	m.HandleFunc("GET /api/v1/skills/{id}", s.getSkill)
+	m.HandleFunc("PUT /api/v1/skills/{id}", s.updateSkill)
+	m.HandleFunc("DELETE /api/v1/skills/{id}", s.deleteSkill)
+	m.HandleFunc("POST /api/v1/skills/{id}/enabled", s.setSkillEnabled)
 	m.HandleFunc("POST /api/v1/presets", s.savePreset)
 	m.HandleFunc("DELETE /api/v1/presets/{name}", s.deletePreset)
 	m.HandleFunc("POST /api/v1/presets/{name}/start", s.startPreset)
