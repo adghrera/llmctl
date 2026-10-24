@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"llmctl/internal/chatstore"
@@ -108,4 +109,36 @@ func (s *Server) deleteChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// searchChats handles GET /api/v1/chats/search?q=.
+// Returns conversations whose title or message content contains q.
+func (s *Server) searchChats(w http.ResponseWriter, r *http.Request) {
+	if s.chats == nil {
+		writeErr(w, 503, "chat store unavailable")
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q == "" {
+		writeErr(w, 400, "q parameter required")
+		return
+	}
+	limit := 20
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	maxMatches := 5
+	if v := r.URL.Query().Get("maxMatches"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxMatches = n
+		}
+	}
+	results, err := s.chats.Search(q, limit, maxMatches)
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, results)
 }

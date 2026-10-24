@@ -198,6 +198,122 @@ func (s *Store) Delete(id string) error {
 	return err
 }
 
+// SearchResult is one match from a conversation search.
+type SearchResult struct {
+	ConversationID string   `json:"conversationId"`
+	Title          string   `json:"title"`
+	Model          string   `json:"model,omitempty"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+	Matches        []Match  `json:"matches"`
+}
+
+// Match is one matching location within a conversation.
+type Match struct {
+	Role     string `json:"role"`     // "user" | "assistant"
+	Content  string `json:"content"`  // snippet around the match
+	Index    int    `json:"index"`    // message index
+}
+
+// Search finds conversations whose title or message content contains q
+// (case-insensitive substring). Returns at most limit results, each with up
+// to maxMatchesPerConv matching message snippets.
+func (s *Store) Search(q string, limit, maxMatchesPerConv int) ([]SearchResult, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if maxMatchesPerConv <= 0 {
+		maxMatchesPerConv = 5
+	}
+	qLower := strings.ToLower(q)
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var results []SearchResult
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), ".json")
+		if !safeID.MatchString(id) {
+			continue
+		}
+		c, err := s.Get(id)
+		if err != nil {
+			continue // skip corrupt files
+		}
+		var matches []Match
+		// Check title first.
+		titleMatch := strings.Contains(strings.ToLower(c.Title), qLower)
+		for i, m := range c.Messages {
+			if len(matches) >= maxMatchesPerConv {
+				break
+			}
+			if strings.Contains(strings.ToLower(m.Content), qLower) {
+				matches = append(matches, Match{
+					Role:    m.Role,
+					Content: snippet(m.Content, qLower, 120),
+					Index:   i,
+				})
+			}
+		}
+		if titleMatch || len(matches) > 0 {
+			results = append(results, SearchResult{
+				ConversationID: c.ID,
+				Title:          c.Title,
+				Model:          c.Model,
+				UpdatedAt:      c.UpdatedAt,
+				Matches:        matches,
+			})
+			if limit > 0 && len(results) >= limit {
+				break
+			}
+		}
+	}
+	// Sort results by updatedAt descending.
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].UpdatedAt.After(results[j].UpdatedAt)
+	})
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
+// snippet returns a window around the first occurrence of qLower in sLower,
+// or the start of s if qLower is empty.
+func snippet(content, qLower string, window int) string {
+	cl := strings.ToLower(content)
+	idx := strings.Index(cl, qLower)
+	if idx < 0 {
+		// Return the start if no match found (shouldn't happen).
+		if len(content) <= window {
+			return content
+		}
+		return content[:window] + "…"
+	}
+	start := idx - window/2
+	if start < 0 {
+		start = 0
+	}
+	end := idx + len(qLower) + window/2
+	if end > len(content) {
+		end = len(content)
+	}
+	var b strings.Builder
+	if start > 0 {
+		b.WriteString("…")
+	}
+	b.WriteString(content[start:end])
+	if end < len(content) {
+		b.WriteString("…")
+	}
+	return b.String()
+}
+
 // EstimateTokens estimates token count from text using the ~4 chars/token
 // heuristic (standard for LLMs). Returns at least 1 for non-empty text.
 func EstimateTokens(text string) int {

@@ -179,6 +179,20 @@ export interface ChatSummary {
   };
 }
 
+export interface SearchMatch {
+  role: string;
+  content: string;
+  index: number;
+}
+
+export interface SearchChatResult {
+  conversationId: string;
+  title: string;
+  model?: string;
+  updatedAt: string;
+  matches: SearchMatch[];
+}
+
 export interface GatewayMetrics {
   requests_total: number;
   inflight: number;
@@ -275,6 +289,8 @@ export const api = {
   saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  searchChats: (q: string, limit = 20, maxMatches = 5) =>
+    req<SearchChatResult[]>(`/chats/search?q=${encodeURIComponent(q)}&limit=${limit}&maxMatches=${maxMatches}`),
   tools: () => req<ToolRecord[]>("/tools"),
   installTool: (body: { url?: string; dir?: string; id?: string }) =>
     req<ToolRecord>("/tools/install", { method: "POST", body: JSON.stringify(body) }),

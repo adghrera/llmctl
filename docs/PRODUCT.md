@@ -106,6 +106,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
   and plain chat modes.
+- **Conversation search** — full-text search across all saved conversations
+  (titles and message content) via `GET /api/v1/chats/search?q=`. Returns
+  matching conversations with message snippets. Search bar in the Chat UI's
+  Conversations card; click a result to open it.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

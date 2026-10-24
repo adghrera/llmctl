@@ -114,6 +114,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
 	m.HandleFunc("GET /api/v1/chats", s.listChats)
 	m.HandleFunc("POST /api/v1/chats", s.saveChat)
+	m.HandleFunc("GET /api/v1/chats/search", s.searchChats)
 	m.HandleFunc("GET /api/v1/chats/{id}", s.getChat)
 	m.HandleFunc("PUT /api/v1/chats/{id}", s.saveChat)
 	m.HandleFunc("DELETE /api/v1/chats/{id}", s.deleteChat)

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary } from "../api/client";
+import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
 
@@ -29,6 +29,9 @@ export default function Chat() {
   const [convId, setConvId] = useState<string | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [context, setContext] = useState<{ usedTokens: number; limitTokens: number; pct: number } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchChatResult[]>([]);
+  const [searching, setSearching] = useState(false);
   const convIdRef = useRef<string | null>(null);
   convIdRef.current = convId;
 
@@ -36,6 +39,25 @@ export default function Chat() {
   useEffect(() => {
     loadChats();
   }, []);
+
+  const searchConversations = async (q: string) => {
+    if (!q.trim()) {
+      setSearchResults([]);
+      setSearchQuery("");
+      return;
+    }
+    setSearchQuery(q);
+    setSearching(true);
+    try {
+      const results = await api.searchChats(q);
+      setSearchResults(results);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   // Persist current messages: create on first save, then update in place.
   const persist = async (messages: Msg[]) => {
@@ -229,9 +251,71 @@ export default function Chat() {
             + New chat
           </button>
         </div>
-        {chats.length === 0 ? (
+        <div className="row" style={{ marginTop: 8 }}>
+          <input
+            style={{ flex: 1, minWidth: 200 }}
+            placeholder="Search conversations…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && searchConversations(searchQuery)}
+          />
+          <button
+            className="btn sm"
+            disabled={searching || !searchQuery.trim()}
+            onClick={() => searchConversations(searchQuery)}
+          >
+            {searching ? "Searching…" : "Search"}
+          </button>
+          <button
+            className="btn sm"
+            disabled={!searchQuery.trim()}
+            onClick={() => {
+              setSearchQuery("");
+              setSearchResults([]);
+            }}
+          >
+            Clear
+          </button>
+        </div>
+        {searchQuery.trim() && searchResults.length === 0 && !searching && (
+          <div className="empty muted" style={{ padding: "10px 0" }}>
+            No conversations matched "{searchQuery}"
+          </div>
+        )}
+        {searchQuery.trim() && searching && (
+          <div className="empty muted" style={{ padding: "10px 0" }}>Searching…</div>
+        )}
+        {searchQuery.trim() && searchResults.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 6 }}>
+              Search results for "{searchQuery}" ({searchResults.length})
+            </p>
+            <table>
+              <tbody>
+                {searchResults.map((r) => (
+                  <tr key={r.conversationId} style={{ cursor: "pointer" }} onClick={() => openChat(r.conversationId)}>
+                    <td style={{ width: "60%" }}>
+                      <b>{r.title}</b>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>{r.model || "—"} • {new Date(r.updatedAt).toLocaleString()}</div>
+                    </td>
+                    <td>
+                      {r.matches.map((m: SearchMatch, i: number) => (
+                        <div key={i} style={{ fontSize: 11, opacity: 0.85, marginBottom: 4 }}>
+                          <span style={{ textTransform: "uppercase", fontSize: 9, opacity: 0.6 }}>{m.role}</span>{" "}
+                          {m.content}
+                        </div>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!searchQuery.trim() && chats.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>no saved conversations yet</div>
-        ) : (
+        )}
+        {!searchQuery.trim() && chats.length > 0 && (
           <table>
             <tbody>
               {chats.map((c) => (
