@@ -26,6 +26,7 @@ import (
 	"llmctl/internal/chatstore"
 	"llmctl/internal/skills"
 	"llmctl/internal/toolstore"
+	"llmctl/internal/memory"
 	"llmctl/internal/downloader"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
@@ -49,6 +50,7 @@ type Server struct {
 	chats      *chatstore.Store    // persisted chat conversations (F025)
 	tools      *toolstore.Store    // installed agent tools (F033)
 	skills     *skills.Store       // user-defined skill templates (F036)
+	memory     *memory.Store       // persistent agent memory entries (F040)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -100,6 +102,13 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PUT /api/v1/skills/{id}", s.updateSkill)
 	m.HandleFunc("DELETE /api/v1/skills/{id}", s.deleteSkill)
 	m.HandleFunc("POST /api/v1/skills/{id}/enabled", s.setSkillEnabled)
+	// Memory (F040)
+	m.HandleFunc("GET /api/v1/memory", s.listMemory)
+	m.HandleFunc("POST /api/v1/memory", s.createMemory)
+	m.HandleFunc("GET /api/v1/memory/{id}", s.getMemory)
+	m.HandleFunc("PUT /api/v1/memory/{id}", s.updateMemory)
+	m.HandleFunc("DELETE /api/v1/memory/{id}", s.deleteMemory)
+	m.HandleFunc("GET /api/v1/memory/search", s.searchMemory)
 	m.HandleFunc("POST /api/v1/presets", s.savePreset)
 	m.HandleFunc("DELETE /api/v1/presets/{name}", s.deletePreset)
 	m.HandleFunc("POST /api/v1/presets/{name}/start", s.startPreset)

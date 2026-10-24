@@ -9,6 +9,7 @@ import (
 
 	"llmctl/internal/agent"
 	"llmctl/internal/agenttools"
+	"llmctl/internal/memory"
 	"llmctl/internal/store"
 )
 
@@ -113,6 +114,20 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 			tools[k] = v
 		}
 		areq.ExtraToolsText = s.installedToolsPrompt(extra)
+	}
+	// Persistent memory (F040): search for relevant entries using the last
+	// user message as the query, and inject them as system context.
+	if s.memory != nil {
+		ms := req.Messages
+		if len(ms) > 0 {
+			last := ms[len(ms)-1]
+			if last.Role == "user" {
+				if results, err := s.memory.Search(last.Content, 5); err == nil && len(results) > 0 {
+					ctx := memory.FormatForContext(results)
+					areq.ExtraToolsText += "\n" + ctx
+				}
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")

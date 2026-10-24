@@ -114,6 +114,11 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   `POST /api/v1/chats/{id}/fork` with body `{"forkAt": N, "title": "..."}`.
   Creates a new conversation copying the first N messages. Frontend: Fork
   button on each conversation opens a dialog to pick fork point and title.
+- **Memory** — persistent long-term memory for the agent. Entries have text
+  content, tags, and source, stored at `~/.llmctl/memory/<id>/`. REST API:
+  GET/POST/GET/PUT/DELETE /api/v1/memory, GET /api/v1/memory/search?q=. During
+  agent chat, relevant memories are searched using the last user message and
+  injected as system context. Dedicated Memory page to add/delete entries.
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

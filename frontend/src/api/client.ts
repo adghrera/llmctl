@@ -138,6 +138,20 @@ export interface SkillRecord {
   updated_at: string;
 }
 
+export interface MemoryEntry {
+  id: string;
+  dir: string;
+  entry: {
+    id: string;
+    content: string;
+    tags?: string[];
+    source?: string;
+    created_at: string;
+    updated_at: string;
+  };
+  source: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -315,6 +329,15 @@ export const api = {
   deleteSkill: (id: string) => req<{ ok: boolean }>(`/skills/${encodeURIComponent(id)}`, { method: "DELETE" }),
   setSkillEnabled: (id: string, enabled: boolean) =>
     req<{ ok: boolean }>(`/skills/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
+  memory: () => req<MemoryEntry[]>("/memory"),
+  createMemory: (body: { content: string; tags?: string[]; source?: string }) =>
+    req<MemoryEntry>("/memory", { method: "POST", body: JSON.stringify(body) }),
+  getMemory: (id: string) => req<MemoryEntry>(`/memory/${encodeURIComponent(id)}`),
+  updateMemory: (id: string, body: { content?: string; tags?: string[]; source?: string }) =>
+    req<MemoryEntry>(`/memory/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteMemory: (id: string) => req<{ ok: boolean }>(`/memory/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  searchMemory: (q: string, limit = 10) =>
+    req<MemoryEntry[]>(`/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   presets: () => req<PresetSpec[]>("/presets"),
   savePreset: (p: PresetSpec) => req<PresetSpec>("/presets", { method: "POST", body: JSON.stringify(p) }),
   deletePreset: (name: string) => req<{ ok: boolean }>(`/presets/${encodeURIComponent(name)}`, { method: "DELETE" }),
