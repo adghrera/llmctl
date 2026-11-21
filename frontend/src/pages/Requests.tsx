@@ -7,6 +7,29 @@ function statusTone(s: number): string {
   return "run";
 }
 
+function csvField(s: string): string {
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function toCsv(entries: RequestLogEntry[]): string {
+  const head = ["time", "model", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens"];
+  const rows = entries.map((e) =>
+    [
+      new Date(e.time).toISOString(),
+      e.model || "",
+      e.key || "",
+      String(e.status),
+      e.stream ? "1" : "0",
+      String(Math.round(e.latencyMs)),
+      String(e.promptTok),
+      String(e.compTok),
+    ]
+      .map(csvField)
+      .join(","),
+  );
+  return [head.join(","), ...rows].join("\n") + "\n";
+}
+
 export default function Requests() {
   const [entries, setEntries] = useState<RequestLogEntry[]>([]);
   const [auto, setAuto] = useState(true);
@@ -32,6 +55,20 @@ export default function Requests() {
       <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
         <h2 style={{ margin: 0 }}>Recent requests</h2>
         <div className="spacer" />
+        <button
+          className="btn sm"
+          disabled={entries.length === 0}
+          onClick={() => {
+            const blob = new Blob([toCsv(entries)], { type: "text/csv" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `llmctl-requests-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }}
+        >
+          Export CSV
+        </button>
         <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
           Auto-refresh

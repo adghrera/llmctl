@@ -77,6 +77,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F065 | P2 | 65 | gateway | Model aliases | COMPLETED | Stable gateway names mapped to model ids (stored in state.json `aliases`). The router resolves an alias (case-insensitive, one hop) before normal matching, and `/v1/models` advertises aliases (`owned_by: llmctl-alias`). REST: GET/POST /api/v1/aliases, DELETE /api/v1/aliases/{alias} (name-validated, model must exist). Aliases card on the Models page. |
 | F066 | P2 | 66 | instances | One-click instance restart | COMPLETED | `POST /api/v1/instances/{id}/restart` stops a running instance and relaunches it with the same id, port and vars (409 for attached or non-running instances). Restart button on the Instances page next to Stop. Verified with a ref-stdio instance: pid changes, gateway chat works before and after. |
 | F067 | P2 | 67 | chat | Markdown rendering + copy button | COMPLETED | Chat messages render through a tiny built-in markdown renderer (`frontend/src/md.ts`, no deps, XSS-safe: input fully escaped; fenced code, headings, lists, http(s) links, bold/italic/code spans; 14 node tests). Hover a message for a ⧉ copy button (clipboard). |
+| F068 | P2 | 68 | gateway | Request log CSV export | COMPLETED | "Export CSV" button on the Requests page downloads the current request-log ring as a CSV file (proper quoting/escaping, ISO timestamps). Pure client-side generation from GET /api/v1/requests. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
