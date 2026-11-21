@@ -175,6 +175,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/backup", s.downloadBackup)
 	m.HandleFunc("POST /api/v1/restore", s.restoreBackup)
 	m.HandleFunc("POST /api/v1/agent/approve", s.approveToolCall)
+	m.HandleFunc("POST /api/v1/structured", s.structured)
 	// Web search (keyless)
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
 	m.HandleFunc("GET /api/v1/chats", s.listChats)

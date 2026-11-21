@@ -434,6 +434,27 @@ export const api = {
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   agentApprove: (id: string, approve: boolean) =>
     req<{ ok: boolean }>("/agent/approve", { method: "POST", body: JSON.stringify({ id, approve }) }),
+  structured: (
+    key: string,
+    body: {
+      model: string;
+      messages: { role: string; content: string }[];
+      schema: Record<string, unknown>;
+      maxRetries?: number;
+    }
+  ) =>
+    fetch("/api/v1/structured", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      body: JSON.stringify(body),
+    }).then(async (r) => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok && r.status !== 422) throw new Error((d as any).error || `structured failed (${r.status})`);
+      return d as { ok: boolean; json?: unknown; attempts?: number; error?: string; raw?: string };
+    }),
   mcpServers: () => req<MCPServer[]>("/mcp"),
   createMCPServer: (body: { name: string; command: string; args?: string[]; env?: Record<string, string> }) =>
     req<MCPServer>("/mcp", { method: "POST", body: JSON.stringify(body) }),

@@ -107,6 +107,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   In agent mode an optional "Ask before tool calls" gate shows each pending
   tool call (name + arguments) inline and runs it only after you approve
   (F055).
+- **Structured output** — give a prompt and a JSON Schema; llmctl asks the
+  model for JSON only, validates the reply against the schema and retries
+  with the validation error appended until it matches (or gives up with the
+  raw reply). REST: POST /api/v1/structured. Dedicated Structured page.
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
   totals, request counts, per-model latency percentiles (p50/p95), and
