@@ -137,8 +137,9 @@ toggle for a light theme (choice remembered). Tabs:
   totals, request counts, per-model latency percentiles (p50/p95), and
   per-conversation context percentage.
 - **Requests** — the last 256 gateway requests (time, model, key, status,
-  latency, tokens) in an auto-refreshing table, with one-click CSV export.
-  REST: GET /api/v1/requests.
+  latency, tokens) in an auto-refreshing table, with one-click CSV export and
+  combinable filters (model, status class, min latency, stream/plain).
+  REST: GET /api/v1/requests?model=&status=&minMs=&stream=.
 - **Tools** — install agent tools from a URL (.zip) or a local folder
   (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python
   `def run(args)` entry). Tools run inside the llm-sandbox framework

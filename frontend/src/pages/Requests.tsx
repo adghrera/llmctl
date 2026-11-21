@@ -33,12 +33,21 @@ function toCsv(entries: RequestLogEntry[]): string {
 export default function Requests() {
   const [entries, setEntries] = useState<RequestLogEntry[]>([]);
   const [auto, setAuto] = useState(true);
+  const [fModel, setFModel] = useState("");
+  const [fStatus, setFStatus] = useState("");
+  const [fMinMs, setFMinMs] = useState("");
+  const [fStream, setFStream] = useState("");
 
   useEffect(() => {
     let alive = true;
     const load = () =>
       api
-        .requests(200)
+        .requests(200, {
+          model: fModel.trim() || undefined,
+          status: fStatus || undefined,
+          minMs: Number(fMinMs) > 0 ? Number(fMinMs) : undefined,
+          stream: fStream || undefined,
+        })
         .then((d) => alive && setEntries(d))
         .catch(() => {});
     load();
@@ -48,7 +57,7 @@ export default function Requests() {
       alive = false;
       clearInterval(t);
     };
-  }, [auto]);
+  }, [auto, fModel, fStatus, fMinMs, fStream]);
 
   return (
     <div className="card">
@@ -73,6 +82,47 @@ export default function Requests() {
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
           Auto-refresh
         </label>
+      </div>
+      <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <input
+          style={{ width: 160 }}
+          placeholder="model id"
+          value={fModel}
+          onChange={(e) => setFModel(e.target.value)}
+        />
+        <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} style={{ width: 110 }}>
+          <option value="">any status</option>
+          <option value="2">2xx</option>
+          <option value="4">4xx</option>
+          <option value="5">5xx</option>
+        </select>
+        <input
+          type="number"
+          min={0}
+          style={{ width: 110 }}
+          placeholder="min ms"
+          title="minimum latency"
+          value={fMinMs}
+          onChange={(e) => setFMinMs(e.target.value)}
+        />
+        <select value={fStream} onChange={(e) => setFStream(e.target.value)} style={{ width: 120 }}>
+          <option value="">stream + plain</option>
+          <option value="1">streaming</option>
+          <option value="0">plain</option>
+        </select>
+        {(fModel || fStatus || fMinMs || fStream) && (
+          <button
+            className="btn sm"
+            onClick={() => {
+              setFModel("");
+              setFStatus("");
+              setFMinMs("");
+              setFStream("");
+            }}
+          >
+            Clear
+          </button>
+        )}
       </div>
       <p className="muted small" style={{ margin: "0 0 12px" }}>
         Last {entries.length} gateway requests (ring of 256, newest first).

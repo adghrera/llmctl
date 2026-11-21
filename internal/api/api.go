@@ -836,11 +836,14 @@ func (s *Server) metricsSnapshot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, s.gw.Metrics())
 }
 
-// recentRequests handles GET /api/v1/requests?limit=N — the ring of recent
-// gateway requests (newest first, max 256 kept) (F061).
+// recentRequests handles GET /api/v1/requests — the ring of recent gateway
+// requests (newest first, max 256 kept) (F061). Filters (F079): limit=N,
+// model=<id>, status=<class "4" or exact "404">, minMs=<latency floor>,
+// stream=1|0.
 func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
 	limit := 100
-	if v := r.URL.Query().Get("limit"); v != "" {
+	if v := q.Get("limit"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			limit = n
 		}
@@ -849,7 +852,49 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, []proxy.RequestLogEntry{})
 		return
 	}
-	writeJSON(w, 200, s.gw.RecentRequests(limit))
+	var statusExact, statusClass int
+	if v := q.Get("status"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			if n >= 100 {
+				statusExact = n
+			} else if n >= 1 {
+				statusClass = n
+			}
+		}
+	}
+	var minMs float64
+	if v := q.Get("minMs"); v != "" {
+		minMs, _ = strconv.ParseFloat(v, 64)
+	}
+	streamF := q.Get("stream") // "1" = streaming only, "0" = non-streaming
+	model := q.Get("model")
+	all := s.gw.RecentRequests(0)
+	out := make([]proxy.RequestLogEntry, 0, len(all))
+	for _, e := range all {
+		if model != "" && e.Model != model {
+			continue
+		}
+		if statusExact != 0 && e.Status != statusExact {
+			continue
+		}
+		if statusClass != 0 && e.Status/100 != statusClass {
+			continue
+		}
+		if minMs > 0 && e.LatencyMs < minMs {
+			continue
+		}
+		if streamF == "1" && !e.Stream {
+			continue
+		}
+		if streamF == "0" && e.Stream {
+			continue
+		}
+		out = append(out, e)
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	writeJSON(w, 200, out)
 }
 
 // instanceLogs returns the tail of an instance's stderr.log (and optionally

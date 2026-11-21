@@ -471,7 +471,17 @@ export const api = {
     ),
   backups: () => req<{ name: string; size: number; created: string }[]>("/backups"),
   deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
-  requests: (limit = 100) => req<RequestLogEntry[]>(`/requests?limit=${limit}`),
+  requests: (
+    limit = 100,
+    filters: { model?: string; status?: string; minMs?: number; stream?: string } = {}
+  ) => {
+    const q = new URLSearchParams({ limit: String(limit) });
+    if (filters.model) q.set("model", filters.model);
+    if (filters.status) q.set("status", filters.status);
+    if (filters.minMs) q.set("minMs", String(filters.minMs));
+    if (filters.stream) q.set("stream", filters.stream);
+    return req<RequestLogEntry[]>(`/requests?${q.toString()}`);
+  },
   aliases: () => req<ModelAlias[]>("/aliases"),
   createAlias: (alias: string, model: string) =>
     req<ModelAlias>("/aliases", { method: "POST", body: JSON.stringify({ alias, model }) }),
