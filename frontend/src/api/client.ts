@@ -680,9 +680,19 @@ export async function* chatStream(
   key: string,
   model: string,
   messages: { role: string; content: string }[],
-  opts: { maxTokens?: number; temperature?: number } = {}
+  opts: {
+    maxTokens?: number;
+    temperature?: number;
+    onUsage?: (u: { prompt: number; completion: number; total: number }) => void;
+  } = {}
 ): AsyncGenerator<string> {
-  const body: Record<string, unknown> = { model, messages, stream: true };
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    stream: true,
+    // Ask OpenAI-compatible upstreams to send a final usage chunk (F078).
+    stream_options: { include_usage: true },
+  };
   if (opts.maxTokens) body.max_tokens = opts.maxTokens;
   if (opts.temperature !== undefined) body.temperature = opts.temperature;
   const r = await fetch("/v1/chat/completions", {
@@ -714,6 +724,11 @@ export async function* chatStream(
       if (data === "[DONE]") return;
       try {
         const j = JSON.parse(data);
+        if (j.usage && opts.onUsage) {
+          const p = (j.usage.prompt_tokens as number) ?? 0;
+          const c = (j.usage.completion_tokens as number) ?? 0;
+          opts.onUsage({ prompt: p, completion: c, total: (j.usage.total_tokens as number) ?? p + c });
+        }
         const delta = j.choices?.[0]?.delta?.content;
         if (delta) yield delta;
       } catch { /* partial line */ }

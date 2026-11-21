@@ -111,8 +111,10 @@ toggle for a light theme (choice remembered). Tabs:
   survive model swaps; the gateway advertises them in /v1/models.
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.
 - **Chat** — pick a running model, enter/generate an API key, send messages,
-  stream tokens live (SSE), multi-turn history. Each message carries estimated
-  token usage (~4 chars/token); the conversation shows a context-window bar
+  stream tokens live (SSE), multi-turn history. Assistant messages carry real
+  token usage from the upstream usage chunk (shown per message and as a
+  conversation total); other messages fall back to an estimate
+  (~4 chars/token); the conversation shows a context-window bar
   (used vs. model limit). When context reaches 98% of the model's limit,
   older messages are auto-trimmed (system prompt and recent turns kept).
   In agent mode an optional "Ask before tool calls" gate shows each pending

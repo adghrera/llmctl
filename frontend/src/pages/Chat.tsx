@@ -9,6 +9,8 @@ interface Msg {
   content: string;
   /** agent steps recorded while producing this message (searches run) */
   tools?: AgentToolEvent[];
+  /** real token usage from the upstream usage chunk (F078) */
+  tokens?: { prompt?: number; completion?: number; total?: number };
 }
 
 const KEY_STORAGE = "llmctl.chat.key";
@@ -90,6 +92,7 @@ export default function Chat() {
         role: m.role,
         content: m.content,
         tools: (m.tools || []).map((t) => ({ name: t.name, query: t.query, results: t.results })),
+        tokens: m.tokens,
       })),
     };
     try {
@@ -128,6 +131,7 @@ export default function Chat() {
         (c.messages || []).map((m) => ({
           role: m.role,
           content: m.content,
+          tokens: m.tokens,
           tools: (m.tools || []).map((t, j) => ({
             type: "tool" as const,
             step: j + 1,
@@ -294,6 +298,7 @@ export default function Chat() {
     }
     let acc = "";
     const tools: AgentToolEvent[] = [];
+    let usage: Msg["tokens"] | undefined;
     try {
       // Seed a single assistant message; each delta updates it in place.
       setMsgs((prev) => [...prev, { role: "assistant", content: "", tools: [] }]);
@@ -323,7 +328,11 @@ export default function Chat() {
           }
         }
       } else {
-        for await (const delta of chatStream(key, model, history)) {
+        for await (const delta of chatStream(key, model, history, {
+          onUsage: (u) => {
+            usage = u;
+          },
+        })) {
           acc += delta;
           updateLast((m) => ({ ...m, content: acc }));
         }
@@ -333,7 +342,7 @@ export default function Chat() {
     } finally {
       setStreaming(false);
       // Save once the turn completes (assistant message settled).
-      const done = next.concat([{ role: "assistant", content: acc, tools }]);
+      const done = next.concat([{ role: "assistant", content: acc, tools, tokens: usage }]);
       persist(done);
     }
   };
@@ -729,6 +738,11 @@ export default function Chat() {
               ) : (
                 streaming && i === msgs.length - 1 ? "…" : ""
               )}
+              {m.tokens && m.tokens.total ? (
+                <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                  ↑ {m.tokens.prompt} · ↓ {m.tokens.completion} tok
+                </div>
+              ) : null}
               {!streaming && m.role === "assistant" && i === msgs.length - 1 && (
                 <div className="row" style={{ gap: 6, marginTop: 8 }}>
                   <button className="btn sm" onClick={regenerate} title="Re-run the last turn">
@@ -747,6 +761,15 @@ export default function Chat() {
           ))}
           <div ref={bottomRef} />
         </div>
+        {(() => {
+          const p = msgs.reduce((a, m) => a + (m.tokens?.prompt || 0), 0);
+          const c = msgs.reduce((a, m) => a + (m.tokens?.completion || 0), 0);
+          return p + c > 0 ? (
+            <div className="muted" style={{ fontSize: 12, marginTop: 6, textAlign: "right" }}>
+              conversation total: ↑ {p} · ↓ {c} tok
+            </div>
+          ) : null;
+        })()}
         {pendingApproval && (
           <div
             className="card"
