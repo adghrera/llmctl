@@ -22,6 +22,14 @@ Built-in:
   binary; proxies a llama-server if one is on PATH, else echo mode.
 - **ollama / vllm / custom** — attach to servers you run yourself
   (OpenAI-compatible HTTP).
+- **gufo** — Gufo OpenAI-compatible engine for AMD Strix Halo
+  (`gufo serve llm --model …`). Launched as a process; readiness via `/ready`.
+  Installs the Windows zip from GitHub releases; on Linux it uses a `gufo`
+  already on PATH (gufo ships a `.deb`/nix/container there). Vars: `ctx`,
+  `servedName`.
+- **halogen** — attach to a Halogen flash server (OpenAI-compatible, AMD Strix
+  Halo; run via its container). Health via `/health`. Vars: `url`
+  (default `http://127.0.0.1:34950`).
 
 Plugins: drop a JSON descriptor in `~/.llmctl/plugins/` (or use the UI /
 `llmctl backends add`) — http or stdio transport, installed from a URL,

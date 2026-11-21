@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -25,6 +26,8 @@ func builtins() []Backend {
 		&llamaCppBackend{},
 		&ollamaBackend{},
 		&vllmBackend{},
+		&gufoBackend{},
+		&halogenBackend{},
 		&customBackend{},
 		&refStdioBackend{},
 	}
@@ -163,6 +166,113 @@ func (b *vllmBackend) Install(ctx context.Context, assetHint string, logf func(s
 }
 
 func (b *vllmBackend) Uninstall() error { return nil }
+
+// ---- gufo (http process, Strix Halo engine) --------------------------------
+
+type gufoBackend struct{}
+
+const gufoRepo = "gufo-org/gufo"
+
+func (b *gufoBackend) ID() string   { return "gufo" }
+func (b *gufoBackend) Name() string { return "Gufo" }
+func (b *gufoBackend) Description() string {
+	return "Gufo OpenAI-compatible engine (gufo serve llm) for AMD Strix Halo; GGUF over HTTP"
+}
+func (b *gufoBackend) Transport() string { return TransportHTTP }
+func (b *gufoBackend) Kind() string      { return KindProcess }
+
+func (b *gufoBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
+	bin, err := installedBinary("gufo", "gufo"+OSExt())
+	if err != nil {
+		// Not installed under the backend dir: fall back to a bare name so the
+		// OS PATH lookup finds a system gufo (installed via deb/nix/container).
+		if _, lookErr := exec.LookPath("gufo"); lookErr != nil {
+			return Spec{}, fmt.Errorf("gufo not found (run: llmctl backends install gufo, or install gufo and put it on PATH)")
+		}
+		bin = "gufo"
+	}
+	served := vars["servedName"]
+	if served == "" && m != nil {
+		served = m.ID
+	}
+	ctx := vars["ctx"]
+	if ctx == "" {
+		ctx = "4096"
+	}
+	args := []string{"serve", "--host", "127.0.0.1", "--port", "{port}", "llm", "--model", "{model}"}
+	if served != "" {
+		args = append(args, "--served-model-name", served)
+	}
+	args = append(args, "--context", ctx)
+	return Spec{
+		Kind: KindProcess, Transport: TransportHTTP,
+		Binary: bin, Args: args,
+		HealthPath: "/ready", HealthTimeoutS: 600,
+		APIBasePath: "/v1", StopGraceS: 15,
+	}, nil
+}
+
+func (b *gufoBackend) Health(inst *store.InstanceRecord) (HealthResult, error) {
+	return genericHealth(TransportHTTP, inst, "/ready", "/v1")
+}
+
+func (b *gufoBackend) Install(ctx context.Context, assetHint string, logf func(string)) (string, error) {
+	// gufo publishes a Windows zip and a Linux .deb. The zip installs directly;
+	// on Linux there is no archive asset, so fall back to a system gufo on PATH.
+	match := assetHint
+	if match == "" {
+		match = "windows-x86_64"
+	}
+	version, _, err := installer.InstallGitHubRelease(ctx, paths.BackendDir("gufo"), installer.GitHubRelease{
+		Repo: gufoRepo, BinaryName: "gufo",
+	}, match, logf)
+	if err == nil {
+		return version, nil
+	}
+	if _, lookErr := exec.LookPath("gufo"); lookErr == nil {
+		if logf != nil {
+			logf("no archive asset for this platform; using system gufo on PATH")
+		}
+		return "system", nil
+	}
+	return "", fmt.Errorf("gufo install failed (%v); on Linux install gufo via its .deb/nix package and put it on PATH, then retry", err)
+}
+
+func (b *gufoBackend) Uninstall() error { return os.RemoveAll(paths.BackendDir("gufo")) }
+
+// ---- halogen (http attach, Strix Halo flash server) ------------------------
+
+type halogenBackend struct{}
+
+func (b *halogenBackend) ID() string   { return "halogen" }
+func (b *halogenBackend) Name() string { return "Halogen" }
+func (b *halogenBackend) Description() string {
+	return "Attach to a Halogen flash server (OpenAI-compatible, AMD Strix Halo; run via container)"
+}
+func (b *halogenBackend) Transport() string { return TransportHTTP }
+func (b *halogenBackend) Kind() string      { return KindAttach }
+
+func (b *halogenBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
+	base := "http://127.0.0.1:34950"
+	if v := vars["url"]; v != "" {
+		base = v
+	}
+	return Spec{
+		Kind: KindAttach, Transport: TransportHTTP,
+		AttachURL: strings.TrimSuffix(base, "/"), HealthPath: "/health",
+		APIBasePath: "/v1", StopGraceS: 0,
+	}, nil
+}
+
+func (b *halogenBackend) Health(inst *store.InstanceRecord) (HealthResult, error) {
+	return genericHealth(TransportHTTP, inst, "/health", "/v1")
+}
+
+func (b *halogenBackend) Install(ctx context.Context, assetHint string, logf func(string)) (string, error) {
+	return "external", nil
+}
+
+func (b *halogenBackend) Uninstall() error { return nil }
 
 // ---- custom (http attach, user URL) ---------------------------------------
 
