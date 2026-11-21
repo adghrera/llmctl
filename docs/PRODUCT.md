@@ -107,7 +107,9 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   In agent mode an optional "Ask before tool calls" gate shows each pending
   tool call (name + arguments) inline and runs it only after you approve
   (F055). A collapsible "System prompt" editor sets a per-conversation
-  system prompt sent with every request (F063).
+  system prompt sent with every request (F063). The last reply can be
+  regenerated in place, and the last user message can be pulled back into
+  the input for editing and resending (F064).
 - **Structured output** — give a prompt and a JSON Schema; llmctl asks the
   model for JSON only, validates the reply against the schema and retries
   with the validation error appended until it matches (or gives up with the

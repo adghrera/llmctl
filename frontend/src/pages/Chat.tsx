@@ -278,8 +278,14 @@ export default function Chat() {
     const next: Msg[] = skillMsg
       ? [...msgs, skillMsg, fileMsg, kbMsg, userMsg].filter((m): m is Msg => m != null)
       : [...msgs, fileMsg, kbMsg, userMsg].filter((m): m is Msg => m != null);
-    setMsgs(next);
     setInput("");
+    await runStream(next);
+  };
+
+  // runStream streams one assistant turn over the given message list and
+  // persists the result. Shared by send() and regenerate() (F064).
+  const runStream = async (next: Msg[]) => {
+    setMsgs(next);
     setStreaming(true);
     const history: { role: string; content: string }[] = next.map((m) => ({ role: m.role, content: m.content }));
     if (systemPrompt.trim()) {
@@ -331,8 +337,32 @@ export default function Chat() {
     }
   };
 
-  const answerApproval = async (approve: boolean) => {
-    if (!pendingApproval) return;
+  // Regenerate: drop the trailing assistant reply and re-run the last turn (F064).
+  const regenerate = async () => {
+    if (streaming || !msgs.length) return;
+    const base = [...msgs];
+    if (base[base.length - 1]?.role === "assistant") base.pop();
+    if (!base.length || base[base.length - 1].role !== "user") {
+      err("nothing to regenerate");
+      return;
+    }
+    await runStream(base);
+  };
+
+  // Edit: pull the last user message back into the input box and drop it
+  // (plus the reply) from the conversation (F064).
+  const editLastUser = () => {
+    if (streaming || !msgs.length) return;
+    const base = [...msgs];
+    if (base[base.length - 1]?.role === "assistant") base.pop();
+    if (!base.length || base[base.length - 1].role !== "user") return;
+    const last = base.pop() as Msg;
+    setMsgs(base);
+    setInput(last.content);
+    if (base.length) persist(base);
+  };
+
+  const answerApproval = async (approve: boolean) => {    if (!pendingApproval) return;
     const { id } = pendingApproval;
     setPendingApproval(null);
     try {
@@ -341,6 +371,11 @@ export default function Chat() {
       err(e instanceof Error ? e.message : String(e));
     }
   };
+
+  const lastUserIdx = (() => {
+    for (let j = msgs.length - 1; j >= 0; j--) if (msgs[j].role === "user") return j;
+    return -1;
+  })();
 
   return (
     <>
@@ -673,6 +708,20 @@ export default function Chat() {
                 </div>
               )}
               {m.content || (streaming && i === msgs.length - 1 ? "…" : "")}
+              {!streaming && m.role === "assistant" && i === msgs.length - 1 && (
+                <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                  <button className="btn sm" onClick={regenerate} title="Re-run the last turn">
+                    ↻ Regenerate
+                  </button>
+                </div>
+              )}
+              {!streaming && m.role === "user" && i === lastUserIdx && (
+                <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                  <button className="btn sm" onClick={editLastUser} title="Move this message back into the input">
+                    ✎ Edit &amp; resend
+                  </button>
+                </div>
+              )}
             </div>
           ))}
           <div ref={bottomRef} />
