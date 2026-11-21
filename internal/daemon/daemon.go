@@ -152,7 +152,7 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
-	go schedulerLoop(ctx, sch, gw, logger)
+	go schedulerLoop(ctx, sch, sv, gw, logger)
 
 	// Auto-stop instances that have served no gateway request for a while.
 	go idleUnloadLoop(ctx, st, sv, gw, logger)
@@ -344,7 +344,7 @@ func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervi
 }
 
 // schedulerLoop runs scheduled tasks at their configured times.
-func schedulerLoop(ctx context.Context, sch *scheduler.Store, gw *proxy.Server, logger *slog.Logger) {
+func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, gw *proxy.Server, logger *slog.Logger) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
@@ -359,17 +359,18 @@ func schedulerLoop(ctx context.Context, sch *scheduler.Store, gw *proxy.Server, 
 				continue
 			}
 			for _, rec := range due {
-				go runScheduledTask(ctx, sch, rec, gw, logger)
+				go runScheduledTask(ctx, sch, sv, rec, gw, logger)
 			}
 		}
 	}
 }
 
-// runScheduledTask executes a single scheduled task by making a chat
-// completion request and saving the result as a new conversation. If the task
-// has a webhook_url, the outcome (ok/error) is POSTed there afterwards.
-func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.Record, gw *proxy.Server, logger *slog.Logger) {
-	content, err := doScheduledTask(ctx, sch, rec, logger)
+// runScheduledTask executes a single scheduled task. Chat tasks make a
+// completion request and save the result as a conversation; instance tasks
+// start or stop an instance (F076). If the task has a webhook_url, the
+// outcome (ok/error) is POSTed there afterwards.
+func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, gw *proxy.Server, logger *slog.Logger) {
+	content, err := doScheduledTask(ctx, sch, sv, rec, logger)
 	status := "ok"
 	errMsg := ""
 	if err != nil {
@@ -400,7 +401,30 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.R
 }
 
 // doScheduledTask runs the chat completion and saves the conversation.
-func doScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.Record, logger *slog.Logger) (string, error) {
+func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, logger *slog.Logger) (string, error) {
+	// Instance tasks: start/stop an instance instead of chatting (F076).
+	switch rec.Spec.KindOrDefault() {
+	case "instance.start":
+		id := rec.Spec.Instance
+		if id == "" {
+			id = rec.Spec.Model
+		}
+		inst, err := sv.Start(ctx, id, rec.Spec.Model, "", 0, nil)
+		if err != nil {
+			return "", fmt.Errorf("start instance %q: %w", id, err)
+		}
+		return fmt.Sprintf("instance %s started (port %d)", inst.ID, inst.Port), nil
+	case "instance.stop":
+		id := rec.Spec.Instance
+		if id == "" {
+			id = rec.Spec.Model
+		}
+		if err := sv.Stop(id, false); err != nil {
+			return "", fmt.Errorf("stop instance %q: %w", id, err)
+		}
+		return fmt.Sprintf("instance %s stopped", id), nil
+	}
+
 	// Build the chat request body.
 	body := map[string]any{
 		"model":    rec.Spec.Model,

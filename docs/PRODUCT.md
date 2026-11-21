@@ -191,10 +191,12 @@ toggle for a light theme (choice remembered). Tabs:
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
   GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
   tables showing token counts and estimated USD costs.
-- **Scheduled tasks** — schedule agent chat tasks to run at cron intervals.
-  Each scheduled task sends a prompt to the model and saves the result as a
-  new conversation. Optionally set a webhook URL: after every run llmctl
-  POSTs a JSON summary (status ok/error, response content or error) to it.
+- **Scheduled tasks** — cron-scheduled tasks of three kinds: `chat` (send a
+  prompt to a model, result saved as a conversation), `instance.start` and
+  `instance.stop` (start/stop an instance on schedule — e.g. load a model
+  every morning, unload it at night). Optionally set a webhook URL: after
+  every run llmctl POSTs a JSON summary (status ok/error, result or error)
+  to it.
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page.
 - **RAG knowledge bases** — create/delete/edit knowledge bases at

@@ -85,6 +85,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F073 | P2 | 73 | instances | Instance-event webhook | COMPLETED | `settings.notifyWebhook` receives a JSON POST (`{event, instance, model, time}`) when an instance crashes (stdio exit or reaped dead PID) or is idle-unloaded; clean stops stay silent. Editable on the Settings page. Verified e2e with a local hook receiver. |
 | F074 | P2 | 74 | gateway | Per-key token quotas + live cost data | COMPLETED | API keys accept `tokenQuota` (0 = unlimited); the gateway answers 429 `quota_exceeded` once a key's spent tokens (prompt+completion, since daemon start) reach it. Fixed the Cost page: `/api/v1/cost*` now read the gateway's live per-key/per-model token counters (previously an always-empty tracker). Keys page shows quota input at creation and a Used/quota column. |
 | F075 | P2 | 75 | instances | Full log download | COMPLETED | `GET /api/v1/instances/{id}/logs/download?stream=stdout\|stderr` serves the whole log file as an attachment; "Download" button next to Refresh in the log viewer. |
+| F076 | P2 | 76 | scheduler | Instance tasks | COMPLETED | Scheduled tasks gained `kind`: `chat` (existing prompt runs) plus `instance.start` (start a model on schedule) and `instance.stop` (stop an instance by id) — e.g. load a model every morning, unload at night. Kind-aware validation and a Kind column + selector in the Scheduler UI. Both kinds verified live with a `* * * * *` task. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

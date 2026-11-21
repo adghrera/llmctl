@@ -24,14 +24,24 @@ type Spec struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`
 	CronExpr   string    `json:"cron_expr"`             // cron expression (e.g. "0 9 * * *")
-	Model      string    `json:"model"`                 // model id to use
-	Prompt     string    `json:"prompt"`                // prompt to send
+	Kind       string    `json:"kind,omitempty"`        // "chat" (default) | "instance.start" | "instance.stop" (F076)
+	Model      string    `json:"model"`                 // model id to use (chat) or to start (instance.start)
+	Instance   string    `json:"instance,omitempty"`    // instance id for instance.stop (default: model id)
+	Prompt     string    `json:"prompt"`                // prompt to send (chat only)
 	Enabled    bool      `json:"enabled"`               // whether the task is active
 	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
 	LastRun    time.Time `json:"last_run"`              // last execution time
 	NextRun    time.Time `json:"next_run"`              // next scheduled execution
 	CreatedAt  time.Time `json:"created_at"`            // creation time
 	UpdatedAt  time.Time `json:"updated_at"`            // last update time
+}
+
+// NormalizeKind maps "" to the default task kind.
+func (sp Spec) KindOrDefault() string {
+	if sp.Kind == "" {
+		return "chat"
+	}
+	return sp.Kind
 }
 
 // Record is a task spec with its on-disk directory.
@@ -130,11 +140,24 @@ func (s *Store) Create(spec Spec) (*Record, error) {
 	if strings.TrimSpace(spec.CronExpr) == "" {
 		return nil, fmt.Errorf("schedule missing cron_expr")
 	}
-	if strings.TrimSpace(spec.Model) == "" {
-		return nil, fmt.Errorf("schedule missing model")
-	}
-	if strings.TrimSpace(spec.Prompt) == "" {
-		return nil, fmt.Errorf("schedule missing prompt")
+	switch spec.KindOrDefault() {
+	case "chat":
+		if strings.TrimSpace(spec.Model) == "" {
+			return nil, fmt.Errorf("schedule missing model")
+		}
+		if strings.TrimSpace(spec.Prompt) == "" {
+			return nil, fmt.Errorf("schedule missing prompt")
+		}
+	case "instance.start":
+		if strings.TrimSpace(spec.Model) == "" {
+			return nil, fmt.Errorf("schedule missing model")
+		}
+	case "instance.stop":
+		if strings.TrimSpace(spec.Instance) == "" && strings.TrimSpace(spec.Model) == "" {
+			return nil, fmt.Errorf("instance.stop needs instance or model")
+		}
+	default:
+		return nil, fmt.Errorf("unknown schedule kind %q", spec.Kind)
 	}
 	id := genID()
 	final := s.Dir(id)

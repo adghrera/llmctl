@@ -173,6 +173,8 @@ export interface ScheduleSpec {
   id: string;
   name: string;
   cron_expr: string;
+  kind?: string; // "chat" (default) | "instance.start" | "instance.stop"
+  instance?: string;
   model: string;
   prompt: string;
   enabled: boolean;
@@ -624,7 +626,7 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; model: string; prompt: string; webhook_url?: string }) =>
+  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; instance?: string; webhook_url?: string }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
   updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean; webhook_url?: string }) =>

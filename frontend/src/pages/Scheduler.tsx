@@ -6,6 +6,8 @@ export default function Scheduler() {
   const [schedules, setSchedules] = useState<ScheduleSpec[]>([]);
   const [name, setName] = useState("");
   const [cronExpr, setCronExpr] = useState("0 9 * * *");
+  const [kind, setKind] = useState("chat");
+  const [instance, setInstance] = useState("");
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -22,8 +24,20 @@ export default function Scheduler() {
   }, []);
 
   const create = async () => {
-    if (!name.trim() || !cronExpr.trim() || !model.trim() || !prompt.trim()) {
-      err("all fields are required");
+    if (!name.trim() || !cronExpr.trim()) {
+      err("name and cron are required");
+      return;
+    }
+    if (kind === "chat" && (!model.trim() || !prompt.trim())) {
+      err("chat tasks need a model and a prompt");
+      return;
+    }
+    if (kind === "instance.start" && !model.trim()) {
+      err("instance.start needs a model");
+      return;
+    }
+    if (kind === "instance.stop" && !instance.trim() && !model.trim()) {
+      err("instance.stop needs an instance id (or model id)");
       return;
     }
     setBusy(true);
@@ -31,8 +45,10 @@ export default function Scheduler() {
       await api.createSchedule({
         name,
         cron_expr: cronExpr,
+        kind,
         model,
-        prompt,
+        prompt: kind === "chat" ? prompt : "",
+        instance: instance.trim() || undefined,
         webhook_url: webhookUrl.trim() || undefined,
       });
       ok("schedule created");
@@ -40,6 +56,7 @@ export default function Scheduler() {
       setCronExpr("0 9 * * *");
       setModel("");
       setPrompt("");
+      setInstance("");
       setWebhookUrl("");
       await load();
     } catch (e) {
@@ -82,9 +99,9 @@ export default function Scheduler() {
       <div className="card">
         <h2>Scheduled Tasks</h2>
         <p style={{ opacity: 0.75, margin: "4px 0 10px" }}>
-          Schedule agent chat tasks to run at regular intervals using cron
-          expressions. Each run sends a prompt to the model and saves the
-          result as a new conversation.
+          Schedule tasks with cron expressions: send a prompt to a model
+          (result saved as a conversation), or start/stop an instance — e.g.
+          load a model every morning, unload it at night.
         </p>
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <input
@@ -99,18 +116,35 @@ export default function Scheduler() {
             value={cronExpr}
             onChange={(e) => setCronExpr(e.target.value)}
           />
-          <input
-            style={{ flex: 1, minWidth: 140 }}
-            placeholder="Model id"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-          />
-          <input
-            style={{ flex: 2, minWidth: 200 }}
-            placeholder="Prompt to send"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
+          <select value={kind} onChange={(e) => setKind(e.target.value)} style={{ minWidth: 130 }}>
+            <option value="chat">chat prompt</option>
+            <option value="instance.start">start instance</option>
+            <option value="instance.stop">stop instance</option>
+          </select>
+          {(kind === "chat" || kind === "instance.start") && (
+            <input
+              style={{ flex: 1, minWidth: 140 }}
+              placeholder={kind === "chat" ? "Model id" : "Model id to start"}
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+            />
+          )}
+          {kind === "instance.stop" && (
+            <input
+              style={{ flex: 1, minWidth: 140 }}
+              placeholder="Instance id to stop"
+              value={instance}
+              onChange={(e) => setInstance(e.target.value)}
+            />
+          )}
+          {kind === "chat" && (
+            <input
+              style={{ flex: 2, minWidth: 200 }}
+              placeholder="Prompt to send"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+          )}
           <input
             style={{ flex: 2, minWidth: 200 }}
             placeholder="Webhook URL (optional — POSTed result JSON on each run)"
@@ -123,8 +157,9 @@ export default function Scheduler() {
               busy ||
               !name.trim() ||
               !cronExpr.trim() ||
-              !model.trim() ||
-              !prompt.trim()
+              (kind === "chat" && (!model.trim() || !prompt.trim())) ||
+              (kind === "instance.start" && !model.trim()) ||
+              (kind === "instance.stop" && !instance.trim() && !model.trim())
             }
             onClick={create}
           >
@@ -146,6 +181,7 @@ export default function Scheduler() {
               <tr>
                 <th>Name</th>
                 <th>Cron</th>
+                <th>Kind</th>
                 <th>Model</th>
                 <th>Hook</th>
                 <th>Enabled</th>
@@ -161,6 +197,7 @@ export default function Scheduler() {
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>
                     {s.cron_expr}
                   </td>
+                  <td style={{ fontSize: 12 }}>{s.kind || "chat"}</td>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>
                     {s.model}
                   </td>
