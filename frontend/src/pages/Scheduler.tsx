@@ -8,6 +8,7 @@ export default function Scheduler() {
   const [cronExpr, setCronExpr] = useState("0 9 * * *");
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = () =>
@@ -27,12 +28,19 @@ export default function Scheduler() {
     }
     setBusy(true);
     try {
-      await api.createSchedule({ name, cron_expr: cronExpr, model, prompt });
+      await api.createSchedule({
+        name,
+        cron_expr: cronExpr,
+        model,
+        prompt,
+        webhook_url: webhookUrl.trim() || undefined,
+      });
       ok("schedule created");
       setName("");
       setCronExpr("0 9 * * *");
       setModel("");
       setPrompt("");
+      setWebhookUrl("");
       await load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -103,6 +111,12 @@ export default function Scheduler() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
+          <input
+            style={{ flex: 2, minWidth: 200 }}
+            placeholder="Webhook URL (optional — POSTed result JSON on each run)"
+            value={webhookUrl}
+            onChange={(e) => setWebhookUrl(e.target.value)}
+          />
           <button
             className="btn primary"
             disabled={
@@ -133,6 +147,7 @@ export default function Scheduler() {
                 <th>Name</th>
                 <th>Cron</th>
                 <th>Model</th>
+                <th>Hook</th>
                 <th>Enabled</th>
                 <th>Next Run</th>
                 <th>Last Run</th>
@@ -148,6 +163,13 @@ export default function Scheduler() {
                   </td>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>
                     {s.model}
+                  </td>
+                  <td style={{ textAlign: "center", fontSize: 12 }}>
+                    {s.webhook_url ? (
+                      <span title={s.webhook_url} className="badge ok">on</span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
                   </td>
                   <td style={{ textAlign: "center" }}>
                     <button className="btn sm" onClick={() => toggleEnabled(s)}>

@@ -35,6 +35,7 @@ import (
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
 	"llmctl/internal/ui"
+	"llmctl/internal/webhook"
 )
 
 // DaemonFile records where the running daemon listens.
@@ -293,8 +294,41 @@ func schedulerLoop(ctx context.Context, sch *scheduler.Store, gw *proxy.Server, 
 }
 
 // runScheduledTask executes a single scheduled task by making a chat
-// completion request and saving the result as a new conversation.
+// completion request and saving the result as a new conversation. If the task
+// has a webhook_url, the outcome (ok/error) is POSTed there afterwards.
 func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.Record, gw *proxy.Server, logger *slog.Logger) {
+	content, err := doScheduledTask(ctx, sch, rec, logger)
+	status := "ok"
+	errMsg := ""
+	if err != nil {
+		status = "error"
+		errMsg = err.Error()
+		logger.Error("scheduler: task failed", "task", rec.ID, "name", rec.Spec.Name, "error", err)
+	} else {
+		logger.Info("scheduler: task executed", "task", rec.ID, "name", rec.Spec.Name)
+	}
+	if rec.Spec.WebhookURL != "" {
+		payload := map[string]any{
+			"event":       "llmctl.scheduler.task",
+			"task_id":     rec.ID,
+			"task_name":   rec.Spec.Name,
+			"model":       rec.Spec.Model,
+			"status":      status,
+			"finished_at": time.Now().UTC().Format(time.RFC3339),
+		}
+		if status == "ok" {
+			payload["content"] = content
+		} else {
+			payload["error"] = errMsg
+		}
+		if werr := webhook.Post(ctx, rec.Spec.WebhookURL, payload); werr != nil {
+			logger.Error("scheduler: webhook failed", "task", rec.ID, "error", werr)
+		}
+	}
+}
+
+// doScheduledTask runs the chat completion and saves the conversation.
+func doScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.Record, logger *slog.Logger) (string, error) {
 	// Build the chat request body.
 	body := map[string]any{
 		"model":    rec.Spec.Model,
@@ -306,29 +340,25 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.R
 	// Use the daemon's own address to make the request.
 	cc, err := NewControlClient()
 	if err != nil {
-		logger.Error("scheduler: cannot create control client", "error", err)
-		return
+		return "", fmt.Errorf("cannot create control client: %w", err)
 	}
 
 	// Build the request URL.
 	req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", bytes.NewReader(b))
 	if err != nil {
-		logger.Error("scheduler: failed to create request", "error", err)
-		return
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := cc.hc.Do(req)
 	if err != nil {
-		logger.Error("scheduler: failed to execute task", "task", rec.ID, "error", err)
-		return
+		return "", fmt.Errorf("failed to execute task: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		logger.Error("scheduler: task execution failed", "task", rec.ID, "status", resp.StatusCode)
-		return
+		return "", fmt.Errorf("task execution failed: status %d", resp.StatusCode)
 	}
 
 	var result struct {
@@ -340,20 +370,18 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.R
 		} `json:"choices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		logger.Error("scheduler: failed to decode response", "task", rec.ID, "error", err)
-		return
+		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if len(result.Choices) == 0 {
-		logger.Error("scheduler: no response choices", "task", rec.ID)
-		return
+		return "", fmt.Errorf("no response choices")
 	}
 
 	assistantContent := result.Choices[0].Message.Content
 
 	// Save the conversation.
 	chatReq := map[string]any{
-		"model":    rec.Spec.Model,
+		"model": rec.Spec.Model,
 		"messages": []map[string]string{
 			{"role": "user", "content": rec.Spec.Prompt},
 			{"role": "assistant", "content": assistantContent},
@@ -363,14 +391,12 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, rec scheduler.R
 	chatReq2, _ := http.NewRequest(http.MethodPost, cc.Base+"/api/v1/chats", bytes.NewReader(chatB))
 	chatReq2.Header.Set("Content-Type", "application/json")
 	if _, err := cc.hc.Do(chatReq2); err != nil {
-		logger.Error("scheduler: failed to save conversation", "task", rec.ID, "error", err)
-		return
+		return "", fmt.Errorf("failed to save conversation: %w", err)
 	}
 
 	// Update next run time.
 	if err := sch.UpdateNextRun(rec.ID); err != nil {
 		logger.Error("scheduler: failed to update next run", "task", rec.ID, "error", err)
 	}
-
-	logger.Info("scheduler: task executed", "task", rec.ID, "name", rec.Spec.Name)
+	return assistantContent, nil
 }

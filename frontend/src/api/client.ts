@@ -175,6 +175,7 @@ export interface ScheduleSpec {
   model: string;
   prompt: string;
   enabled: boolean;
+  webhook_url?: string;
   last_run: string;
   next_run: string;
   created_at: string;
@@ -512,10 +513,10 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; model: string; prompt: string }) =>
+  createSchedule: (body: { name: string; cron_expr: string; model: string; prompt: string; webhook_url?: string }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
-  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean }) =>
+  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean; webhook_url?: string }) =>
     req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
   setScheduleEnabled: (id: string, enabled: boolean) =>

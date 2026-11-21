@@ -21,16 +21,17 @@ var safeID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
 
 // Spec is one scheduled task specification.
 type Spec struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	CronExpr    string    `json:"cron_expr"`    // cron expression (e.g. "0 9 * * *")
-	Model       string    `json:"model"`        // model id to use
-	Prompt      string    `json:"prompt"`       // prompt to send
-	Enabled     bool      `json:"enabled"`      // whether the task is active
-	LastRun     time.Time `json:"last_run"`     // last execution time
-	NextRun     time.Time `json:"next_run"`     // next scheduled execution
-	CreatedAt   time.Time `json:"created_at"`   // creation time
-	UpdatedAt   time.Time `json:"updated_at"`   // last update time
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	CronExpr   string    `json:"cron_expr"`             // cron expression (e.g. "0 9 * * *")
+	Model      string    `json:"model"`                 // model id to use
+	Prompt     string    `json:"prompt"`                // prompt to send
+	Enabled    bool      `json:"enabled"`               // whether the task is active
+	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
+	LastRun    time.Time `json:"last_run"`              // last execution time
+	NextRun    time.Time `json:"next_run"`              // next scheduled execution
+	CreatedAt  time.Time `json:"created_at"`            // creation time
+	UpdatedAt  time.Time `json:"updated_at"`            // last update time
 }
 
 // Record is a task spec with its on-disk directory.

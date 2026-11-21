@@ -158,7 +158,9 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   tables showing token counts and estimated USD costs.
 - **Scheduled tasks** — schedule agent chat tasks to run at cron intervals.
   Each scheduled task sends a prompt to the model and saves the result as a
-  new conversation. REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
+  new conversation. Optionally set a webhook URL: after every run llmctl
+  POSTs a JSON summary (status ok/error, response content or error) to it.
+  REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page.
 - **RAG knowledge bases** — create/delete/edit knowledge bases at
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove text
