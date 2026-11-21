@@ -211,8 +211,9 @@ toggle for a light theme (choice remembered). Tabs:
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).
 - **API Keys** — generate / list / revoke. Optional per-key token quota
-  (total prompt+completion tokens since daemon start); once spent, the
-  gateway returns 429 until the quota is raised. Keys page shows usage.
+  (total prompt+completion tokens); once spent, the gateway returns 429
+  until the quota is raised. Usage counters persist across restarts. Keys
+  page shows usage.
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each

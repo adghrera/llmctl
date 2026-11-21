@@ -645,5 +645,8 @@ func (s *Server) KeyUsage() map[string]KeyUsage { return s.collector.keyUsage() 
 // KeyTotalTokens exposes one key prefix's token total for quota checks (F074).
 func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
 
+// SeedKeyUsage restores per-key counters from persisted state at startup (F080).
+func (s *Server) SeedKeyUsage(usage map[string]KeyUsage) { s.collector.seedKeyUsage(usage) }
+
 // ModelUsage exposes per-model token totals with estimated cost (F074).
 func (s *Server) ModelUsage() map[string]KeyUsage { return s.collector.modelUsage() }

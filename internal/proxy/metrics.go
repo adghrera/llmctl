@@ -203,6 +203,24 @@ func (m *metricsCollector) keyTotalTokens(prefix string) int64 {
 	return c.TotalTok
 }
 
+// seedKeyUsage initializes per-key counters from persisted totals (F080).
+// Only keys without a live counter are seeded, so it is safe to call once at
+// startup before traffic flows.
+func (m *metricsCollector) seedKeyUsage(usage map[string]KeyUsage) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for k, u := range usage {
+		if m.keyCounters[k] == nil {
+			m.keyCounters[k] = &costCounter{
+				InputTok:  u.InputTok,
+				OutputTok: u.OutputTok,
+				TotalTok:  u.TotalTok,
+				Requests:  u.Requests,
+			}
+		}
+	}
+}
+
 // modelUsage snapshots per-model token totals with cost estimated from
 // the configured pricing.
 func (m *metricsCollector) modelUsage() map[string]KeyUsage {

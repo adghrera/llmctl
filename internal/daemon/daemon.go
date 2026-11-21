@@ -150,6 +150,16 @@ func Run(ctx context.Context, opts Options) error {
 	// Wire the key checker after mgmt is created (circular ref).
 	gw.SetKeyCheck(mgmt.KeyCheck)
 
+	// Restore per-key token counters so quotas (F074) survive restarts (F080).
+	if cur, err := st.Load(); err == nil && len(cur.KeyUsage) > 0 {
+		seed := make(map[string]proxy.KeyUsage, len(cur.KeyUsage))
+		for k, u := range cur.KeyUsage {
+			seed[k] = proxy.KeyUsage{InputTok: u.Input, OutputTok: u.Output, TotalTok: u.Total, Requests: u.Requests}
+		}
+		gw.SeedKeyUsage(seed)
+	}
+	go flushKeyUsageLoop(ctx, st, gw, logger)
+
 	// Initialize scheduler and start the scheduler loop.
 	sch, err := scheduler.Open()
 	if err != nil {
@@ -297,6 +307,40 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 	}
 	if err := webhook.Post(ctx, s.Settings.NotifyWebhook, payload); err != nil {
 		logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
+	}
+}
+
+// flushKeyUsageLoop periodically persists per-key token counters to the state
+// file so per-key quotas (F074) and usage views survive daemon restarts (F080).
+// A final flush runs on shutdown.
+func flushKeyUsageLoop(ctx context.Context, st *store.Store, gw *proxy.Server, logger *slog.Logger) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	flush := func() {
+		usage := gw.KeyUsage()
+		if len(usage) == 0 {
+			return
+		}
+		if err := st.Update(func(s *store.State) error {
+			s.KeyUsage = make(map[string]*store.KeyUsageRecord, len(usage))
+			for k, u := range usage {
+				s.KeyUsage[k] = &store.KeyUsageRecord{
+					Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests,
+				}
+			}
+			return nil
+		}); err != nil {
+			logger.Error("persist key usage failed", "error", err)
+		}
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			flush()
+			return
+		case <-ticker.C:
+			flush()
+		}
 	}
 }
 
