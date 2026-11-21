@@ -39,6 +39,7 @@ import (
 	"llmctl/internal/supervisor"
 	"llmctl/internal/websearch"
 	"llmctl/internal/downloader"
+	"llmctl/internal/mcp"
 )
 
 // Server is the management API.
@@ -60,6 +61,8 @@ type Server struct {
 	cost       *cost.Tracker       // token usage and cost tracking (F045)
 	sched      *scheduler.Store    // scheduled agent tasks (F046)
 	rag        *rag.Store          // knowledge bases for RAG (F047)
+	mcpSt      *mcp.Store          // MCP server configs (F054)
+	mcpReg     *mcp.Registry       // live MCP connections (F054)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
@@ -162,6 +165,12 @@ func (s *Server) Handler() http.Handler {
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
+	// MCP servers (F054)
+	m.HandleFunc("GET /api/v1/mcp", s.listMCPServers)
+	m.HandleFunc("POST /api/v1/mcp", s.createMCPServer)
+	m.HandleFunc("DELETE /api/v1/mcp/{id}", s.deleteMCPServer)
+	m.HandleFunc("POST /api/v1/mcp/{id}/enabled", s.setMCPEnabled)
+	m.HandleFunc("POST /api/v1/mcp/{id}/test", s.testMCPServer)
 	m.HandleFunc("GET /api/v1/backup", s.downloadBackup)
 	m.HandleFunc("POST /api/v1/restore", s.restoreBackup)
 	// Web search (keyless)

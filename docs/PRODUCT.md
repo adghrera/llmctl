@@ -114,6 +114,11 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   (container, no network, memory & PID caps) by default; a per-tool toggle
   opts out to host execution. List, enable/disable, test-run with args, and
   uninstall. Enabled tools join the agent's tool set in Chat.
+- **MCP servers** — add Model Context Protocol servers launched as local
+  processes (command + args). llmctl performs the MCP handshake, lists each
+  server's tools, and offers them to the agent as
+  `mcp:<server>:<tool>`. The MCP page supports add / enable / test (shows the
+  advertised tools) / delete. REST: /api/v1/mcp.
 - **Skills** — create reusable prompt templates invoked in chat via
   `/s.<short_name> <text>`. Each skill has a short name, display name,
   description, prompt template (with {{input}} and {{conversation}} placeholders),

@@ -115,6 +115,13 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		}
 		areq.ExtraToolsText = s.installedToolsPrompt(extra)
 	}
+	// MCP server tools (F054).
+	if mcpTools, mcpText := s.mcpAgentTools(r.Context()); len(mcpTools) > 0 {
+		for k, v := range mcpTools {
+			tools[k] = v
+		}
+		areq.ExtraToolsText += "\n" + mcpText
+	}
 	// Persistent memory (F040): search for relevant entries using the last
 	// user message as the query, and inject them as system context.
 	if s.memory != nil {

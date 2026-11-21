@@ -334,6 +334,21 @@ export interface GPUInfo {
   used_bytes: number;
 }
 
+export interface MCPServer {
+  id: string;
+  name: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  enabled: boolean;
+}
+
+export interface MCPToolDef {
+  name: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+}
+
 export interface Job {
   id: string;
   kind: string;
@@ -417,6 +432,14 @@ export const api = {
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
+  mcpServers: () => req<MCPServer[]>("/mcp"),
+  createMCPServer: (body: { name: string; command: string; args?: string[]; env?: Record<string, string> }) =>
+    req<MCPServer>("/mcp", { method: "POST", body: JSON.stringify(body) }),
+  deleteMCPServer: (id: string) => req<{ ok: boolean }>(`/mcp/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setMCPEnabled: (id: string, enabled: boolean) =>
+    req<MCPServer>(`/mcp/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
+  testMCPServer: (id: string) =>
+    req<{ tools: MCPToolDef[] }>(`/mcp/${encodeURIComponent(id)}/test`, { method: "POST" }),
   chats: () => req<ChatSummary[]>("/chats"),
   getChat: (id: string) => req<ChatConversation>(`/chats/${encodeURIComponent(id)}`),
   createChat: (c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>

@@ -14,6 +14,7 @@ import Files from "./pages/Files";
 import Cost from "./pages/Cost";
 import Scheduler from "./pages/Scheduler";
 import KnowledgeBases from "./pages/KnowledgeBases";
+import MCP from "./pages/MCP";
 import Usage from "./pages/Usage";
 import Keys from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
@@ -32,6 +33,7 @@ const NAV = [
   { to: "/prompts", label: "Prompts" },
   { to: "/files", label: "Files" },
   { to: "/knowledge-bases", label: "Knowledge Bases" },
+  { to: "/mcp", label: "MCP" },
   { to: "/cost", label: "Cost" },
   { to: "/scheduler", label: "Scheduler" },
   { to: "/usage", label: "Usage" },
@@ -73,6 +75,7 @@ export default function App() {
           <Route path="/cost" element={<Cost />} />
           <Route path="/scheduler" element={<Scheduler />} />
           <Route path="/knowledge-bases" element={<KnowledgeBases />} />
+          <Route path="/mcp" element={<MCP />} />
           <Route path="/usage" element={<Usage />} />
           <Route path="/keys" element={<Keys />} />
           <Route path="/settings" element={<SettingsPage />} />

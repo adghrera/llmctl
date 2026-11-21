@@ -66,6 +66,7 @@ management API and web UI — all on **one port**.
 | `internal/webhook` | Best-effort JSON POST to user URLs (15 s timeout, http(s) only). Used by the scheduler to notify on task completion (F059). |
 | `internal/gpu` | GPU/VRAM detection via `nvidia-smi` / `rocm-smi` (5 s timeout, best-effort). Backs `GET /api/v1/gpu` and the Overview GPU card (F050). |
 | `internal/extract` | Stdlib text extraction: DOCX (zip + XML walk) and best-effort PDF (FlateDecode streams + text operators). KB/Files uploads store extracted text so documents are RAG-searchable (F053). |
+| `internal/mcp` | Minimal MCP client: server configs at $LLMCTL_HOME/mcp/servers.json; stdio JSON-RPC 2.0 (initialize → tools/list → tools/call) with a lazy per-server connection cache. Agent tools appear as `mcp:<server>:<tool>` (F054). |
 | `internal/ui` | Embedded SPA (embed.FS). |
 | `internal/manifest` | Legacy v0.1 manifest (still used by nothing critical; slated for removal). |
 
