@@ -16,7 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"llmctl/internal/backup"
 	"llmctl/internal/daemon"
+	"llmctl/internal/paths"
 )
 
 const version = "0.2.0"
@@ -51,6 +53,10 @@ func main() {
 		err = cmdAutoStart(args)
 	case "chat":
 		err = cmdChat(args)
+	case "backup":
+		err = cmdBackup(args)
+	case "restore":
+		err = cmdRestore(args)
 	case "version", "--version", "-v":
 		fmt.Printf("llmctl %s\n", version)
 	case "help", "--help", "-h":
@@ -94,6 +100,8 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl chat [--model ID] [--key KEY]
+  llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
+  llmctl restore <file.tar.gz>    import a backup into the state dir
   llmctl version
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
@@ -804,4 +812,60 @@ func cmdChat(args []string) error {
 	}
 	outW.Flush()
 	return nil
+}
+
+// cmdBackup exports the llmctl state directory (config, chats, knowledge
+// bases, memory, skills, tools, scheduler, plugins) to a tar.gz file. Works
+// with the daemon stopped; heavy regenerable data (binaries, models, logs) is
+// excluded.
+func cmdBackup(args []string) error {
+	out := ""
+	if len(args) > 0 {
+		out = args[0]
+	}
+	if out == "" {
+		out = fmt.Sprintf("llmctl-backup-%s.tar.gz", time.Now().UTC().Format("20060102-150405"))
+	}
+	f, err := os.Create(out)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := backup.Create(f); err != nil {
+		os.Remove(out)
+		return err
+	}
+	st, _ := f.Stat()
+	fmt.Printf("backup written to %s (%s)\n", out, fmtSize(st.Size()))
+	return nil
+}
+
+// cmdRestore imports a tar.gz backup into the llmctl state directory.
+func cmdRestore(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: llmctl restore <file.tar.gz>")
+	}
+	f, err := os.Open(args[0])
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	n, err := backup.Restore(f)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("restored %d file(s) into %s\n", n, paths.Home())
+	return nil
+}
+
+func fmtSize(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GiB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
+	}
+	return fmt.Sprintf("%d B", n)
 }

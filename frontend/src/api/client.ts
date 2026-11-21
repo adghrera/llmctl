@@ -544,6 +544,15 @@ export const api = {
   settings: () => req<Settings>("/settings"),
   updateSettings: (body: { requireAuth?: boolean }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
+  restoreBackup: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fetch("/api/v1/restore", { method: "POST", body: fd }).then(async (r) => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((d as any).error || `restore failed (${r.status})`);
+      return d as { ok: boolean; files: number };
+    });
+  },
 };
 
 // Chat via the OpenAI gateway (streaming SSE). Returns an async iterator of

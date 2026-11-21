@@ -5,6 +5,8 @@ import { ok, err } from "../ui/toast";
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [busy, setBusy] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoreBusy, setRestoreBusy] = useState(false);
 
   useEffect(() => {
     api.settings().then(setSettings).catch(() => {});
@@ -22,6 +24,21 @@ export default function SettingsPage() {
       err(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const restore = async () => {
+    if (!restoreFile) return;
+    if (!window.confirm("Restore will overwrite current config, chats, knowledge bases, memory and more. Continue?")) return;
+    setRestoreBusy(true);
+    try {
+      const r = await api.restoreBackup(restoreFile);
+      ok(`restored ${r.files} file(s) — reload to see changes`);
+      setRestoreFile(null);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRestoreBusy(false);
     }
   };
 
@@ -47,6 +64,35 @@ export default function SettingsPage() {
               When OFF, no key is needed (anyone can use the gateway).
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Backup &amp; Restore</h2>
+        <p className="muted small" style={{ margin: "4px 0 12px" }}>
+          Backups bundle configuration, API keys, chats, knowledge bases,
+          memory, skills, tools, scheduler jobs and plugins into one archive.
+          Backend binaries, model files and logs are excluded (re-installable
+          / re-downloadable).
+        </p>
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+          <a className="btn primary" href="/api/v1/backup" download>
+            Download backup (.tar.gz)
+          </a>
+        </div>
+        <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            type="file"
+            accept=".tar.gz,.gz,application/gzip"
+            onChange={(e) => setRestoreFile(e.target.files?.[0] ?? null)}
+            disabled={restoreBusy}
+          />
+          <button className="btn danger" disabled={restoreBusy || !restoreFile} onClick={restore}>
+            {restoreBusy ? "Restoring…" : "Restore from file"}
+          </button>
+          {restoreFile && (
+            <span style={{ fontSize: 12, opacity: 0.7 }}>{restoreFile.name}</span>
+          )}
         </div>
       </div>
     </>

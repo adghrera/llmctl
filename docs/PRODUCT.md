@@ -168,6 +168,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).
 - **API Keys** — generate / list / revoke.
+- **Backup & Restore** — Settings page downloads the whole state (config,
+  keys, chats, knowledge bases, memory, skills, tools, scheduler, plugins) as
+  one .tar.gz and restores it back; also `llmctl backup [file]` /
+  `llmctl restore <file>` on the CLI. Binaries/models/logs are excluded.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
 survives the periodic UI re-render.
