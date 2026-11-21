@@ -50,6 +50,7 @@ type Conversation struct {
 	Title     string    `json:"title"`
 	Model     string    `json:"model,omitempty"`
 	AgentMode bool      `json:"agentMode,omitempty"`
+	System    string    `json:"system,omitempty"` // per-conversation system prompt (F063)
 	Messages  []Message `json:"messages"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

@@ -101,6 +101,19 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		Temperature: req.Temperature,
 		APIKey:      apiKey,
 	}
+	// Client-provided system messages (per-conversation system prompt, F063)
+	// merge into the agent's own system prompt instead of duplicating one.
+	var userSys []string
+	var kept []agent.Message
+	for _, m := range req.Messages {
+		if m.Role == "system" {
+			userSys = append(userSys, m.Content)
+			continue
+		}
+		kept = append(kept, m)
+	}
+	areq.Messages = kept
+	userSystemText := strings.Join(userSys, "\n\n")
 	// Look up the model's context window for auto-compaction (F030).
 	if req.Model != "" && s.store != nil {
 		if st, err := s.store.Load(); err == nil {
@@ -126,7 +139,7 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 	// Persistent memory (F040): search for relevant entries using the last
 	// user message as the query, and inject them as system context.
 	if s.memory != nil {
-		ms := req.Messages
+		ms := areq.Messages
 		if len(ms) > 0 {
 			last := ms[len(ms)-1]
 			if last.Role == "user" {
@@ -136,6 +149,9 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+	if userSystemText != "" {
+		areq.ExtraToolsText += "\nUser system instructions:\n" + userSystemText
 	}
 
 	w.Header().Set("Content-Type", "text/event-stream")

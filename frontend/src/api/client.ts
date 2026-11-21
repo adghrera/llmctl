@@ -280,6 +280,7 @@ export interface ChatConversation {
   title: string;
   model?: string;
   agentMode?: boolean;
+  system?: string;
   messages: ChatMessage[];
   createdAt: string;
   updatedAt: string;
@@ -501,9 +502,9 @@ export const api = {
     req<{ tools: MCPToolDef[] }>(`/mcp/${encodeURIComponent(id)}/test`, { method: "POST" }),
   chats: () => req<ChatSummary[]>("/chats"),
   getChat: (id: string) => req<ChatConversation>(`/chats/${encodeURIComponent(id)}`),
-  createChat: (c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
+  createChat: (c: { title?: string; model?: string; agentMode?: boolean; system?: string; messages: unknown[] }) =>
     req<ChatConversation>("/chats", { method: "POST", body: JSON.stringify(c) }),
-  saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
+  saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; system?: string; messages: unknown[] }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
   forkChat: (id: string, body: { forkAt: number; title?: string }) =>

@@ -156,6 +156,9 @@ func exportChatMarkdown(c *chatstore.Conversation) string {
 	b.WriteString("# " + c.Title + "\n\n")
 	b.WriteString("**Model:** " + c.Model + "\n")
 	b.WriteString("**Agent mode:** " + fmt.Sprintf("%v", c.AgentMode) + "\n")
+	if strings.TrimSpace(c.System) != "" {
+		b.WriteString("**System prompt:** " + c.System + "\n")
+	}
 	b.WriteString("**Created:** " + c.CreatedAt.Format("2006-01-02 15:04:05") + "\n")
 	b.WriteString("**Updated:** " + c.UpdatedAt.Format("2006-01-02 15:04:05") + "\n\n")
 	b.WriteString("---\n\n")

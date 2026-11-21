@@ -24,6 +24,7 @@ export default function Chat() {
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
   const [pendingApproval, setPendingApproval] = useState<{ id: string; name: string; query: string } | null>(null);
+  const [systemPrompt, setSystemPrompt] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -83,6 +84,7 @@ export default function Chat() {
     const payload = {
       model,
       agentMode,
+      system: systemPrompt.trim() || undefined,
       messages: messages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -114,6 +116,7 @@ export default function Chat() {
     setMsgs([]);
     setConvId(null);
     setInput("");
+    setSystemPrompt("");
   };
 
   const openChat = async (id: string) => {
@@ -136,6 +139,7 @@ export default function Chat() {
       setConvId(c.id);
       if (c.model) setModel(c.model);
       if (typeof c.agentMode === "boolean") setAgentMode(c.agentMode);
+      setSystemPrompt(c.system || "");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     }
@@ -277,7 +281,10 @@ export default function Chat() {
     setMsgs(next);
     setInput("");
     setStreaming(true);
-    const history = next.map((m) => ({ role: m.role, content: m.content }));
+    const history: { role: string; content: string }[] = next.map((m) => ({ role: m.role, content: m.content }));
+    if (systemPrompt.trim()) {
+      history.unshift({ role: "system", content: systemPrompt.trim() });
+    }
     let acc = "";
     const tools: AgentToolEvent[] = [];
     try {
@@ -567,6 +574,18 @@ export default function Chat() {
               </select>
             )}
           </div>
+          <details style={{ alignSelf: "stretch", marginTop: 8 }}>
+            <summary className="muted" style={{ cursor: "pointer", fontSize: 13 }}>
+              System prompt{systemPrompt.trim() ? " (set)" : ""}
+            </summary>
+            <textarea
+              rows={3}
+              style={{ width: "100%", marginTop: 6, fontSize: 12 }}
+              placeholder="Optional per-conversation system prompt, sent with every request"
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+            />
+          </details>
         </div>
         {agentMode && (
           <p className="muted small" style={{ marginTop: 8 }}>
