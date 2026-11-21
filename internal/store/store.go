@@ -126,7 +126,7 @@ type State struct {
 	AutoStart map[string]*AutoStartSpec    `json:"autoStart,omitempty"` // keyed by model id
 	Presets   map[string]*PresetSpec       `json:"presets,omitempty"`   // keyed by preset name
 	Aliases   map[string]string            `json:"aliases,omitempty"`   // gateway alias -> model id (F065)
-	KeyUsage  map[string]*KeyUsageRecord   `json:"keyUsage,omitempty"`  // per key prefix, flushed periodically (F080)
+	KeyUsage  map[string]*KeyUsageRecord `json:"keyUsage,omitempty"`  // per key prefix, flushed periodically (F080)
 }
 
 // KeyUsageRecord is the persisted token usage for one API key prefix, so
