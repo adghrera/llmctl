@@ -97,7 +97,8 @@ GitHub release, or file list. No recompile.
 - Per-client rate limit + global in-flight cap.
 
 ### Web UI
-Embedded SPA (no CDN deps — works offline). Tabs:
+Embedded SPA (no CDN deps — works offline). Dark by default with a header
+toggle for a light theme (choice remembered). Tabs:
 - **Overview** — status counts, detected GPUs with VRAM usage, running
   instances, active jobs.
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).

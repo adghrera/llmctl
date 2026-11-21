@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>llmctl</title>
+    <script>
+      // apply saved theme before first paint (F069)
+      try {
+        var t = localStorage.getItem("llmctl.theme");
+        if (t === "light") document.documentElement.dataset.theme = "light";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

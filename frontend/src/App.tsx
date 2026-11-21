@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useStore } from "./state/store";
 import Overview from "./pages/Overview";
@@ -49,6 +50,17 @@ const NAV = [
 
 export default function App() {
   const { status } = useStore();
+  const [light, setLight] = useState(() => document.documentElement.dataset.theme === "light");
+
+  const toggleTheme = () => {
+    const next = !light;
+    setLight(next);
+    if (next) document.documentElement.dataset.theme = "light";
+    else delete document.documentElement.dataset.theme;
+    try {
+      localStorage.setItem("llmctl.theme", next ? "light" : "dark");
+    } catch (e) { /* private mode */ }
+  };
 
   return (
     <>
@@ -57,6 +69,14 @@ export default function App() {
           llm<span>ctl</span>
         </div>
         <div className="gw">{status ? `gateway ${status.gateway}` : ""}</div>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 12 }}
+          title={light ? "Switch to dark theme" : "Switch to light theme"}
+          onClick={toggleTheme}
+        >
+          {light ? "🌙" : "☀️"}
+        </button>
       </header>
       <nav>
         {NAV.map((n) => (

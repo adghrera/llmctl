@@ -11,6 +11,18 @@
   --err: #f85149;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+:root[data-theme="light"] {
+  --bg: #f2f4f8;
+  --panel: #ffffff;
+  --panel2: #e7ebf0;
+  --border: #d0d7de;
+  --fg: #1f2328;
+  --muted: #59636e;
+  --accent: #0969da;
+  --accent2: #1a7f37;
+  --warn: #9a6700;
+  --err: #cf222e;
+}
 * { box-sizing: border-box; }
 body {
   margin: 0;
