@@ -351,6 +351,11 @@ export interface MCPToolDef {
   inputSchema?: Record<string, unknown>;
 }
 
+export interface ModelAlias {
+  alias: string;
+  model: string;
+}
+
 export interface BatchResult {
   prompt: string;
   content?: string;
@@ -453,6 +458,11 @@ export const api = {
   metrics: () => req<GatewayMetrics>("/metrics"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   requests: (limit = 100) => req<RequestLogEntry[]>(`/requests?limit=${limit}`),
+  aliases: () => req<ModelAlias[]>("/aliases"),
+  createAlias: (alias: string, model: string) =>
+    req<ModelAlias>("/aliases", { method: "POST", body: JSON.stringify({ alias, model }) }),
+  deleteAlias: (alias: string) =>
+    req<{ ok: boolean }>(`/aliases/${encodeURIComponent(alias)}`, { method: "DELETE" }),
   batch: (
     key: string,
     body: { model: string; prompts: string[]; system?: string; maxTokens?: number; concurrency?: number }

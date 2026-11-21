@@ -103,6 +103,9 @@ func (s *Server) Handler() http.Handler {
 	// Auto-start specs
 	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
 	m.HandleFunc("GET /api/v1/presets", s.listPresets)
+	m.HandleFunc("GET /api/v1/aliases", s.listAliases)
+	m.HandleFunc("POST /api/v1/aliases", s.createAlias)
+	m.HandleFunc("DELETE /api/v1/aliases/{alias}", s.deleteAlias)
 	m.HandleFunc("GET /api/v1/tools", s.listTools)
 	m.HandleFunc("POST /api/v1/tools/install", s.installTool)
 	m.HandleFunc("POST /api/v1/tools/{id}/enabled", s.setToolEnabled)

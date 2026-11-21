@@ -98,6 +98,8 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   instances, active jobs.
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
+  Aliases map stable names (e.g. `chat`) to model ids so gateway clients
+  survive model swaps; the gateway advertises them in /v1/models.
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Each message carries estimated

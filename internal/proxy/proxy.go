@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -286,6 +287,19 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 				seen[m] = true
 				data = append(data, modelObj{m, "model", "llmctl"})
 			}
+		}
+	}
+	// Gateway aliases resolve on any request, so advertise them too (F065).
+	aliases := s.router.Aliases()
+	names := make([]string, 0, len(aliases))
+	for a := range aliases {
+		names = append(names, a)
+	}
+	sort.Strings(names)
+	for _, a := range names {
+		if !seen[a] {
+			seen[a] = true
+			data = append(data, modelObj{a, "model", "llmctl-alias"})
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})

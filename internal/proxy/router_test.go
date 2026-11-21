@@ -54,3 +54,31 @@ func TestRouterSkipsStoppedReplicas(t *testing.T) {
 		}
 	}
 }
+
+func TestRouterAliasResolution(t *testing.T) {
+	st := &store.State{
+		Backends: map[string]*store.BackendRecord{},
+		Models:   map[string]*store.ModelRecord{},
+		Instances: map[string]*store.InstanceRecord{
+			"a": {ID: "a", ModelID: "big-model", BackendID: "fake", Port: 1001, Status: store.StatusRunning, APIBasePath: "/v1"},
+		},
+		Aliases: map[string]string{"chat": "big-model"},
+	}
+	rt := NewRouter(func() (*store.State, int64, error) { return st, 1, nil }, nil)
+
+	tgt, err := rt.Resolve("chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tgt.InstanceID != "a" {
+		t.Fatalf("alias resolved to %s, want a", tgt.InstanceID)
+	}
+	// Case-insensitive alias lookup.
+	if _, err := rt.Resolve("Chat"); err != nil {
+		t.Fatalf("case-insensitive alias failed: %v", err)
+	}
+	// Unknown alias still falls through to normal matching (and fails).
+	if _, err := rt.Resolve("nope"); err == nil {
+		t.Fatal("expected error for unknown model")
+	}
+}

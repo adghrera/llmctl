@@ -119,6 +119,7 @@ type State struct {
 	Settings  *Settings                    `json:"settings"`
 	AutoStart map[string]*AutoStartSpec    `json:"autoStart,omitempty"` // keyed by model id
 	Presets   map[string]*PresetSpec       `json:"presets,omitempty"`   // keyed by preset name
+	Aliases   map[string]string            `json:"aliases,omitempty"`   // gateway alias -> model id (F065)
 }
 
 func newState() *State {
@@ -128,6 +129,7 @@ func newState() *State {
 		Instances: map[string]*InstanceRecord{},
 		APIKeys:   map[string]*APIKeyRecord{},
 		Settings:  &Settings{RequireAuth: true},
+		Aliases:   map[string]string{},
 	}
 }
 

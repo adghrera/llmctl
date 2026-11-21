@@ -80,6 +80,19 @@ func (rt *Router) RunningInstances() []*store.InstanceRecord {
 	return out
 }
 
+// Aliases returns the gateway alias -> model id map (F065).
+func (rt *Router) Aliases() map[string]string {
+	st, err := rt.state()
+	if err != nil {
+		return nil
+	}
+	out := make(map[string]string, len(st.Aliases))
+	for k, v := range st.Aliases {
+		out[k] = v
+	}
+	return out
+}
+
 // nextReplica rotates through matches round-robin, keyed by model id.
 func (rt *Router) nextReplica(key string, matches []*store.InstanceRecord) *store.InstanceRecord {
 	if len(matches) == 1 {
@@ -97,9 +110,17 @@ func (rt *Router) nextReplica(key string, matches []*store.InstanceRecord) *stor
 }
 
 // Resolve maps a requested model name to an upstream target.
-// Matching order: exact model id match (round-robin over replicas) >
-// prefix match > single running instance as default when model is empty.
+// Matching order: alias (one hop, F065) > exact model id match (round-robin
+// over replicas) > prefix match > single running instance as default when
+// model is empty.
 func (rt *Router) Resolve(model string) (*Target, error) {
+	if model != "" {
+		if st, err := rt.state(); err == nil {
+			if target, ok := st.Aliases[strings.ToLower(model)]; ok && strings.TrimSpace(target) != "" {
+				model = target
+			}
+		}
+	}
 	insts := rt.RunningInstances()
 	if len(insts) == 0 {
 		return nil, ErrNoRunning

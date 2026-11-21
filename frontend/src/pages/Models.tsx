@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type CatalogEntry, type ModelMetadata } from "../api/client";
+import { api, type CatalogEntry, type ModelMetadata, type ModelAlias } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -397,6 +397,102 @@ export default function Models() {
           )}
         </div>
       )}
+      <AliasesCard />
     </>
+  );
+}
+
+function AliasesCard() {
+  const { models } = useStore();
+  const [aliases, setAliases] = useState<ModelAlias[]>([]);
+  const [alias, setAlias] = useState("");
+  const [target, setTarget] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.aliases().then(setAliases).catch(() => {});
+  useEffect(() => {
+    load();
+  }, []);
+
+  const add = async () => {
+    if (!alias.trim() || !target) {
+      err("alias and model are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.createAlias(alias.trim().toLowerCase(), target);
+      ok(`alias "${alias.trim().toLowerCase()}" → ${target}`);
+      setAlias("");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (a: string) => {
+    try {
+      await api.deleteAlias(a);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <div className="card">
+      <h2>Aliases</h2>
+      <p className="muted small" style={{ margin: "4px 0 12px" }}>
+        Stable gateway names: send <span className="mono">model="chat"</span> and the
+        gateway routes to the mapped model id, so clients survive model swaps.
+      </p>
+      <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <input
+          placeholder="alias (e.g. chat)"
+          value={alias}
+          onChange={(e) => setAlias(e.target.value)}
+          style={{ width: 160 }}
+        />
+        <select value={target} onChange={(e) => setTarget(e.target.value)}>
+          <option value="">— model —</option>
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.id}
+            </option>
+          ))}
+        </select>
+        <button className="btn primary" disabled={busy} onClick={add}>
+          Add alias
+        </button>
+      </div>
+      {aliases.length === 0 ? (
+        <div className="empty">no aliases configured</div>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Alias</th>
+              <th>Model</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {aliases.map((a) => (
+              <tr key={a.alias}>
+                <td className="mono">{a.alias}</td>
+                <td className="mono">{a.model}</td>
+                <td style={{ textAlign: "right" }}>
+                  <button className="btn sm danger" onClick={() => remove(a.alias)}>
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
