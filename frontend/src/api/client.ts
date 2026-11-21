@@ -42,6 +42,7 @@ export interface Instance {
   attached: boolean;
   pid: number;
   startedAt: string;
+  lastUsed?: string;
   vars?: Record<string, string>;
   lastError?: string;
 }
@@ -369,6 +370,7 @@ export interface ApiKey {
 
 export interface Settings {
   requireAuth: boolean;
+  idleUnloadMin: number;
 }
 
 export class ApiError extends Error {
@@ -597,7 +599,7 @@ export const api = {
     req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, { method: "POST", body: JSON.stringify({ name }) }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   restoreBackup: (file: File) => {
     const fd = new FormData();

@@ -83,6 +83,10 @@ type Settings struct {
 	// When false, no key is needed (anyone can use the gateway).
 	// When true, a valid Bearer token is required for all /v1/* endpoints.
 	RequireAuth bool `json:"requireAuth"`
+	// IdleUnloadMin auto-stops running instances that have served no gateway
+	// request for this many minutes (0 = disabled). VRAM relief for hosts
+	// that host many models but use few (F060).
+	IdleUnloadMin int `json:"idleUnloadMin"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

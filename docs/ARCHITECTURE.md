@@ -41,7 +41,7 @@ management API and web UI — all on **one port**.
 | Package | Responsibility |
 |---------|----------------|
 | `cmd/llmctl` | CLI. `up` runs the daemon; everything else is a thin client over /api/v1. |
-| `internal/daemon` | Wires gateway + management API + UI onto one listener; daemon.json; signal handling. |
+| `internal/daemon` | Wires gateway + management API + UI onto one listener; daemon.json; signal handling; scheduler loop; idle-unload loop stops instances with no gateway traffic for `settings.idleUnloadMin` minutes (skipped while requests are in flight) (F060). |
 | `internal/proxy` | OpenAI gateway: auth (hashed keys, constant-time), per-client token bucket, in-flight cap, model→instance router, HTTP reverse proxy (FlushInterval -1), stdio translator. |
 | `internal/api` | Management API handlers; job submission; HF search/files proxy; key management (sha256 hashes only). |
 | `internal/chatstore` | Persisted chat conversations as one JSON file per chat under $LLMCTL_HOME/chats/ (atomic writes, safe 16-hex IDs). REST: GET/POST/GET/PUT/DELETE /api/v1/chats, GET /api/v1/chats/search?q= for full-text search, POST /api/v1/chats/{id}/fork to branch a conversation at any message index (F039). |

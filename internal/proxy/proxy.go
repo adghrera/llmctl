@@ -127,6 +127,15 @@ func (s *Server) Metrics() map[string]any {
 	return snap
 }
 
+// ModelLastUsed returns when the gateway last completed a request for the
+// given model (zero time if never). Used by the idle-unload loop (F060).
+func (s *Server) ModelLastUsed(model string) time.Time {
+	return s.collector.lastUsedAt(model)
+}
+
+// InFlight returns the number of requests currently being served.
+func (s *Server) InFlight() int64 { return s.inflight.Load() }
+
 // ListenAndServe blocks serving until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	ln, err := net.Listen("tcp", s.addr)

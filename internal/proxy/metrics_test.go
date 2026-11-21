@@ -136,3 +136,25 @@ func TestScanUsage(t *testing.T) {
 		t.Fatalf("scanUsageJSON no-usage = (%d,%d), want (0,0)", p, c)
 	}
 }
+
+func TestModelLastUsed(t *testing.T) {
+	fake := usageSrv(t)
+	defer fake.Close()
+	srv := newTestServer(t, portOf(fake.URL), nil)
+
+	if !srv.ModelLastUsed("test-model").IsZero() {
+		t.Fatal("lastUsed should be zero before any request")
+	}
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"test-model","messages":[]}`))
+	rec := httptest.NewRecorder()
+	srv.testHandler().ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if srv.ModelLastUsed("test-model").IsZero() {
+		t.Fatal("lastUsed not recorded after request")
+	}
+	if !srv.ModelLastUsed("other-model").IsZero() {
+		t.Fatal("unrelated model should stay zero")
+	}
+}

@@ -26,6 +26,8 @@ type metricsCollector struct {
 	byStatus map[string]int64    // "2xx", "4xx", ...
 	byModel  map[string]*modelMt // per requested model
 
+	lastUsed map[string]time.Time // last gateway request completion per model
+
 	keyCounters map[string]*costCounter // per API key prefix
 	pricing     map[string]cost.ModelPricing
 }
@@ -55,6 +57,7 @@ func newMetricsCollector() *metricsCollector {
 	return &metricsCollector{
 		byStatus:    map[string]int64{},
 		byModel:     map[string]*modelMt{},
+		lastUsed:    map[string]time.Time{},
 		keyCounters: map[string]*costCounter{},
 		pricing:     make(map[string]cost.ModelPricing),
 	}
@@ -88,6 +91,9 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 	if mm == nil {
 		mm = &modelMt{}
 		m.byModel[model] = mm
+	}
+	if model != "" {
+		m.lastUsed[model] = time.Now()
 	}
 	mm.reqs++
 	if status >= 400 {
@@ -145,6 +151,13 @@ func statusClass(status int) string {
 	default:
 		return "1xx"
 	}
+}
+
+// lastUsedAt returns the last recorded request time for a model (zero if none).
+func (m *metricsCollector) lastUsedAt(model string) time.Time {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lastUsed[model]
 }
 
 // Snapshot renders the current metrics as JSON-ready maps.

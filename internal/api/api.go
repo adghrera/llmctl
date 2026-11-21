@@ -574,6 +574,7 @@ type instanceView struct {
 	Attached  bool              `json:"attached"`
 	PID       int               `json:"pid"`
 	StartedAt time.Time         `json:"startedAt"`
+	LastUsed  time.Time         `json:"lastUsed,omitempty"` // last gateway request (F060)
 	Vars      map[string]string `json:"vars,omitempty"`
 	LastError string            `json:"lastError,omitempty"`
 }
@@ -583,12 +584,16 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 	out := []instanceView{}
 	for _, id := range st.SortedInstanceIDs() {
 		i := st.Instances[id]
-		out = append(out, instanceView{
+		v := instanceView{
 			ID: i.ID, ModelID: i.ModelID, BackendID: i.BackendID,
 			Transport: i.Transport, Port: i.Port, Status: i.Status,
 			Attached: i.Attached, PID: i.PID, StartedAt: i.StartedAt,
 			Vars: i.Vars, LastError: i.LastError,
-		})
+		}
+		if s.gw != nil {
+			v.LastUsed = s.gw.ModelLastUsed(i.ModelID)
+		}
+		out = append(out, v)
 	}
 	writeJSON(w, 200, out)
 }
@@ -954,18 +959,21 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 // ---- settings ----
 
 type settingsView struct {
-	RequireAuth bool `json:"requireAuth"`
+	RequireAuth   bool `json:"requireAuth"`
+	IdleUnloadMin int  `json:"idleUnloadMin"`
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
-		RequireAuth: st.Settings.RequireAuth,
+		RequireAuth:   st.Settings.RequireAuth,
+		IdleUnloadMin: st.Settings.IdleUnloadMin,
 	})
 }
 
 type updateSettingsReq struct {
-	RequireAuth *bool `json:"requireAuth"`
+	RequireAuth   *bool `json:"requireAuth"`
+	IdleUnloadMin *int  `json:"idleUnloadMin"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -974,9 +982,16 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "invalid request body")
 		return
 	}
+	if req.IdleUnloadMin != nil && *req.IdleUnloadMin < 0 {
+		writeErr(w, 400, "idleUnloadMin must be >= 0")
+		return
+	}
 	s.store.Update(func(st *store.State) error {
 		if req.RequireAuth != nil {
 			st.Settings.RequireAuth = *req.RequireAuth
+		}
+		if req.IdleUnloadMin != nil {
+			st.Settings.IdleUnloadMin = *req.IdleUnloadMin
 		}
 		return nil
 	})
@@ -987,7 +1002,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	// Return updated settings.
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
-		RequireAuth: st.Settings.RequireAuth,
+		RequireAuth:   st.Settings.RequireAuth,
+		IdleUnloadMin: st.Settings.IdleUnloadMin,
 	})
 }
 

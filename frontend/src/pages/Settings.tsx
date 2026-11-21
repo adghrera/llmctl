@@ -4,12 +4,16 @@ import { ok, err } from "../ui/toast";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [idleMin, setIdleMin] = useState(0);
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
 
   useEffect(() => {
-    api.settings().then(setSettings).catch(() => {});
+    api.settings().then((s) => {
+      setSettings(s);
+      setIdleMin(s.idleUnloadMin || 0);
+    }).catch(() => {});
   }, []);
 
   const toggle = async (key: "requireAuth") => {
@@ -20,6 +24,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ [key]: val });
       setSettings(r);
       ok(`${key} ${val ? "enabled" : "disabled"}`);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveIdle = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ idleUnloadMin: idleMin });
+      setSettings(r);
+      ok(r.idleUnloadMin > 0 ? `instances auto-stop after ${r.idleUnloadMin} min idle` : "idle auto-unload disabled");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -62,6 +80,28 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               When ON, all /v1/* endpoints require Authorization: Bearer.
               When OFF, no key is needed (anyone can use the gateway).
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Idle auto-unload</h3>
+              <div className="spacer" />
+              <input
+                type="number"
+                min={0}
+                max={1440}
+                style={{ width: 90 }}
+                value={idleMin}
+                onChange={(e) => setIdleMin(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <span className="muted small">minutes</span>
+              <button className="btn primary" disabled={busy} onClick={saveIdle}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Running instances that serve no gateway request for this many
+              minutes are stopped automatically (frees VRAM). 0 disables it.
             </p>
           </div>
         </div>

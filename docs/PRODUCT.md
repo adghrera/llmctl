@@ -184,6 +184,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).
 - **API Keys** — generate / list / revoke.
+- **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
+  running instances that serve no gateway request for that long are stopped
+  automatically, freeing VRAM for other models. Instances page shows each
+  instance's last-used time.
 - **Backup & Restore** — Settings page downloads the whole state (config,
   keys, chats, knowledge bases, memory, skills, tools, scheduler, plugins) as
   one .tar.gz and restores it back; also `llmctl backup [file]` /

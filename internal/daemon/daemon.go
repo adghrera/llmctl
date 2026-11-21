@@ -154,6 +154,9 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	go schedulerLoop(ctx, sch, gw, logger)
 
+	// Auto-stop instances that have served no gateway request for a while.
+	go idleUnloadLoop(ctx, st, sv, gw, logger)
+
 	// One mux: gateway + management API + UI.
 	root := http.NewServeMux()
 	root.Handle("/api/v1/", mgmt.Handler())
@@ -269,6 +272,50 @@ func (cc *ControlClient) Get(path string) (int, []byte, error) {
 
 func (cc *ControlClient) Delete(path string) (int, []byte, error) {
 	return cc.Do(http.MethodDelete, path, nil)
+}
+
+// idleUnloadLoop stops running instances that have served no gateway request
+// for Settings.IdleUnloadMin minutes (0 = disabled). A tick is skipped while
+// any request is in flight so long generations are never cut off (F060).
+func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervisor, gw *proxy.Server, logger *slog.Logger) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+
+		state, err := st.Load()
+		if err != nil || state.Settings == nil || state.Settings.IdleUnloadMin <= 0 {
+			continue
+		}
+		if gw.InFlight() > 0 {
+			continue
+		}
+		idle := time.Duration(state.Settings.IdleUnloadMin) * time.Minute
+		now := time.Now()
+		for _, id := range state.SortedInstanceIDs() {
+			inst := state.Instances[id]
+			if inst.Status != store.StatusRunning {
+				continue
+			}
+			last := gw.ModelLastUsed(inst.ModelID)
+			if last.IsZero() {
+				last = inst.StartedAt
+			}
+			if now.Sub(last) < idle {
+				continue
+			}
+			logger.Info("idle unload: stopping instance", "instance", id, "model", inst.ModelID,
+				"idleFor", now.Sub(last).Round(time.Second), "limitMin", state.Settings.IdleUnloadMin)
+			if err := sv.Stop(id, false); err != nil {
+				logger.Error("idle unload: stop failed", "instance", id, "error", err)
+			}
+		}
+	}
 }
 
 // schedulerLoop runs scheduled tasks at their configured times.

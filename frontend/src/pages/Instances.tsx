@@ -313,6 +313,7 @@ export default function Instances() {
                 <th>Transport</th>
                 <th>Port</th>
                 <th>Status</th>
+                <th>Last used</th>
                 <th />
               </tr>
             </thead>
@@ -334,6 +335,9 @@ export default function Instances() {
                     ) : (
                       <span className="badge">{i.status}</span>
                     )}
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {i.lastUsed ? new Date(i.lastUsed).toLocaleTimeString() : "—"}
                   </td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
