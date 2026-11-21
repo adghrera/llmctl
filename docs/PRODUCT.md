@@ -95,6 +95,8 @@ GitHub release, or file list. No recompile.
 - `GET /healthz`
 - OpenAI error envelope; 401/404/429/502/503 semantics.
 - Per-client rate limit + global in-flight cap.
+- Replicas of one model are load-balanced round-robin, and a replica whose
+  connection fails is retried on the next replica automatically (F070).
 
 ### Web UI
 Embedded SPA (no CDN deps — works offline). Dark by default with a header
@@ -237,5 +239,4 @@ llmctl version
 - Prefer stdio IPC for backends that support it; HTTP otherwise.
 
 ## Not yet (see docs/PLAN.md)
-Docker image, per-key quotas, model replicas, curated catalog,
-WebSocket passthrough, log viewer, auto-start, metrics.
+Docker image, per-key quotas, curated catalog.

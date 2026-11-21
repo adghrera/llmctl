@@ -34,6 +34,39 @@ func TestRouterRoundRobinReplicas(t *testing.T) {
 	}
 }
 
+func TestRouterResolveListFailoverOrder(t *testing.T) {
+	st := &store.State{
+		Backends: map[string]*store.BackendRecord{},
+		Models:   map[string]*store.ModelRecord{},
+		Instances: map[string]*store.InstanceRecord{
+			"a": {ID: "a", ModelID: "m", BackendID: "fake", Port: 1001, Status: store.StatusRunning, APIBasePath: "/v1"},
+			"b": {ID: "b", ModelID: "m", BackendID: "fake", Port: 1002, Status: store.StatusRunning, APIBasePath: "/v1"},
+			"c": {ID: "c", ModelID: "m", BackendID: "fake", Port: 1003, Status: store.StatusStopped, APIBasePath: "/v1"},
+		},
+	}
+	rt := NewRouter(func() (*store.State, int64, error) { return st, 1, nil }, nil)
+	// Every list must contain both running replicas and never the stopped one,
+	// with the first entry rotating across requests (F070).
+	firsts := map[string]int{}
+	for i := 0; i < 6; i++ {
+		ts, err := rt.ResolveList("m")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(ts) != 2 {
+			t.Fatalf("got %d targets, want 2", len(ts))
+		}
+		ids := map[string]bool{ts[0].InstanceID: true, ts[1].InstanceID: true}
+		if ids["c"] || !ids["a"] || !ids["b"] {
+			t.Fatalf("bad replica set: %v, %v", ts[0].InstanceID, ts[1].InstanceID)
+		}
+		firsts[ts[0].InstanceID]++
+	}
+	if firsts["a"] == 0 || firsts["b"] == 0 {
+		t.Fatalf("starting replica never rotated: %v", firsts)
+	}
+}
+
 func TestRouterSkipsStoppedReplicas(t *testing.T) {
 	st := &store.State{
 		Backends: map[string]*store.BackendRecord{},

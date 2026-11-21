@@ -93,27 +93,22 @@ func (rt *Router) Aliases() map[string]string {
 	return out
 }
 
-// nextReplica rotates through matches round-robin, keyed by model id.
-func (rt *Router) nextReplica(key string, matches []*store.InstanceRecord) *store.InstanceRecord {
-	if len(matches) == 1 {
-		return matches[0]
-	}
-	rt.rrMu.Lock()
-	counter := rt.rrCount[key]
-	if counter == nil {
-		counter = &atomic.Uint64{}
-		rt.rrCount[key] = counter
-	}
-	rt.rrMu.Unlock()
-	idx := counter.Add(1) % uint64(len(matches))
-	return matches[idx]
-}
-
 // Resolve maps a requested model name to an upstream target.
 // Matching order: alias (one hop, F065) > exact model id match (round-robin
 // over replicas) > prefix match > single running instance as default when
 // model is empty.
 func (rt *Router) Resolve(model string) (*Target, error) {
+	targets, err := rt.ResolveList(model)
+	if err != nil {
+		return nil, err
+	}
+	return targets[0], nil
+}
+
+// ResolveList returns every matching target, best first (F070 failover).
+// The round-robin rotation picks the starting replica; the rest follow in
+// wrap-around order so a failed request can try the next replica.
+func (rt *Router) ResolveList(model string) ([]*Target, error) {
 	if model != "" {
 		if st, err := rt.state(); err == nil {
 			if target, ok := st.Aliases[strings.ToLower(model)]; ok && strings.TrimSpace(target) != "" {
@@ -126,33 +121,25 @@ func (rt *Router) Resolve(model string) (*Target, error) {
 		return nil, ErrNoRunning
 	}
 
-	var chosen *store.InstanceRecord
+	var matches []*store.InstanceRecord
 	if model != "" {
-		var exact []*store.InstanceRecord
 		for _, inst := range insts {
 			if strings.EqualFold(inst.ModelID, model) {
-				exact = append(exact, inst)
+				matches = append(matches, inst)
 			}
 		}
-		if len(exact) > 0 {
-			chosen = rt.nextReplica(strings.ToLower(model), exact)
-		}
-		if chosen == nil {
-			var prefix []*store.InstanceRecord
+		if len(matches) == 0 {
 			for _, inst := range insts {
 				if strings.HasPrefix(strings.ToLower(model), strings.ToLower(inst.ModelID)) {
-					prefix = append(prefix, inst)
+					matches = append(matches, inst)
 				}
-			}
-			if len(prefix) > 0 {
-				chosen = rt.nextReplica("prefix:"+strings.ToLower(model), prefix)
 			}
 		}
 	}
-	if chosen == nil && len(insts) == 1 && model == "" {
-		chosen = insts[0]
+	if len(matches) == 0 && len(insts) == 1 && model == "" {
+		matches = insts
 	}
-	if chosen == nil {
+	if len(matches) == 0 {
 		avail := make([]string, 0, len(insts))
 		for _, i := range insts {
 			avail = append(avail, i.ModelID)
@@ -160,7 +147,36 @@ func (rt *Router) Resolve(model string) (*Target, error) {
 		sort.Strings(avail)
 		return nil, fmt.Errorf("model %q not served by any running instance (available: %s)", model, strings.Join(avail, ", "))
 	}
-	return targetFor(chosen, rt.sessionFor)
+
+	// Rotate so replicas take turns being tried first.
+	key := strings.ToLower(model)
+	if len(matches) > 1 {
+		rt.rrMu.Lock()
+		counter := rt.rrCount[key]
+		if counter == nil {
+			counter = &atomic.Uint64{}
+			rt.rrCount[key] = counter
+		}
+		rt.rrMu.Unlock()
+		start := int(counter.Add(1) % uint64(len(matches)))
+		rotated := make([]*store.InstanceRecord, 0, len(matches))
+		rotated = append(rotated, matches[start:]...)
+		rotated = append(rotated, matches[:start]...)
+		matches = rotated
+	}
+
+	targets := make([]*Target, 0, len(matches))
+	for _, inst := range matches {
+		t, err := targetFor(inst, rt.sessionFor)
+		if err != nil {
+			continue // skip instances that cannot produce a target
+		}
+		targets = append(targets, t)
+	}
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("no usable target for model %q", model)
+	}
+	return targets, nil
 }
 
 func targetFor(inst *store.InstanceRecord, sessionFor func(string) *stdio.Session) (*Target, error) {

@@ -79,6 +79,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F067 | P2 | 67 | chat | Markdown rendering + copy button | COMPLETED | Chat messages render through a tiny built-in markdown renderer (`frontend/src/md.ts`, no deps, XSS-safe: input fully escaped; fenced code, headings, lists, http(s) links, bold/italic/code spans; 14 node tests). Hover a message for a ⧉ copy button (clipboard). |
 | F068 | P2 | 68 | gateway | Request log CSV export | COMPLETED | "Export CSV" button on the Requests page downloads the current request-log ring as a CSV file (proper quoting/escaping, ISO timestamps). Pure client-side generation from GET /api/v1/requests. |
 | F069 | P2 | 69 | ui | Light/dark theme toggle | COMPLETED | Header ☀️/🌙 button switches the whole UI between the default dark palette and a light one (CSS-variable override `:root[data-theme=light]`). Choice persists in localStorage and is applied pre-paint by a tiny inline script in index.html. |
+| F070 | P2 | 70 | gateway | Replica failover | COMPLETED | When an HTTP upstream fails at the connection level (before any response bytes), the gateway retries the next replica of the same model (`Router.ResolveList` returns all running replicas, rotated round-robin; `startedWriter` guards against retrying a half-written response). All-fail → 502. Verified e2e: with one of two replicas killed, every request still succeeds via the survivor; SSE streaming unaffected. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

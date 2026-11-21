@@ -329,18 +329,61 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 		ref.Stream = peek.Stream
 	}
 
-	target, err := s.router.Resolve(peek.Model)
+	targets, err := s.router.ResolveList(peek.Model)
 	if err != nil {
 		status, code := routeError(err)
 		writeErr(w, status, code, err.Error())
 		return
 	}
 
-	if target.Transport == "stdio" {
-		s.proxyStdio(w, r, target, body, path, peek.Stream)
+	if targets[0].Transport == "stdio" {
+		s.proxyStdio(w, r, targets[0], body, path, peek.Stream)
 		return
 	}
 
+	// HTTP: try replicas in order; on a connection-level failure before any
+	// response bytes were written, fall over to the next replica (F070).
+	var lastErr error
+	for i, target := range targets {
+		t := target
+		upErr := s.proxyHTTP(w, r, body, t, path)
+		if upErr == nil {
+			return
+		}
+		lastErr = upErr
+		if i == len(targets)-1 {
+			break
+		}
+		s.logger.Warn("upstream failed, failing over", "instance", t.InstanceID,
+			"next", targets[i+1].InstanceID, "err", upErr)
+	}
+	writeErr(w, http.StatusBadGateway, "api_error",
+		fmt.Sprintf("no upstream could serve the request: %v", lastErr))
+}
+
+// startedWriter records whether any response bytes reached the client, so
+// the failover loop only retries truly untouched requests.
+type startedWriter struct {
+	http.ResponseWriter
+	started bool
+}
+
+func (w *startedWriter) WriteHeader(code int) { w.started = true; w.ResponseWriter.WriteHeader(code) }
+func (w *startedWriter) Write(b []byte) (int, error) {
+	w.started = true
+	return w.ResponseWriter.Write(b)
+}
+func (w *startedWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// proxyHTTP reverse-proxies one attempt at target; it returns the upstream
+// error if the connection failed before the response started, else nil.
+func (s *Server) proxyHTTP(w http.ResponseWriter, r *http.Request, body []byte, target *Target, path string) error {
+	var upErr error
+	rw := &startedWriter{ResponseWriter: w}
 	rp := &httputil.ReverseProxy{
 		FlushInterval: -1, // flush every chunk: required for SSE token streaming
 		Rewrite: func(pr *httputil.ProxyRequest) {
@@ -353,15 +396,21 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 			pr.SetXForwarded()
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, e error) {
-			s.logger.Warn("upstream error", "instance", target.InstanceID, "err", e)
-			writeErr(w, http.StatusBadGateway, "api_error",
-				fmt.Sprintf("upstream instance %q unavailable: %v", target.InstanceID, e))
+			upErr = e
 		},
 	}
 	// Restore the peeked body on the outbound request.
 	r.Body = io.NopCloser(strings.NewReader(string(body)))
 	r.ContentLength = int64(len(body))
-	rp.ServeHTTP(w, r)
+	rp.ServeHTTP(rw, r)
+	if upErr != nil {
+		s.logger.Warn("upstream error", "instance", target.InstanceID, "err", upErr)
+		if rw.started {
+			return nil // response already in flight; nothing to retry
+		}
+		return upErr
+	}
+	return nil
 }
 
 // proxyStdio translates an OpenAI request into a llmctl-stdio/1 call and
