@@ -99,6 +99,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/instances", s.listInstances)
 	m.HandleFunc("POST /api/v1/instances", s.startInstance)
 	m.HandleFunc("DELETE /api/v1/instances/{id}", s.stopInstance)
+	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	// Auto-start specs
 	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
@@ -711,6 +712,40 @@ func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// restartInstance handles POST /api/v1/instances/{id}/restart — stop and
+// relaunch a running instance with the same id, port and vars (F066).
+func (s *Server) restartInstance(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, err := s.store.Load()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	inst, ok := st.Instances[id]
+	if !ok {
+		writeErr(w, 404, "no instance "+id)
+		return
+	}
+	if inst.Attached {
+		writeErr(w, 409, "attached instances mirror an external server; restart that server instead")
+		return
+	}
+	if inst.Status != store.StatusRunning {
+		writeErr(w, 409, "instance is not running")
+		return
+	}
+	if err := s.sv.Stop(id, false); err != nil {
+		writeErr(w, 409, err.Error())
+		return
+	}
+	fresh, err := s.sv.Start(r.Context(), id, inst.ModelID, inst.BackendID, inst.Port, inst.Vars)
+	if err != nil {
+		writeErr(w, 500, "stopped, but restart failed: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, fresh)
 }
 
 // ---- auto-start specs ----

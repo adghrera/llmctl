@@ -453,6 +453,8 @@ export const api = {
   startInstance: (body: { model: string; backend?: string; instance?: string; port?: number; vars?: Record<string, string> }) =>
     req<Instance>("/instances", { method: "POST", body: JSON.stringify(body) }),
   stopInstance: (id: string) => req<{ ok: boolean }>(`/instances/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  restartInstance: (id: string) =>
+    req<Instance>(`/instances/${encodeURIComponent(id)}/restart`, { method: "POST" }),
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),

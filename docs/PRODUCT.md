@@ -54,6 +54,9 @@ GitHub release, or file list. No recompile.
 - Per-instance parameters: ctx, ngl (GPU layers), parallel slots, threads,
   url (attach backends).
 - Health-gated startup; crashed instances are reaped and marked stopped.
+- One-click restart (UI or `POST /api/v1/instances/{id}/restart`) relaunches a
+  managed instance with the same id, port and vars; attached instances are
+  rejected (restart the external server instead).
 - Logs per instance under `~/.llmctl/logs/<instance>/`.
 
 ### API keys
@@ -79,6 +82,7 @@ GitHub release, or file list. No recompile.
 | `GET /api/v1/instances` | list instances |
 | `POST /api/v1/instances` | start instance (model, backend, vars) |
 | `DELETE /api/v1/instances/{id}` | stop instance |
+| `POST /api/v1/instances/{id}/restart` | stop + relaunch with same id/port/vars (managed only) |
 | `GET /api/v1/jobs` | job list |
 | `GET /api/v1/jobs/events` | SSE job progress stream |
 | `GET /api/v1/keys` / `POST /api/v1/keys` / `DELETE /api/v1/keys/{id}` | API keys |

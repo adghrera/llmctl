@@ -47,7 +47,7 @@ management API and web UI — all on **one port**.
 | `internal/chatstore` | Persisted chat conversations as one JSON file per chat under $LLMCTL_HOME/chats/ (atomic writes, safe 16-hex IDs). REST: GET/POST/GET/PUT/DELETE /api/v1/chats, GET /api/v1/chats/search?q= for full-text search, POST /api/v1/chats/{id}/fork to branch a conversation at any message index (F039). |
 | `internal/backend` | Pluggable backend system: `Backend` interface, Registry (built-ins + JSON plugins), installers (GitHub release / URL / files). Built-ins: llama.cpp, ollama, vllm, gufo (Strix Halo engine, http-process), halogen (Strix Halo flash server, http-attach), container (launch any OpenAI-compatible image via docker/podman, http-process), custom, ref-stdio. |
 | `internal/stdio` | llmctl-stdio/1 protocol: Session (read loop, id-correlated pending map), Launch (spawn + pipes + hello wait). |
-| `internal/supervisor` | Instance lifecycle: start (http/stdio/attach), health wait, stop, reap loop, in-memory stdio session map. |
+| `internal/supervisor` | Instance lifecycle: start (http/stdio/attach), health wait, stop, restart (stop + relaunch with same id/port/vars, F066), reap loop, in-memory stdio session map. |
 | `internal/jobs` | Background job tracking + SSE event fan-out. |
 | `internal/downloader` | Resumable (HTTP Range) downloads, sha256, HF resolve/catalog. |
 | `internal/installer` | Backend binary install: GitHub release asset resolution (scans releases list, OS-token filtering), zip/tar.gz extract, direct URL. |

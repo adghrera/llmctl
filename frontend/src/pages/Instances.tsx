@@ -90,6 +90,19 @@ export default function Instances() {
     }
   };
 
+  const restart = async (id: string) => {
+    setBusy(id);
+    try {
+      await api.restartInstance(id);
+      ok(`restarted ${id}`);
+      await refreshOne("instances");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const readyModels = models.filter((m) => m.downloaded);
 
   // ---- saved instance configs (presets) ----
@@ -344,13 +357,25 @@ export default function Instances() {
                       Logs
                     </button>
                     {i.status === "running" || i.status === "starting" ? (
-                      <button
-                        className="btn sm danger"
-                        disabled={busy === i.id}
-                        onClick={() => stop(i.id)}
-                      >
-                        Stop
-                      </button>
+                      <>
+                        {i.status === "running" && !i.attached && (
+                          <button
+                            className="btn sm"
+                            style={{ marginRight: 6 }}
+                            disabled={busy === i.id}
+                            onClick={() => restart(i.id)}
+                          >
+                            Restart
+                          </button>
+                        )}
+                        <button
+                          className="btn sm danger"
+                          disabled={busy === i.id}
+                          onClick={() => stop(i.id)}
+                        >
+                          Stop
+                        </button>
+                      </>
                     ) : (
                       <button className="btn sm" disabled={busy === i.id} onClick={() => stop(i.id)}>
                         Clear
