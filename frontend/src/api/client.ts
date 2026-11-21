@@ -350,6 +350,17 @@ export interface MCPToolDef {
   inputSchema?: Record<string, unknown>;
 }
 
+export interface RequestLogEntry {
+  time: string;
+  model?: string;
+  key?: string;
+  status: number;
+  latencyMs: number;
+  promptTok: number;
+  compTok: number;
+  stream?: boolean;
+}
+
 export interface Job {
   id: string;
   kind: string;
@@ -434,6 +445,7 @@ export const api = {
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
+  requests: (limit = 100) => req<RequestLogEntry[]>(`/requests?limit=${limit}`),
   agentApprove: (id: string, approve: boolean) =>
     req<{ ok: boolean }>("/agent/approve", { method: "POST", body: JSON.stringify({ id, approve }) }),
   structured: (

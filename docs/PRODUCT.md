@@ -115,6 +115,8 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
   totals, request counts, per-model latency percentiles (p50/p95), and
   per-conversation context percentage.
+- **Requests** — the last 256 gateway requests (time, model, key, status,
+  latency, tokens) in an auto-refreshing table. REST: GET /api/v1/requests.
 - **Tools** — install agent tools from a URL (.zip) or a local folder
   (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python
   `def run(args)` entry). Tools run inside the llm-sandbox framework

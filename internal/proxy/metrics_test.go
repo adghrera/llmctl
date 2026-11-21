@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // usageSrv is an OpenAI-compat fake that always includes usage fields
@@ -156,5 +157,42 @@ func TestModelLastUsed(t *testing.T) {
 	}
 	if !srv.ModelLastUsed("other-model").IsZero() {
 		t.Fatal("unrelated model should stay zero")
+	}
+}
+
+func TestRequestLogRing(t *testing.T) {
+	l := &requestLog{}
+	for i := 0; i < requestLogSize+10; i++ {
+		l.add(RequestLogEntry{Time: time.Unix(int64(i), 0), Model: "m"})
+	}
+	got := l.recent(0)
+	if len(got) != requestLogSize {
+		t.Fatalf("ring size = %d, want %d", len(got), requestLogSize)
+	}
+	if !got[0].Time.After(got[1].Time) {
+		t.Fatal("expected newest first")
+	}
+	if got[0].Time.Unix() != int64(requestLogSize+9) {
+		t.Fatalf("newest = %d", got[0].Time.Unix())
+	}
+	if len(l.recent(5)) != 5 {
+		t.Fatal("limit not applied")
+	}
+}
+
+func TestRecentRequestsViaGateway(t *testing.T) {
+	fake := usageSrv(t)
+	defer fake.Close()
+	srv := newTestServer(t, portOf(fake.URL), nil)
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"model":"test-model","messages":[]}`))
+	rec := httptest.NewRecorder()
+	srv.testHandler().ServeHTTP(rec, req)
+	got := srv.RecentRequests(10)
+	if len(got) == 0 {
+		t.Fatal("no request log entries")
+	}
+	e := got[0]
+	if e.Model != "test-model" || e.Status != 200 || e.PromptTok != 10 || e.CompTok != 5 {
+		t.Fatalf("entry = %+v", e)
 	}
 }

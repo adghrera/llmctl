@@ -27,6 +27,7 @@ type metricsCollector struct {
 	byModel  map[string]*modelMt // per requested model
 
 	lastUsed map[string]time.Time // last gateway request completion per model
+	reqLog   *requestLog          // recent-requests ring (F061)
 
 	keyCounters map[string]*costCounter // per API key prefix
 	pricing     map[string]cost.ModelPricing
@@ -58,6 +59,7 @@ func newMetricsCollector() *metricsCollector {
 		byStatus:    map[string]int64{},
 		byModel:     map[string]*modelMt{},
 		lastUsed:    map[string]time.Time{},
+		reqLog:      &requestLog{},
 		keyCounters: map[string]*costCounter{},
 		pricing:     make(map[string]cost.ModelPricing),
 	}
@@ -126,6 +128,18 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 		kc.UpdatedAt = time.Now().UTC()
 		kc.mu.Unlock()
 	}
+
+	// Recent-requests ring (F061).
+	m.reqLog.add(RequestLogEntry{
+		Time:      time.Now(),
+		Model:     model,
+		Key:       key,
+		Status:    status,
+		LatencyMs: latencyMs,
+		PromptTok: pTok,
+		CompTok:   cTok,
+		Stream:    stream,
+	})
 
 	// Reservoir sample latencies so memory stays bounded.
 	if len(m.latSamples) < reservoirSize {

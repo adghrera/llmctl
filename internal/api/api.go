@@ -176,6 +176,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/restore", s.restoreBackup)
 	m.HandleFunc("POST /api/v1/agent/approve", s.approveToolCall)
 	m.HandleFunc("POST /api/v1/structured", s.structured)
+	m.HandleFunc("GET /api/v1/requests", s.recentRequests)
 	// Web search (keyless)
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
 	m.HandleFunc("GET /api/v1/chats", s.listChats)
@@ -765,6 +766,22 @@ func (s *Server) metricsSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, s.gw.Metrics())
+}
+
+// recentRequests handles GET /api/v1/requests?limit=N — the ring of recent
+// gateway requests (newest first, max 256 kept) (F061).
+func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if s.gw == nil {
+		writeJSON(w, 200, []proxy.RequestLogEntry{})
+		return
+	}
+	writeJSON(w, 200, s.gw.RecentRequests(limit))
 }
 
 // instanceLogs returns the tail of an instance's stderr.log (and optionally

@@ -136,6 +136,12 @@ func (s *Server) ModelLastUsed(model string) time.Time {
 // InFlight returns the number of requests currently being served.
 func (s *Server) InFlight() int64 { return s.inflight.Load() }
 
+// RecentRequests returns up to n of the most recent gateway requests,
+// newest first (n <= 0 = all kept, max 256).
+func (s *Server) RecentRequests(n int) []RequestLogEntry {
+	return s.collector.reqLog.recent(n)
+}
+
 // ListenAndServe blocks serving until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	ln, err := net.Listen("tcp", s.addr)
