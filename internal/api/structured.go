@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,7 +105,7 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	var lastErr string
 	var lastRaw string
 	for attempt := 1; attempt <= req.MaxRetries+1; attempt++ {
-		content, err := s.gatewayChat(r, req.Model, req.APIKey, messages)
+		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, 0)
 		if err != nil {
 			writeErr(w, 502, err.Error())
 			return
@@ -141,14 +142,19 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// gatewayChat performs one non-streaming chat completion against the gateway.
-func (s *Server) gatewayChat(r *http.Request, model, key string, messages []chatMsg) (string, error) {
-	body, _ := json.Marshal(map[string]any{
+// gatewayChat performs one non-streaming chat completion against the
+// gateway in-process. maxTokens <= 0 means backend default.
+func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []chatMsg, maxTokens int) (string, error) {
+	bodyMap := map[string]any{
 		"model":    model,
 		"messages": messages,
 		"stream":   false,
-	})
-	req, err := http.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	}
+	if maxTokens > 0 {
+		bodyMap["max_tokens"] = maxTokens
+	}
+	body, _ := json.Marshal(bodyMap)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}

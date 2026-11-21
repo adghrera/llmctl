@@ -111,6 +111,9 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   model for JSON only, validates the reply against the schema and retries
   with the validation error appended until it matches (or gives up with the
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page.
+- **Batch inference** — paste prompts (one per line) and run them all
+  concurrently through the gateway; per-prompt results and errors in input
+  order. REST: POST /api/v1/batch. Dedicated Batch page.
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
   totals, request counts, per-model latency percentiles (p50/p95), and

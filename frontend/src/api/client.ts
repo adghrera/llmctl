@@ -350,6 +350,12 @@ export interface MCPToolDef {
   inputSchema?: Record<string, unknown>;
 }
 
+export interface BatchResult {
+  prompt: string;
+  content?: string;
+  error?: string;
+}
+
 export interface RequestLogEntry {
   time: string;
   model?: string;
@@ -446,6 +452,22 @@ export const api = {
   metrics: () => req<GatewayMetrics>("/metrics"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   requests: (limit = 100) => req<RequestLogEntry[]>(`/requests?limit=${limit}`),
+  batch: (
+    key: string,
+    body: { model: string; prompts: string[]; system?: string; maxTokens?: number; concurrency?: number }
+  ) =>
+    fetch("/api/v1/batch", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      body: JSON.stringify(body),
+    }).then(async (r) => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((d as any).error || `batch failed (${r.status})`);
+      return d as { ok: number; failed: number; concurrency: number; results: BatchResult[] };
+    }),
   agentApprove: (id: string, approve: boolean) =>
     req<{ ok: boolean }>("/agent/approve", { method: "POST", body: JSON.stringify({ id, approve }) }),
   structured: (
