@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
+import { renderMd } from "../md";
 
 interface Msg {
   role: "user" | "assistant";
@@ -684,7 +685,23 @@ export default function Chat() {
           )}
           {msgs.map((m, i) => (
             <div key={i} className={`msg ${m.role}`}>
-              <div className="who">{m.role}</div>
+              <div className="who">
+                {m.role}
+                {m.content && (
+                  <button
+                    className="btn xs copy"
+                    title="Copy message"
+                    onClick={() => {
+                      navigator.clipboard
+                        ?.writeText(m.content)
+                        .then(() => ok("copied"))
+                        .catch(() => err("copy failed"));
+                    }}
+                  >
+                    ⧉
+                  </button>
+                )}
+              </div>
               {m.tools && m.tools.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
                   {m.tools.map((t, j) => (
@@ -707,7 +724,11 @@ export default function Chat() {
                   ))}
                 </div>
               )}
-              {m.content || (streaming && i === msgs.length - 1 ? "…" : "")}
+              {m.content ? (
+                <div className="md" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
+              ) : (
+                streaming && i === msgs.length - 1 ? "…" : ""
+              )}
               {!streaming && m.role === "assistant" && i === msgs.length - 1 && (
                 <div className="row" style={{ gap: 6, marginTop: 8 }}>
                   <button className="btn sm" onClick={regenerate} title="Re-run the last turn">
