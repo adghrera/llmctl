@@ -28,6 +28,7 @@ func builtins() []Backend {
 		&vllmBackend{},
 		&gufoBackend{},
 		&halogenBackend{},
+		&containerBackend{},
 		&customBackend{},
 		&refStdioBackend{},
 	}
@@ -273,6 +274,106 @@ func (b *halogenBackend) Install(ctx context.Context, assetHint string, logf fun
 }
 
 func (b *halogenBackend) Uninstall() error { return nil }
+
+// ---- container (http process via docker/podman) ----------------------------
+
+type containerBackend struct{}
+
+func (b *containerBackend) ID() string   { return "container" }
+func (b *containerBackend) Name() string { return "Container (docker/podman)" }
+func (b *containerBackend) Description() string {
+	return "Run any OpenAI-compatible container image via docker or podman (e.g. vLLM, halogen)"
+}
+func (b *containerBackend) Transport() string { return TransportHTTP }
+func (b *containerBackend) Kind() string      { return KindProcess }
+
+// resolveContainerRuntime picks docker or podman from PATH.
+func resolveContainerRuntime(pref string) (string, error) {
+	order := []string{"docker", "podman"}
+	if pref == "podman" {
+		order = []string{"podman", "docker"}
+	}
+	for _, r := range order {
+		if pref != "" && pref != r && pref != "docker" && pref != "podman" {
+			// explicit unknown runtime name: try it directly
+			if _, err := exec.LookPath(pref); err == nil {
+				return pref, nil
+			}
+			continue
+		}
+		if _, err := exec.LookPath(r); err == nil {
+			return r, nil
+		}
+	}
+	return "", fmt.Errorf("no container runtime found (install docker or podman)")
+}
+
+func (b *containerBackend) Spec(m *store.ModelRecord, vars map[string]string) (Spec, error) {
+	image := vars["image"]
+	if image == "" {
+		return Spec{}, fmt.Errorf("container backend requires var image=<image> (e.g. ghcr.io/owner/image:tag)")
+	}
+	rt, err := resolveContainerRuntime(vars["runtime"])
+	if err != nil {
+		return Spec{}, err
+	}
+	cport := vars["containerPort"]
+	if cport == "" {
+		cport = "8080"
+	}
+	health := vars["healthPath"]
+	if health == "" {
+		health = "/health"
+	}
+	api := vars["apiPath"]
+	if api == "" {
+		api = "/v1"
+	}
+	mount := vars["mount"]
+	if mount == "" {
+		mount = "{dir}:/models:ro"
+	}
+	args := []string{"run", "--rm", "-p", "{port}:" + cport}
+	if mount != "none" {
+		args = append(args, "-v", mount)
+	}
+	if vars["gpu"] == "true" {
+		args = append(args, "--device", "/dev/kfd", "--device", "/dev/dri",
+			"--ipc=host", "--security-opt", "seccomp=unconfined")
+	}
+	args = append(args, image)
+	if cmd := strings.TrimSpace(vars["cmd"]); cmd != "" {
+		args = append(args, strings.Fields(cmd)...)
+	}
+	return Spec{
+		Kind: KindProcess, Transport: TransportHTTP,
+		Binary: rt, Args: args,
+		HealthPath: health, HealthTimeoutS: 600,
+		APIBasePath: api, StopGraceS: 20,
+	}, nil
+}
+
+func (b *containerBackend) Health(inst *store.InstanceRecord) (HealthResult, error) {
+	return genericHealth(TransportHTTP, inst, "/health", "/v1")
+}
+
+func (b *containerBackend) Install(ctx context.Context, assetHint string, logf func(string)) (string, error) {
+	rt, err := resolveContainerRuntime(assetHint)
+	if err != nil {
+		return "", err
+	}
+	out, err := exec.Command(rt, "--version").Output()
+	if err != nil {
+		return rt, nil
+	}
+	ver := strings.TrimSpace(strings.SplitN(string(out), "\n", 2)[0])
+	if logf != nil {
+		logf("using " + ver)
+	}
+	return ver, nil
+}
+
+func (b *containerBackend) Uninstall() error { return nil }
 
 // ---- custom (http attach, user URL) ---------------------------------------
 

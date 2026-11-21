@@ -30,6 +30,9 @@ Built-in:
 - **halogen** — attach to a Halogen flash server (OpenAI-compatible, AMD Strix
   Halo; run via its container). Health via `/health`. Vars: `url`
   (default `http://127.0.0.1:34950`).
+- **container** — launch any OpenAI-compatible container image via docker or
+  podman (e.g. vLLM, halogen). Vars: `image` (required), `runtime`,
+  `containerPort`, `healthPath`, `apiPath`, `mount`, `gpu`, `cmd`.
 
 Plugins: drop a JSON descriptor in `~/.llmctl/plugins/` (or use the UI /
 `llmctl backends add`) — http or stdio transport, installed from a URL,
