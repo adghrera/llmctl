@@ -56,7 +56,8 @@ GitHub release, or file list. No recompile.
 - Health-gated startup; crashed instances are reaped and marked stopped.
 - One-click restart (UI or `POST /api/v1/instances/{id}/restart`) relaunches a
   managed instance with the same id, port and vars; attached instances are
-  rejected (restart the external server instead).
+  rejected (restart the external server instead). A "Stop all" action
+  (`POST /api/v1/instances/stop-all`) stops every managed instance (F072).
 - Logs per instance under `~/.llmctl/logs/<instance>/`.
 
 ### API keys

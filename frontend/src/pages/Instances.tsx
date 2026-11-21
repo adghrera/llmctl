@@ -103,6 +103,19 @@ export default function Instances() {
     }
   };
 
+  const stopAll = async () => {
+    setBusy("stop-all");
+    try {
+      const r = await api.stopAll();
+      ok(r.stopped.length ? `stopped ${r.stopped.length} instance(s)` : "nothing to stop");
+      await refreshOne("instances");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const readyModels = models.filter((m) => m.downloaded);
 
   // ---- saved instance configs (presets) ----
@@ -315,7 +328,15 @@ export default function Instances() {
         </div>
       )}
       <div className="card">
-        <h2>Instances</h2>
+        <div className="row" style={{ alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Instances</h2>
+          <div className="spacer" />
+          {instances.some((i) => i.status === "running" && !i.attached) && (
+            <button className="btn sm danger" disabled={busy === "stop-all"} onClick={stopAll}>
+              {busy === "stop-all" ? "Stopping…" : "Stop all"}
+            </button>
+          )}
+        </div>
         {instances.length ? (
           <table>
             <thead>

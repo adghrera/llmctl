@@ -99,6 +99,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/instances", s.listInstances)
 	m.HandleFunc("POST /api/v1/instances", s.startInstance)
 	m.HandleFunc("DELETE /api/v1/instances/{id}", s.stopInstance)
+	m.HandleFunc("POST /api/v1/instances/stop-all", s.stopAllInstances)
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	// Auto-start specs
@@ -713,6 +714,29 @@ func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// stopAllInstances handles POST /api/v1/instances/stop-all — stop every
+// managed instance (attached ones are left alone; they mirror external
+// servers). F072.
+func (s *Server) stopAllInstances(w http.ResponseWriter, r *http.Request) {
+	st, err := s.store.Load()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	stopped := []string{}
+	for _, id := range st.SortedInstanceIDs() {
+		inst := st.Instances[id]
+		if inst.Attached || inst.Status != store.StatusRunning {
+			continue
+		}
+		if err := s.sv.Stop(id, false); err != nil {
+			continue // best-effort: skip what won't stop
+		}
+		stopped = append(stopped, id)
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "stopped": stopped})
 }
 
 // restartInstance handles POST /api/v1/instances/{id}/restart — stop and
