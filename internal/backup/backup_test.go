@@ -55,6 +55,37 @@ func TestCreateRestoreRoundTrip(t *testing.T) {
 	}
 }
 
+// Scheduled snapshots live inside the state dir; including them would nest
+// archives and, worse, tar a file that grows while the walk is running
+// ("archive/tar: write too long"). F077 regression test.
+func TestCreateExcludesBackupsDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("LLMCTL_HOME", home)
+
+	mustWrite(t, filepath.Join(home, "state.json"), `{"backends":{}}`)
+	mustWrite(t, filepath.Join(home, "backups", "llmctl-20260101-000000.tar.gz"), "snapshot")
+
+	var buf bytes.Buffer
+	if err := Create(&buf); err != nil {
+		t.Fatal(err)
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err != nil {
+			break
+		}
+		if len(hdr.Name) >= len("backups/") && hdr.Name[:len("backups/")] == "backups/" {
+			t.Fatalf("archive must not contain snapshot: %s", hdr.Name)
+		}
+	}
+}
+
 func TestRestoreRejectsTraversal(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("LLMCTL_HOME", home)

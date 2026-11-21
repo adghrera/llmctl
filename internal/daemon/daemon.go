@@ -22,11 +22,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
 
 	"llmctl/internal/api"
+	"llmctl/internal/backup"
 	"llmctl/internal/backend"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
@@ -400,6 +403,48 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.
 	}
 }
 
+// runScheduledBackup writes a state snapshot to $LLMCTL_HOME/backups/ and
+// prunes old ones, keeping the newest keep (default 7). F077.
+func runScheduledBackup(keep int) (string, error) {
+	if keep <= 0 {
+		keep = 7
+	}
+	dir := paths.BackupsDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("backups dir: %w", err)
+	}
+	name := "llmctl-" + time.Now().UTC().Format("20060102-150405") + ".tar.gz"
+	path := filepath.Join(dir, name)
+	f, err := os.Create(path)
+	if err != nil {
+		return "", fmt.Errorf("create backup: %w", err)
+	}
+	if err := backup.Create(f); err != nil {
+		f.Close()
+		os.Remove(path)
+		return "", fmt.Errorf("backup write: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("close backup: %w", err)
+	}
+	// Prune: keep only the newest `keep` snapshots (names sort chronologically).
+	matches, _ := filepath.Glob(filepath.Join(dir, "llmctl-*.tar.gz"))
+	sort.Strings(matches)
+	for len(matches) > keep {
+		if err := os.Remove(matches[0]); err == nil {
+			matches = matches[1:]
+		} else {
+			break
+		}
+	}
+	fi, _ := os.Stat(path)
+	size := int64(0)
+	if fi != nil {
+		size = fi.Size()
+	}
+	return fmt.Sprintf("backup %s written (%d bytes), keeping %d", name, size, keep), nil
+}
+
 // doScheduledTask runs the chat completion and saves the conversation.
 func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, logger *slog.Logger) (string, error) {
 	// Instance tasks: start/stop an instance instead of chatting (F076).
@@ -423,6 +468,8 @@ func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.S
 			return "", fmt.Errorf("stop instance %q: %w", id, err)
 		}
 		return fmt.Sprintf("instance %s stopped", id), nil
+	case "backup":
+		return runScheduledBackup(rec.Spec.Keep)
 	}
 
 	// Build the chat request body.

@@ -1,0 +1,75 @@
+package api
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"time"
+
+	"llmctl/internal/paths"
+)
+
+// Scheduled-backup snapshots (created by the "backup" scheduler kind, F077).
+
+var backupNameRe = regexp.MustCompile(`^llmctl-[0-9]{8}-[0-9]{6}\.tar\.gz$`)
+
+type backupView struct {
+	Name    string `json:"name"`
+	Size    int64  `json:"size"`
+	Created string `json:"created"`
+}
+
+// listBackups handles GET /api/v1/backups — snapshots in $LLMCTL_HOME/backups.
+func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
+	out := []backupView{}
+	matches, _ := filepath.Glob(filepath.Join(paths.BackupsDir(), "llmctl-*.tar.gz"))
+	sort.Sort(sort.Reverse(sort.StringSlice(matches)))
+	for _, m := range matches {
+		fi, err := os.Stat(m)
+		if err != nil {
+			continue
+		}
+		out = append(out, backupView{Name: filepath.Base(m), Size: fi.Size(), Created: fi.ModTime().UTC().Format(time.RFC3339)})
+	}
+	writeJSON(w, 200, out)
+}
+
+// backupPath resolves and validates a snapshot name inside the backups dir.
+func backupPath(name string) (string, error) {
+	if !backupNameRe.MatchString(name) {
+		return "", fmt.Errorf("invalid backup name: %q", name)
+	}
+	return filepath.Join(paths.BackupsDir(), name), nil
+}
+
+// downloadBackupFile handles GET /api/v1/backups/{name}.
+func (s *Server) downloadBackupFile(w http.ResponseWriter, r *http.Request) {
+	path, err := backupPath(r.PathValue("name"))
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	if _, err := os.Stat(path); err != nil {
+		writeErr(w, 404, "no such backup")
+		return
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(path)))
+	http.ServeFile(w, r, path)
+}
+
+// deleteBackupFile handles DELETE /api/v1/backups/{name}.
+func (s *Server) deleteBackupFile(w http.ResponseWriter, r *http.Request) {
+	path, err := backupPath(r.PathValue("name"))
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	if err := os.Remove(path); err != nil {
+		writeErr(w, 404, "no such backup")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}

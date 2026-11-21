@@ -24,9 +24,10 @@ type Spec struct {
 	ID         string    `json:"id"`
 	Name       string    `json:"name"`
 	CronExpr   string    `json:"cron_expr"`             // cron expression (e.g. "0 9 * * *")
-	Kind       string    `json:"kind,omitempty"`        // "chat" (default) | "instance.start" | "instance.stop" (F076)
+	Kind       string    `json:"kind,omitempty"`        // "chat" (default) | "instance.start" | "instance.stop" | "backup" (F076/F077)
 	Model      string    `json:"model"`                 // model id to use (chat) or to start (instance.start)
 	Instance   string    `json:"instance,omitempty"`    // instance id for instance.stop (default: model id)
+	Keep       int       `json:"keep,omitempty"`        // backup kind: snapshots to retain (0 = 7)
 	Prompt     string    `json:"prompt"`                // prompt to send (chat only)
 	Enabled    bool      `json:"enabled"`               // whether the task is active
 	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
@@ -155,6 +156,10 @@ func (s *Store) Create(spec Spec) (*Record, error) {
 	case "instance.stop":
 		if strings.TrimSpace(spec.Instance) == "" && strings.TrimSpace(spec.Model) == "" {
 			return nil, fmt.Errorf("instance.stop needs instance or model")
+		}
+	case "backup":
+		if spec.Keep < 0 {
+			return nil, fmt.Errorf("keep must be >= 0")
 		}
 	default:
 		return nil, fmt.Errorf("unknown schedule kind %q", spec.Kind)

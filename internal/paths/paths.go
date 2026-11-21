@@ -34,6 +34,7 @@ func BackendDir(id string) string { return filepath.Join(BackendsDir(), id) }
 func ModelDir(id string) string   { return filepath.Join(ModelsDir(), id) }
 func InstanceLogDir(id string) string { return filepath.Join(LogsDir(), id) }
 func PluginsDir() string          { return filepath.Join(Home(), "plugins") }
+func BackupsDir() string          { return filepath.Join(Home(), "backups") }
 
 // EnsureDirs creates the tree if missing.
 func EnsureDirs() error {

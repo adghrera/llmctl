@@ -22,6 +22,7 @@ var excludeDirs = map[string]bool{
 	"backends": true, // installed binaries (re-installable)
 	"models":   true, // GGUF files (re-downloadable)
 	"logs":     true, // instance logs
+	"backups":  true, // scheduled snapshots (would nest / grow during write)
 }
 
 // excludeFiles are top-level files never included.
@@ -80,9 +81,33 @@ func Create(w io.Writer) error {
 			return err
 		}
 		defer f.Close()
-		_, err = io.Copy(tw, f)
-		return err
+		// Trust the size of the open handle and copy exactly that many bytes,
+		// so a file that grows during the walk cannot overflow the header.
+		if fi, err := f.Stat(); err == nil {
+			hdr.Size = fi.Size()
+		}
+		n, err := io.CopyN(tw, f, hdr.Size)
+		if err != nil && err != io.EOF {
+			return err
+		}
+		if n < hdr.Size {
+			// File shrank mid-copy: pad so the entry matches its header.
+			if _, err := io.CopyN(tw, io.LimitReader(zeroReader{}, hdr.Size-n), hdr.Size-n); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
+}
+
+// zeroReader yields infinite zero bytes (tar padding).
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }
 
 // Restore extracts a tar.gz archive into the state directory and returns the

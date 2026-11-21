@@ -469,6 +469,8 @@ export const api = {
     req<{ dir: string; modelsBytes: number; modelsCount: number; freeBytes?: number; totalBytes?: number }>(
       "/disk",
     ),
+  backups: () => req<{ name: string; size: number; created: string }[]>("/backups"),
+  deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
   requests: (limit = 100) => req<RequestLogEntry[]>(`/requests?limit=${limit}`),
   aliases: () => req<ModelAlias[]>("/aliases"),
   createAlias: (alias: string, model: string) =>
@@ -626,7 +628,7 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; instance?: string; webhook_url?: string }) =>
+  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; instance?: string; keep?: number; webhook_url?: string }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
   updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean; webhook_url?: string }) =>

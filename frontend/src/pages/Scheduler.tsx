@@ -8,6 +8,7 @@ export default function Scheduler() {
   const [cronExpr, setCronExpr] = useState("0 9 * * *");
   const [kind, setKind] = useState("chat");
   const [instance, setInstance] = useState("");
+  const [keep, setKeep] = useState(7);
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -49,6 +50,7 @@ export default function Scheduler() {
         model,
         prompt: kind === "chat" ? prompt : "",
         instance: instance.trim() || undefined,
+        keep: kind === "backup" ? keep : undefined,
         webhook_url: webhookUrl.trim() || undefined,
       });
       ok("schedule created");
@@ -57,6 +59,7 @@ export default function Scheduler() {
       setModel("");
       setPrompt("");
       setInstance("");
+      setKeep(7);
       setWebhookUrl("");
       await load();
     } catch (e) {
@@ -120,7 +123,19 @@ export default function Scheduler() {
             <option value="chat">chat prompt</option>
             <option value="instance.start">start instance</option>
             <option value="instance.stop">stop instance</option>
+            <option value="backup">backup state</option>
           </select>
+          {kind === "backup" && (
+            <input
+              type="number"
+              min={1}
+              style={{ width: 110 }}
+              placeholder="keep"
+              title="Snapshots to retain"
+              value={keep || ""}
+              onChange={(e) => setKeep(Math.max(1, Number(e.target.value) || 0))}
+            />
+          )}
           {(kind === "chat" || kind === "instance.start") && (
             <input
               style={{ flex: 1, minWidth: 140 }}

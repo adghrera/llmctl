@@ -221,6 +221,9 @@ toggle for a light theme (choice remembered). Tabs:
   keys, chats, knowledge bases, memory, skills, tools, scheduler, plugins) as
   one .tar.gz and restores it back; also `llmctl backup [file]` /
   `llmctl restore <file>` on the CLI. Binaries/models/logs are excluded.
+  A scheduler task of kind "backup" can snapshot the state automatically on a
+  cron (kept in `~/.llmctl/backups`, pruned to the newest N); the Settings
+  page lists those snapshots for download or deletion.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
 survives the periodic UI re-render.

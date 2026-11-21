@@ -9,6 +9,11 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
+  const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
+
+  useEffect(() => {
+    api.backups().then(setBackups).catch(() => setBackups([]));
+  }, []);
 
   useEffect(() => {
     api.settings().then((s) => {
@@ -169,6 +174,56 @@ export default function SettingsPage() {
             <span style={{ fontSize: 12, opacity: 0.7 }}>{restoreFile.name}</span>
           )}
         </div>
+      </div>
+
+      <div className="card">
+        <h2>Scheduled backups</h2>
+        <p className="muted small" style={{ margin: "4px 0 12px" }}>
+          Snapshots created by scheduler tasks of kind "backup"
+          (~/.llmctl/backups). Create one on the Scheduler page.
+        </p>
+        {backups.length ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Size</th>
+                <th>Created</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {backups.map((b) => (
+                <tr key={b.name}>
+                  <td className="mono">{b.name}</td>
+                  <td>{(b.size / 1024).toFixed(1)} KB</td>
+                  <td>{new Date(b.created).toLocaleString()}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <a className="btn sm" href={`/api/v1/backups/${encodeURIComponent(b.name)}`} download>
+                      Download
+                    </a>{" "}
+                    <button
+                      className="btn sm danger"
+                      onClick={async () => {
+                        try {
+                          await api.deleteBackup(b.name);
+                          ok("backup deleted");
+                          api.backups().then(setBackups).catch(() => {});
+                        } catch (e) {
+                          err(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty">no scheduled backups yet</div>
+        )}
       </div>
     </>
   );
