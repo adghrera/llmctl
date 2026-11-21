@@ -224,6 +224,42 @@ func (s *Server) searchKBDocs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, results)
 }
 
+// setKBEmbed handles PUT /api/v1/knowledge-bases/{id}/embed.
+// Body: {"url": "...", "model": "...", "apiKey": "..."} — empty url+model
+// clears the embedding config (search falls back to TF-IDF). The url may be
+// either the full embeddings endpoint or a base like http://host:port/v1.
+func (s *Server) setKBEmbed(w http.ResponseWriter, r *http.Request) {
+	ts, err := s.ragStore()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	var req struct {
+		URL    string `json:"url"`
+		Model  string `json:"model"`
+		APIKey string `json:"apiKey"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON: "+err.Error())
+		return
+	}
+	req.URL = strings.TrimSpace(req.URL)
+	req.Model = strings.TrimSpace(req.Model)
+	var cfg *rag.EmbedConfig
+	if req.URL != "" || req.Model != "" {
+		if req.URL != "" && !strings.HasSuffix(req.URL, "/embeddings") {
+			req.URL = strings.TrimSuffix(req.URL, "/") + "/embeddings"
+		}
+		cfg = &rag.EmbedConfig{URL: req.URL, Model: req.Model, APIKey: req.APIKey}
+	}
+	rec, err := ts.SetEmbed(r.PathValue("id"), cfg)
+	if err != nil {
+		writeErr(w, statusForKB(err), err.Error())
+		return
+	}
+	writeJSON(w, 200, rec)
+}
+
 func statusForKB(err error) int {
 	msg := strings.ToLower(err.Error())
 	if strings.Contains(msg, "invalid kb id") || strings.Contains(msg, "not found") || strings.Contains(msg, "no such file") {

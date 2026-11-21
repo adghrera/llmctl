@@ -159,7 +159,10 @@ Embedded SPA (no CDN deps — works offline). Tabs:
 - **RAG knowledge bases** — create/delete/edit knowledge bases at
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove text
   documents via REST API. In chat, /file <filename> or KB selection injects
-  document content as context. Dedicated Knowledge Bases page.
+  document content as context. Dedicated Knowledge Bases page. Search ranks
+  chunks by TF-IDF cosine similarity, or by embedding similarity when the KB
+  is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
+  semantic-search panel in the UI; TF-IDF remains the fallback).
 - **API Keys** — generate / list / revoke.
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)

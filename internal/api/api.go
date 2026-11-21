@@ -133,6 +133,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/knowledge-bases/{id}/documents/{doc_id}/content", s.getKBDocContent)
 	m.HandleFunc("DELETE /api/v1/knowledge-bases/{id}/documents/{doc_id}", s.deleteKBDoc)
 	m.HandleFunc("POST /api/v1/knowledge-bases/{id}/search", s.searchKBDocs)
+	m.HandleFunc("PUT /api/v1/knowledge-bases/{id}/embed", s.setKBEmbed)
 	// Cost (F045)
 	m.HandleFunc("GET /api/v1/cost", s.costSummary)
 	m.HandleFunc("GET /api/v1/cost/keys", s.costKeys)

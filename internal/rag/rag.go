@@ -56,6 +56,10 @@ type KB struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	DocCount    int       `json:"doc_count"`
+	// Embed, when set, enables embedding-based semantic search for this KB:
+	// chunks are embedded via an OpenAI-compatible endpoint and search ranks
+	// by embedding cosine similarity. TF-IDF remains as fallback.
+	Embed *EmbedConfig `json:"embed,omitempty"`
 }
 
 // Record is a KB with its on-disk directory.
@@ -77,11 +81,11 @@ type SearchResult struct {
 
 // chunk is an internal representation of a document passage.
 type chunk struct {
-	DocID      string
-	Filename   string
-	Text       string
-	Index      int
-	Vector     []float64
+	DocID    string
+	Filename string
+	Text     string
+	Index    int
+	Vector   []float64
 }
 
 // Store manages knowledge bases on disk.
@@ -200,6 +204,27 @@ func (s *Store) Update(id, name, description string) (*Record, error) {
 	return s.load(id)
 }
 
+// SetEmbed configures (or clears, with nil) the embedding endpoint for a KB
+// and re-indexes so embeddings are built (or dropped).
+func (s *Store) SetEmbed(kbID string, cfg *EmbedConfig) (*Record, error) {
+	rec, err := s.Get(kbID)
+	if err != nil {
+		return nil, err
+	}
+	if cfg != nil && !cfg.valid() {
+		return nil, fmt.Errorf("embed config needs both url and model")
+	}
+	rec.KB.Embed = cfg
+	rec.KB.UpdatedAt = time.Now().UTC()
+	if err := writeJSON(filepath.Join(rec.Dir, ManifestName), rec.KB); err != nil {
+		return nil, err
+	}
+	if err := s.reindex(rec.Dir); err != nil {
+		return nil, err
+	}
+	return s.load(kbID)
+}
+
 // Delete removes the KB directory and all documents.
 func (s *Store) Delete(id string) error {
 	rec, err := s.Get(id)
@@ -294,8 +319,10 @@ func (s *Store) GetDoc(kbID, docID string) (*Doc, error) {
 
 // ---------- Search ----------
 
-// Search finds the most relevant chunks across all documents in a KB using
-// TF-IDF cosine similarity. Returns results sorted by score descending.
+// Search finds the most relevant chunks across all documents in a KB. When the
+// KB has an embedding endpoint configured and an embedding index exists, chunks
+// are ranked by embedding cosine similarity; otherwise TF-IDF cosine similarity
+// is used. Returns results sorted by score descending.
 func (s *Store) Search(kbID, query string, limit int) ([]SearchResult, error) {
 	rec, err := s.Get(kbID)
 	if err != nil {
@@ -303,6 +330,12 @@ func (s *Store) Search(kbID, query string, limit int) ([]SearchResult, error) {
 	}
 	if limit <= 0 {
 		limit = 5
+	}
+	// Prefer embedding (semantic) search when configured and indexed.
+	if rec.KB.Embed.valid() {
+		if res, ok := s.embedSearch(rec, query, limit); ok {
+			return res, nil
+		}
 	}
 	// Load vocabulary and all chunk vectors.
 	vocab, err := s.loadVocab(rec.Dir)
@@ -317,7 +350,12 @@ func (s *Store) Search(kbID, query string, limit int) ([]SearchResult, error) {
 	// Build query vector using same vocabulary.
 	qTokens := tokenize(query)
 	qVec := tfidfVector(qTokens, vocab, chunks)
-	// Score each chunk.
+	return rankChunks(chunks, qVec, limit), nil
+}
+
+// rankChunks scores chunks by cosine similarity to qVec, keeps the best chunk
+// per document, and returns up to limit results sorted by score descending.
+func rankChunks(chunks []chunk, qVec []float64, limit int) []SearchResult {
 	type scored struct {
 		chunk chunk
 		score float64
@@ -354,7 +392,22 @@ func (s *Store) Search(kbID, query string, limit int) ([]SearchResult, error) {
 			break
 		}
 	}
-	return out, nil
+	return out
+}
+
+// embedSearch ranks chunks by embedding cosine similarity. Returns ok=false
+// when no embedding index exists (or it was built with a different model) or
+// the query could not be embedded — the caller then falls back to TF-IDF.
+func (s *Store) embedSearch(rec *Record, query string, limit int) ([]SearchResult, bool) {
+	chunks, err := s.loadEmbedChunks(rec.Dir, rec.KB.Embed.Model)
+	if err != nil || len(chunks) == 0 {
+		return nil, false
+	}
+	vecs, err := rec.KB.Embed.Embed([]string{query})
+	if err != nil || len(vecs) == 0 {
+		return nil, false
+	}
+	return rankChunks(chunks, vecs[0], limit), true
 }
 
 // keywordFallback is used when no vector index exists yet.
@@ -397,8 +450,15 @@ func (s *Store) keywordFallback(rec *Record, query string, limit int) []SearchRe
 
 // ---------- Indexing ----------
 
-// reindex rebuilds the TF-IDF index for a KB (vocab + per-chunk vectors).
+// reindex rebuilds the search index for a KB: always the TF-IDF index
+// (vocab + per-chunk vectors), plus the embedding index when the KB manifest
+// has a valid embed config and the endpoint responds.
 func (s *Store) reindex(kbDir string) error {
+	// Load KB manifest (for embed config).
+	var kb KB
+	if b, err := os.ReadFile(filepath.Join(kbDir, ManifestName)); err == nil {
+		_ = json.Unmarshal(b, &kb)
+	}
 	// Load all documents' content.
 	docsDir := filepath.Join(kbDir, DocsDir)
 	entries, err := os.ReadDir(docsDir)
@@ -431,6 +491,7 @@ func (s *Store) reindex(kbDir string) error {
 		// Remove stale index.
 		os.Remove(filepath.Join(kbDir, "vocab.json"))
 		os.Remove(filepath.Join(kbDir, "vectors.json"))
+		os.Remove(filepath.Join(kbDir, "embeddings.json"))
 		return nil
 	}
 	// Build vocabulary from all chunks.
@@ -446,7 +507,7 @@ func (s *Store) reindex(kbDir string) error {
 	}
 	// Persist vectors (grouped by doc for efficient loading).
 	type docVectors struct {
-		DocID  string      `json:"doc_id"`
+		DocID   string      `json:"doc_id"`
 		Vectors [][]float64 `json:"vectors"`
 	}
 	byDoc := make(map[string]*docVectors)
@@ -462,7 +523,103 @@ func (s *Store) reindex(kbDir string) error {
 	for _, dv := range byDoc {
 		dvList = append(dvList, *dv)
 	}
-	return writeJSON(filepath.Join(kbDir, "vectors.json"), dvList)
+	if err := writeJSON(filepath.Join(kbDir, "vectors.json"), dvList); err != nil {
+		return err
+	}
+	// Embedding index (optional). On failure keep any previous index — search
+	// falls back to TF-IDF when the query cannot be embedded.
+	if kb.Embed.valid() {
+		texts := make([]string, len(allChunks))
+		for i, c := range allChunks {
+			texts[i] = c.Text
+		}
+		if vecs, err := kb.Embed.Embed(texts); err == nil && len(vecs) == len(allChunks) {
+			eb := embedIndex{Model: kb.Embed.Model}
+			byDocE := make(map[string]*embedDoc)
+			for i, c := range allChunks {
+				ed, ok := byDocE[c.DocID]
+				if !ok {
+					ed = &embedDoc{DocID: c.DocID}
+					byDocE[c.DocID] = ed
+				}
+				ed.Vectors = append(ed.Vectors, vecs[i])
+			}
+			for _, ed := range byDocE {
+				eb.Docs = append(eb.Docs, *ed)
+			}
+			if err := writeJSON(filepath.Join(kbDir, "embeddings.json"), eb); err != nil {
+				return err
+			}
+		}
+	} else {
+		os.Remove(filepath.Join(kbDir, "embeddings.json"))
+	}
+	return nil
+}
+
+// embedIndex is the on-disk embedding index for a KB (embeddings.json).
+type embedIndex struct {
+	Model string     `json:"model"`
+	Docs  []embedDoc `json:"docs"`
+}
+
+type embedDoc struct {
+	DocID   string      `json:"doc_id"`
+	Vectors [][]float64 `json:"vectors"`
+}
+
+// loadEmbedChunks loads embedding-indexed chunks for a KB. Returns an error if
+// no index exists or it was built with a different model than wantModel.
+func (s *Store) loadEmbedChunks(kbDir, wantModel string) ([]chunk, error) {
+	b, err := os.ReadFile(filepath.Join(kbDir, "embeddings.json"))
+	if err != nil {
+		return nil, err
+	}
+	var idx embedIndex
+	if err := json.Unmarshal(b, &idx); err != nil {
+		return nil, err
+	}
+	if wantModel != "" && idx.Model != wantModel {
+		return nil, fmt.Errorf("embedding index built with model %q", idx.Model)
+	}
+	// Map docID -> chunk texts and filenames.
+	docsDir := filepath.Join(kbDir, DocsDir)
+	entries, err := os.ReadDir(docsDir)
+	if err != nil {
+		return nil, err
+	}
+	docChunks := make(map[string][]string)
+	docNames := make(map[string]string)
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		doc, err := s.loadDoc(filepath.Join(docsDir, e.Name()))
+		if err != nil {
+			continue
+		}
+		docChunks[doc.ID] = splitChunks(doc.Content)
+		docNames[doc.ID] = doc.Filename
+	}
+	var out []chunk
+	for _, ed := range idx.Docs {
+		texts := docChunks[ed.DocID]
+		name := docNames[ed.DocID]
+		for i, vec := range ed.Vectors {
+			text := ""
+			if i < len(texts) {
+				text = texts[i]
+			}
+			out = append(out, chunk{
+				DocID:    ed.DocID,
+				Filename: name,
+				Text:     text,
+				Index:    i,
+				Vector:   vec,
+			})
+		}
+	}
+	return out, nil
 }
 
 // loadVocab loads the vocabulary for a KB.
@@ -485,8 +642,8 @@ func (s *Store) loadAllChunks(kbDir string) ([]chunk, error) {
 		return nil, err
 	}
 	type docVectors struct {
-		DocID   string       `json:"doc_id"`
-		Vectors [][]float64  `json:"vectors"`
+		DocID   string      `json:"doc_id"`
+		Vectors [][]float64 `json:"vectors"`
 	}
 	var dvList []docVectors
 	if err := json.Unmarshal(vb, &dvList); err != nil {

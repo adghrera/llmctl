@@ -13,6 +13,10 @@ export default function KnowledgeBases() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<KBSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState("");
+  const [embedModel, setEmbedModel] = useState("");
+  const [embedKey, setEmbedKey] = useState("");
+  const [embedBusy, setEmbedBusy] = useState(false);
 
   const load = () =>
     api
@@ -142,6 +146,47 @@ export default function KnowledgeBases() {
     }
   };
 
+  const saveEmbed = async () => {
+    if (!selectedKB) return;
+    if (!embedUrl.trim() || !embedModel.trim()) {
+      err("embedding url and model are required");
+      return;
+    }
+    setEmbedBusy(true);
+    try {
+      const rec = await api.setKBEmbed(selectedKB.id, {
+        url: embedUrl.trim(),
+        model: embedModel.trim(),
+        apiKey: embedKey.trim() || undefined,
+      });
+      ok("semantic search enabled — documents embedded");
+      setSelectedKB(rec);
+      setEmbedUrl("");
+      setEmbedModel("");
+      setEmbedKey("");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEmbedBusy(false);
+    }
+  };
+
+  const clearEmbed = async () => {
+    if (!selectedKB) return;
+    setEmbedBusy(true);
+    try {
+      const rec = await api.setKBEmbed(selectedKB.id, {});
+      ok("semantic search disabled — using keyword (TF-IDF) search");
+      setSelectedKB(rec);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEmbedBusy(false);
+    }
+  };
+
   return (
     <div>
       <div className="card">
@@ -196,6 +241,14 @@ export default function KnowledgeBases() {
               <div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                   <b>{kb.kb.name}</b>
+                  {kb.kb.embed?.model && (
+                    <span
+                      style={{ fontSize: 10, opacity: 0.8, border: "1px solid var(--border, #333)", borderRadius: 3, padding: "1px 5px" }}
+                      title={`semantic search via ${kb.kb.embed.model}`}
+                    >
+                      semantic
+                    </span>
+                  )}
                   <span style={{ opacity: 0.6, fontSize: 12 }}>{kb.kb.id}</span>
                 </div>
                 {kb.kb.description && (
@@ -251,6 +304,65 @@ export default function KnowledgeBases() {
             <button className="btn primary" disabled={busy || !file} onClick={uploadDoc}>
               {busy ? "Uploading…" : "Upload Document"}
             </button>
+          </div>
+          <div
+            style={{
+              border: "1px solid var(--border, #333)",
+              borderRadius: 4,
+              padding: 8,
+              marginBottom: 12,
+              fontSize: 13,
+            }}
+          >
+            {selectedKB.kb.embed?.model ? (
+              <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ opacity: 0.85 }}>
+                  Semantic search: <b>{selectedKB.kb.embed.model}</b>
+                  <span style={{ opacity: 0.6, marginLeft: 6, fontSize: 11 }}>
+                    {selectedKB.kb.embed.url}
+                  </span>
+                </span>
+                <button className="btn sm" disabled={embedBusy} onClick={clearEmbed}>
+                  {embedBusy ? "Working…" : "Disable"}
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ opacity: 0.75, fontSize: 12 }}>
+                  Optional: enable embedding-based semantic search with any
+                  OpenAI-compatible <code>/v1/embeddings</code> endpoint (e.g. a
+                  running instance). Falls back to keyword search when unset.
+                </span>
+                <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                  <input
+                    style={{ flex: 2, minWidth: 220 }}
+                    placeholder="Embeddings URL (e.g. http://127.0.0.1:8080/v1)"
+                    value={embedUrl}
+                    onChange={(e) => setEmbedUrl(e.target.value)}
+                  />
+                  <input
+                    style={{ flex: 1, minWidth: 140 }}
+                    placeholder="Embedding model"
+                    value={embedModel}
+                    onChange={(e) => setEmbedModel(e.target.value)}
+                  />
+                  <input
+                    style={{ flex: 1, minWidth: 120 }}
+                    placeholder="API key (optional)"
+                    type="password"
+                    value={embedKey}
+                    onChange={(e) => setEmbedKey(e.target.value)}
+                  />
+                  <button
+                    className="btn sm primary"
+                    disabled={embedBusy || !embedUrl.trim() || !embedModel.trim()}
+                    onClick={saveEmbed}
+                  >
+                    {embedBusy ? "Embedding…" : "Enable semantic search"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="row" style={{ gap: 8, marginBottom: 8 }}>
             <input
