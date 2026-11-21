@@ -323,7 +323,7 @@ export interface GatewayMetrics {
   tokens: { prompt: number; completion: number; total: number };
   latency: { p50_ms?: number; p90_ms?: number; p99_ms?: number; samples?: number };
   status_classes: Record<string, number>;
-  models: Record<string, { requests: number; errors: number; prompt_tokens: number; completion_tokens: number }>;
+  models: Record<string, { requests: number; errors: number; prompt_tokens: number; completion_tokens: number; latency_p50_ms?: number; latency_p95_ms?: number; latency_p99_ms?: number }>;
 }
 
 export interface Job {

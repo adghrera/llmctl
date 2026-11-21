@@ -73,6 +73,9 @@ func TestMetricsCountsAndTokens(t *testing.T) {
 	if r, _ := tm["requests"].(int64); r != 3 {
 		t.Fatalf("test-model requests = %v, want 3", tm["requests"])
 	}
+	if tm["latency_p50_ms"] == nil || tm["latency_p95_ms"] == nil {
+		t.Fatalf("missing per-model latency percentiles: %v", tm)
+	}
 	status, _ := snap["status_classes"].(map[string]any)
 	if c, _ := status["2xx"].(int64); c != 3 {
 		t.Fatalf("2xx count = %v, want 3", status["2xx"])

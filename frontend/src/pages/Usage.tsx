@@ -37,6 +37,8 @@ export default function Usage() {
       prompt: v.prompt_tokens || 0,
       completion: v.completion_tokens || 0,
       total: (v.prompt_tokens || 0) + (v.completion_tokens || 0),
+      p50: v.latency_p50_ms,
+      p95: v.latency_p95_ms,
     })
   );
 
@@ -97,6 +99,8 @@ export default function Usage() {
                 <th>Model</th>
                 <th>Requests</th>
                 <th>Errors</th>
+                <th>p50</th>
+                <th>p95</th>
                 <th>Prompt</th>
                 <th>Completion</th>
                 <th>Total</th>
@@ -111,6 +115,8 @@ export default function Usage() {
                     <td style={{ fontFamily: "monospace", fontSize: 12 }}>{m.id}</td>
                     <td className="oc-num">{m.requests}</td>
                     <td className="oc-num">{m.errors}</td>
+                    <td className="oc-num">{m.p50 != null ? m.p50.toFixed(0) + " ms" : "—"}</td>
+                    <td className="oc-num">{m.p95 != null ? m.p95.toFixed(0) + " ms" : "—"}</td>
                     <td className="oc-num">{m.prompt.toLocaleString()}</td>
                     <td className="oc-num">{m.completion.toLocaleString()}</td>
                     <td className="oc-num">{m.total.toLocaleString()}</td>

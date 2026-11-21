@@ -105,7 +105,8 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   older messages are auto-trimmed (system prompt and recent turns kept).
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
-  totals, request counts, and per-conversation context percentage.
+  totals, request counts, per-model latency percentiles (p50/p95), and
+  per-conversation context percentage.
 - **Tools** — install agent tools from a URL (.zip) or a local folder
   (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python
   `def run(args)` entry). Tools run inside the llm-sandbox framework

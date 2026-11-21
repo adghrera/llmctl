@@ -31,10 +31,12 @@ type metricsCollector struct {
 }
 
 type modelMt struct {
-	reqs      int64
-	errs      int64
-	promptTok int64
-	compTok   int64
+	reqs       int64
+	errs       int64
+	promptTok  int64
+	compTok    int64
+	latSamples []float64 // per-model reservoir of latencies in ms
+	seen       int64
 }
 
 type costCounter struct {
@@ -93,6 +95,13 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 	}
 	mm.promptTok += pTok
 	mm.compTok += cTok
+	// Per-model latency reservoir (bounded, same policy as global).
+	mm.seen++
+	if len(mm.latSamples) < reservoirSize {
+		mm.latSamples = append(mm.latSamples, latencyMs)
+	} else {
+		mm.latSamples[int(mm.seen%int64(reservoirSize))] = latencyMs
+	}
 
 	// Per-key tracking.
 	if key != "" {
@@ -143,15 +152,7 @@ func (m *metricsCollector) Snapshot() map[string]any {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	lat := map[string]any{}
-	if len(m.latSamples) > 0 {
-		s := append([]float64(nil), m.latSamples...)
-		sort.Float64s(s)
-		lat["p50_ms"] = round2(percentile(s, 0.50))
-		lat["p90_ms"] = round2(percentile(s, 0.90))
-		lat["p99_ms"] = round2(percentile(s, 0.99))
-		lat["samples"] = len(s)
-	}
+	lat := latencyStats(m.latSamples)
 
 	models := map[string]any{}
 	for k, v := range m.byModel {
@@ -159,12 +160,16 @@ func (m *metricsCollector) Snapshot() map[string]any {
 		if name == "" {
 			name = "(unknown)"
 		}
-		models[name] = map[string]any{
+		entry := map[string]any{
 			"requests":          v.reqs,
 			"errors":            v.errs,
 			"prompt_tokens":     v.promptTok,
 			"completion_tokens": v.compTok,
 		}
+		for lk, lv := range latencyStats(v.latSamples) {
+			entry["latency_"+lk] = lv
+		}
+		models[name] = entry
 	}
 
 	status := map[string]any{}
@@ -183,6 +188,22 @@ func (m *metricsCollector) Snapshot() map[string]any {
 		"status_classes": status,
 		"models":         models,
 	}
+}
+
+// latencyStats computes percentiles from a reservoir of latency samples (ms).
+func latencyStats(samples []float64) map[string]any {
+	out := map[string]any{}
+	if len(samples) == 0 {
+		return out
+	}
+	s := append([]float64(nil), samples...)
+	sort.Float64s(s)
+	out["p50_ms"] = round2(percentile(s, 0.50))
+	out["p90_ms"] = round2(percentile(s, 0.90))
+	out["p95_ms"] = round2(percentile(s, 0.95))
+	out["p99_ms"] = round2(percentile(s, 0.99))
+	out["samples"] = len(s)
+	return out
 }
 
 func percentile(sorted []float64, q float64) float64 {
