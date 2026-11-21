@@ -94,7 +94,8 @@ GitHub release, or file list. No recompile.
 
 ### Web UI
 Embedded SPA (no CDN deps — works offline). Tabs:
-- **Overview** — status counts, running instances, active jobs.
+- **Overview** — status counts, detected GPUs with VRAM usage, running
+  instances, active jobs.
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.

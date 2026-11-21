@@ -161,6 +161,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
+	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
 	m.HandleFunc("GET /api/v1/backup", s.downloadBackup)
 	m.HandleFunc("POST /api/v1/restore", s.restoreBackup)
 	// Web search (keyless)

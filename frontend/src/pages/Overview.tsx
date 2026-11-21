@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { api, type GatewayMetrics } from "../api/client";
+import { api, type GatewayMetrics, type GPUInfo } from "../api/client";
 import { useStore } from "../state/store";
 
 export default function Overview() {
   const { status, instances, jobs } = useStore();
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
+  const [gpus, setGpus] = useState<GPUInfo[] | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -19,6 +20,10 @@ export default function Overview() {
       alive = false;
       clearInterval(t);
     };
+  }, []);
+
+  useEffect(() => {
+    api.gpu().then((r) => setGpus(r.gpus)).catch(() => setGpus([]));
   }, []);
 
   const running = instances.filter((i) => i.status === "running");
@@ -40,6 +45,35 @@ export default function Overview() {
           </p>
         ) : (
           <div className="empty">connecting to daemon…</div>
+        )}
+      </div>
+      <div className="card">
+        <h2>GPU</h2>
+        {gpus === null ? (
+          <div className="empty">detecting…</div>
+        ) : gpus.length === 0 ? (
+          <div className="empty">no GPUs detected (nvidia-smi / rocm-smi not found or reported none)</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>vendor</th>
+                <th>VRAM used</th>
+                <th>VRAM total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gpus.map((g) => (
+                <tr key={g.vendor + g.name}>
+                  <td className="mono">{g.name}</td>
+                  <td>{g.vendor}</td>
+                  <td>{fmtBytes(g.used_bytes)}</td>
+                  <td>{fmtBytes(g.total_bytes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
       <div className="card">
@@ -141,4 +175,16 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 
 function fmtMs(v?: number): string {
   return v === undefined || v === null ? "—" : `${v.toFixed(1)}ms`;
+}
+
+function fmtBytes(n: number): string {
+  if (!n) return "0 B";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let i = 0;
+  let v = n;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }

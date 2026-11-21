@@ -327,6 +327,13 @@ export interface GatewayMetrics {
   models: Record<string, { requests: number; errors: number; prompt_tokens: number; completion_tokens: number; latency_p50_ms?: number; latency_p95_ms?: number; latency_p99_ms?: number }>;
 }
 
+export interface GPUInfo {
+  vendor: string;
+  name: string;
+  total_bytes: number;
+  used_bytes: number;
+}
+
 export interface Job {
   id: string;
   kind: string;
@@ -409,6 +416,7 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   chats: () => req<ChatSummary[]>("/chats"),
   getChat: (id: string) => req<ChatConversation>(`/chats/${encodeURIComponent(id)}`),
   createChat: (c: { title?: string; model?: string; agentMode?: boolean; messages: unknown[] }) =>
