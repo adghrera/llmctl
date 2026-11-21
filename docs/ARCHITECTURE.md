@@ -61,6 +61,7 @@ management API and web UI — all on **one port**.
 | `internal/cost` | Token usage and cost tracking per API key and per model; populated by the gateway proxy on chat responses; REST: GET /api/v1/cost, /api/v1/cost/keys, /api/v1/cost/models (F045). |
 | `internal/scheduler` | Scheduled agent tasks at $LLMCTL_HOME/scheduler/<id>/ (spec.json with cron expression, model, prompt). CRUD via REST; daemon runs a scheduler loop that executes due tasks as chat completions (F046). |
 | `internal/rag` | Knowledge bases at $LLMCTL_HOME/knowledge/<kb_id>/ with kb.json manifest and documents under docs/<doc_id>/; CRUD + search via REST; document content injection in chat (F047). Search ranks chunks by TF-IDF cosine similarity (stdlib) or, when the KB has an `embed` config, by embedding cosine similarity via an OpenAI-compatible `/v1/embeddings` endpoint (F052), with automatic TF-IDF fallback. |
+| `internal/gguf` | Stdlib GGUF v2/v3 header parser: reads KV metadata (quant, architecture, context length, …) without touching tensor data; backs `GET /api/v1/models/{id}/metadata` (F051). |
 | `internal/ui` | Embedded SPA (embed.FS). |
 | `internal/manifest` | Legacy v0.1 manifest (still used by nothing critical; slated for removal). |
 

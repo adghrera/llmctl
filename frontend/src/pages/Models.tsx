@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type CatalogEntry } from "../api/client";
+import { api, type CatalogEntry, type ModelMetadata } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -125,6 +125,29 @@ export default function Models() {
   };
 
   const installedIds = new Set(models.map((m) => m.id));
+
+  // GGUF metadata viewer
+  const [metaFor, setMetaFor] = useState<string | null>(null);
+  const [meta, setMeta] = useState<ModelMetadata | null>(null);
+  const [metaBusy, setMetaBusy] = useState(false);
+  const viewMeta = async (id: string) => {
+    if (metaFor === id) {
+      setMetaFor(null);
+      setMeta(null);
+      return;
+    }
+    setMetaFor(id);
+    setMeta(null);
+    setMetaBusy(true);
+    try {
+      setMeta(await api.modelMetadata(id));
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+      setMetaFor(null);
+    } finally {
+      setMetaBusy(false);
+    }
+  };
 
   return (
     <>
@@ -306,6 +329,9 @@ export default function Models() {
                     )}
                   </td>
                   <td style={{ textAlign: "right" }}>
+                    <button className="btn sm" disabled={busy || !m.downloaded} onClick={() => viewMeta(m.id)}>
+                      {metaFor === m.id ? "Hide meta" : "Meta"}
+                    </button>{" "}
                     <button className="btn sm danger" disabled={busy || m.running} onClick={() => remove(m.id)}>
                       Remove
                     </button>
@@ -323,6 +349,54 @@ export default function Models() {
           ))}
         </datalist>
       </div>
+      {metaFor && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <h2 style={{ margin: 0 }}>GGUF metadata — {metaFor}</h2>
+            <button className="btn sm" onClick={() => { setMetaFor(null); setMeta(null); }}>
+              Close
+            </button>
+          </div>
+          {metaBusy && <div className="empty muted">Parsing…</div>}
+          {meta && (
+            <>
+              <div className="row" style={{ gap: 16, flexWrap: "wrap", fontSize: 13, marginBottom: 8 }}>
+                <span>arch: <b>{meta.summary.architecture || "?"}</b></span>
+                <span>name: <b>{meta.summary.name || "?"}</b></span>
+                <span>quant: <b>{meta.summary.quant || "?"}</b></span>
+                <span>ctx: <b>{meta.summary.contextLength?.toLocaleString() || "?"}</b></span>
+                <span>layers: <b>{meta.summary.blockCount?.toLocaleString() || "?"}</b></span>
+                <span>tensors: <b>{meta.nTensors.toLocaleString()}</b></span>
+              </div>
+              <details>
+                <summary style={{ cursor: "pointer", fontSize: 13, opacity: 0.8 }}>
+                  All metadata keys ({Object.keys(meta.metadata).length})
+                </summary>
+                <table style={{ marginTop: 8 }}>
+                  <thead>
+                    <tr>
+                      <th>Key</th>
+                      <th>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(meta.metadata)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([k, v]) => (
+                        <tr key={k}>
+                          <td className="mono" style={{ fontSize: 12 }}>{k}</td>
+                          <td style={{ fontSize: 12, wordBreak: "break-all" }}>
+                            {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </details>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -44,6 +44,9 @@ GitHub release, or file list. No recompile.
 - Direct URLs work too.
 - Resumable downloads (HTTP Range), progress shown live in the UI (SSE).
 - Multiple models can be installed and run at the same time.
+- GGUF metadata viewer: per-model "Meta" shows quant, architecture, trained
+  context length, layer count and all header key/values (parsed locally, no
+  upload).
 
 ### Instances
 - Start/stop from UI or CLI; multiple instances (different models,

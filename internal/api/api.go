@@ -24,6 +24,7 @@ import (
 	"llmctl/internal/agent"
 	"llmctl/internal/backend"
 	"llmctl/internal/chatstore"
+	"llmctl/internal/gguf"
 	"llmctl/internal/skills"
 	"llmctl/internal/toolstore"
 	"llmctl/internal/memory"
@@ -87,6 +88,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/catalog/install", s.installCatalogModel)
 	m.HandleFunc("DELETE /api/v1/models/{id}", s.removeModel)
 	m.HandleFunc("PUT /api/v1/models/{id}/ctx", s.setModelCtx)
+	m.HandleFunc("GET /api/v1/models/{id}/metadata", s.modelMetadata)
 	m.HandleFunc("GET /api/v1/hf/search", s.hfSearch)
 	m.HandleFunc("GET /api/v1/hf/files", s.hfFiles)
 	// Instances
@@ -461,6 +463,31 @@ func (s *Server) setModelCtx(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "model": id, "ctxSize": *req.CtxSize,
 		"restartRequired": running})
+}
+
+// modelMetadata handles GET /api/v1/models/{id}/metadata — parses the GGUF
+// header of the model file and returns a curated summary plus all KV metadata.
+func (s *Server) modelMetadata(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	m, ok := st.Models[id]
+	if !ok {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	gf, err := gguf.Read(m.Path)
+	if err != nil {
+		writeErr(w, 400, "not readable as GGUF: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{
+		"id":       id,
+		"path":     m.Path,
+		"version":  gf.Version,
+		"nTensors": gf.NTensors,
+		"summary":  gf.Summary,
+		"metadata": gf.Metadata,
+	})
 }
 
 func (s *Server) removeModel(w http.ResponseWriter, r *http.Request) {

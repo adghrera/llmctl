@@ -195,6 +195,22 @@ export interface FileEntry {
   source: string;
 }
 
+export interface ModelMetadata {
+  id: string;
+  path: string;
+  version: number;
+  nTensors: number;
+  summary: {
+    architecture?: string;
+    name?: string;
+    quant?: string;
+    contextLength?: number;
+    blockCount?: number;
+    tokenizer?: string;
+  };
+  metadata: Record<string, unknown>;
+}
+
 export interface KBEmbedConfig {
   url: string;
   model: string;
@@ -379,6 +395,8 @@ export const api = {
   removeModel: (id: string) => req<{ ok: boolean }>(`/models/${encodeURIComponent(id)}`, { method: "DELETE" }),
   setModelCtx: (id: string, ctxSize: number) =>
     req<{ ok: boolean; restartRequired?: boolean }>(`/models/${encodeURIComponent(id)}/ctx`, { method: "PUT", body: JSON.stringify({ ctxSize }) }),
+  modelMetadata: (id: string) =>
+    req<ModelMetadata>(`/models/${encodeURIComponent(id)}/metadata`),
   hfSearch: (q: string, limit = 15) =>
     req<Array<{ modelId?: string; id?: string; downloads?: number }>>(`/hf/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   hfFiles: (repo: string, revision = "main") =>
