@@ -66,6 +66,7 @@ management API and web UI — all on **one port**.
 | `internal/backup` | tar.gz export/import of the state dir (config, chats, knowledge, memory, skills, tools, scheduler, plugins; excludes binaries/models/logs). Backs `GET /api/v1/backup`, `POST /api/v1/restore`, and `llmctl backup/restore` (F057). |
 | `internal/webhook` | Best-effort JSON POST to user URLs (15 s timeout, http(s) only). Used by the scheduler to notify on task completion (F059). |
 | `internal/gpu` | GPU/VRAM detection via `nvidia-smi` / `rocm-smi` (5 s timeout, best-effort). Backs `GET /api/v1/gpu` and the Overview GPU card (F050). |
+| `internal/disk` | Free/total bytes of a filesystem (Statfs on unix, GetDiskFreeSpaceExW on Windows). Backs `GET /api/v1/disk` with model byte totals and the Overview Disk card (F071). |
 | `internal/extract` | Stdlib text extraction: DOCX (zip + XML walk) and best-effort PDF (FlateDecode streams + text operators). KB/Files uploads store extracted text so documents are RAG-searchable (F053). |
 | `internal/mcp` | Minimal MCP client: server configs at $LLMCTL_HOME/mcp/servers.json; stdio JSON-RPC 2.0 (initialize → tools/list → tools/call) with a lazy per-server connection cache. Agent tools appear as `mcp:<server>:<tool>` (F054). |
 | `internal/jsonschema` | Small JSON Schema validator (type/enum/required/properties/items). Backs the structured-output endpoint (F056). |

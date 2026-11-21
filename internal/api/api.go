@@ -170,6 +170,7 @@ func (s *Server) Handler() http.Handler {
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
+	m.HandleFunc("GET /api/v1/disk", s.diskUsage)
 	// MCP servers (F054)
 	m.HandleFunc("GET /api/v1/mcp", s.listMCPServers)
 	m.HandleFunc("POST /api/v1/mcp", s.createMCPServer)

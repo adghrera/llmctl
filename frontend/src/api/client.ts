@@ -459,6 +459,10 @@ export const api = {
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
+  disk: () =>
+    req<{ dir: string; modelsBytes: number; modelsCount: number; freeBytes?: number; totalBytes?: number }>(
+      "/disk",
+    ),
   requests: (limit = 100) => req<RequestLogEntry[]>(`/requests?limit=${limit}`),
   aliases: () => req<ModelAlias[]>("/aliases"),
   createAlias: (alias: string, model: string) =>

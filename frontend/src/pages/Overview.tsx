@@ -6,6 +6,7 @@ export default function Overview() {
   const { status, instances, jobs } = useStore();
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [gpus, setGpus] = useState<GPUInfo[] | null>(null);
+  const [disk, setDisk] = useState<Awaited<ReturnType<typeof api.disk>> | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -24,6 +25,7 @@ export default function Overview() {
 
   useEffect(() => {
     api.gpu().then((r) => setGpus(r.gpus)).catch(() => setGpus([]));
+    api.disk().then(setDisk).catch(() => setDisk(null));
   }, []);
 
   const running = instances.filter((i) => i.status === "running");
@@ -74,6 +76,21 @@ export default function Overview() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+      <div className="card">
+        <h2>Disk</h2>
+        {disk ? (
+          <p>
+            {disk.modelsCount} model{disk.modelsCount === 1 ? "" : "s"} using{" "}
+            <span className="mono">{fmtBytes(disk.modelsBytes)}</span>
+            {disk.freeBytes !== undefined && (
+              <> — {fmtBytes(disk.freeBytes)} free of {fmtBytes(disk.totalBytes ?? 0)}</>
+            )}
+            <span className="muted"> ({disk.dir})</span>
+          </p>
+        ) : (
+          <div className="empty">disk info unavailable</div>
         )}
       </div>
       <div className="card">

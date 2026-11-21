@@ -101,8 +101,8 @@ GitHub release, or file list. No recompile.
 ### Web UI
 Embedded SPA (no CDN deps — works offline). Dark by default with a header
 toggle for a light theme (choice remembered). Tabs:
-- **Overview** — status counts, detected GPUs with VRAM usage, running
-  instances, active jobs.
+- **Overview** — status counts, detected GPUs with VRAM usage, disk usage
+  (model bytes + free space), running instances, active jobs.
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients

@@ -80,6 +80,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F068 | P2 | 68 | gateway | Request log CSV export | COMPLETED | "Export CSV" button on the Requests page downloads the current request-log ring as a CSV file (proper quoting/escaping, ISO timestamps). Pure client-side generation from GET /api/v1/requests. |
 | F069 | P2 | 69 | ui | Light/dark theme toggle | COMPLETED | Header ☀️/🌙 button switches the whole UI between the default dark palette and a light one (CSS-variable override `:root[data-theme=light]`). Choice persists in localStorage and is applied pre-paint by a tiny inline script in index.html. |
 | F070 | P2 | 70 | gateway | Replica failover | COMPLETED | When an HTTP upstream fails at the connection level (before any response bytes), the gateway retries the next replica of the same model (`Router.ResolveList` returns all running replicas, rotated round-robin; `startedWriter` guards against retrying a half-written response). All-fail → 502. Verified e2e: with one of two replicas killed, every request still succeeds via the survivor; SSE streaming unaffected. |
+| F071 | P2 | 71 | ui | Disk usage summary | COMPLETED | `GET /api/v1/disk` reports bytes used by downloaded models (files stat'ed live; vanished files skipped) plus free/total space of the llmctl home filesystem (`internal/disk`: Statfs on unix, GetDiskFreeSpaceExW via kernel32 on Windows). Disk card on the Overview page. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
