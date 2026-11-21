@@ -63,12 +63,13 @@ type Server struct {
 	rag        *rag.Store          // knowledge bases for RAG (F047)
 	mcpSt      *mcp.Store          // MCP server configs (F054)
 	mcpReg     *mcp.Registry       // live MCP connections (F054)
+	approvals  *pendingApprovals   // tool calls awaiting user approval (F055)
 	shutdownFn func()              // triggers graceful daemon exit
 }
 
 func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
 	cs, _ := chatstore.Open() // nil-safe: handlers report 503 if unavailable
-	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, searcher: websearch.New(), chats: cs, shutdownFn: shutdown}
+	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, searcher: websearch.New(), chats: cs, approvals: newPendingApprovals(), shutdownFn: shutdown}
 }
 
 // Handler returns the management API mux.
@@ -173,6 +174,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/mcp/{id}/test", s.testMCPServer)
 	m.HandleFunc("GET /api/v1/backup", s.downloadBackup)
 	m.HandleFunc("POST /api/v1/restore", s.restoreBackup)
+	m.HandleFunc("POST /api/v1/agent/approve", s.approveToolCall)
 	// Web search (keyless)
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
 	m.HandleFunc("GET /api/v1/chats", s.listChats)

@@ -104,6 +104,9 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   token usage (~4 chars/token); the conversation shows a context-window bar
   (used vs. model limit). When context reaches 98% of the model's limit,
   older messages are auto-trimmed (system prompt and recent turns kept).
+  In agent mode an optional "Ask before tool calls" gate shows each pending
+  tool call (name + arguments) inline and runs it only after you approve
+  (F055).
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
   totals, request counts, per-model latency percentiles (p50/p95), and

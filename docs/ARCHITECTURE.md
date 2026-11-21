@@ -53,6 +53,7 @@ management API and web UI — all on **one port**.
 | `internal/installer` | Backend binary install: GitHub release asset resolution (scans releases list, OS-token filtering), zip/tar.gz extract, direct URL. |
 | `internal/store` | state.json: atomic writes + advisory file lock; backends, models, instances, api keys. |
 | `internal/paths` | Disk layout under $LLMCTL_HOME (default ~/.llmctl). |
+| `internal/agent` | Server-side agent loop (text-marker tool calls, multi-step, context compaction). Supports a per-request approval gate: with `requireApproval` the loop emits an `approval` SSE event and blocks until `POST /api/v1/agent/approve` resolves the one-shot token (2-min timeout → deny) (F055). |
 | `internal/toolstore` | Installed agent tools at $LLMCTL_HOME/tools/<id>/ (llmctl-tool.json manifest); install from URL (.zip) or local dir, enable/disable, per-tool sandbox toggle, uninstall (F033). |
 | `internal/toolexec` | Tool execution: host (python `run(args)` via stdin/stdout bridge, or raw command) or sandboxed via the llm-sandbox framework (podman/docker backend, network-less, mem/pid caps, no-new-privileges) with a Go→python bridge embedding tool files. |
 | `internal/skills` | User-defined skill templates at $LLMCTL_HOME/skills/<id>/ (skill.json manifest); create/read/update/delete via REST, enable/disable toggle, template rendering with {{input}}/{{conversation}} placeholders (F036). |

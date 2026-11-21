@@ -15,11 +15,12 @@ import (
 
 // agentChatReq is the POST /api/v1/chat/agent body.
 type agentChatReq struct {
-	Model       string             `json:"model"`
-	Messages    []agent.Message    `json:"messages"`
-	MaxSteps    int                `json:"maxSteps"`    // default 5
-	MaxTokens   int                `json:"maxTokens"`
-	Temperature *float64           `json:"temperature"`
+	Model           string          `json:"model"`
+	Messages        []agent.Message `json:"messages"`
+	MaxSteps        int             `json:"maxSteps"`    // default 5
+	MaxTokens       int             `json:"maxTokens"`
+	Temperature     *float64        `json:"temperature"`
+	RequireApproval bool            `json:"requireApproval"` // ask before each tool call (F055)
 }
 
 // agentSearchTool returns the web_search tool for the agent loop. Tests
@@ -147,6 +148,10 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		b, _ := json.Marshal(ev)
 		io.WriteString(w, "data: "+string(b)+"\n\n")
 		flusher.Flush()
+	}
+
+	if req.RequireApproval {
+		areq.Approve = s.makeApprover(send)
 	}
 
 	agent.Run(r.Context(), s.gw.Handler(), tools, areq, send)

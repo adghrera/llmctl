@@ -18,7 +18,7 @@ import (
 
 // Event is one SSE-able agent event.
 type Event struct {
-	Type    string `json:"type"` // delta | tool | done | error
+	Type    string `json:"type"`              // delta | tool | done | error | approval
 	Content string `json:"content,omitempty"` // delta text
 	Step    int    `json:"step,omitempty"`
 	// tool event fields:
@@ -26,6 +26,8 @@ type Event struct {
 	Query   string `json:"query,omitempty"`
 	Results any    `json:"results,omitempty"`
 	Error   string `json:"error,omitempty"`
+	// approval event fields (F055):
+	ID string `json:"id,omitempty"` // token used to approve/deny via the API
 	// done event fields:
 	Steps int `json:"steps,omitempty"`
 }
@@ -53,6 +55,10 @@ type Request struct {
 	APIKey         string // forwarded to the gateway as Bearer
 	ExtraToolsText string // appended to the system prompt (installed tools, F033)
 	CtxSize        int    // model context window (tokens); 0 = unknown, no compaction
+	// Approve, when non-nil, is called before each tool execution (F055).
+	// Returning false skips the call ("denied by user"). Blocking here
+	// blocks the agent loop, so implementations must bound their wait.
+	Approve func(ctx context.Context, name, argsJSON string) bool
 }
 
 const systemPrompt = `You are llmctl, a helpful assistant with tools.
@@ -614,6 +620,12 @@ func Run(ctx context.Context, gw http.Handler, tools map[string]Tool, req Reques
 			args := tc.ArgsJSON
 			if args == "" {
 				args = "{}"
+			}
+			// User approval gate (F055).
+			if req.Approve != nil && !req.Approve(ctx, name, args) {
+				emit(Event{Type: "tool", Step: step + 1, Name: name, Query: tc.Query, Error: "denied by user"})
+				sb.WriteString(fmt.Sprintf("\nTool %s: denied by user.\n", name))
+				continue
 			}
 			text, structured, terr := tool.Execute(ctx, args)
 			if terr != nil {

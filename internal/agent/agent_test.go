@@ -131,8 +131,59 @@ func TestAgentPlainText(t *testing.T) {
 	}
 }
 
-func TestAgentSearchLoop(t *testing.T) {
-	script1 := "Let me look that up.<search>mu earnings</search>"
+func TestAgentApprovalDeny(t *testing.T) {
+	var gotName, gotArgs string
+	events, _, tool := runAgent(t,
+		[]string{"<search>mu earnings</search>", "ok."},
+		Request{
+			Model:    "m",
+			Messages: []Message{{Role: "user", Content: "MU earnings?"}},
+			Approve: func(ctx context.Context, name, argsJSON string) bool {
+				gotName, gotArgs = name, argsJSON
+				return false
+			},
+		},
+	)
+	if gotName != "web_search" || gotArgs == "" {
+		t.Fatalf("approve saw name=%q args=%q", gotName, gotArgs)
+	}
+	if len(tool.queries) != 0 {
+		t.Fatalf("denied tool must not execute, ran: %v", tool.queries)
+	}
+	found := false
+	for _, e := range events {
+		if e.Type == "tool" && e.Error == "denied by user" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected denied tool event, got %+v", events)
+	}
+}
+
+func TestAgentApprovalApprove(t *testing.T) {
+	calls := 0
+	events, _, tool := runAgent(t,
+		[]string{"<search>mu earnings</search>", "done."},
+		Request{
+			Model:    "m",
+			Messages: []Message{{Role: "user", Content: "MU earnings?"}},
+			Approve: func(ctx context.Context, name, argsJSON string) bool {
+				calls++
+				return true
+			},
+		},
+	)
+	if calls != 1 {
+		t.Fatalf("approve called %d times, want 1", calls)
+	}
+	if len(tool.queries) != 1 {
+		t.Fatalf("approved tool should run once, got %v", tool.queries)
+	}
+	_ = events
+}
+
+func TestAgentSearchLoop(t *testing.T) {	script1 := "Let me look that up.<search>mu earnings</search>"
 	script2 := "MU reported record revenue (https://example.com)."
 	events, fw, tool := runAgent(t,
 		[]string{script1, script2},

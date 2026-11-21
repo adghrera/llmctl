@@ -432,6 +432,8 @@ export const api = {
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
+  agentApprove: (id: string, approve: boolean) =>
+    req<{ ok: boolean }>("/agent/approve", { method: "POST", body: JSON.stringify({ id, approve }) }),
   mcpServers: () => req<MCPServer[]>("/mcp"),
   createMCPServer: (body: { name: string; command: string; args?: string[]; env?: Record<string, string> }) =>
     req<MCPServer>("/mcp", { method: "POST", body: JSON.stringify(body) }),
@@ -643,7 +645,7 @@ export interface AgentToolEvent {
   error?: string;
 }
 export interface AgentEvent {
-  type: "delta" | "tool" | "done" | "error" | "system";
+  type: "delta" | "tool" | "done" | "error" | "system" | "approval";
   content?: string;
   step?: number;
   name?: string;
@@ -651,6 +653,7 @@ export interface AgentEvent {
   results?: { title: string; url: string; snippet: string }[];
   error?: string;
   steps?: number;
+  id?: string; // approval token
 }
 
 /** Agent chat: server-side loop with web_search tool. Streams AgentEvents. */
@@ -661,6 +664,7 @@ export async function* agentStream(
     messages: { role: string; content: string }[];
     maxSteps?: number;
     temperature?: number;
+    requireApproval?: boolean;
   }
 ): AsyncGenerator<AgentEvent> {
   const r = await fetch("/api/v1/chat/agent", {

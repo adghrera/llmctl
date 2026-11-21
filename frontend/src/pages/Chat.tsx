@@ -12,6 +12,7 @@ interface Msg {
 
 const KEY_STORAGE = "llmctl.chat.key";
 const AGENT_STORAGE = "llmctl.chat.agent";
+const APPROVAL_STORAGE = "llmctl.chat.approval";
 
 export default function Chat() {
   const { instances } = useStore();
@@ -19,6 +20,10 @@ export default function Chat() {
   const [model, setModel] = useState("");
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) ?? "");
   const [agentMode, setAgentMode] = useState(() => localStorage.getItem(AGENT_STORAGE) === "1");
+  const [requireApproval, setRequireApproval] = useState(
+    () => localStorage.getItem(APPROVAL_STORAGE) === "1"
+  );
+  const [pendingApproval, setPendingApproval] = useState<{ id: string; name: string; query: string } | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -164,6 +169,9 @@ export default function Chat() {
   useEffect(() => {
     localStorage.setItem(AGENT_STORAGE, agentMode ? "1" : "0");
   }, [agentMode]);
+  useEffect(() => {
+    localStorage.setItem(APPROVAL_STORAGE, requireApproval ? "1" : "0");
+  }, [requireApproval]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -276,7 +284,11 @@ export default function Chat() {
       // Seed a single assistant message; each delta updates it in place.
       setMsgs((prev) => [...prev, { role: "assistant", content: "", tools: [] }]);
       if (agentMode) {
-        for await (const ev of agentStream(key, { model, messages: history })) {
+        for await (const ev of agentStream(key, {
+          model,
+          messages: history,
+          requireApproval,
+        })) {
           if (ev.type === "delta" && ev.content) {
             acc += ev.content;
             updateLast((m) => ({ ...m, content: acc }));
@@ -288,6 +300,8 @@ export default function Chat() {
             // drop the stale prefix.
             acc = "";
             updateLast((m) => ({ ...m, content: acc, tools: [...tools] }));
+          } else if (ev.type === "approval" && ev.id) {
+            setPendingApproval({ id: ev.id, name: ev.name || "tool", query: ev.query || "{}" });
           } else if (ev.type === "error") {
             err(ev.error || "agent error");
           } else if (ev.type === "system") {
@@ -307,6 +321,17 @@ export default function Chat() {
       // Save once the turn completes (assistant message settled).
       const done = next.concat([{ role: "assistant", content: acc, tools }]);
       persist(done);
+    }
+  };
+
+  const answerApproval = async (approve: boolean) => {
+    if (!pendingApproval) return;
+    const { id } = pendingApproval;
+    setPendingApproval(null);
+    try {
+      await api.agentApprove(id, approve);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -508,6 +533,18 @@ export default function Chat() {
             <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
               <input type="checkbox" checked={agentMode} onChange={(e) => setAgentMode(e.target.checked)} />
               Agent (web search)
+            </label>{" "}
+            <label
+              style={{ display: "inline-flex", gap: 6, alignItems: "center", marginLeft: 12 }}
+              title="The agent asks for confirmation before running any tool"
+            >
+              <input
+                type="checkbox"
+                checked={requireApproval}
+                onChange={(e) => setRequireApproval(e.target.checked)}
+                disabled={!agentMode}
+              />
+              Ask before tool calls
             </label>
           </div>
           <div style={{ alignSelf: "flex-end", marginTop: 8 }}>
@@ -621,6 +658,32 @@ export default function Chat() {
           ))}
           <div ref={bottomRef} />
         </div>
+        {pendingApproval && (
+          <div
+            className="card"
+            style={{
+              marginTop: 8,
+              border: "1px solid var(--warning, #b58900)",
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <strong>Approve tool call?</strong>
+            <span className="mono" style={{ fontSize: 12 }}>
+              {pendingApproval.name}({pendingApproval.query})
+            </span>
+            <div className="row" style={{ gap: 6, marginLeft: "auto" }}>
+              <button className="btn sm primary" onClick={() => answerApproval(true)}>
+                Approve
+              </button>
+              <button className="btn sm danger" onClick={() => answerApproval(false)}>
+                Deny
+              </button>
+            </div>
+          </div>
+        )}
         <div className="row" style={{ marginTop: 12 }}>
           <textarea
             rows={2}
