@@ -58,7 +58,8 @@ GitHub release, or file list. No recompile.
   managed instance with the same id, port and vars; attached instances are
   rejected (restart the external server instead). A "Stop all" action
   (`POST /api/v1/instances/stop-all`) stops every managed instance (F072).
-- Logs per instance under `~/.llmctl/logs/<instance>/`.
+- Logs per instance under `~/.llmctl/logs/<instance>/`, viewable in the UI
+  with one-click full-file download (F075).
 
 ### API keys
 - Generate in UI or CLI; shown once, stored as sha256 hash.

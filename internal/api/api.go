@@ -102,6 +102,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/instances/stop-all", s.stopAllInstances)
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
+	m.HandleFunc("GET /api/v1/instances/{id}/logs/download", s.instanceLogsDownload)
 	// Auto-start specs
 	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
 	m.HandleFunc("GET /api/v1/presets", s.listPresets)
@@ -885,6 +886,29 @@ func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
 		"truncated": size > int64(maxBytes),
 		"logs":      string(tail),
 	})
+}
+
+// instanceLogsDownload handles GET /api/v1/instances/{id}/logs/download —
+// serves the full log file as an attachment (F075).
+func (s *Server) instanceLogsDownload(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	inst, ok := st.Instances[id]
+	if !ok || inst.LogDir == "" {
+		writeErr(w, 404, "unknown instance or no log dir: "+id)
+		return
+	}
+	name := "stderr.log"
+	if r.URL.Query().Get("stream") == "stdout" {
+		name = "stdout.log"
+	}
+	path := filepath.Join(inst.LogDir, name)
+	if _, err := os.Stat(path); err != nil {
+		writeErr(w, 404, "no such log file: "+name)
+		return
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.%s"`, id, name))
+	http.ServeFile(w, r, path)
 }
 
 // tailFile reads up to maxBytes from the end of path. Returns the bytes,

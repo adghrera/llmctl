@@ -438,6 +438,13 @@ export default function Instances() {
               <button className="btn sm" disabled={logBusy} onClick={() => void loadLogs(logFor, logStream)}>
                 {logBusy ? "Loading…" : "Refresh"}
               </button>
+              <a
+                className="btn sm"
+                href={`/api/v1/instances/${encodeURIComponent(logFor)}/logs/download?stream=${logStream}`}
+                title="Download full log"
+              >
+                Download
+              </a>
               <button className="btn sm" onClick={() => { setLogFor(null); setLogData(null); }}>
                 Close
               </button>
