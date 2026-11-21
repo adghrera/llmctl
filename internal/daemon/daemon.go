@@ -29,8 +29,8 @@ import (
 	"time"
 
 	"llmctl/internal/api"
-	"llmctl/internal/backup"
 	"llmctl/internal/backend"
+	"llmctl/internal/backup"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
@@ -290,10 +290,10 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 		return
 	}
 	payload := map[string]any{
-		"event":     event,
-		"instance":  inst.ID,
-		"model":     inst.ModelID,
-		"time":      time.Now().UTC().Format(time.RFC3339),
+		"event":    event,
+		"instance": inst.ID,
+		"model":    inst.ModelID,
+		"time":     time.Now().UTC().Format(time.RFC3339),
 	}
 	if err := webhook.Post(ctx, s.Settings.NotifyWebhook, payload); err != nil {
 		logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
