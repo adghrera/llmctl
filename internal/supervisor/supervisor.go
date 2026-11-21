@@ -41,6 +41,25 @@ type Supervisor struct {
 
 	mu       sync.Mutex
 	sessions map[string]*stdio.Session // stdio instance id -> live session
+
+	notifier func(event string, inst *store.InstanceRecord) // F073
+}
+
+// SetNotifier installs a callback fired on instance events
+// ("instance.crashed"). Called from the reap loop; must not block long.
+func (sv *Supervisor) SetNotifier(fn func(event string, inst *store.InstanceRecord)) {
+	sv.mu.Lock()
+	sv.notifier = fn
+	sv.mu.Unlock()
+}
+
+func (sv *Supervisor) notify(event string, inst *store.InstanceRecord) {
+	sv.mu.Lock()
+	fn := sv.notifier
+	sv.mu.Unlock()
+	if fn != nil {
+		fn(event, inst)
+	}
 }
 
 func New(st *store.Store, reg *backend.Registry, logger *slog.Logger) *Supervisor {
@@ -346,6 +365,7 @@ func (sv *Supervisor) markExited(id string, werr error) {
 		return nil
 	})
 	sv.logger.Warn("instance exited", "id", id, "err", werr)
+	sv.notify("instance.crashed", rec)
 }
 
 // reap marks dead-PID instances as stopped (crash detection).
@@ -367,6 +387,7 @@ func (sv *Supervisor) reap() {
 				}
 				return nil
 			})
+			sv.notify("instance.crashed", inst)
 		}
 	}
 }

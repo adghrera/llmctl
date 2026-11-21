@@ -5,6 +5,7 @@ import { ok, err } from "../ui/toast";
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [idleMin, setIdleMin] = useState(0);
+  const [webhook, setWebhook] = useState("");
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -13,6 +14,7 @@ export default function SettingsPage() {
     api.settings().then((s) => {
       setSettings(s);
       setIdleMin(s.idleUnloadMin || 0);
+      setWebhook(s.notifyWebhook || "");
     }).catch(() => {});
   }, []);
 
@@ -38,6 +40,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ idleUnloadMin: idleMin });
       setSettings(r);
       ok(r.idleUnloadMin > 0 ? `instances auto-stop after ${r.idleUnloadMin} min idle` : "idle auto-unload disabled");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveWebhook = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ notifyWebhook: webhook.trim() });
+      setSettings(r);
+      ok(r.notifyWebhook ? "notify webhook saved" : "notify webhook cleared");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -102,6 +118,25 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               Running instances that serve no gateway request for this many
               minutes are stopped automatically (frees VRAM). 0 disables it.
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Notify webhook</h3>
+              <div className="spacer" />
+              <input
+                style={{ width: 320 }}
+                placeholder="https://hooks.example.com/llmctl"
+                value={webhook}
+                onChange={(e) => setWebhook(e.target.value)}
+              />
+              <button className="btn primary" disabled={busy} onClick={saveWebhook}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Receives a JSON POST when an instance crashes or is idle-unloaded.
+              Empty disables notifications.
             </p>
           </div>
         </div>

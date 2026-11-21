@@ -157,6 +157,11 @@ func Run(ctx context.Context, opts Options) error {
 	// Auto-stop instances that have served no gateway request for a while.
 	go idleUnloadLoop(ctx, st, sv, gw, logger)
 
+	// Instance-event webhook (settings.notifyWebhook), F073.
+	sv.SetNotifier(func(event string, inst *store.InstanceRecord) {
+		postEventWebhook(ctx, st, event, inst, logger)
+	})
+
 	// One mux: gateway + management API + UI.
 	root := http.NewServeMux()
 	root.Handle("/api/v1/", mgmt.Handler())
@@ -274,6 +279,24 @@ func (cc *ControlClient) Delete(path string) (int, []byte, error) {
 	return cc.Do(http.MethodDelete, path, nil)
 }
 
+// postEventWebhook POSTs an instance event to settings.notifyWebhook when
+// configured (F073). Best-effort: failures are logged only.
+func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *store.InstanceRecord, logger *slog.Logger) {
+	s, err := st.Load()
+	if err != nil || s.Settings == nil || s.Settings.NotifyWebhook == "" {
+		return
+	}
+	payload := map[string]any{
+		"event":     event,
+		"instance":  inst.ID,
+		"model":     inst.ModelID,
+		"time":      time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := webhook.Post(ctx, s.Settings.NotifyWebhook, payload); err != nil {
+		logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
+	}
+}
+
 // idleUnloadLoop stops running instances that have served no gateway request
 // for Settings.IdleUnloadMin minutes (0 = disabled). A tick is skipped while
 // any request is in flight so long generations are never cut off (F060).
@@ -313,6 +336,8 @@ func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervi
 				"idleFor", now.Sub(last).Round(time.Second), "limitMin", state.Settings.IdleUnloadMin)
 			if err := sv.Stop(id, false); err != nil {
 				logger.Error("idle unload: stop failed", "instance", id, "error", err)
+			} else {
+				postEventWebhook(ctx, st, "instance.idle-unloaded", inst, logger)
 			}
 		}
 	}

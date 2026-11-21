@@ -1040,8 +1040,9 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 // ---- settings ----
 
 type settingsView struct {
-	RequireAuth   bool `json:"requireAuth"`
-	IdleUnloadMin int  `json:"idleUnloadMin"`
+	RequireAuth   bool   `json:"requireAuth"`
+	IdleUnloadMin int    `json:"idleUnloadMin"`
+	NotifyWebhook string `json:"notifyWebhook"`
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
@@ -1049,12 +1050,14 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, settingsView{
 		RequireAuth:   st.Settings.RequireAuth,
 		IdleUnloadMin: st.Settings.IdleUnloadMin,
+		NotifyWebhook: st.Settings.NotifyWebhook,
 	})
 }
 
 type updateSettingsReq struct {
-	RequireAuth   *bool `json:"requireAuth"`
-	IdleUnloadMin *int  `json:"idleUnloadMin"`
+	RequireAuth   *bool   `json:"requireAuth"`
+	IdleUnloadMin *int    `json:"idleUnloadMin"`
+	NotifyWebhook *string `json:"notifyWebhook"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1074,6 +1077,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.IdleUnloadMin != nil {
 			st.Settings.IdleUnloadMin = *req.IdleUnloadMin
 		}
+		if req.NotifyWebhook != nil {
+			st.Settings.NotifyWebhook = strings.TrimSpace(*req.NotifyWebhook)
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1085,6 +1091,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, settingsView{
 		RequireAuth:   st.Settings.RequireAuth,
 		IdleUnloadMin: st.Settings.IdleUnloadMin,
+		NotifyWebhook: st.Settings.NotifyWebhook,
 	})
 }
 

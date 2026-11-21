@@ -82,6 +82,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F070 | P2 | 70 | gateway | Replica failover | COMPLETED | When an HTTP upstream fails at the connection level (before any response bytes), the gateway retries the next replica of the same model (`Router.ResolveList` returns all running replicas, rotated round-robin; `startedWriter` guards against retrying a half-written response). All-fail → 502. Verified e2e: with one of two replicas killed, every request still succeeds via the survivor; SSE streaming unaffected. |
 | F071 | P2 | 71 | ui | Disk usage summary | COMPLETED | `GET /api/v1/disk` reports bytes used by downloaded models (files stat'ed live; vanished files skipped) plus free/total space of the llmctl home filesystem (`internal/disk`: Statfs on unix, GetDiskFreeSpaceExW via kernel32 on Windows). Disk card on the Overview page. |
 | F072 | P2 | 72 | instances | Stop-all action | COMPLETED | `POST /api/v1/instances/stop-all` stops every running managed instance (attached ones are left alone) and returns the stopped ids. "Stop all" button on the Instances page. |
+| F073 | P2 | 73 | instances | Instance-event webhook | COMPLETED | `settings.notifyWebhook` receives a JSON POST (`{event, instance, model, time}`) when an instance crashes (stdio exit or reaped dead PID) or is idle-unloaded; clean stops stay silent. Editable on the Settings page. Verified e2e with a local hook receiver. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

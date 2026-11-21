@@ -87,6 +87,9 @@ type Settings struct {
 	// request for this many minutes (0 = disabled). VRAM relief for hosts
 	// that host many models but use few (F060).
 	IdleUnloadMin int `json:"idleUnloadMin"`
+	// NotifyWebhook receives JSON POSTs for instance events (crashed,
+	// idle-unloaded). Empty = disabled (F073).
+	NotifyWebhook string `json:"notifyWebhook,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.
