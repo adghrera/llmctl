@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"llmctl/internal/extract"
 	"llmctl/internal/files"
 )
 
@@ -60,6 +61,16 @@ func (s *Server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	contentType := header.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = http.DetectContentType(content)
+	}
+	// PDF/DOCX: store the extracted text (F053).
+	if extract.Supported(header.Filename) {
+		text, err := extract.Text(header.Filename, content)
+		if err != nil {
+			writeErr(w, 400, err.Error())
+			return
+		}
+		content = []byte(text)
+		contentType = "text/plain"
 	}
 	rec, err := ts.Create(header.Filename, contentType, content)
 	if err != nil {

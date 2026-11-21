@@ -305,6 +305,10 @@ export default function KnowledgeBases() {
               {busy ? "Uploading…" : "Upload Document"}
             </button>
           </div>
+          <p className="muted small" style={{ margin: "0 0 10px" }}>
+            Text files are stored as-is; PDF and DOCX files have their text
+            extracted automatically (PDF best-effort).
+          </p>
           <div
             style={{
               border: "1px solid var(--border, #333)",

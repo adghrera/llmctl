@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"llmctl/internal/extract"
 	"llmctl/internal/rag"
 )
 
@@ -152,6 +153,16 @@ func (s *Server) uploadKBDoc(w http.ResponseWriter, r *http.Request) {
 	contentType := header.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = http.DetectContentType(content)
+	}
+	// PDF/DOCX: store the extracted text so RAG can index it (F053).
+	if extract.Supported(header.Filename) {
+		text, err := extract.Text(header.Filename, content)
+		if err != nil {
+			writeErr(w, 400, err.Error())
+			return
+		}
+		content = []byte(text)
+		contentType = "text/plain"
 	}
 	doc, err := ts.AddDoc(r.PathValue("id"), header.Filename, contentType, content)
 	if err != nil {

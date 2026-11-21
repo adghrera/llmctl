@@ -151,8 +151,8 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
   In chat, `/file <filename>` injects file content as a user message.
-  Dedicated Files page for upload/list/delete. Only text-based files supported
-  (PDF/DOCX need external libraries).
+  Dedicated Files page for upload/list/delete. Text files are stored as-is;
+  PDF and DOCX uploads have their text extracted automatically (F053).
 - **Cost tracking** — track token usage and estimate costs per API key and per
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
   GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
@@ -164,8 +164,9 @@ Embedded SPA (no CDN deps — works offline). Tabs:
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page.
 - **RAG knowledge bases** — create/delete/edit knowledge bases at
-  ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove text
-  documents via REST API. In chat, /file <filename> or KB selection injects
+  ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove documents
+  (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST
+  API. In chat, /file <filename> or KB selection injects
   document content as context. Dedicated Knowledge Bases page. Search ranks
   chunks by TF-IDF cosine similarity, or by embedding similarity when the KB
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
