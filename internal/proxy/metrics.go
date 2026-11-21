@@ -168,6 +168,60 @@ func statusClass(status int) string {
 }
 
 // lastUsedAt returns the last recorded request time for a model (zero if none).
+// KeyUsage is per-key (or per-model) token totals for cost/quota views (F074).
+type KeyUsage struct {
+	InputTok  int64   `json:"input_tokens"`
+	OutputTok int64   `json:"output_tokens"`
+	TotalTok  int64   `json:"total_tokens"`
+	Requests  int64   `json:"requests"`
+	Cost      float64 `json:"cost_usd"`
+}
+
+// keyUsage snapshots the per-key counters.
+func (m *metricsCollector) keyUsage() map[string]KeyUsage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make(map[string]KeyUsage, len(m.keyCounters))
+	for k, c := range m.keyCounters {
+		c.mu.Lock()
+		out[k] = KeyUsage{InputTok: c.InputTok, OutputTok: c.OutputTok, TotalTok: c.TotalTok, Requests: c.Requests, Cost: c.Cost}
+		c.mu.Unlock()
+	}
+	return out
+}
+
+// keyTotalTokens returns total tokens billed to one key prefix.
+func (m *metricsCollector) keyTotalTokens(prefix string) int64 {
+	m.mu.Lock()
+	c := m.keyCounters[prefix]
+	m.mu.Unlock()
+	if c == nil {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.TotalTok
+}
+
+// modelUsage snapshots per-model token totals with cost estimated from
+// the configured pricing.
+func (m *metricsCollector) modelUsage() map[string]KeyUsage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make(map[string]KeyUsage, len(m.byModel))
+	for k, mm := range m.byModel {
+		p := m.pricingFor(k)
+		out[k] = KeyUsage{
+			InputTok:  mm.promptTok,
+			OutputTok: mm.compTok,
+			TotalTok:  mm.promptTok + mm.compTok,
+			Requests:  mm.reqs,
+			Cost:      float64(mm.promptTok)/1e6*p.InputPerM + float64(mm.compTok)/1e6*p.OutputPerM,
+		}
+	}
+	return out
+}
+
 func (m *metricsCollector) lastUsedAt(model string) time.Time {
 	m.mu.Lock()
 	defer m.mu.Unlock()

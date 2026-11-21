@@ -389,6 +389,8 @@ export interface ApiKey {
   name: string;
   prefix: string;
   createdAt: string;
+  tokenQuota?: number;
+  usedTokens: number;
 }
 
 export interface Settings {
@@ -648,8 +650,11 @@ export const api = {
     req<{ ok: boolean }>(`/autostart/${encodeURIComponent(model)}`, { method: "DELETE" }),
   jobs: () => req<Job[]>("/jobs"),
   keys: () => req<ApiKey[]>("/keys"),
-  createKey: (name: string) =>
-    req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, { method: "POST", body: JSON.stringify({ name }) }),
+  createKey: (name: string, tokenQuota?: number) =>
+    req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, {
+      method: "POST",
+      body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0 }),
+    }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   settings: () => req<Settings>("/settings"),
   updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string }) =>

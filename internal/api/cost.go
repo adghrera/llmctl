@@ -3,21 +3,24 @@ package api
 import (
 	"net/http"
 
-	"llmctl/internal/cost"
+	"llmctl/internal/proxy"
 )
 
-// costStore lazily opens the cost tracker.
-func (s *Server) costStore() *cost.Tracker {
-	if s.cost == nil {
-		s.cost = cost.NewTracker()
-	}
-	return s.cost
-}
+// Cost data comes from the gateway's live per-key/per-model token counters
+// (F045; re-sourced in F074 so the numbers actually populate).
 
 // costSummary handles GET /api/v1/cost.
 func (s *Server) costSummary(w http.ResponseWriter, r *http.Request) {
-	cs := s.costStore()
-	in, out, total, cost := cs.Totals()
+	var in, out, total int64
+	var cost float64
+	if s.gw != nil {
+		for _, u := range s.gw.KeyUsage() {
+			in += u.InputTok
+			out += u.OutputTok
+			total += u.TotalTok
+			cost += u.Cost
+		}
+	}
 	writeJSON(w, 200, map[string]any{
 		"input_tokens":  in,
 		"output_tokens": out,
@@ -28,12 +31,18 @@ func (s *Server) costSummary(w http.ResponseWriter, r *http.Request) {
 
 // costKeys handles GET /api/v1/cost/keys.
 func (s *Server) costKeys(w http.ResponseWriter, r *http.Request) {
-	cs := s.costStore()
-	writeJSON(w, 200, cs.KeySnapshot())
+	out := map[string]proxy.KeyUsage{}
+	if s.gw != nil {
+		out = s.gw.KeyUsage()
+	}
+	writeJSON(w, 200, out)
 }
 
 // costModels handles GET /api/v1/cost/models.
 func (s *Server) costModels(w http.ResponseWriter, r *http.Request) {
-	cs := s.costStore()
-	writeJSON(w, 200, cs.ModelSnapshot())
+	out := map[string]proxy.KeyUsage{}
+	if s.gw != nil {
+		out = s.gw.ModelUsage()
+	}
+	writeJSON(w, 200, out)
 }

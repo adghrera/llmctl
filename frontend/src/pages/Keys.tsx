@@ -6,15 +6,17 @@ import { ok, err } from "../ui/toast";
 export default function Keys() {
   const { keys, refreshOne } = useStore();
   const [name, setName] = useState("");
+  const [quota, setQuota] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const create = async () => {
     setBusy(true);
     try {
-      const r = await api.createKey(name);
+      const r = await api.createKey(name, quota);
       setCreated(r.key);
       setName("");
+      setQuota(0);
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -49,6 +51,16 @@ export default function Keys() {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && create()}
           />
+          <input
+            type="number"
+            min={0}
+            step={1000}
+            style={{ width: 140 }}
+            placeholder="token quota"
+            title="Total token quota (0 = unlimited)"
+            value={quota || ""}
+            onChange={(e) => setQuota(Math.max(0, Number(e.target.value) || 0))}
+          />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create
           </button>
@@ -80,6 +92,7 @@ export default function Keys() {
                 <th>Name</th>
                 <th>Prefix</th>
                 <th>Created</th>
+                <th>Used / quota</th>
                 <th />
               </tr>
             </thead>
@@ -89,6 +102,9 @@ export default function Keys() {
                   <td>{k.name}</td>
                   <td className="mono">{k.prefix}…</td>
                   <td>{new Date(k.createdAt).toLocaleString()}</td>
+                  <td className="mono">
+                    {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
+                  </td>
                   <td style={{ textAlign: "right" }}>
                     <button className="btn sm danger" disabled={busy} onClick={() => revoke(k.id)}>
                       Revoke

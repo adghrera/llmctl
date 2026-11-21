@@ -75,6 +75,9 @@ type APIKeyRecord struct {
 	CreatedAt time.Time `json:"createdAt"`
 	RateRPS   float64   `json:"rateRPS"` // sustained requests/sec per key (0 means use default)
 	RateBurst int       `json:"rateBurst"` // max burst per key (0 means use default)
+	// TokenQuota caps total tokens (prompt+completion) this key may spend
+	// since daemon start; 0 = unlimited (F074).
+	TokenQuota int64 `json:"tokenQuota,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

@@ -238,6 +238,13 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
+		// Per-key token quota (F074): reject once the key has spent its budget.
+		if keyRecord != nil && keyRecord.TokenQuota > 0 &&
+			s.KeyTotalTokens(keyPrefix(got)) >= keyRecord.TokenQuota {
+			writeErr(w, http.StatusTooManyRequests, "quota_exceeded",
+				fmt.Sprintf("API key %q has used its token quota (%d tokens)", keyRecord.Name, keyRecord.TokenQuota))
+			return
+		}
 		// Per-client rate limit keyed on token (or IP when auth is off).
 		key := got
 		if key == "" {
@@ -631,3 +638,12 @@ func keyPrefix(key string) string {
 	}
 	return key
 }
+
+// KeyUsage exposes per-key token totals (F074).
+func (s *Server) KeyUsage() map[string]KeyUsage { return s.collector.keyUsage() }
+
+// KeyTotalTokens exposes one key prefix's token total for quota checks (F074).
+func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
+
+// ModelUsage exposes per-model token totals with estimated cost (F074).
+func (s *Server) ModelUsage() map[string]KeyUsage { return s.collector.modelUsage() }

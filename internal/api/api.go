@@ -971,28 +971,43 @@ func (s *Server) jobEvents(w http.ResponseWriter, r *http.Request) {
 // ---- keys ----
 
 type keyView struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Prefix    string    `json:"prefix"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID         string    `json:"id"`
+	Name       string    `json:"name"`
+	Prefix     string    `json:"prefix"`
+	CreatedAt  time.Time `json:"createdAt"`
+	TokenQuota int64     `json:"tokenQuota,omitempty"`
+	UsedTok    int64     `json:"usedTokens"` // tokens spent since daemon start (F074)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		out = append(out, keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt})
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota}
+		if s.gw != nil && len(k.Prefix) > 0 {
+			p := k.Prefix
+			if len(p) > 8 {
+				p = p[:8] // gateway counters key on the first 8 chars
+			}
+			v.UsedTok = s.gw.KeyTotalTokens(p)
+		}
+		out = append(out, v)
 	}
 	writeJSON(w, 200, out)
 }
 
 type createKeyReq struct {
-	Name string `json:"name"`
+	Name       string `json:"name"`
+	TokenQuota int64  `json:"tokenQuota"` // 0 = unlimited (F074)
 }
 
 func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	var req createKeyReq
-	_ = json.NewDecoder(io.LimitReader(r.Body, 1<<4)).Decode(&req)
+	_ = json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req)
+	if req.TokenQuota < 0 {
+		writeErr(w, 400, "tokenQuota must be >= 0")
+		return
+	}
 	plaintext := generateKey()
 	sum := sha256.Sum256([]byte(plaintext))
 	id := newID()
@@ -1002,13 +1017,14 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.Update(func(st *store.State) error {
 		st.APIKeys[id] = &store.APIKeyRecord{
-			ID:        id,
-			Name:      req.Name,
-			Hash:      hex.EncodeToString(sum[:]),
-			Prefix:    prefix,
-			CreatedAt: time.Now(),
-			RateRPS:   0, // use default
-			RateBurst: 0, // use default
+			ID:         id,
+			Name:       req.Name,
+			Hash:       hex.EncodeToString(sum[:]),
+			Prefix:     prefix,
+			CreatedAt:  time.Now(),
+			RateRPS:    0, // use default
+			RateBurst:  0, // use default
+			TokenQuota: req.TokenQuota,
 		}
 		return nil
 	})
