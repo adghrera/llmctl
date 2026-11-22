@@ -144,7 +144,14 @@ func (r *Registry) AddPlugin(m *PluginMeta) error {
 	if err := os.WriteFile(p, b, 0o644); err != nil {
 		return err
 	}
-	return r.LoadPlugins()
+	if err := r.LoadPlugins(); err != nil {
+		// Roll back: a rejected plugin must not linger and break the next
+		// daemon start (F570).
+		os.Remove(p)
+		r.LoadPlugins()
+		return err
+	}
+	return nil
 }
 
 // RemovePlugin deletes the plugin file and reloads.

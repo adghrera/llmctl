@@ -696,6 +696,24 @@ export default function SettingsPage() {
           >
             Prune old
           </button>
+          <button
+            className="btn"
+            disabled={snapBusy || backups.length === 0}
+            title="check every snapshot's integrity without restoring (CLI: llmctl backups verify -all)"
+            onClick={async () => {
+              setSnapBusy(true);
+              try {
+                const results = await Promise.all(backups.map((b) => api.verifyBackup(b.name).catch((e) => ({ ok: false, error: e instanceof Error ? e.message : String(e) }))));
+                const bad = results.filter((r) => !r.ok);
+                if (bad.length === 0) ok(`all ${backups.length} snapshot(s) ok — state.json valid`);
+                else err(`${bad.length}/${backups.length} snapshot(s) failed: ${bad.map((b) => (b as { error?: string }).error).join("; ")}`);
+              } finally {
+                setSnapBusy(false);
+              }
+            }}
+          >
+            Verify all
+          </button>
           <span className="muted small">Keeps the newest {backupKeep || 7} snapshots.</span>
         </div>
         <div className="row" style={{ marginBottom: 10, alignItems: "center" }}>
