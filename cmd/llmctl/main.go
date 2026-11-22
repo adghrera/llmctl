@@ -273,7 +273,7 @@ Usage:
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
-  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
@@ -7740,15 +7740,31 @@ func cmdKb(args []string) error {
 		}
 		return nil
 	case "docs":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl kb docs <id>")
+		dfs := flag.NewFlagSet("kb docs", flag.ExitOnError)
+		djson := dfs.Bool("json", false, "print the raw documents JSON (for scripts) (F618)")
+		dcsv := dfs.Bool("csv", false, "output the document list as CSV (F618)")
+		dout := dfs.String("out", "", "write the raw documents JSON to this file instead of stdout (F618)")
+		dfs.Parse(reorderFlags(rest))
+		if dfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl kb docs <id> [-json] [-csv] [-out FILE]")
 		}
-		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]) + "/documents")
+		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(dfs.Arg(0)) + "/documents")
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("kb docs returned %d: %s", code, out)
+		}
+		if *dout != "" { // F618: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*dout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *dout, len(out))
+			return nil
+		}
+		if *djson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var docs []struct {
 			ID       string `json:"id"`
@@ -7757,6 +7773,15 @@ func cmdKb(args []string) error {
 		}
 		if err := json.Unmarshal(out, &docs); err != nil {
 			return err
+		}
+		if *dcsv { // F618: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "filename", "size_bytes"})
+			for _, d := range docs {
+				_ = w.Write([]string{d.ID, d.Filename, strconv.FormatInt(d.Size, 10)})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(docs) == 0 {
 			fmt.Println("no documents")

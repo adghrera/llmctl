@@ -396,7 +396,7 @@ toggle for a light theme (choice remembered). Tabs:
  - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
    `kb show <id> [-json] [-out FILE]` (human view: description, doc list, search mode —
-   embeddings vs TF-IDF — F366; -out writes the raw JSON, F505), `kb docs|delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
+   embeddings vs TF-IDF — F366; -out writes the raw JSON, F505), `kb docs <id> [-json|-csv|-out FILE]` (F618) | `kb delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
    document's text, F320) and
    `kb add-doc <kb-id> <path> [-name X]` upload documents,
    `kb export <kb-id> [-out DIR]` dumps all documents as files (F324) and
