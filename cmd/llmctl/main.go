@@ -62,6 +62,8 @@ func main() {
 		err = cmdWebSearch(args)
 	case "structured":
 		err = cmdStructured(args)
+	case "embed":
+		err = cmdEmbed(args)
 	case "note":
 		err = cmdNote(args)
 	case "autorestart":
@@ -155,6 +157,7 @@ Usage:
   llmctl jobs [-json] [-watch N]
   llmctl search <query> [-max N] [-json]
   llmctl structured -model ID -schema file.json <prompt>
+  llmctl embed -model ID <text>
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -1047,6 +1050,61 @@ func cmdStructured(args []string) error {
 		return nil
 	}
 	fmt.Println(pretty.String())
+	return nil
+}
+
+// cmdEmbed calls the gateway's /v1/embeddings endpoint (F281).
+func cmdEmbed(args []string) error {
+	fs := flag.NewFlagSet("embed", flag.ExitOnError)
+	model := fs.String("model", "", "embedding model id (required)")
+	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	jsonOut := fs.Bool("json", false, "print the raw embeddings JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	if *model == "" {
+		return fmt.Errorf("usage: llmctl embed -model ID [-key K] [-json] <text…>  (or pipe text to stdin)")
+	}
+	text := strings.Join(fs.Args(), " ")
+	if text == "" {
+		if b, err := io.ReadAll(os.Stdin); err == nil {
+			text = strings.TrimSpace(string(b))
+		}
+	}
+	if text == "" {
+		return fmt.Errorf("no text (pass it as an argument or pipe it to stdin)")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.DoKey("POST", "/v1/embeddings", map[string]any{
+		"model": *model, "input": text,
+	}, *keyF)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("embed: %s", out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var res struct {
+		Data []struct {
+			Embedding []float64 `json:"embedding"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil || len(res.Data) == 0 {
+		return fmt.Errorf("embed: unexpected response: %s", out)
+	}
+	v := res.Data[0].Embedding
+	fmt.Printf("model %s: %d dimensions\n", *model, len(v))
+	for i := 0; i < len(v) && i < 6; i++ {
+		fmt.Printf("  [%d] %.6f\n", i, v[i])
+	}
+	if len(v) > 6 {
+		fmt.Printf("  … (%d more)\n", len(v)-6)
+	}
 	return nil
 }
 
