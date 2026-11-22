@@ -310,7 +310,34 @@ export default function Instances() {
       </div>
       {presets.length > 0 && (
         <div className="card">
-          <h2>Saved configs</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Saved configs</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl presets list --csv` (F399).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const varsStr = (v?: Record<string, string>) =>
+                  Object.entries(v ?? {}).sort().map(([k, val]) => `${k}=${val}`).join(";");
+                const rows = [
+                  "name,model,instance,backend,port,vars",
+                  ...presets.map((p) =>
+                    [p.name, p.modelId, p.instance || "", p.backendId || "", String(p.port ?? 0), varsStr(p.vars)]
+                      .map(esc)
+                      .join(",")
+                  ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-presets-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
           <table>
             <thead>
               <tr>
@@ -347,7 +374,34 @@ export default function Instances() {
       )}
       {autoSpecs.length > 0 && (
         <div className="card">
-          <h2>Auto-start entries</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Auto-start entries</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl autostart list --csv` (F400).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const varsStr = (v?: Record<string, string>) =>
+                  Object.entries(v ?? {}).sort().map(([k, val]) => `${k}=${val}`).join(";");
+                const rows = [
+                  "name,model,backend,port,vars",
+                  ...autoSpecs.map((s) =>
+                    [s.name || "", s.modelId, s.backendId || "", String(s.port ?? ""), varsStr(s.vars)]
+                      .map(esc)
+                      .join(",")
+                  ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-autostart-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
           <table>
             <thead>
               <tr>

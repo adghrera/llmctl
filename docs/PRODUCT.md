@@ -82,7 +82,8 @@ GitHub release, or file list. No recompile.
   backend to become healthy. Concurrent requests for the same cold model
   start it only once. `llmctl autostart export [-out F]` / `autostart import
   FILE` move these declarations between instances (F329);
-  `autostart list --csv` exports name,model,backend,port,vars (`;`-joined k=v) (F390).
+  `autostart list --csv` exports name,model,backend,port,vars (`;`-joined k=v) (F390),
+  and the Instances page auto-start card has a matching Export CSV button (F400).
 - Logs per instance under `~/.llmctl/logs/<instance>/`, viewable in the UI
   with one-click full-file download (F075).
 
@@ -178,7 +179,8 @@ toggle for a light theme (choice remembered). Tabs:
   many requests the instance has served since daemon start (F150). Named start
   presets (model + vars + port recipe) can be saved and one-click started from
   the page, and from the CLI with `llmctl presets list|save|start|delete|export|import` (F265, F328);
-  `presets list --csv` exports name,model,instance,backend,port,vars (`;`-joined k=v, raw values) (F386).
+  `presets list --csv` exports name,model,instance,backend,port,vars (`;`-joined k=v, raw values) (F386),
+  and the Instances page Saved-configs card has a matching Export CSV button (F399).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a
@@ -504,7 +506,8 @@ toggle for a light theme (choice remembered). Tabs:
   (`llmctl backups download <name> [-out f]`, F276) or deletion,
   and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
-  `llmctl backups restore <name>` or the Restore button, F175, F176).
+  `llmctl backups restore <name>` or the Restore button, F175, F176), next to an
+  Export CSV button matching `backups list --csv` (F398).
   `llmctl backups list --csv` exports the snapshot inventory
   (name,size_bytes,created), header-only when empty (F383).
 

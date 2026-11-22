@@ -621,6 +621,26 @@ export default function SettingsPage() {
           <button className="btn primary" disabled={snapBusy} onClick={createSnapshot}>
             {snapBusy ? "Creating…" : "Create snapshot now"}
           </button>
+          <button
+            className="btn"
+            disabled={backups.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl backups list --csv` (F398).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "name,size_bytes,created",
+                ...backups.map((b) => [b.name, String(b.size), b.created].map(esc).join(",")),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-backups-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
           <span className="muted small">Keeps the newest {backupKeep || 7} snapshots.</span>
         </div>
         <div className="row" style={{ marginBottom: 10, alignItems: "center" }}>
