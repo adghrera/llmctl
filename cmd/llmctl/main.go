@@ -221,7 +221,7 @@ Usage:
   llmctl models aliases [--csv] [-out FILE]
   llmctl models alias <name> <model-id> [-json]
   llmctl models unalias <name> [-json]
-  llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
+  llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID] [-json] [-out FILE]
   llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0> [-json] [-out FILE]
   llmctl models price <model-id> <in-per-M> <out-per-M> [-json] [-out FILE]
@@ -3145,25 +3145,37 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "install":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models install <repo-or-url> [--file f] [--rev r] [--backend id] [--id ID]")
-		}
-		repo := rest[0]
 		fs := flag.NewFlagSet("install", flag.ExitOnError)
 		file := fs.String("file", "", "filename in repo")
 		rev := fs.String("rev", "", "HF revision")
 		backend := fs.String("backend", "", "backend id (default llama.cpp)")
 		id := fs.String("id", "", "model id")
-		fs.Parse(reorderFlags(rest[1:]))
-		body := map[string]any{"repo": repo, "file": *file, "revision": *rev, "backend": *backend, "id": *id}
+		ijson := fs.Bool("json", false, "print the raw job JSON (for scripts) (F562)")
+		iout := fs.String("out", "", "write the raw job JSON to this file instead of stdout (F562)")
+		fs.Parse(reorderFlags(rest))
+		if fs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl models install <repo-or-url> [--file f] [--rev r] [--backend id] [--id ID] [-json] [-out FILE]")
+		}
+		body := map[string]any{"repo": fs.Arg(0), "file": *file, "revision": *rev, "backend": *backend, "id": *id}
 		code, out, err := cc.Post("/api/v1/models/install", body)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 202 {
-			return fmt.Errorf("install returned %d", code)
+			return fmt.Errorf("install returned %d: %s", code, out)
 		}
+		if *iout != "" { // raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*iout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *iout, len(out))
+			return nil
+		}
+		if *ijson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Println(string(out))
 		fmt.Println("download started (track: web UI or llmctl status)")
 		return nil
 	case "remove":
