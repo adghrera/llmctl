@@ -172,8 +172,9 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl events -kind … -model … -key …`) and Export CSV / Export JSON buttons
   matching `llmctl events --csv`/`-json` columns (F371, F719). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173) with a Follow toggle that keeps tailing it
-  every 2s (UI counterpart of `llmctl logs -daemon -f`, F423) and a filter box
-  for substring line filtering (F450), and a Stats toggle that rolls the feed
+  every 2s (UI counterpart of `llmctl logs -daemon -f`, F423), a filter box
+  for substring line filtering (F450), and a Download button saving the
+  displayed tail (F744), and a Stats toggle that rolls the feed
   up per kind — count, last seen, who (UI twin of `llmctl events -stats`, F600).
   `llmctl events -watch N` live-tails
    the feed, printing new events every N seconds (F187).

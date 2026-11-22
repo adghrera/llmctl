@@ -723,6 +723,23 @@ export default function Overview() {
           </button>
           <button
             className="btn sm"
+            disabled={daemonLog === null}
+            title="download the displayed daemon log tail as a text file (twin of llmctl logs -out)"
+            onClick={() => {
+              const f = daemonLogFilter.trim();
+              const text = f && daemonLog ? daemonLog.split("\n").filter((l) => l.toLowerCase().includes(f.toLowerCase())).join("\n") : daemonLog || "";
+              const blob = new Blob([text + "\n"], { type: "text/plain" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-daemon-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.log`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Download
+          </button>
+          <button
+            className="btn sm"
             onClick={async () => {
               try {
                 if (daemonLog !== null) {
