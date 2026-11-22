@@ -138,6 +138,7 @@ Usage:
   llmctl models list
   llmctl models show <id>
   llmctl models probe
+  llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models aliases
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
@@ -581,7 +582,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|show|probe|install|remove|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|show|probe|price|ctx|idle|install|remove|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -671,6 +672,28 @@ func cmdModels(args []string) error {
 		for _, m := range list {
 			fmt.Printf("%-20s %s\n", m.ID, m.OwnedBy)
 		}
+		return nil
+	case "idle":
+		ifs := flag.NewFlagSet("models idle", flag.ExitOnError)
+		ifs.Parse(reorderFlags(rest))
+		if ifs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl models idle <id> <minutes|never>  (never = -1, 0 = global default)")
+		}
+		n, err := strconv.Atoi(ifs.Arg(1))
+		if ifs.Arg(1) == "never" {
+			n, err = -1, nil
+		}
+		if err != nil {
+			return fmt.Errorf("invalid minutes: %s", ifs.Arg(1))
+		}
+		code, outb, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(ifs.Arg(0))+"/idle", map[string]any{"idleUnloadMin": n})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("idle returned %d: %s", code, outb)
+		}
+		fmt.Printf("idleUnloadMin %d set for %s\n", n, ifs.Arg(0))
 		return nil
 	case "aliases":
 		fs := flag.NewFlagSet("aliases", flag.ExitOnError)
@@ -901,7 +924,7 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("unknown models subcommand: %s (list|show|aliases|alias|unalias|install|remove)", sub)
+		return fmt.Errorf("unknown models subcommand: %s (list|show|probe|ctx|price|idle|aliases|alias|unalias|install|remove)", sub)
 	}
 }
 

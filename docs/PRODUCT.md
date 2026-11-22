@@ -423,6 +423,7 @@ llmctl models list|show|install|remove|hf-search|hf-files   (list shows human si
                                     remove --file also deletes a registered external file)
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180)
 llmctl models probe [-json]                          (what /v1/models serves now, F252)
+llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
