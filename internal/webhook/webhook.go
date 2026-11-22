@@ -61,6 +61,32 @@ func Post(ctx context.Context, url string, v any) error {
 	return PostWithSecret(ctx, url, v, "")
 }
 
+// PostWithRetries is PostWithSecret with up to attempts total tries, pausing
+// 1s, 2s, … between them. Each attempt is recorded in the delivery ring.
+// Returns the last error, or nil as soon as one attempt lands (F163).
+func PostWithRetries(ctx context.Context, url string, v any, secret string, attempts int) error {
+	if attempts < 1 {
+		attempts = 1
+	}
+	var err error
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(i) * time.Second):
+			}
+		}
+		if err = PostWithSecret(ctx, url, v, secret); err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return err
+		}
+	}
+	return err
+}
+
 // PostWithSecret is Post plus an HMAC-SHA256 signature of the raw JSON body
 // sent as "X-LLMCtrl-Signature: sha256=<hex>" when secret is non-empty, so
 // receivers can verify the payload really came from this daemon (F111).

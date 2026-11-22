@@ -422,9 +422,12 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 		"model":    inst.ModelID,
 		"time":     time.Now().UTC().Format(time.RFC3339),
 	}
-	if err := webhook.PostWithSecret(ctx, s.Settings.NotifyWebhook, payload, s.Settings.NotifyWebhookSecret); err != nil {
-		logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
-	}
+	// Async with retries so a flaky receiver never blocks the caller (F163).
+	go func(url, secret string) {
+		if err := webhook.PostWithRetries(ctx, url, payload, secret, 3); err != nil {
+			logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
+		}
+	}(s.Settings.NotifyWebhook, s.Settings.NotifyWebhookSecret)
 }
 
 // flushKeyUsageLoop periodically persists per-key token counters and the
@@ -619,7 +622,7 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.
 		} else {
 			payload["error"] = errMsg
 		}
-		if werr := webhook.PostWithSecret(ctx, rec.Spec.WebhookURL, payload, secret); werr != nil {
+		if werr := webhook.PostWithRetries(ctx, rec.Spec.WebhookURL, payload, secret, 3); werr != nil {
 			logger.Error("scheduler: webhook failed", "task", rec.ID, "error", werr)
 		}
 	}

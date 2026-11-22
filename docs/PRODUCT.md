@@ -318,7 +318,9 @@ toggle for a light theme (choice remembered). Tabs:
   kinds, empty = all) restricts which events are POSTed, e.g. only
   `instance.crashed` (F143). The last 50 delivery attempts (time, event,
   status/error) are listed under the webhook and at
-  GET /api/v1/webhook/log (F144).
+  GET /api/v1/webhook/log (F144). Event and scheduler-hook deliveries retry
+  up to 3 times (1s, 2s backoff) so a briefly unreachable receiver still gets
+  the notification (F163).
 - **CORS** — Settings → "CORS (gateway)": when ON, the gateway answers
   cross-origin preflights (OPTIONS → 204) and sends Access-Control-Allow-*
   headers so browser apps can call /v1/* directly.
