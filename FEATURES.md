@@ -270,6 +270,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F258 | P3 | 258 | ui | Requests stats bar | COMPLETED | The Requests page now shows a summary bar over the visible ring — request count, errors, p50/p95 latency, tokens and cost — the UI counterpart of `llmctl requests -stats`, computed client-side from the same data the table renders. Verified: tsc + vite build clean, served bundle contains the percentile stats. |
 | F259 | P3 | 259 | doctor | `doctor -check <name>` | COMPLETED | Repeatable `-check` filter keeps only checks whose name contains the given substring (e.g. `doctor -check disk -check models`); the exit status and `-json` output reflect just the filtered subset, and a non-matching name is an error. Verified live: single and multi-check filtering, `-json` re-marshals the filtered set (11 checks unfiltered, 1 filtered), no-match exits ≠0. |
 | F260 | P3 | 260 | usage | `usage -key -csv` | COMPLETED | The single-key usage view (`usage -key <id>`) now honors `-csv` like `-keys -csv` does, emitting `date,key_id,requests,errors,prompt_tokens,completion_tokens,cost_usd`. Verified live: a fresh gateway request shows up as one CSV row plus the plain-table line. |
+| F261 | P3 | 261 | events | `events -csv` | COMPLETED | `llmctl events -csv` exports the event ring as `time,kind,instance,model` (RFC3339 UTC times), matching the `-csv` pattern of requests/usage. Verified live: header on an empty ring, data rows after a stop/start cycle. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

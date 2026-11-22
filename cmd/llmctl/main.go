@@ -174,7 +174,7 @@ Usage:
   llmctl backups [list|create|restore <name>|verify <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
-  llmctl events [-n 20]
+  llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
@@ -2172,6 +2172,7 @@ func cmdEvents(args []string) error {
 	kind := fs.String("kind", "", "only this event kind, e.g. instance.crashed")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new events until Ctrl-C (0 = print once)")
 	jsonOut := fs.Bool("json", false, "print the raw events JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -2213,6 +2214,15 @@ func cmdEvents(args []string) error {
 	evs, err := fetch()
 	if err != nil {
 		return err
+	}
+	if *csvOut { // F261
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"time", "kind", "instance", "model"})
+		for _, e := range evs {
+			_ = w.Write([]string{e.Time.UTC().Format(time.RFC3339), e.Kind, e.Instance, e.Model})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	if len(evs) == 0 {
 		fmt.Println("no events since daemon start")
