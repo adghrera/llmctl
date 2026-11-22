@@ -71,6 +71,8 @@ func main() {
 		err = cmdMetrics(args)
 	case "events":
 		err = cmdEvents(args)
+	case "webhooks":
+		err = cmdWebhooks(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -142,6 +144,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [--csv]
   llmctl metrics [-watch N]
   llmctl events [-n 20]
+  llmctl webhooks [-n 20]     recent webhook delivery attempts
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -1605,6 +1608,65 @@ type eventRow struct {
 	Kind     string    `json:"kind"`
 	Instance string    `json:"instance"`
 	Model    string    `json:"model"`
+}
+
+// cmdWebhooks shows recent webhook delivery attempts (F191), backed by
+// GET /api/v1/webhook/log.
+func cmdWebhooks(args []string) error {
+	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
+	n := fs.Int("n", 20, "number of deliveries")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/webhook/log")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("webhook log returned %d", code)
+	}
+	var list []struct {
+		Time   time.Time `json:"time"`
+		URL    string    `json:"url"`
+		Event  string    `json:"event"`
+		Status int       `json:"status"`
+		OK     bool      `json:"ok"`
+		Error  string    `json:"error"`
+	}
+	if err := json.Unmarshal(out, &list); err != nil {
+		return err
+	}
+	if len(list) > *n {
+		list = list[:*n]
+	}
+	if len(list) == 0 {
+		fmt.Println("no webhook deliveries yet")
+		return nil
+	}
+	fmt.Printf("%-14s %-24s %-6s %-5s %s\n", "TIME", "EVENT", "STATUS", "OK", "URL / ERROR")
+	for _, d := range list {
+		status := "-"
+		if d.Status > 0 {
+			status = strconv.Itoa(d.Status)
+		}
+		ok := "no"
+		if d.OK {
+			ok = "yes"
+		}
+		info := d.URL
+		if d.Error != "" {
+			info += " — " + d.Error
+		}
+		ev := d.Event
+		if ev == "" {
+			ev = "-"
+		}
+		fmt.Printf("%-14s %-24s %-6s %-5s %s\n",
+			d.Time.Local().Format("01-02 15:04:05"), ev, status, ok, info)
+	}
+	return nil
 }
 
 func cmdKey(args []string) error {

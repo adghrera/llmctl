@@ -200,6 +200,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F188 | P3 | 188 | chat | `chat --system` prompt | COMPLETED | `llmctl chat --system TEXT` prepends a system message to the conversation. Verified live against an echo stub: with the flag the backend received `[{system},{user}]`, without it only `[{user}]`. |
 | F189 | P3 | 189 | requests | Time-range filter | COMPLETED | `GET /api/v1/requests` accepts `since`/`until` (RFC3339); `llmctl requests -since/-until` also take durations (`30m`, `2h` = "that long ago"), and the Requests page gained two datetime pickers. Verified live: since-future → 0 rows, since-1h → subset, CLI duration flags match. |
 | F190 | P3 | 190 | keys | NOTE column in `key list` | COMPLETED | `llmctl key list` now shows each key's free-text note (F186) in a trailing NOTE column (truncated to 28 chars). Verified live: a key created with a note shows it in the list. |
+| F191 | P3 | 191 | cli | `llmctl webhooks` | COMPLETED | New CLI command prints recent webhook delivery attempts (time, event, status, ok, URL/error) from `GET /api/v1/webhook/log`. Verified live: a successful test delivery and a connection-refused failure both render correctly. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
