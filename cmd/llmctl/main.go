@@ -222,9 +222,9 @@ Usage:
   llmctl catalog list [-json] | install <id>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
-  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
+  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
-  llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false]
+  llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
   llmctl scheduler runs [-n 20]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
@@ -2959,11 +2959,15 @@ func cmdScheduler(args []string) error {
 		instance := fs.String("instance", "", "instance id (instance.stop)")
 		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
 		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
+		kb := fs.String("kb", "", "knowledge base id: top matching chunks are injected as context (chat kind)")
 		fs.Parse(reorderFlags(rest))
 		body := map[string]any{
 			"name": *name, "cron_expr": *cron, "kind": *kind,
 			"model": *model, "prompt": *prompt, "instance": *instance,
 			"enabled": true,
+		}
+		if *kb != "" {
+			body["kb"] = *kb
 		}
 		if *webhook != "" {
 			body["webhook_url"] = *webhook
@@ -3050,7 +3054,7 @@ func cmdScheduler(args []string) error {
 		// Read-modify-write: fetch the current spec, apply the flags given,
 		// PUT the whole spec back (F290).
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-instance I] [-webhook U] [-keep N] [-enabled true|false]")
+			return fmt.Errorf("usage: llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-instance I] [-webhook U] [-keep N] [-enabled true|false] [-kb ID]")
 		}
 		id := rest[0]
 		ufs := flag.NewFlagSet("scheduler update", flag.ExitOnError)
@@ -3062,6 +3066,7 @@ func cmdScheduler(args []string) error {
 		webhook := ufs.String("webhook", "", "webhook URL (empty string clears)")
 		keep := ufs.Int("keep", -1, "snapshots to retain (backup kind)")
 		enabled := ufs.String("enabled", "", "true | false")
+		kb := ufs.String("kb", "", "knowledge base id (chat kind)")
 		ufs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(id))
 		if err != nil {
@@ -3097,6 +3102,9 @@ func cmdScheduler(args []string) error {
 		if *keep >= 0 {
 			rec.Spec["keep"] = *keep
 		}
+		if *kb != "" {
+			rec.Spec["kb"] = *kb
+		}
 		switch *enabled {
 		case "":
 		case "true":
@@ -3106,7 +3114,7 @@ func cmdScheduler(args []string) error {
 		default:
 			return fmt.Errorf("-enabled must be true or false")
 		}
-		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" {
+		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" && *kb == "" {
 			return fmt.Errorf("nothing to change (pass at least one flag)")
 		}
 		delete(rec.Spec, "id")

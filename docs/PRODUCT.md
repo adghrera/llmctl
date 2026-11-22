@@ -368,6 +368,10 @@ toggle for a light theme (choice remembered). Tabs:
   prompt to a model, result saved as a conversation), `instance.start` and
   `instance.stop` (start/stop an instance on schedule — e.g. load a model
   every morning, unload it at night), plus `backup` (state snapshot).
+  Chat tasks can name a knowledge base (`-kb`, Scheduler page dropdown):
+  the top matching chunks are injected as context, same as `chat -kb`
+  (F365). Scheduled chats reach the gateway with a memory-only internal
+  token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
   `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
   specs between instances (fresh ids on import, F326).
@@ -544,7 +548,7 @@ llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)
 llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/runs --json for scripts;
-                                    add: -name -cron -kind -model -prompt -instance -webhook -keep;
+                                    add: -name -cron -kind -model -prompt -instance -webhook -keep -kb;
                                     update: same flags, changes only what you pass, F290)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]]
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)

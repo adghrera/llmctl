@@ -186,6 +186,7 @@ export interface ScheduleSpec {
   instance?: string;
   model: string;
   prompt: string;
+  kb?: string; // knowledge base id: inject top chunks as context (chat kind, F365)
   enabled: boolean;
   webhook_url?: string;
   last_run: string;
@@ -758,10 +759,10 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; instance?: string; keep?: number; webhook_url?: string }) =>
+  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
-  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean; webhook_url?: string }) =>
+  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; kb?: string; enabled?: boolean; webhook_url?: string }) =>
     req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runSchedule: (id: string) => req<{ ok: boolean; started: string }>(`/scheduler/${encodeURIComponent(id)}/run`, { method: "POST" }),

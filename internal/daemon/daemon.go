@@ -13,6 +13,8 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +36,7 @@ import (
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
+	"llmctl/internal/rag"
 	"llmctl/internal/scheduler"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
@@ -148,15 +151,25 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}
 
+	// Per-start internal token: lets in-daemon callers (scheduled tasks,
+	// F365) reach the gateway without an API key even when auth is on.
+	// Memory-only; changes every restart.
+	internalTok := make([]byte, 16)
+	if _, err := rand.Read(internalTok); err != nil {
+		return fmt.Errorf("mint internal token: %w", err)
+	}
+	tokHex := hex.EncodeToString(internalTok)
+
 	gw, err := proxy.NewServer(proxy.Config{
-		Addr:        opts.Addr,
-		APIKeys:     opts.APIKeys,
-		KeyCheck:    nil, // mgmt.KeyCheck set below
-		RequireAuth: requireAuth,
-		AllowCORS:   allowCORS,
-		RateRPS:     rateRPS,
-		RateBurst:   rateBurst,
-		MaxInflight: opts.MaxInflight,
+		Addr:          opts.Addr,
+		APIKeys:       opts.APIKeys,
+		KeyCheck:      nil, // mgmt.KeyCheck set below
+		InternalToken: tokHex,
+		RequireAuth:   requireAuth,
+		AllowCORS:     allowCORS,
+		RateRPS:       rateRPS,
+		RateBurst:     rateBurst,
+		MaxInflight:   opts.MaxInflight,
 		// Persist the request log across restarts (F086).
 		RequestLogPath: paths.RequestLog(),
 		Logger:         logger,
@@ -626,7 +639,7 @@ func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Sup
 // outcome (ok/error) is POSTed there afterwards.
 func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, gw *proxy.Server, st *store.Store, logger *slog.Logger) {
 	start := time.Now()
-	content, err := doScheduledTask(ctx, sch, sv, rec, logger)
+	content, err := doScheduledTask(ctx, sch, sv, rec, logger, gw.InternalToken())
 	status := "ok"
 	errMsg := ""
 	if err != nil {
@@ -700,7 +713,32 @@ func defaultBackupKeep() int {
 }
 
 // doScheduledTask runs the chat completion and saves the conversation.
-func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, logger *slog.Logger) (string, error) {
+// kbContextForTask builds the KB context turn for a scheduled chat task
+// (F365) — same wording as the CLI's kbContextFor so replies look identical.
+func kbContextForTask(kbID, query string) (string, error) {
+	ts, err := rag.Open()
+	if err != nil {
+		return "", err
+	}
+	hits, err := ts.Search(kbID, query, 3)
+	if err != nil {
+		return "", err
+	}
+	if len(hits) == 0 {
+		return "", nil
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", kbID)
+	for i, h := range hits {
+		if i > 0 {
+			sb.WriteString("\n\n---\n\n")
+		}
+		fmt.Fprintf(&sb, "Document: %s (relevance: %.1f%%)\n%s", h.Filename, h.Score*100, h.ChunkText)
+	}
+	return sb.String(), nil
+}
+
+func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, logger *slog.Logger, internalTok string) (string, error) {
 	// Instance tasks: start/stop an instance instead of chatting (F076).
 	switch rec.Spec.KindOrDefault() {
 	case "instance.start":
@@ -727,9 +765,20 @@ func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.S
 	}
 
 	// Build the chat request body.
+	msgs := []map[string]string{}
+	// Optional KB context: same shape as `llmctl chat -kb` (F342), driven
+	// from the schedule spec (F365).
+	if rec.Spec.KB != "" {
+		if ctxMsg, err := kbContextForTask(rec.Spec.KB, rec.Spec.Prompt); err != nil {
+			logger.Warn("scheduler: kb search failed", "task", rec.ID, "kb", rec.Spec.KB, "error", err)
+		} else if ctxMsg != "" {
+			msgs = append(msgs, map[string]string{"role": "user", "content": ctxMsg})
+		}
+	}
+	msgs = append(msgs, map[string]string{"role": "user", "content": rec.Spec.Prompt})
 	body := map[string]any{
 		"model":    rec.Spec.Model,
-		"messages": []map[string]string{{"role": "user", "content": rec.Spec.Prompt}},
+		"messages": msgs,
 		"stream":   false,
 	}
 	b, _ := json.Marshal(body)
@@ -747,6 +796,10 @@ func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.S
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if internalTok != "" {
+		// Trusted in-daemon caller: passes gateway auth without a key (F365).
+		req.Header.Set("Authorization", "Bearer "+internalTok)
+	}
 
 	resp, err := cc.hc.Do(req)
 	if err != nil {

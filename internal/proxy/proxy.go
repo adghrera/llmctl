@@ -31,27 +31,28 @@ import (
 
 // Server is the gateway.
 type Server struct {
-	addr         string
-	apiKeys      [][]byte                         // pre-encoded; empty list = auth disabled
-	keyCheck     func(string) *store.APIKeyRecord // hashed-key verifier (overrides apiKeys)
-	requireAuth  *atomic.Bool                     // if false, no key needed (auth disabled globally)
-	allowCORS    *atomic.Bool                     // if true, CORS headers + OPTIONS preflight (F082)
-	limiter      *rateLimiter
-	router       *Router
-	logger       *slog.Logger
-	maxInflight  int64
-	inflight     atomic.Int64
-	requestCount atomic.Int64
-	collector    *metricsCollector
-	keyMu        sync.Mutex
-	keyInflight  map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
-	instInflight map[string]*atomic.Int64 // per instance id, in-flight requests (F113)
-	instMu       sync.Mutex               // guards instInflight
-	maxBodyBytes atomic.Int64             // gateway request body cap in bytes (F121)
-	startHook    func(model string) bool  // daemon-provided cold-start attempt (F100)
-	startMu      sync.Mutex               // serializes concurrent cold starts (F100)
-	handler      http.Handler
-	httpSrv      *http.Server
+	addr          string
+	apiKeys       [][]byte                         // pre-encoded; empty list = auth disabled
+	keyCheck      func(string) *store.APIKeyRecord // hashed-key verifier (overrides apiKeys)
+	internalToken []byte                           // daemon-internal bearer token; bypasses key auth for in-daemon callers (F365)
+	requireAuth   *atomic.Bool                     // if false, no key needed (auth disabled globally)
+	allowCORS     *atomic.Bool                     // if true, CORS headers + OPTIONS preflight (F082)
+	limiter       *rateLimiter
+	router        *Router
+	logger        *slog.Logger
+	maxInflight   int64
+	inflight      atomic.Int64
+	requestCount  atomic.Int64
+	collector     *metricsCollector
+	keyMu         sync.Mutex
+	keyInflight   map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
+	instInflight  map[string]*atomic.Int64 // per instance id, in-flight requests (F113)
+	instMu        sync.Mutex               // guards instInflight
+	maxBodyBytes  atomic.Int64             // gateway request body cap in bytes (F121)
+	startHook     func(model string) bool  // daemon-provided cold-start attempt (F100)
+	startMu       sync.Mutex               // serializes concurrent cold starts (F100)
+	handler       http.Handler
+	httpSrv       *http.Server
 }
 
 // Config for NewServer.
@@ -59,12 +60,16 @@ type Config struct {
 	Addr    string
 	APIKeys []string // static keys (tests, simple setups)
 	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
-	KeyCheck    func(token string) *store.APIKeyRecord
-	RequireAuth bool    // if false, auth is disabled regardless of keys
-	AllowCORS   bool    // if true, gateway sends CORS headers + answers OPTIONS (F082)
-	RateRPS     float64 // sustained requests/sec per client
-	RateBurst   int
-	MaxInflight int
+	KeyCheck func(token string) *store.APIKeyRecord
+	// InternalToken, when set, is a bearer token the daemon itself may use to
+	// call the gateway without an API key (scheduled tasks, F365). It lives
+	// only in process memory and changes on every restart.
+	InternalToken string
+	RequireAuth   bool    // if false, auth is disabled regardless of keys
+	AllowCORS     bool    // if true, gateway sends CORS headers + answers OPTIONS (F082)
+	RateRPS       float64 // sustained requests/sec per client
+	RateBurst     int
+	MaxInflight   int
 	// RequestLogPath, when set, persists the recent-request ring to a JSONL
 	// file so it survives daemon restarts (F086).
 	RequestLogPath string
@@ -114,6 +119,9 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		collector:    newMetricsCollector(),
 		keyInflight:  map[string]*atomic.Int64{},
 		instInflight: map[string]*atomic.Int64{},
+	}
+	if cfg.InternalToken != "" {
+		s.internalToken = []byte(cfg.InternalToken)
 	}
 	s.requireAuth.Store(requireAuth)
 	s.allowCORS.Store(cfg.AllowCORS)
@@ -294,7 +302,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 			keyRecord = s.keyCheck(got)
 		}
 		valid := false
-		if keyRecord != nil {
+		if len(s.internalToken) > 0 && subtle.ConstantTimeCompare([]byte(got), s.internalToken) == 1 {
+			// In-daemon caller (scheduled tasks, F365): trusted without a key.
+			valid = true
+		} else if keyRecord != nil {
 			valid = true
 		} else if len(s.apiKeys) > 0 {
 			for _, k := range s.apiKeys {
@@ -930,6 +941,16 @@ func GenerateKey() string {
 	b := make([]byte, 20)
 	rand.Read(b)
 	return "sk-llm-" + hex.EncodeToString(b)
+}
+
+// InternalToken returns the daemon-internal bearer token (F365), or "" if
+// none was configured. It lets in-daemon callers (scheduled tasks) call the
+// gateway without an API key.
+func (s *Server) InternalToken() string {
+	if len(s.internalToken) == 0 {
+		return ""
+	}
+	return string(s.internalToken)
 }
 
 // SetRequireAuth updates the gateway's auth requirement at runtime.

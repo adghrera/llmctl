@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, ScheduleSpec, ScheduleRun } from "../api/client";
+import { api, KB, ScheduleSpec, ScheduleRun } from "../api/client";
 import { until } from "../lib/time";
 import { ok, err } from "../ui/toast";
 
@@ -12,6 +12,8 @@ export default function Scheduler() {
   const [keep, setKeep] = useState(7);
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [kb, setKb] = useState("");
+  const [kbs, setKbs] = useState<KB[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
@@ -33,6 +35,7 @@ export default function Scheduler() {
   useEffect(() => {
     load();
     api.schedulerRuns().then(setRuns).catch(() => setRuns([]));
+    api.knowledgeBases().then(setKbs).catch(() => setKbs([]));
   }, []);
 
   const create = async () => {
@@ -60,6 +63,7 @@ export default function Scheduler() {
         kind,
         model,
         prompt: kind === "chat" ? prompt : "",
+        kb: kind === "chat" && kb ? kb : undefined,
         instance: instance.trim() || undefined,
         keep: kind === "backup" ? keep : undefined,
         webhook_url: webhookUrl.trim() || undefined,
@@ -72,6 +76,7 @@ export default function Scheduler() {
       setInstance("");
       setKeep(7);
       setWebhookUrl("");
+      setKb("");
       await load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -218,6 +223,21 @@ export default function Scheduler() {
               onChange={(e) => setPrompt(e.target.value)}
             />
           )}
+          {kind === "chat" && kbs.length > 0 && (
+            <select
+              style={{ minWidth: 150 }}
+              title="inject top knowledge-base chunks as context (F365)"
+              value={kb}
+              onChange={(e) => setKb(e.target.value)}
+            >
+              <option value="">no knowledge base</option>
+              {kbs.map((k) => (
+                <option key={k.id} value={k.id}>
+                  kb: {k.kb.name || k.id}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             style={{ flex: 2, minWidth: 200 }}
             placeholder="Webhook URL (optional — POSTed result JSON on each run)"
@@ -273,6 +293,11 @@ export default function Scheduler() {
                   <td style={{ fontSize: 12 }}>{s.kind || "chat"}</td>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>
                     {s.model}
+                    {s.kb ? (
+                      <span className="muted small" title={`knowledge base: ${s.kb}`}>
+                        {" "}· kb:{s.kb}
+                      </span>
+                    ) : null}
                   </td>
                   <td style={{ textAlign: "center", fontSize: 12 }}>
                     {s.webhook_url ? (
