@@ -356,7 +356,7 @@ llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl key generate|list|revoke   (generate: -quota -maxreq -models -expires -budget -rps;
                                     list shows usage, cost, quota, expiry, daily budget)
 llmctl scheduler list|add|run|enable|disable|delete
-llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
+llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
 llmctl backups [list|create|delete <name>]
 llmctl usage [-n 14] [-key ID | -keys]
 llmctl metrics

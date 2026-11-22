@@ -6,10 +6,12 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -831,6 +833,7 @@ func cmdRequests(args []string) error {
 	instance := fs.String("instance", "", "filter by serving instance id")
 	id := fs.String("id", "", "show the single request with this id")
 	n := fs.Int("n", 20, "number of entries")
+	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -891,6 +894,25 @@ func cmdRequests(args []string) error {
 	if len(entries) == 0 {
 		fmt.Println("no requests yet")
 		return nil
+	}
+	if *csvOut {
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"id", "time", "model", "instance", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens", "cost_usd", "error"})
+		for _, e := range entries {
+			cost := ""
+			if e.Cost > 0 {
+				cost = fmt.Sprintf("%.6f", e.Cost)
+			}
+			stream := "0"
+			if e.Stream {
+				stream = "1"
+			}
+			_ = w.Write([]string{e.ID, e.Time.UTC().Format(time.RFC3339), e.Model, e.Instance, e.Key,
+				strconv.Itoa(e.Status), stream, strconv.Itoa(int(math.Round(e.LatencyMs))),
+				strconv.FormatInt(e.PromptTok, 10), strconv.FormatInt(e.CompTok, 10), cost, e.Error})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5s %9s %7s %7s %-9s %-6s %s\n", "ID", "TIME", "MODEL", "INSTANCE", "KEY", "CODE", "MS", "IN", "OUT", "COST $", "STREAM", "ERROR")
 	for _, e := range entries {
