@@ -255,8 +255,8 @@ func (s *Server) searchKBDocs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Query  string `json:"q"`
-		Limit  int    `json:"limit"`
+		Query string `json:"q"`
+		Limit int    `json:"limit"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON: "+err.Error())
