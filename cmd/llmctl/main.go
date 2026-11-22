@@ -214,7 +214,7 @@ Usage:
   llmctl key list [--csv]
   llmctl key revoke <id>
   llmctl key reset-usage <id>
-  llmctl autostart list
+  llmctl autostart list [--csv]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
@@ -238,7 +238,7 @@ Usage:
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
-  llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
+  llmctl tools [-json|-csv] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
@@ -5963,6 +5963,7 @@ func cmdTools(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("tools", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the tools as JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the tool list as CSV (F389)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/tools")
 		if err != nil {
@@ -5987,6 +5988,20 @@ func cmdTools(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *csvOut { // F389: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "enabled", "sandbox", "runtime", "name", "description"})
+			for _, t := range list {
+				rt := t.Manifest.Runtime
+				if rt == "" {
+					rt = "python"
+				}
+				_ = w.Write([]string{t.ID, strconv.FormatBool(t.Enabled), strconv.FormatBool(t.Sandbox),
+					rt, t.Manifest.Name, t.Manifest.Description})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(list) == 0 {
 			fmt.Println("no tools installed")
@@ -7769,6 +7784,7 @@ func cmdAutoStart(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("autostart list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw autostart JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the autostart list as CSV (F390)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/autostart")
 		if err != nil {
@@ -7780,6 +7796,30 @@ func cmdAutoStart(args []string) error {
 		}
 		var list []map[string]any
 		json.Unmarshal(out, &list)
+		if *csvOut { // F390: header-only when empty keeps the stream parseable
+			csvStr := func(v any) string {
+				if v == nil {
+					return ""
+				}
+				return fmt.Sprint(v)
+			}
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"name", "model", "backend", "port", "vars"})
+			for _, s := range list {
+				vars := ""
+				if m, ok := s["vars"].(map[string]any); ok {
+					sm := make(map[string]string, len(m))
+					for k, v := range m {
+						sm[k] = fmt.Sprint(v)
+					}
+					vars = sortedVarsJoin(sm, ";")
+				}
+				_ = w.Write([]string{csvStr(s["name"]), csvStr(s["modelId"]),
+					csvStr(s["backendId"]), csvStr(s["port"]), vars})
+			}
+			w.Flush()
+			return w.Error()
+		}
 		if len(list) == 0 {
 			fmt.Println("no auto-start entries")
 			return nil
