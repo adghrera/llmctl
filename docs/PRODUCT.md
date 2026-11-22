@@ -582,7 +582,7 @@ llmctl down [-json]                      (prints "daemon stopped"; -json prints 
 llmctl status [-json] [-watch N] [-out FILE]   (-watch N: live refresh; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F466; version, uptime, running instances with
                                     uptime, gateway auth, today's usage)
 llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]  (--csv exports name,status,detail (F429); -quiet prints only warn/error lines + a summary; -check keeps matching checks, repeatable; -watch N re-runs the sweep and prints checks as they change, F557; -out writes the JSON to a file, F464)
-llmctl gpu [-json] [--csv] [-out FILE]             (GPU inventory: vendor, name, used/total; --csv adds raw bytes + used_pct, -out writes the raw JSON, F430, F463)
+llmctl gpu [-json] [--csv] [-out FILE] [-watch N]             (GPU inventory: vendor, name, used/total; --csv adds raw bytes + used_pct, -out writes the raw JSON, -watch N reprints every N seconds, F430, F463, F593)
 llmctl jobs [-json] [--csv] [-watch N] [-out FILE]   (background install jobs; --csv exports the job list, -out writes the raw JSON refreshed each -watch tick, F427, F273, F477)
 llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]   (block until the job finishes: exit 0 on done, non-zero on failure; progress prints only when it changes; -json prints the final job JSON; backed by GET /api/v1/jobs/{id}, F575)
 llmctl jobs show <job-id> [-json]   (one job in detail — status, progress, message/error, timestamps, F578)

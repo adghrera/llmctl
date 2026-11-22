@@ -197,7 +197,7 @@ Usage:
   llmctl down [-json]
   llmctl status [-json] [-watch N] [-out FILE]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]
-  llmctl gpu [-json] [--csv] [-out FILE]
+  llmctl gpu [-json] [--csv] [-out FILE] [-watch N]
   llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
   llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]
   llmctl jobs show <job-id> [-json]
@@ -622,11 +622,36 @@ func cmdDoctor(args []string) error {
 }
 
 // cmdGPU prints GPU inventory from the daemon's probe (GET /api/v1/gpu).
+// cmdGPU lists detected GPUs; -watch N reprints every N seconds until
+// interrupted (F593), handy while instances load and unload.
 func cmdGPU(args []string) error {
+	watch := 0
+	for i, a := range args {
+		if a == "-watch" && i+1 < len(args) {
+			watch, _ = strconv.Atoi(args[i+1])
+		} else if strings.HasPrefix(a, "-watch=") {
+			watch, _ = strconv.Atoi(strings.TrimPrefix(a, "-watch="))
+		}
+	}
+	if watch <= 0 {
+		return gpuOnce(args)
+	}
+	for {
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live GPUs — refreshing every %ds (Ctrl-C to stop)\n\n", watch)
+		if err := gpuOnce(args); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(watch) * time.Second)
+	}
+}
+
+func gpuOnce(args []string) error {
 	fs := flag.NewFlagSet("gpu", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw GPU JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the GPU list as CSV (F430)")
 	outFile := fs.String("out", "", "write the raw GPU JSON to this file instead of stdout (F463)")
+	fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once) (F593)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
