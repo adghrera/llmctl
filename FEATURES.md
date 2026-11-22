@@ -150,6 +150,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F138 | P2 | 138 | keys | Daily cost budget | COMPLETED | `dailyCostBudgetUSD` per key caps estimated USD spend per UTC day (from the F126 rollup); over budget → 429 `budget_exceeded`. Settable at create/PATCH; Keys page has a "$ / day" input and shows `$spent/$budget` in the Today column; key view exposes `todayCost`. Verified live: $0.005 budget with $0.0035/request → 200, 200, 429; clearing restores access. |
 | F139 | P3 | 139 | cli | models/key list parity columns | COMPLETED | `llmctl models list` shows PRICE $/M and IDLE (pinned/Nm) columns; `llmctl key list` shows EXPIRES (date or `expired`) and a daily-budget progress (`$spent/$budget/day`) in QUOTA. Verified live against the running daemon. |
 | F140 | P3 | 140 | keys | Key rename | COMPLETED | `PATCH /api/v1/keys/{id} {"name": "…"}` renames a key (blank names ignored); the Keys page Name cell has a ✎ inline editor (Enter saves, Esc cancels). Verified live: rename reflected in the key list, blank name ignored. |
+| F141 | P3 | 141 | scheduler | "Run now" button | COMPLETED | Each scheduled task row has a "Run" button triggering the existing `POST /api/v1/scheduler/{id}/run` (F084) immediately, with a toast and list refresh. Verified live: run returns 202 and the task executes. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

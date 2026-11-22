@@ -97,6 +97,19 @@ export default function Scheduler() {
     }
   };
 
+  const runNow = async (s: ScheduleSpec) => {
+    setBusy(true);
+    try {
+      await api.runSchedule(s.id);
+      ok(`task "${s.name}" started`);
+      setTimeout(load, 1500);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div>
       <div className="card">
@@ -239,6 +252,14 @@ export default function Scheduler() {
                       : "—"}
                   </td>
                   <td style={{ textAlign: "right" }}>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      title="run this task now"
+                      onClick={() => runNow(s)}
+                    >
+                      Run
+                    </button>
                     <button
                       className="btn sm danger"
                       onClick={() => remove(s.id)}

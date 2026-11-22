@@ -711,6 +711,7 @@ export const api = {
   updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; enabled?: boolean; webhook_url?: string }) =>
     req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  runSchedule: (id: string) => req<{ ok: boolean; started: string }>(`/scheduler/${encodeURIComponent(id)}/run`, { method: "POST" }),
   setScheduleEnabled: (id: string, enabled: boolean) =>
     req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   prompts: () => req<PromptTemplate[]>("/prompts"),

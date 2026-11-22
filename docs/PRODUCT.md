@@ -248,7 +248,8 @@ toggle for a light theme (choice remembered). Tabs:
   every run llmctl POSTs a JSON summary (status ok/error, result or error)
   to it.
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
-  POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page.
+  POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page with a
+  "Run" button per task (F141).
 - **RAG knowledge bases** — create/delete/edit knowledge bases at
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove documents
   (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST
