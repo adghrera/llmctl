@@ -630,7 +630,9 @@ toggle for a light theme (choice remembered). Tabs:
    debug adds a per-request trace line on the gateway (F171).
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
-  silent). A "Test" button sends a test event to verify the endpoint, with an
+  silent), or when a key first hits its token quota, request cap or daily
+  cost budget — a `key.*` event once per key+kind per hour, also shown in
+  the events feed (F689). A "Test" button sends a test event to verify the endpoint, with an
   optional event-name input for realistic payloads (F592, CLI twin:
   `llmctl webhooks test -event E`, F591). An
   optional signing secret makes every webhook POST (events, test, scheduler

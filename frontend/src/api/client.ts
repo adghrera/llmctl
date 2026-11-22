@@ -594,7 +594,7 @@ export const api = {
       `/usage/keys?days=${days}`
     ),
   events: (limit = 50, kind = "", model = "") =>
-    req<{ time: string; kind: string; instance?: string; model?: string }[]>(
+    req<{ time: string; kind: string; instance?: string; model?: string; key?: string }[]>(
       `/events?limit=${limit}${kind ? "&kind=" + encodeURIComponent(kind) : ""}${model ? "&model=" + encodeURIComponent(model) : ""}`
     ),
   doctor: () =>

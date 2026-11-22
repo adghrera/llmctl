@@ -45,12 +45,13 @@ type Server struct {
 	requestCount  atomic.Int64
 	collector     *metricsCollector
 	keyMu         sync.Mutex
-	keyInflight   map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
-	instInflight  map[string]*atomic.Int64 // per instance id, in-flight requests (F113)
-	instMu        sync.Mutex               // guards instInflight
-	maxBodyBytes  atomic.Int64             // gateway request body cap in bytes (F121)
-	startHook     func(model string) bool  // daemon-provided cold-start attempt (F100)
-	startMu       sync.Mutex               // serializes concurrent cold starts (F100)
+	keyInflight   map[string]*atomic.Int64          // per key prefix, in-flight requests (F095)
+	instInflight  map[string]*atomic.Int64          // per instance id, in-flight requests (F113)
+	instMu        sync.Mutex                        // guards instInflight
+	maxBodyBytes  atomic.Int64                      // gateway request body cap in bytes (F121)
+	startHook     func(model string) bool           // daemon-provided cold-start attempt (F100)
+	startMu       sync.Mutex                        // serializes concurrent cold starts (F100)
+	keyLimitHook  func(keyID, keyName, kind string) // daemon-provided alert on quota/budget rejections (F689)
 	handler       http.Handler
 	httpSrv       *http.Server
 }
@@ -348,6 +349,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		// Per-key token quota (F074): reject once the key has spent its budget.
 		if keyRecord != nil && keyRecord.TokenQuota > 0 &&
 			s.KeyTotalTokens(ckey) >= keyRecord.TokenQuota {
+			if s.keyLimitHook != nil {
+				s.keyLimitHook(keyRecord.ID, keyRecord.Name, "quota_exceeded")
+			}
 			writeErr(w, http.StatusTooManyRequests, "quota_exceeded",
 				fmt.Sprintf("API key %q has used its token quota (%d tokens)", keyRecord.Name, keyRecord.TokenQuota))
 			return
@@ -355,6 +359,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		// Per-key request count quota (F105).
 		if keyRecord != nil && keyRecord.MaxRequests > 0 &&
 			s.KeyRequests(ckey) >= keyRecord.MaxRequests {
+			if s.keyLimitHook != nil {
+				s.keyLimitHook(keyRecord.ID, keyRecord.Name, "request_quota_exceeded")
+			}
 			writeErr(w, http.StatusTooManyRequests, "request_quota_exceeded",
 				fmt.Sprintf("API key %q has used its request quota (%d requests)", keyRecord.Name, keyRecord.MaxRequests))
 			return
@@ -362,6 +369,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		// Per-key daily cost budget (F138): estimated USD spent today.
 		if keyRecord != nil && keyRecord.DailyCostBudgetUSD > 0 &&
 			s.KeyDailyCost(ckey) >= keyRecord.DailyCostBudgetUSD {
+			if s.keyLimitHook != nil {
+				s.keyLimitHook(keyRecord.ID, keyRecord.Name, "budget_exceeded")
+			}
 			writeErr(w, http.StatusTooManyRequests, "budget_exceeded",
 				fmt.Sprintf("API key %q has spent its daily cost budget ($%.4f)", keyRecord.Name, keyRecord.DailyCostBudgetUSD))
 			return
@@ -1042,6 +1052,14 @@ func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 // succeeded (F100).
 func (s *Server) SetStartHook(fn func(model string) bool) {
 	s.startHook = fn
+}
+
+// SetKeyLimitHook installs an alert callback fired whenever a request is
+// rejected because its key hit a quota, request-count or daily-cost limit
+// (F689). The daemon dedupes and forwards it to the events feed and the
+// notify webhook.
+func (s *Server) SetKeyLimitHook(fn func(keyID, keyName, kind string)) {
+	s.keyLimitHook = fn
 }
 
 // InstInflight returns the number of gateway requests currently being served

@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -238,6 +239,28 @@ func Run(ctx context.Context, opts Options) error {
 	sv.SetNotifier(func(event string, inst *store.InstanceRecord) {
 		evRing.Add(events.Event{Kind: event, Instance: inst.ID, Model: inst.ModelID})
 		postEventWebhook(ctx, st, event, inst, logger)
+	})
+
+	// Key-limit alerts (F689): when a gateway request is rejected because its
+	// key hit a quota or budget, publish a key.* event — at most once per
+	// key+kind per hour, so a hammering client cannot flood the feed or the
+	// notify webhook.
+	var keyAlertMu sync.Mutex
+	keyAlertAt := map[string]time.Time{}
+	gw.SetKeyLimitHook(func(keyID, keyName, kind string) {
+		keyAlertMu.Lock()
+		k := keyID + "|" + kind
+		if t, ok := keyAlertAt[k]; ok && time.Since(t) < time.Hour {
+			keyAlertMu.Unlock()
+			return
+		}
+		if len(keyAlertAt) > 256 { // keep the dedupe map small
+			keyAlertAt = map[string]time.Time{}
+		}
+		keyAlertAt[k] = time.Now()
+		keyAlertMu.Unlock()
+		evRing.Add(events.Event{Kind: "key." + kind, Key: keyName})
+		postKeyEvent(ctx, st, "key."+kind, keyID, keyName, logger)
 	})
 
 	// Start-on-demand (F100): a gateway request for a model that has an
@@ -484,6 +507,39 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 	go func(url, secret string) {
 		if err := webhook.PostWithRetries(ctx, url, payload, secret, 3); err != nil {
 			logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
+		}
+	}(s.Settings.NotifyWebhook, s.Settings.NotifyWebhookSecret)
+}
+
+// postKeyEvent POSTs a key-limit alert (F689) to settings.notifyWebhook.
+// Best-effort, with the same event-kind filter (F143) and retry policy (F163)
+// as instance events.
+func postKeyEvent(ctx context.Context, st *store.Store, event, keyID, keyName string, logger *slog.Logger) {
+	s, err := st.Load()
+	if err != nil || s.Settings == nil || s.Settings.NotifyWebhook == "" {
+		return
+	}
+	if len(s.Settings.NotifyEvents) > 0 {
+		keep := false
+		for _, k := range s.Settings.NotifyEvents {
+			if k == event {
+				keep = true
+				break
+			}
+		}
+		if !keep {
+			return
+		}
+	}
+	payload := map[string]any{
+		"event":  event,
+		"key_id": keyID,
+		"key":    keyName,
+		"time":   time.Now().UTC().Format(time.RFC3339),
+	}
+	go func(url, secret string) {
+		if err := webhook.PostWithRetries(ctx, url, payload, secret, 3); err != nil {
+			logger.Error("notify webhook failed", "event", event, "key", keyName, "error", err)
 		}
 	}(s.Settings.NotifyWebhook, s.Settings.NotifyWebhookSecret)
 }

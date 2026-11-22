@@ -302,9 +302,9 @@ export default function Overview() {
                 // Same columns as `llmctl events --csv` (F371).
                 const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
                 const rows = [
-                  ["time", "kind", "instance", "model"].join(","),
+                  ["time", "kind", "instance", "model", "key"].join(","),
                   ...events.map((e) =>
-                    [new Date(e.time).toISOString(), e.kind || "", e.instance || "", e.model || ""]
+                    [new Date(e.time).toISOString(), e.kind || "", e.instance || "", e.model || "", e.key || ""]
                       .map(esc)
                       .join(",")
                   ),
@@ -365,6 +365,7 @@ export default function Overview() {
                     g.count++;
                     if (e.time > g.last) g.last = e.time;
                     if (e.instance) g.who.add(e.instance);
+                    if (e.key) g.who.add(e.key);
                     if (e.model) g.who.add(e.model);
                     by.set(e.kind, g);
                   }
@@ -405,10 +406,10 @@ export default function Overview() {
                   </td>
                   <td>
                     <span className={`badge ${e.kind.includes("crashed") ? "err" : "warn"}`}>
-                      {e.kind.replace("instance.", "")}
+                      {e.kind.replace("instance.", "").replace("key.", "key·")}
                     </span>
                   </td>
-                  <td className="mono" style={{ fontSize: 12 }}>{e.instance || "—"}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{e.instance || e.key || "—"}</td>
                   <td className="mono" style={{ fontSize: 12 }}>{e.model || "—"}</td>
                 </tr>
               ))}

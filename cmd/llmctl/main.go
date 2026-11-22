@@ -6583,8 +6583,12 @@ func cmdEvents(args []string) error {
 		return evs, nil
 	}
 	printRow := func(e eventRow) {
+		who := e.Instance // key.* alerts carry the key name instead (F689)
+		if who == "" {
+			who = e.Key
+		}
 		fmt.Printf("%-19s %-26s %-16s %s\n",
-			e.Time.Local().Format("2006-01-02 15:04:05"), e.Kind, e.Instance, e.Model)
+			e.Time.Local().Format("2006-01-02 15:04:05"), e.Kind, who, e.Model)
 	}
 	evs, err := fetch()
 	if err != nil {
@@ -6615,6 +6619,9 @@ func cmdEvents(args []string) error {
 			}
 			if e.Instance != "" {
 				insts[e.Kind][e.Instance] = true
+			}
+			if e.Key != "" { // key.* alerts roll up under "instances" column (F689)
+				insts[e.Kind][e.Key] = true
 			}
 			if e.Model != "" {
 				mods[e.Kind][e.Model] = true
@@ -6674,9 +6681,9 @@ func cmdEvents(args []string) error {
 	}
 	if *csvOut { // F261
 		w := csv.NewWriter(os.Stdout)
-		_ = w.Write([]string{"time", "kind", "instance", "model"})
+		_ = w.Write([]string{"time", "kind", "instance", "model", "key"})
 		for _, e := range evs {
-			_ = w.Write([]string{e.Time.UTC().Format(time.RFC3339), e.Kind, e.Instance, e.Model})
+			_ = w.Write([]string{e.Time.UTC().Format(time.RFC3339), e.Kind, e.Instance, e.Model, e.Key})
 		}
 		w.Flush()
 		return w.Error()
@@ -6726,6 +6733,7 @@ type eventRow struct {
 	Kind     string    `json:"kind"`
 	Instance string    `json:"instance"`
 	Model    string    `json:"model"`
+	Key      string    `json:"key"` // key name for key.* alerts (F689)
 }
 
 // cmdWebhooks shows recent webhook delivery attempts (F191), backed by

@@ -12,9 +12,10 @@ import (
 // Event is one entry of the feed.
 type Event struct {
 	Time     time.Time `json:"time"`
-	Kind     string    `json:"kind"` // e.g. "instance.crashed"
+	Kind     string    `json:"kind"` // e.g. "instance.crashed", "key.budget_exceeded"
 	Instance string    `json:"instance,omitempty"`
 	Model    string    `json:"model,omitempty"`
+	Key      string    `json:"key,omitempty"` // key name for key.* events (F689)
 }
 
 // Ring is a fixed-capacity event buffer, safe for concurrent use.
