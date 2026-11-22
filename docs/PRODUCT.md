@@ -289,7 +289,8 @@ toggle for a light theme (choice remembered). Tabs:
   button that opens the Chat page with the template pre-filled (F300). CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
-   piped stdin]` (renders the template with {{input}} filled, for scripts)
+   piped stdin] [-var k=v …]` (renders the template with {{input}} and any
+   {{k}} placeholders filled, for scripts)
    and `llmctl prompts categories` (lists categories, one per line)
    (F218, F298, F304).
  - **Chat CLI** — `llmctl chats [filter] [-json]` (or `chats list [filter]`)
@@ -533,7 +534,7 @@ llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-json]  (-watch N: live refresh every N seconds)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
 llmctl webhooks [-n 20] [-json]    recent webhook delivery attempts
-llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT]
+llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb

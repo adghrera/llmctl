@@ -233,7 +233,7 @@ Usage:
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
-  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
+  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
@@ -6288,9 +6288,11 @@ func cmdPrompts(args []string) error {
 	if len(args) > 0 && args[0] == "render" {
 		rfs := flag.NewFlagSet("prompts render", flag.ExitOnError)
 		input := rfs.String("input", "", "text to substitute for {{input}} (default: piped stdin)")
+		var vlist stringList
+		rfs.Var(&vlist, "var", "substitute {{k}} for v (repeatable, F347)")
 		rfs.Parse(reorderFlags(args[1:]))
 		if rfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl prompts render <id> [-input TEXT | piped stdin]")
+			return fmt.Errorf("usage: llmctl prompts render <id> [-input TEXT | piped stdin] [-var k=v ...]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -6315,7 +6317,16 @@ func cmdPrompts(args []string) error {
 				text = strings.TrimSpace(string(b))
 			}
 		}
-		fmt.Println(strings.ReplaceAll(p.Content, "{{input}}", text))
+		out2 := strings.ReplaceAll(p.Content, "{{input}}", text)
+		// Extra placeholders: -var k=v replaces {{k}} (F347).
+		for _, kv := range vlist {
+			k, v, ok := strings.Cut(kv, "=")
+			if !ok || k == "" {
+				return fmt.Errorf("-var expects k=v, got %q", kv)
+			}
+			out2 = strings.ReplaceAll(out2, "{{"+strings.TrimSpace(k)+"}}", v)
+		}
+		fmt.Println(out2)
 		return nil
 	}
 	if len(args) > 0 && args[0] == "show" {
