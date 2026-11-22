@@ -257,7 +257,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|status]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
+  llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
@@ -4704,9 +4704,76 @@ func cmdBackups(args []string) error {
 	case "verify":
 		vfs := flag.NewFlagSet("backups verify", flag.ExitOnError)
 		vjson := vfs.Bool("json", false, "print the raw verify-result JSON (F540)")
+		vall := vfs.Bool("all", false, "verify every stored snapshot (F561)")
 		vfs.Parse(reorderFlags(rest))
+		verifyOne := func(name string) (map[string]any, error) {
+			code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(name)+"/verify", map[string]any{})
+			if err != nil {
+				return nil, err
+			}
+			if code != 200 {
+				return nil, fmt.Errorf("backup verify returned %d: %s", code, out)
+			}
+			var r map[string]any
+			if err := json.Unmarshal(out, &r); err != nil {
+				return nil, err
+			}
+			r["name"] = name
+			return r, nil
+		}
+		if *vall {
+			// Verify the whole set; non-zero exit if any snapshot is bad (F561).
+			code, out, err := cc.Get("/api/v1/backups")
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("backups list returned %d: %s", code, out)
+			}
+			var list []struct {
+				Name string `json:"name"`
+			}
+			if err := json.Unmarshal(out, &list); err != nil {
+				return err
+			}
+			if len(list) == 0 {
+				fmt.Println("no snapshots to verify")
+				return nil
+			}
+			results := []map[string]any{}
+			bad := 0
+			for _, b := range list {
+				r, err := verifyOne(b.Name)
+				if err != nil {
+					return err
+				}
+				results = append(results, r)
+				if *vjson {
+					continue
+				}
+				if okv, _ := r["ok"].(bool); okv {
+					fmt.Printf("[ok]   %s — %v entries, state.json valid\n", b.Name, r["entries"])
+				} else {
+					bad++
+					fmt.Printf("[fail] %s — %v\n", b.Name, r["error"])
+				}
+			}
+			if *vjson {
+				b, err := json.Marshal(results)
+				if err != nil {
+					return err
+				}
+				fmt.Println(string(b))
+			} else {
+				fmt.Printf("%d/%d snapshots ok\n", len(results)-bad, len(results))
+			}
+			if bad > 0 {
+				return fmt.Errorf("%d snapshot(s) failed verification", bad)
+			}
+			return nil
+		}
 		if vfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl backups verify <name> [-json]")
+			return fmt.Errorf("usage: llmctl backups verify <name> [-json] | backups verify -all [-json]")
 		}
 		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(vfs.Arg(0))+"/verify", map[string]any{})
 		if err != nil {
