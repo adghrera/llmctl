@@ -3789,6 +3789,7 @@ func cmdScheduler(args []string) error {
 		keep := ufs.Int("keep", -1, "snapshots to retain (backup kind)")
 		enabled := ufs.String("enabled", "", "true | false")
 		kb := ufs.String("kb", "", "knowledge base id (chat kind)")
+		sujson := ufs.Bool("json", false, "print the raw response JSON (F540)")
 		ufs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(id))
 		if err != nil {
@@ -3847,6 +3848,10 @@ func cmdScheduler(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("scheduler update: %s", out)
+		}
+		if *sujson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("scheduler task %s updated\n", id)
 		return nil
@@ -4412,15 +4417,22 @@ func cmdBackups(args []string) error {
 		}
 		return nil
 	case "verify":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backups verify <name>")
+		vfs := flag.NewFlagSet("backups verify", flag.ExitOnError)
+		vjson := vfs.Bool("json", false, "print the raw verify-result JSON (F540)")
+		vfs.Parse(reorderFlags(rest))
+		if vfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backups verify <name> [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(rest[0])+"/verify", map[string]any{})
+		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(vfs.Arg(0))+"/verify", map[string]any{})
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("backup verify returned %d: %s", code, out)
+		}
+		if *vjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var r struct {
 			OK      bool   `json:"ok"`
@@ -4431,9 +4443,9 @@ func cmdBackups(args []string) error {
 			return err
 		}
 		if !r.OK {
-			return fmt.Errorf("backup %s: %s", rest[0], r.Error)
+			return fmt.Errorf("backup %s: %s", vfs.Arg(0), r.Error)
 		}
-		fmt.Printf("backup %s ok — %d entries, state.json valid\n", rest[0], r.Entries)
+		fmt.Printf("backup %s ok — %d entries, state.json valid\n", vfs.Arg(0), r.Entries)
 		return nil
 	default:
 		return fmt.Errorf("unknown backups subcommand %q (list|create|restore|verify|delete)", sub)
@@ -5746,10 +5758,13 @@ func cmdSkills(args []string) error {
 	switch sub {
 	case "add":
 		// Create a skill from a JSON manifest file (F288).
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl skills add <manifest.json>")
+		safs := flag.NewFlagSet("skills add", flag.ExitOnError)
+		sajson := safs.Bool("json", false, "print the raw created-skill JSON (F540)")
+		safs.Parse(reorderFlags(rest))
+		if safs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills add <manifest.json> [-json]")
 		}
-		data, err := os.ReadFile(rest[0])
+		data, err := os.ReadFile(safs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -5763,6 +5778,10 @@ func cmdSkills(args []string) error {
 		}
 		if code != 201 {
 			return fmt.Errorf("skills add: %s", out)
+		}
+		if *sajson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var rec struct {
 			Manifest struct {
@@ -6939,10 +6958,13 @@ func cmdTools(args []string) error {
 		}
 		return nil
 	case "install":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl tools install <dir>")
+		tifs := flag.NewFlagSet("tools install", flag.ExitOnError)
+		tijson := tifs.Bool("json", false, "print the raw installed-tool JSON (F540)")
+		tifs.Parse(reorderFlags(rest))
+		if tifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl tools install <dir> [-json]")
 		}
-		abs, err := filepath.Abs(rest[0])
+		abs, err := filepath.Abs(tifs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -6952,6 +6974,10 @@ func cmdTools(args []string) error {
 		}
 		if code != 201 && code != 200 {
 			return fmt.Errorf("install returned %d: %s", code, out)
+		}
+		if *tijson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var rec struct {
 			ID string `json:"id"`
