@@ -141,6 +141,9 @@ func (s *Store) Create(spec Spec) (*Record, error) {
 	if strings.TrimSpace(spec.CronExpr) == "" {
 		return nil, fmt.Errorf("schedule missing cron_expr")
 	}
+	if err := ValidateCron(spec.CronExpr); err != nil {
+		return nil, err
+	}
 	switch spec.KindOrDefault() {
 	case "chat":
 		if strings.TrimSpace(spec.Model) == "" {
@@ -196,6 +199,12 @@ func (s *Store) Update(id string, spec Spec) (*Record, error) {
 	spec.ID = id
 	spec.CreatedAt = rec.Spec.CreatedAt
 	spec.UpdatedAt = time.Now().UTC()
+	if strings.TrimSpace(spec.CronExpr) == "" {
+		spec.CronExpr = rec.Spec.CronExpr // keep the existing schedule (F159)
+	}
+	if err := ValidateCron(spec.CronExpr); err != nil {
+		return nil, err
+	}
 	spec.NextRun = nextRun(spec.CronExpr, spec.UpdatedAt)
 	if err := writeJSON(filepath.Join(rec.Dir, "spec.json"), spec); err != nil {
 		return nil, err
@@ -268,6 +277,65 @@ func writeJSON(path string, v interface{}) error {
 		return err
 	}
 	return os.WriteFile(path, b, 0o644)
+}
+
+// ValidateCron reports whether a 5-field cron expression ("min hour day month
+// weekday") is well-formed for the matcher in this package: fields are *,
+// */N, N, N-M or comma lists thereof, within per-field ranges (F159).
+func ValidateCron(expr string) error {
+	fields := strings.Fields(expr)
+	if len(fields) != 5 {
+		return fmt.Errorf("cron must have 5 fields (min hour day month weekday), got %d", len(fields))
+	}
+	limits := [5][2]int{{0, 59}, {0, 23}, {1, 31}, {1, 12}, {0, 6}}
+	names := [5]string{"minute", "hour", "day", "month", "weekday"}
+	for i, f := range fields {
+		if err := validateCronField(f, limits[i]); err != nil {
+			return fmt.Errorf("invalid %s field %q: %v", names[i], f, err)
+		}
+	}
+	return nil
+}
+
+func validateCronField(field string, lim [2]int) error {
+	if field == "*" {
+		return nil
+	}
+	for _, part := range strings.Split(field, ",") {
+		if part == "" {
+			return fmt.Errorf("empty list element")
+		}
+		base := part
+		if idx := strings.Index(part, "/"); idx >= 0 {
+			base = part[:idx]
+			step, err := parseInt(part[idx+1:])
+			if err != nil || step <= 0 {
+				return fmt.Errorf("bad step")
+			}
+			if base != "*" {
+				return fmt.Errorf("steps are only supported on *") // matcher limitation
+			}
+		}
+		if base == "*" {
+			continue
+		}
+		if base == "" {
+			return fmt.Errorf("empty field element")
+		}
+		if idx := strings.Index(base, "-"); idx >= 0 {
+			lo, err1 := parseInt(base[:idx])
+			hi, err2 := parseInt(base[idx+1:])
+			if idx == 0 || err1 != nil || err2 != nil || lo > hi || lo < lim[0] || hi > lim[1] {
+				return fmt.Errorf("bad range")
+			}
+			continue
+		}
+		v, err := parseInt(base)
+		if err != nil || v < lim[0] || v > lim[1] {
+			return fmt.Errorf("value out of range %d-%d", lim[0], lim[1])
+		}
+	}
+	return nil
 }
 
 // nextRun computes the next run time after 'now' for a cron expression.
