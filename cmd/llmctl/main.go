@@ -142,7 +142,7 @@ func main() {
 	case "completion":
 		err = cmdCompletion(args)
 	case "version", "--version", "-v":
-		if len(args) > 0 && (args[0] == "--json" || args[0] == "-json") { // F440
+		versionJSON := func() string {
 			daemonVer := ""
 			if cc, cerr := daemon.NewControlClient(); cerr == nil {
 				if code, out, cerr := cc.Get("/api/v1/status"); cerr == nil && code == 200 {
@@ -155,7 +155,18 @@ func main() {
 				}
 			}
 			b, _ := json.Marshal(map[string]string{"cli": version, "daemon": daemonVer})
-			fmt.Println(string(b))
+			return string(b)
+		}
+		if len(args) > 0 && (args[0] == "--json" || args[0] == "-json") { // F440
+			fmt.Println(versionJSON())
+			break
+		}
+		if len(args) > 1 && args[0] == "-out" { // F518: version JSON to a file
+			if werr := os.WriteFile(args[1], []byte(versionJSON()+"\n"), 0o644); werr != nil {
+				err = werr
+			} else {
+				fmt.Fprintf(os.Stderr, "wrote %s\n", args[1])
+			}
 			break
 		}
 		fmt.Printf("llmctl %s\n", version)
@@ -265,7 +276,7 @@ Usage:
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
-  llmctl version [--json]
+  llmctl version [--json] [-out FILE]
   llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the

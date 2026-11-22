@@ -528,6 +528,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F515 | P3 | 515 | ui | Header ? help button | COMPLETED | A `?` button next to the theme toggle in the header opens/closes the F514 shortcut overlay, so the shortcut is discoverable without knowing the key; tooltip reads "Keyboard shortcuts (?)". Verified live: tsc + vite clean, built binary embeds the button (string found in the served bundle). |
 | F516 | P3 | 516 | cli | `logs -daemon -out FILE` | COMPLETED | `llmctl logs -daemon [-tail N] -out FILE` writes the daemon-log tail to the file (stdout stays clean, notice on stderr), matching the instance `logs -out` behavior; the plain tail and `-f` follow are unchanged. Verified live: -out wrote the default 4000-byte tail and a 500-byte `--tail 500` slice exactly, plain unchanged. |
 | F517 | P3 | 517 | cli | `logs -daemon -json` | COMPLETED | `llmctl logs -daemon [-tail N] -json` prints the raw `{"size":…,"logs":…}` JSON for scripts; the plain tail, -out and -f are unchanged. Verified live: -json returned size 66712 with a 300-char tail for `--tail 300`, plain unchanged. |
+| F518 | P3 | 518 | cli | `version -out FILE` | COMPLETED | `llmctl version -out FILE` writes the `{"cli","daemon"}` version JSON to the file (stdout stays clean, notice on stderr), for scripting; plain and --json are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
