@@ -2026,9 +2026,29 @@ func (s *Server) testNotifyWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // webhookLog handles GET /api/v1/webhook/log — recent webhook delivery
-// attempts, newest first (F144).
+// history. ?limit=N caps the entries (default 50); ?event= keeps only
+// deliveries whose payload event matches (case-insensitive) (F357).
 func (s *Server) webhookLog(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, webhook.History(50))
+	limit := 50
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 500 {
+			limit = n
+		}
+	}
+	dels := webhook.History(500)
+	if ev := r.URL.Query().Get("event"); ev != "" {
+		kept := []webhook.Delivery{}
+		for _, d := range dels {
+			if strings.EqualFold(d.Event, ev) {
+				kept = append(kept, d)
+			}
+		}
+		dels = kept
+	}
+	if len(dels) > limit {
+		dels = dels[:limit]
+	}
+	writeJSON(w, 200, dels)
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {

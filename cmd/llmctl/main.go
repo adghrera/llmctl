@@ -232,7 +232,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
-  llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
+  llmctl webhooks [-n 20] [-event E] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
@@ -4115,13 +4115,18 @@ type eventRow struct {
 func cmdWebhooks(args []string) error {
 	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of deliveries")
+	event := fs.String("event", "", "only deliveries for this event name, e.g. instance.crashed (F357)")
 	jsonOut := fs.Bool("json", false, "print the delivery log as JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Get("/api/v1/webhook/log")
+	path := "/api/v1/webhook/log?limit=" + strconv.Itoa(*n)
+	if *event != "" {
+		path += "&event=" + url.QueryEscape(*event)
+	}
+	code, out, err := cc.Get(path)
 	if err != nil {
 		return err
 	}
@@ -4138,9 +4143,6 @@ func cmdWebhooks(args []string) error {
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
 		return err
-	}
-	if len(list) > *n {
-		list = list[:*n]
 	}
 	if *jsonOut {
 		b, err := json.Marshal(list)

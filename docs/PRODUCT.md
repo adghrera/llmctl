@@ -443,7 +443,9 @@ toggle for a light theme (choice remembered). Tabs:
   kinds, empty = all) restricts which events are POSTed, e.g. only
   `instance.crashed` (F143). The last 50 delivery attempts (time, event,
   status/error) are listed under the webhook, at
-  GET /api/v1/webhook/log (F144), and in `llmctl webhooks` (F191). Event and
+  GET /api/v1/webhook/log (F144), and in `llmctl webhooks` (F191), which
+  supports `-n` (server-side `?limit=`) and `-event` (server-side `?event=`)
+  filters (F357). Event and
   scheduler-hook deliveries retry
   up to 3 times (1s, 2s backoff) so a briefly unreachable receiver still gets
   the notification (F163).
@@ -538,7 +540,7 @@ llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes +
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
-llmctl webhooks [-n 20] [-json]    recent webhook delivery attempts
+llmctl webhooks [-n 20] [-event E] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
