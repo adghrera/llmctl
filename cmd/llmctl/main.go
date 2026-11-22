@@ -6389,9 +6389,10 @@ func cmdTools(args []string) error {
 		argsJSON := rfs.String("args", "{}", "JSON object of tool arguments (use - to read from stdin, F338)")
 		argsFile := rfs.String("args-file", "", "read the JSON arguments from this file (F338)")
 		timeout := rfs.Int("timeout", 0, "timeout in seconds (0 = default)")
+		outFile := rfs.String("out", "", "write the tool result to this file instead of stdout (F458)")
 		rfs.Parse(reorderFlags(rest))
 		if rfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl tools run <id> [-args JSON|-|-args-file F] [-timeout N]")
+			return fmt.Errorf("usage: llmctl tools run <id> [-args JSON|-|-args-file F] [-timeout N] [-out FILE]")
 		}
 		rawArgs := *argsJSON
 		if *argsFile != "" {
@@ -6433,7 +6434,14 @@ func cmdTools(args []string) error {
 		if res.Error != "" {
 			return fmt.Errorf("tool run failed: %s", res.Error)
 		}
-		fmt.Print(res.Result)
+		if *outFile != "" { // F458: result only, for scripts
+			if err := os.WriteFile(*outFile, []byte(res.Result), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(res.Result))
+		} else {
+			fmt.Print(res.Result)
+		}
 		if res.Stderr != "" {
 			fmt.Fprint(os.Stderr, res.Stderr)
 		}

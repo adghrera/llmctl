@@ -387,7 +387,8 @@ toggle for a light theme (choice remembered). Tabs:
  - **Tools CLI** — `llmctl tools [-json] [-csv]` lists installed tools
    (`--csv` exports id,enabled,sandbox,runtime,name,description, F389);
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
-   and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`)
+   and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`;
+   `-out FILE` writes the result to a file, F458)
    execute one from the shell (F248, F250, F338).
  - **MCP CLI** — `llmctl mcp [-json] [-csv]` lists configured MCP servers
    (`--csv` exports id,name,enabled,command, F403);
