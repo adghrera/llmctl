@@ -275,7 +275,8 @@ toggle for a light theme (choice remembered). Tabs:
   exports prompt,ok,content,error rows, F605).
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
-  totals, request counts, per-model latency percentiles (p50/p95/p99) and
+  totals, request counts, per-model latency percentiles (p50/p95/p99), a
+  model-id deep link to the Requests page filtered by that model (F742), and the
   4xx/5xx error split, average
   time-to-first-token and completion throughput (tok/s), and
   per-conversation context percentage. A "Daily History" table shows the

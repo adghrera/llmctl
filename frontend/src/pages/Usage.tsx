@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type GatewayMetrics, type ApiKey } from "../api/client";
 import { err } from "../ui/toast";
 
@@ -291,7 +292,11 @@ export default function Usage() {
                 const pct = maxModelTokens > 0 ? (m.total / maxModelTokens) * 100 : 0;
                 return (
                   <tr key={m.id}>
-                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>{m.id}</td>
+                    <td style={{ fontFamily: "monospace", fontSize: 12 }}>
+                      <Link to={`/requests?model=${encodeURIComponent(m.id)}`} title="gateway requests for this model (F742)">
+                        {m.id}
+                      </Link>
+                    </td>
                     <td className="oc-num">{m.requests}</td>
                     <td className="oc-num" title={m.errors > 0 ? `${m.err4xx} client · ${m.err5xx} server` : undefined}>
                       {m.errors}
