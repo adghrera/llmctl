@@ -744,6 +744,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F731 | P3 | 731 | instances | Instances list Export JSON | COMPLETED | The Instances page main list gained an Export JSON button beside Export CSV (follows the tag filter) — UI twin of `llmctl ps -json`. Verified live: served bundle carries the button. |
 | F732 | P3 | 732 | batch | Batch results Export JSON | COMPLETED | The Batch page results card gained an Export JSON button beside Export CSV — UI twin of `llmctl batch -json`. Verified live: served bundle carries the button. |
 | F733 | P3 | 733 | compare | Compare page local-file context | COMPLETED | The Compare page gained a "Load file" button that attaches a local text file as context sent to every model (click again to remove) — UI twin of `llmctl compare -file`, complementing the existing uploaded-file dropdown. Verified live: served bundle carries the button. |
+| F734 | P3 | 734 | ui | Batch + Structured Save key | COMPLETED | The Batch and Structured pages gained a "Save key" button beside the API-key input — same browser-local key persistence (llmctl.chat.key) the Chat/Bench/Compare pages use, so a key entered once is pre-filled everywhere. Verified live: served bundle carries both buttons. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

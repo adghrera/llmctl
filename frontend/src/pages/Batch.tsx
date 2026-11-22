@@ -77,6 +77,16 @@ export default function Batch() {
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
+          <button
+            className="btn sm"
+            title="remember this key in the browser (shared by Chat/Bench/Batch/Structured/Compare)"
+            onClick={() => {
+              localStorage.setItem("llmctl.chat.key", key);
+              ok("key saved in this browser");
+            }}
+          >
+            Save key
+          </button>
         </div>
         <input
           style={{ width: "100%", marginBottom: 8 }}

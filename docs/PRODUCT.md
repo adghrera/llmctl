@@ -256,15 +256,17 @@ toggle for a light theme (choice remembered). Tabs:
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
   optional max-tokens/temperature inputs (F359), a validation-retries input
   (1–5, CLI twin `-retries`, F692), a "Load schema" button that fills the
-  schema box from a .json file (UI twin of `-schema`, F713) and a Result
-  Export JSON button (F432).
+  schema box from a .json file (UI twin of `-schema`, F713), a Result Export
+  JSON button (F432) and a "Save key" button that remembers the API key in the
+  browser (F734).
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional
   max-tokens/temperature inputs (F359), a concurrency input (1–8 workers,
   CLI twin `-concurrency`, F691), a "Load file" button that fills the prompts
-  box from a text file (UI twin of `-file`, F712) and Results Export CSV/JSON
-  buttons (index,prompt,ok,content,error, F424, F732). CLI:
+  box from a text file (UI twin of `-file`, F712), Results Export CSV/JSON
+  buttons (index,prompt,ok,content,error, F424, F732) and a "Save key" button
+  that remembers the API key in the browser (F734). CLI:
   `llmctl batch -model ID [-file F|piped stdin|prompts…] [-key K] [-json]
   [-out FILE] [--csv]` (F224; -out writes the raw JSON to a file, F449; --csv
   exports prompt,ok,content,error rows, F605).
