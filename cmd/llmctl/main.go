@@ -1237,7 +1237,7 @@ func cmdRequests(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("requests returned %d: %s", code, out)
 	}
-	if *jsonOut {
+	if *jsonOut && !*stats {
 		fmt.Print(string(out))
 		return nil
 	}
@@ -1297,6 +1297,15 @@ func cmdRequests(args []string) error {
 		errRate := 0.0
 		if len(entries) > 0 {
 			errRate = 100 * float64(errs) / float64(len(entries))
+		}
+		if *jsonOut {
+			b, _ := json.Marshal(map[string]any{
+				"requests": len(entries), "errors": errs, "errorPct": errRate,
+				"latencyMs":    map[string]float64{"avg": avg, "p50": pct(0.5), "p95": pct(0.95), "max": pct(1.0)},
+				"promptTokens": in, "completionTokens": outTok, "costUSD": cost,
+			})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("requests:  %d (%d errors, %.1f%%)\n", len(entries), errs, errRate)
 		fmt.Printf("latency:   avg %.0f ms  p50 %.0f  p95 %.0f  max %.0f\n", avg, pct(0.5), pct(0.95), pct(1.0))
