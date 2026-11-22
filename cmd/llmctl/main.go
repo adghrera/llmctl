@@ -142,6 +142,22 @@ func main() {
 	case "completion":
 		err = cmdCompletion(args)
 	case "version", "--version", "-v":
+		if len(args) > 0 && (args[0] == "--json" || args[0] == "-json") { // F440
+			daemonVer := ""
+			if cc, cerr := daemon.NewControlClient(); cerr == nil {
+				if code, out, cerr := cc.Get("/api/v1/status"); cerr == nil && code == 200 {
+					var s struct {
+						Version string `json:"version"`
+					}
+					if json.Unmarshal(out, &s) == nil {
+						daemonVer = s.Version
+					}
+				}
+			}
+			b, _ := json.Marshal(map[string]string{"cli": version, "daemon": daemonVer})
+			fmt.Println(string(b))
+			break
+		}
 		fmt.Printf("llmctl %s\n", version)
 	case "help", "--help", "-h":
 		usage()
@@ -249,7 +265,7 @@ Usage:
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
-  llmctl version
+  llmctl version [--json]
   llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
