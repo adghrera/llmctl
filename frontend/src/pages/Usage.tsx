@@ -120,6 +120,7 @@ export default function Usage() {
   const [daily, setDaily] = useState<Awaited<ReturnType<typeof api.dailyUsage>> | null>(null);
   const [dailyKeys, setDailyKeys] = useState<Awaited<ReturnType<typeof api.dailyKeyUsage>> | null>(null);
   const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [dailyFilter, setDailyFilter] = useState("");
 
   const load = async () => {
     try {
@@ -150,6 +151,19 @@ export default function Usage() {
     return <div className="card">Loading usage data…</div>;
   }
 
+  // Daily History model filter: keep only models whose id contains the text
+  // (case-insensitive), like `llmctl usage -model` (F352).
+  const dLow = dailyFilter.trim().toLowerCase();
+  const dailyShown =
+    daily && dLow
+      ? Object.fromEntries(
+          Object.entries(daily).map(([date, models]) => [
+            date,
+            Object.fromEntries(Object.entries(models).filter(([m]) => m.toLowerCase().includes(dLow))),
+          ]),
+        )
+      : daily;
+  const dailyShownDays = dailyShown ? Object.keys(dailyShown).length : 0;
   const models = Object.entries(metrics.models || {}).map(
     ([id, v]: [string, any]) => ({
       id,
@@ -296,10 +310,18 @@ export default function Usage() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Daily History</h2>
-            <button
-              className="btn sm"
-              onClick={() => {
-                const blob = new Blob([dailyToCsv(daily)], { type: "text/csv" });
+            <div className="row" style={{ gap: 8, alignItems: "center" }}>
+              <input
+                className="oc-input"
+                style={{ width: 160 }}
+                placeholder="filter model…"
+                value={dailyFilter}
+                onChange={(e) => setDailyFilter(e.target.value)}
+              />
+              <button
+                className="btn sm"
+                onClick={() => {
+                  const blob = new Blob([dailyToCsv(dailyShown || {})], { type: "text/csv" });
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(blob);
                 a.download = `llmctl-daily-usage-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -309,10 +331,11 @@ export default function Usage() {
             >
               Export CSV
             </button>
+            </div>
           </div>
           <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-            Gateway usage per UTC day (last {Object.keys(daily).length} days
-            with traffic); survives daemon restarts.
+            Gateway usage per UTC day (last {dailyShownDays} days
+            with traffic{dLow ? `, models matching “${dailyFilter.trim()}”` : ""}); survives daemon restarts.
           </p>
           <table>
             <thead>
@@ -327,7 +350,8 @@ export default function Usage() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(daily)
+              {Object.entries(dailyShown || {})
+                .filter(([, models]) => Object.keys(models).length > 0)
                 .sort((a, b) => b[0].localeCompare(a[0]))
                 .map(([date, models]) => {
                   let reqs = 0, errs = 0, prompt = 0, comp = 0, cost = 0;
