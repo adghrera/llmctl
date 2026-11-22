@@ -169,7 +169,7 @@ Usage:
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-json] <prompt>
-  llmctl count <text> [-file F] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
+  llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
   llmctl disk [-json]
@@ -1590,6 +1590,7 @@ func cmdCompare(args []string) error {
 func cmdCount(args []string) error {
 	fs := flag.NewFlagSet("count", flag.ExitOnError)
 	file := fs.String("file", "", "read the text from this file")
+	chat := fs.String("chat", "", "size a saved chat by id (its system prompt + all messages, F336)")
 	model := fs.String("model", "", "also show the share of this model's context window")
 	jsonOut := fs.Bool("json", false, "print the counts as JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
@@ -1610,8 +1611,42 @@ func cmdCount(args []string) error {
 			text = string(b)
 		}
 	}
+	chatMsgs := 0
+	if *chat != "" {
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(*chat))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat %s: %s", *chat, out)
+		}
+		var ch struct {
+			System   string `json:"system"`
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.Unmarshal(out, &ch); err != nil {
+			return err
+		}
+		var sb strings.Builder
+		if ch.System != "" {
+			sb.WriteString(ch.System)
+			sb.WriteString("\n")
+		}
+		for _, m := range ch.Messages {
+			sb.WriteString(m.Content)
+			sb.WriteString("\n")
+			chatMsgs++
+		}
+		text = sb.String()
+	}
 	if strings.TrimSpace(text) == "" {
-		return fmt.Errorf("usage: llmctl count <text> | llmctl count -file F | echo … | llmctl count")
+		return fmt.Errorf("usage: llmctl count <text> | llmctl count -file F | llmctl count -chat ID | echo … | llmctl count")
 	}
 	chars := len(text)
 	words := len(strings.Fields(text))
@@ -1638,12 +1673,15 @@ func cmdCount(args []string) error {
 	if *jsonOut {
 		b, _ := json.Marshal(map[string]any{
 			"chars": chars, "words": words, "est_tokens": tokens,
-			"model": *model, "ctx_tokens": ctx,
+			"model": *model, "ctx_tokens": ctx, "chat_id": *chat, "messages": chatMsgs,
 		})
 		fmt.Println(string(b))
 		return nil
 	}
 	fmt.Printf("chars: %d  words: %d  est. tokens: %d (~4 chars/token)\n", chars, words, tokens)
+	if *chat != "" {
+		fmt.Printf("chat %s: %d message(s)\n", *chat, chatMsgs)
+	}
 	if ctx > 0 {
 		fmt.Printf("model %s context: %d tokens — this text is %.1f%% of it\n",
 			*model, ctx, 100*float64(tokens)/float64(ctx))
