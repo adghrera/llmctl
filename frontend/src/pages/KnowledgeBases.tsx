@@ -6,6 +6,7 @@ export default function KnowledgeBases() {
   const [kbs, setKBs] = useState<KB[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [newTags, setNewTags] = useState(""); // tags at creation (F702)
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -40,10 +41,15 @@ export default function KnowledgeBases() {
     }
     setBusy(true);
     try {
-      await api.createKB({ name, description });
+      await api.createKB({
+        name,
+        description,
+        tags: newTags.split(",").map((s) => s.trim()).filter(Boolean),
+      });
       ok("knowledge base created");
       setName("");
       setDescription("");
+      setNewTags("");
       await load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -305,6 +311,13 @@ export default function KnowledgeBases() {
             placeholder="Description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+          />
+          <input
+            style={{ width: 140 }}
+            placeholder="tags (a,b,c)"
+            title="comma-separated tags (CLI: llmctl kb create -tags, F702)"
+            value={newTags}
+            onChange={(e) => setNewTags(e.target.value)}
           />
           <button
             className="btn primary"

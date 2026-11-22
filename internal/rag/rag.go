@@ -152,7 +152,7 @@ func (s *Store) Get(id string) (*Record, error) {
 }
 
 // Create writes a new KB directory and returns the record.
-func (s *Store) Create(name, description string) (*Record, error) {
+func (s *Store) Create(name, description string, tags []string) (*Record, error) {
 	if strings.TrimSpace(name) == "" {
 		return nil, fmt.Errorf("kb missing name")
 	}
@@ -174,6 +174,7 @@ func (s *Store) Create(name, description string) (*Record, error) {
 		ID:          id,
 		Name:        name,
 		Description: description,
+		Tags:        tags, // free-form labels at creation (F702)
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

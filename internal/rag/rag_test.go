@@ -65,7 +65,7 @@ func TestVectorSearch(t *testing.T) {
 	}
 
 	// Create KB.
-	rec, err := store.Create("Test KB", "test")
+	rec, err := store.Create("Test KB", "test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestEmbeddingSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, err := store.Create("Embed KB", "")
+	rec, err := store.Create("Embed KB", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

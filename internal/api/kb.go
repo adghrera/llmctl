@@ -46,14 +46,15 @@ func (s *Server) createKB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Tags        []string `json:"tags"` // free-form labels at creation (F702)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON: "+err.Error())
 		return
 	}
-	rec, err := ts.Create(req.Name, req.Description)
+	rec, err := ts.Create(req.Name, req.Description, cleanTags(req.Tags))
 	if err != nil {
 		writeErr(w, 400, err.Error())
 		return

@@ -3391,11 +3391,12 @@ func cmdModels(args []string) error {
 		afs := flag.NewFlagSet("models add", flag.ExitOnError)
 		backendID := afs.String("backend", "", "backend id (default: llama.cpp)")
 		actx := afs.Int("ctx", 0, "default context window in tokens (optional, F551)")
+		atags := afs.String("tags", "", "comma-separated tags (F702)")
 		ajson := afs.Bool("json", false, "print the raw created-model JSON (F551)")
 		aout := afs.String("out", "", "write the raw created-model JSON to this file instead of stdout (F513)")
 		afs.Parse(reorderFlags(rest))
 		if afs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE]")
+			return fmt.Errorf("usage: llmctl models add <id> <file> [-backend ID] [-ctx N] [-tags a,b] [-json] [-out FILE]")
 		}
 		body := map[string]any{"id": afs.Arg(0), "path": afs.Arg(1)}
 		if *backendID != "" {
@@ -3403,6 +3404,15 @@ func cmdModels(args []string) error {
 		}
 		if *actx > 0 {
 			body["ctxSize"] = *actx
+		}
+		if *atags != "" { // tag at creation (F702)
+			tagList := []string{}
+			for _, t := range strings.Split(*atags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tagList = append(tagList, t)
+				}
+			}
+			body["tags"] = tagList
 		}
 		code, out, err := cc.Post("/api/v1/models", body)
 		if err != nil {
@@ -4802,6 +4812,7 @@ func cmdScheduler(args []string) error {
 		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
 		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
 		kb := fs.String("kb", "", "knowledge base id(s), comma-separated: top matching chunks are injected as context (chat kind, F666)")
+		tags := fs.String("tags", "", "comma-separated tags (F702)")
 		ajson := fs.Bool("json", false, "print the raw created-task JSON (F563)")
 		fs.Parse(reorderFlags(rest))
 		body := map[string]any{
@@ -4817,6 +4828,15 @@ func cmdScheduler(args []string) error {
 		}
 		if *keep > 0 {
 			body["keep"] = *keep
+		}
+		if *tags != "" { // tag at creation (F702)
+			tagList := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tagList = append(tagList, t)
+				}
+			}
+			body["tags"] = tagList
 		}
 		code, out, err := cc.Post("/api/v1/scheduler", body)
 		if err != nil {
@@ -9543,12 +9563,23 @@ func cmdKb(args []string) error {
 	case "create":
 		cfs := flag.NewFlagSet("kb create", flag.ExitOnError)
 		desc := cfs.String("desc", "", "description")
+		tags := cfs.String("tags", "", "comma-separated tags (F702)")
 		kcjson := cfs.Bool("json", false, "print the raw created-kb JSON (F538)")
 		cfs.Parse(reorderFlags(rest))
 		if cfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl kb create <name> [-desc X] [-json]")
+			return fmt.Errorf("usage: llmctl kb create <name> [-desc X] [-tags a,b] [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/knowledge-bases", map[string]any{"name": cfs.Arg(0), "description": *desc})
+		kbBody := map[string]any{"name": cfs.Arg(0), "description": *desc}
+		if *tags != "" { // tag at creation (F702)
+			tagList := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tagList = append(tagList, t)
+				}
+			}
+			kbBody["tags"] = tagList
+		}
+		code, out, err := cc.Post("/api/v1/knowledge-bases", kbBody)
 		if err != nil {
 			return err
 		}
@@ -12000,6 +12031,7 @@ func cmdKey(args []string) error {
 			ExpiresAt          *time.Time `json:"expiresAt"`
 			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
 			Note               string     `json:"note"`
+			Tags               []string   `json:"tags"`
 		}
 		if err := json.Unmarshal(out, &src); err != nil {
 			return err
@@ -12020,6 +12052,9 @@ func cmdKey(args []string) error {
 		}
 		if len(src.AllowedModels) > 0 {
 			body["allowedModels"] = src.AllowedModels
+		}
+		if len(src.Tags) > 0 { // copies tags too (F702)
+			body["tags"] = src.Tags
 		}
 		if src.ExpiresAt != nil {
 			if d := time.Until(*src.ExpiresAt); d > 0 {

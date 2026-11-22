@@ -15,6 +15,7 @@ export default function Scheduler() {
   const [kb, setKb] = useState<string[]>([]);
   const [kbs, setKbs] = useState<KB[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [newTags, setNewTags] = useState(""); // tags at creation (F702)
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
   const [runTask, setRunTask] = useState(""); // Recent Runs task filter (F688)
@@ -114,6 +115,7 @@ export default function Scheduler() {
         instance: instance.trim() || undefined,
         keep: kind === "backup" ? keep : undefined,
         webhook_url: webhookUrl.trim() || undefined,
+        tags: newTags.split(",").map((s) => s.trim()).filter(Boolean),
       });
       ok("schedule created");
       setName("");
@@ -123,6 +125,7 @@ export default function Scheduler() {
       setInstance("");
       setKeep(7);
       setWebhookUrl("");
+      setNewTags("");
       setKb([]);
       await load();
     } catch (e) {
@@ -333,6 +336,13 @@ export default function Scheduler() {
             placeholder="Webhook URL (optional — POSTed result JSON on each run)"
             value={webhookUrl}
             onChange={(e) => setWebhookUrl(e.target.value)}
+          />
+          <input
+            style={{ width: 140 }}
+            placeholder="tags (a,b,c)"
+            title="comma-separated tags (CLI: llmctl scheduler add -tags, F702)"
+            value={newTags}
+            onChange={(e) => setNewTags(e.target.value)}
           />
           <button
             className="btn primary"

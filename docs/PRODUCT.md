@@ -456,7 +456,7 @@ toggle for a light theme (choice remembered). Tabs:
    that rolls the list up per tag, mirroring `memory -stats` (F632).
  - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T]` lists knowledge bases
    (`-tag T` keeps only KBs carrying tag T exactly, F674);
-   `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
+   `kb create <name> [-desc X] [-tags a,b]`, `kb update <id> [-name N] [-desc D]`,
    `kb tag <id> [a,b]` / `kb retag <old> <new> | retag -rm <tag>` label KBs with
    free-form tags — the KB twin of model tags, shown by `kb show`, matched by
    the list filter, exported in `--csv` (new `tags` column) (F664),
@@ -531,7 +531,8 @@ toggle for a light theme (choice remembered). Tabs:
   -tag T` filter and TAGS column (table and `--csv`), and a per-row Tag button
   on the Scheduler page; tags survive task updates (F681).
   `llmctl scheduler add` prints a one-line confirmation with the new task id
-  (`-json` for the raw record, F563). `llmctl scheduler duplicate <id>
+  (`-json` for the raw record, F563; `-tags a,b` tags at creation, F702).
+  `llmctl scheduler duplicate <id>
   [-name N]` copies an existing task (cron, kind, model, prompt, kb, webhook,
   enabled state all carried over) under a new name — default `<old name> copy`
   (F646); the Scheduler page has a matching Duplicate button on each row (F647).
@@ -746,7 +747,7 @@ llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,tra
 llmctl catalog list [-json|-csv] | install <id> [--wait]      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387; install `--wait` blocks until the download finishes, F576)
 llmctl presets list [-json|-csv]|save|duplicate|start|delete|export|import  (named start recipes, F265, F328; save/start -json print the raw response, F524, F525; duplicate <name> <new-name> copies model/instance/backend/port/vars, F648)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -json for the raw array, -out FILE writes the raw JSON, F479; install `--wait` blocks until the download finishes, F576,
-llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE] (register an existing local GGUF, F275; -ctx sets the default context window and -json prints the raw created-model JSON, F551; -out writes it to a file, F513)
+llmctl models add <id> <file> [-backend ID] [-ctx N] [-tags a,b] [-json] [-out FILE] (register an existing local GGUF, F275; -ctx sets the default context window and -json prints the raw created-model JSON, F551; -out writes it to a file, F513; -tags tags at creation, F702)
 llmctl models rename <id> <new-id> [-json]           (change a model id; aliases follow, F284; -json prints the raw response, F523)
 llmctl models note <id> [text…] [-json]              (free-text annotation on a model; empty text clears, F661)
 llmctl models tag <id> [a,b,c] [-json]               (replace a model's tags; empty clears, F662)
@@ -773,7 +774,7 @@ llmctl setvars <instance> [-var k=v…] [-json]  (replace stored start vars, F27
 llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
                                     (-out FILE: download the full log file, F292)
 llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]  (daemon's own log, ~/.llmctl/llmctl.log; -f follows it, F355; -out writes the tail to a file, F516; -json prints the raw {size,logs}, F517)
-llmctl key generate|duplicate|show|note|tag|retag|update|enable|disable|rotate|list|revoke|prune|reset-usage   (generate: -quota -maxreq -models -expires -budget -rps -note -tags; tag <id> [a,b] sets free-form tags (empty clears) and retag <old> <new> / retag -rm <tag> renames or drops one across all keys (F680); generate -tags a,b tags at creation, mirrored by a tags input in the Keys page create form (F701); list -tag T filters by tag; duplicate <id> [name] creates a fresh key with the same restrictions — quota, models, caps, rate, budget, note, expiry rounded up to whole days (F650); generate -out FILE writes the creation JSON (incl. the secret) to a 0600 file, F507; rotate -out FILE likewise for the new secret, F508; list -out FILE writes the raw JSON, F481; show -out FILE writes the raw key JSON, F506; prune -out FILE writes the result JSON, F509; note/enable/disable -json print the raw response, F528, F535; revoke prints a one-line confirmation, -json for raw, F565; rotate prints the new secret with a save-it-now reminder and reset-usage confirms the reset, -json for raw, F572;
+llmctl key generate|duplicate|show|note|tag|retag|update|enable|disable|rotate|list|revoke|prune|reset-usage   (generate: -quota -maxreq -models -expires -budget -rps -note -tags; tag <id> [a,b] sets free-form tags (empty clears) and retag <old> <new> / retag -rm <tag> renames or drops one across all keys (F680); generate -tags a,b tags at creation, mirrored by a tags input in the Keys page create form (F701); list -tag T filters by tag; duplicate <id> [name] creates a fresh key with the same restrictions — quota, models, caps, rate, budget, note, tags, expiry rounded up to whole days (F650, tags F702); generate -out FILE writes the creation JSON (incl. the secret) to a 0600 file, F507; rotate -out FILE likewise for the new secret, F508; list -out FILE writes the raw JSON, F481; show -out FILE writes the raw key JSON, F506; prune -out FILE writes the result JSON, F509; note/enable/disable -json print the raw response, F528, F535; revoke prints a one-line confirmation, -json for raw, F565; rotate prints the new secret with a save-it-now reminder and reset-usage confirms the reset, -json for raw, F572;
                                         list --csv exports the audit table (F374);
                                         generate/rotate -json prints the raw JSON incl. the secret;
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;

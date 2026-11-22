@@ -58,14 +58,21 @@ export default function Models() {
   const [regId, setRegId] = useState("");
   const [regPath, setRegPath] = useState("");
   const [regBackend, setRegBackend] = useState("llama.cpp");
+  const [regTags, setRegTags] = useState(""); // tags at creation (F702)
   const [regBusy, setRegBusy] = useState(false);
   const registerLocal = async () => {
     setRegBusy(true);
     try {
-      await api.registerModel({ id: regId.trim(), path: regPath.trim(), backend: regBackend });
+      await api.registerModel({
+        id: regId.trim(),
+        path: regPath.trim(),
+        backend: regBackend,
+        tags: regTags.split(",").map((s) => s.trim()).filter(Boolean),
+      });
       ok(`registered ${regId}`);
       setRegId("");
       setRegPath("");
+      setRegTags("");
       await refreshOne("models");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -451,6 +458,17 @@ export default function Models() {
                 </option>
               ))}
             </select>
+          </label>
+          <label className="oc-field" style={{ fontSize: 12 }}>
+            tags
+            <input
+              className="oc-input"
+              style={{ width: 130 }}
+              placeholder="a,b,c"
+              title="comma-separated tags (CLI: llmctl models add -tags, F702)"
+              value={regTags}
+              onChange={(e) => setRegTags(e.target.value)}
+            />
           </label>
           <button
             className="btn primary"

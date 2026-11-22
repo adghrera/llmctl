@@ -529,7 +529,7 @@ export const api = {
   addPlugin: (plugin: object) => req<{ ok: boolean }>("/backends", { method: "POST", body: JSON.stringify(plugin) }),
   removePlugin: (id: string) => req<{ ok: boolean }>(`/backends/${encodeURIComponent(id)}`, { method: "DELETE" }),
   models: () => req<Model[]>("/models"),
-  registerModel: (body: { id: string; path: string; backend?: string; ctxSize?: number }) =>
+  registerModel: (body: { id: string; path: string; backend?: string; ctxSize?: number; tags?: string[] }) =>
     req<Model>(`/models`, { method: "POST", body: JSON.stringify(body) }),
   installModel: (body: { repo: string; file?: string; revision?: string; backend?: string; id?: string }) =>
     req<{ job: string; status: string; model: string }>("/models/install", { method: "POST", body: JSON.stringify(body) }),
@@ -770,7 +770,7 @@ export const api = {
     }),
   deleteFile: (id: string) => req<{ ok: boolean }>(`/files/${encodeURIComponent(id)}`, { method: "DELETE" }),
   knowledgeBases: () => req<KB[]>("/knowledge-bases"),
-  createKB: (body: { name: string; description?: string }) =>
+  createKB: (body: { name: string; description?: string; tags?: string[] }) =>
     req<KB>("/knowledge-bases", { method: "POST", body: JSON.stringify(body) }),
   getKB: (id: string) => req<KB>(`/knowledge-bases/${encodeURIComponent(id)}`),
   updateKB: (id: string, body: { name?: string; description?: string }) =>
@@ -812,7 +812,7 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string; enabled?: boolean }) =>
+  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string; enabled?: boolean; tags?: string[] }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
   updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; kb?: string; enabled?: boolean; webhook_url?: string }) =>

@@ -509,10 +509,11 @@ func (s *Server) getModel(w http.ResponseWriter, r *http.Request) {
 }
 
 type registerModelReq struct {
-	ID      string `json:"id"`
-	Backend string `json:"backend"` // default llama.cpp
-	Path    string `json:"path"`    // existing local .gguf file
-	CtxSize int    `json:"ctxSize"` // optional default context window
+	ID      string   `json:"id"`
+	Backend string   `json:"backend"` // default llama.cpp
+	Path    string   `json:"path"`    // existing local .gguf file
+	CtxSize int      `json:"ctxSize"` // optional default context window
+	Tags    []string `json:"tags"`    // free-form labels at creation (F702)
 }
 
 var modelIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,79}$`)
@@ -547,6 +548,7 @@ func (s *Server) registerModel(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 409, "model already registered: "+req.ID)
 		return
 	}
+	tags := cleanTags(req.Tags) // tag at creation (F702)
 	s.store.Update(func(st *store.State) error {
 		st.Models[req.ID] = &store.ModelRecord{
 			ID:           req.ID,
@@ -555,12 +557,14 @@ func (s *Server) registerModel(w http.ResponseWriter, r *http.Request) {
 			SizeBytes:    fi.Size(),
 			DownloadedAt: time.Now(),
 			CtxSize:      req.CtxSize,
+			Tags:         tags,
 		}
 		return nil
 	})
 	writeJSON(w, 201, modelView{
 		ID: req.ID, BackendID: backendID, Path: req.Path,
 		SizeBytes: fi.Size(), Downloaded: true, CtxSize: req.CtxSize,
+		Tags: tags,
 	})
 }
 
