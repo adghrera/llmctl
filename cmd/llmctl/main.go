@@ -192,7 +192,7 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status [-json] [-watch N] [-out FILE]
-  llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-out FILE]
+  llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE]
   llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
@@ -431,79 +431,77 @@ func cmdDoctor(args []string) error {
 	outFile := fs.String("out", "", "write the doctor JSON to this file instead of stdout (F464)")
 	var only stringList
 	fs.Var(&only, "check", "only checks whose name contains this (repeatable, F259)")
+	watch := fs.Int("watch", 0, "re-run every N seconds and print checks as they change until Ctrl-C (0 = run once) (F557)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Get("/api/v1/doctor")
+	type checkRow struct {
+		Name   string `json:"name"`
+		Status string `json:"status"`
+		Detail string `json:"detail"`
+	}
+	fetch := func() (*struct {
+		OK     bool       `json:"ok"`
+		Checks []checkRow `json:"checks"`
+	}, error) {
+		code, out, err := cc.Get("/api/v1/doctor")
+		if err != nil {
+			return nil, err
+		}
+		if code != 200 {
+			return nil, fmt.Errorf("doctor returned %d: %s", code, out)
+		}
+		var res struct {
+			OK     bool       `json:"ok"`
+			Checks []checkRow `json:"checks"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return nil, err
+		}
+		// -check filter (F259): keep only checks whose name contains one of the
+		// given substrings; the exit status then reflects just those.
+		if len(only) > 0 {
+			var keep []checkRow
+			for _, c := range res.Checks {
+				for _, o := range only {
+					if strings.Contains(c.Name, o) {
+						keep = append(keep, c)
+						break
+					}
+				}
+			}
+			if len(keep) == 0 {
+				return nil, fmt.Errorf("no checks match: %s", strings.Join(only, ", "))
+			}
+			res.Checks = keep
+			res.OK = true
+			for _, c := range keep {
+				if c.Status == "error" {
+					res.OK = false
+				}
+			}
+		}
+		return &res, nil
+	}
+	res, err := fetch()
 	if err != nil {
 		return err
 	}
-	if code != 200 {
-		return fmt.Errorf("doctor returned %d: %s", code, out)
-	}
-	var res struct {
-		OK     bool `json:"ok"`
-		Checks []struct {
-			Name   string `json:"name"`
-			Status string `json:"status"`
-			Detail string `json:"detail"`
-		} `json:"checks"`
-	}
-	if err := json.Unmarshal(out, &res); err != nil {
-		return err
-	}
-	// -check filter (F259): keep only checks whose name contains one of the
-	// given substrings; the exit status then reflects just those.
-	if len(only) > 0 {
-		var keep []struct {
-			Name   string `json:"name"`
-			Status string `json:"status"`
-			Detail string `json:"detail"`
-		}
-		for _, c := range res.Checks {
-			for _, o := range only {
-				if strings.Contains(c.Name, o) {
-					keep = append(keep, c)
-					break
-				}
-			}
-		}
-		if len(keep) == 0 {
-			return fmt.Errorf("no checks match: %s", strings.Join(only, ", "))
-		}
-		res.Checks = keep
-		res.OK = true
-		for _, c := range keep {
-			if c.Status == "error" {
-				res.OK = false
-			}
-		}
-	}
 	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F464)
-		if len(only) > 0 {
-			b, err := json.Marshal(res)
-			if err != nil {
+		b, err := json.Marshal(res)
+		if err != nil {
+			return err
+		}
+		b = append(b, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, b, 0o644); err != nil {
 				return err
 			}
-			if *outFile != "" {
-				if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
-					return err
-				}
-				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
-			} else {
-				fmt.Println(string(b))
-			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
 		} else {
-			if *outFile != "" {
-				if err := os.WriteFile(*outFile, out, 0o644); err != nil {
-					return err
-				}
-				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
-			} else {
-				fmt.Print(string(out))
-			}
+			fmt.Println(string(b))
 		}
 		if !res.OK {
 			return fmt.Errorf("doctor: some checks failed")
@@ -511,6 +509,13 @@ func cmdDoctor(args []string) error {
 		return nil
 	}
 	sym := map[string]string{"ok": "[ok]  ", "warn": "[warn]", "error": "[fail]"}
+	printCheck := func(c checkRow) {
+		s, ok := sym[c.Status]
+		if !ok {
+			s = c.Status
+		}
+		fmt.Printf("%s %-9s %s\n", s, c.Name, c.Detail)
+	}
 	if *csvOut { // F429: header-only when -quiet leaves nothing
 		w := csv.NewWriter(os.Stdout)
 		_ = w.Write([]string{"name", "status", "detail"})
@@ -534,11 +539,59 @@ func cmdDoctor(args []string) error {
 		if *quiet && c.Status == "ok" {
 			continue
 		}
-		s, ok := sym[c.Status]
-		if !ok {
-			s = c.Status
+		printCheck(c)
+	}
+	if *watch > 0 {
+		// Live health tail: print only checks whose status/detail changes (F557).
+		all := func(rs []checkRow) map[string][2]string {
+			m := map[string][2]string{}
+			for _, c := range rs {
+				m[c.Name] = [2]string{c.Status, c.Detail}
+			}
+			return m
 		}
-		fmt.Printf("%s %-9s %s\n", s, c.Name, c.Detail)
+		prev := all(res.Checks)
+		quietOK := warns == 0 && res.OK
+		for _, c := range res.Checks {
+			if c.Status != "ok" {
+				quietOK = false
+			}
+		}
+		fmt.Printf("\nwatching health every %ds (Ctrl-C to stop)…\n", *watch)
+		for {
+			time.Sleep(time.Duration(*watch) * time.Second)
+			cur, err := fetch()
+			if err != nil {
+				return err
+			}
+			now := all(cur.Checks)
+			var changed []checkRow
+			for _, c := range cur.Checks {
+				if p, ok := prev[c.Name]; !ok || p != [2]string{c.Status, c.Detail} {
+					changed = append(changed, c)
+				}
+			}
+			for name := range prev {
+				if _, ok := now[name]; !ok {
+					fmt.Printf("        %-9s (removed)\n", name)
+				}
+			}
+			for _, c := range changed {
+				fmt.Printf("%s %s %-9s %s\n", time.Now().Local().Format("15:04:05"), sym[c.Status], c.Name, c.Detail)
+			}
+			nWarn := 0
+			for _, c := range cur.Checks {
+				if c.Status != "ok" {
+					nWarn++
+				}
+			}
+			if len(changed) == 0 && !quietOK && cur.OK && nWarn == 0 {
+				fmt.Printf("%s all checks passed\n", time.Now().Local().Format("15:04:05"))
+			}
+			quietOK = cur.OK && nWarn == 0
+			prev = now
+			res = cur
+		}
 	}
 	if !res.OK {
 		return fmt.Errorf("doctor: some checks failed")
