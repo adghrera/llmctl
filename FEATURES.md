@@ -753,6 +753,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F740 | P3 | 740 | models | Models row Chat link | COMPLETED | Running model rows on the Models page gained a Chat button opening the Chat page with that model preselected — twin of the Instances page Chat link (F362). Verified live: served bundle carries the link. |
 | F741 | P3 | 741 | models | Models Req link + Requests model deep link | COMPLETED | Every Models row gained a Req button opening the Requests page pre-filtered by that model (`/requests?model=`, now read from the URL like the key/instance params) — twin of the Instances Req link (F132). Verified live: served bundle carries the link and param. |
 | F742 | P3 | 742 | usage | Usage by Model Req deep link | COMPLETED | The Usage page's per-model table model ids now link to the Requests page pre-filtered by that model (`/requests?model=`, F741 param) — same deep-link family as the Instances/Models Req links. Verified live: served bundle carries the link. |
+| F743 | P3 | 743 | cost | Cost key + model Req deep links | COMPLETED | The Cost page's per-key and per-model tables now link their id cells to the Requests page pre-filtered by that key/model (`/requests?key=`/`?model=`) — same deep-link family as F741/F742. Verified live: served bundle carries both links. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

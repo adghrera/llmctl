@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, CostSummary, CostCounter, ApiKey } from "../api/client";
 import { err } from "../ui/toast";
 
@@ -227,7 +228,11 @@ export default function Cost() {
                 .filter(([key]) => match(key, keyFilter))
                 .map(([key, c]) => (
                 <tr key={key}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{key}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>
+                    <Link to={`/requests?key=${encodeURIComponent(key)}`} title="gateway requests by this key (F743)">
+                      {key}
+                    </Link>
+                  </td>
                   <td className="oc-num">{c.requests.toLocaleString()}</td>
                   <td className="oc-num">{c.input_tokens.toLocaleString()}</td>
                   <td className="oc-num">{c.output_tokens.toLocaleString()}</td>
@@ -312,7 +317,11 @@ export default function Cost() {
                 .filter(([model]) => match(model, modelFilter))
                 .map(([model, c]) => (
                 <tr key={model}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>{model}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: 12 }}>
+                    <Link to={`/requests?model=${encodeURIComponent(model)}`} title="gateway requests for this model (F743)">
+                      {model}
+                    </Link>
+                  </td>
                   <td className="oc-num">{c.requests.toLocaleString()}</td>
                   <td className="oc-num">{c.input_tokens.toLocaleString()}</td>
                   <td className="oc-num">{c.output_tokens.toLocaleString()}</td>
