@@ -216,7 +216,7 @@ Usage:
   llmctl models hf-files <repo>
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force] | llmctl stop --all
-  llmctl restart <instance>
+  llmctl restart <instance> | llmctl restart --all
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
@@ -2868,14 +2868,53 @@ func cmdStop(args []string) error {
 }
 
 func cmdRestart(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl restart <instance>")
+	fs := flag.NewFlagSet("restart", flag.ExitOnError)
+	all := fs.Bool("all", false, "restart every running instance (F445)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 && !*all {
+		return fmt.Errorf("usage: llmctl restart <instance> | llmctl restart --all")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Post("/api/v1/instances/"+args[0]+"/restart", nil)
+	if *all { // F445: restart each running instance, mirroring stop --all
+		code, out, err := cc.Get("/api/v1/instances")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("instances returned %d: %s", code, out)
+		}
+		var list []struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		var attempted int
+		for _, inst := range list {
+			if inst.Status != "running" {
+				continue
+			}
+			attempted++
+			code, out, err := cc.Post("/api/v1/instances/"+url.PathEscape(inst.ID)+"/restart", nil)
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				fmt.Printf("restart %s failed: %s\n", inst.ID, strings.TrimSpace(string(out)))
+				continue
+			}
+			fmt.Printf("restarted %s\n", inst.ID)
+		}
+		if attempted == 0 {
+			fmt.Println("no running instances")
+		}
+		return nil
+	}
+	code, out, err := cc.Post("/api/v1/instances/"+url.PathEscape(fs.Arg(0))+"/restart", nil)
 	if err != nil {
 		return err
 	}
