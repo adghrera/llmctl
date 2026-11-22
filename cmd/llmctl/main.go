@@ -273,9 +273,9 @@ Usage:
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
-  llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
-  llmctl backup verify <file>     check any local archive offline
-  llmctl restore <file.tar.gz>    import a backup into the state dir
+  llmctl backup [file.tar.gz] [-json]     export state (config/chats/KBs/memory/…)
+  llmctl backup verify <file> [-json]     check any local archive offline
+  llmctl restore <file.tar.gz> [-json]    import a backup into the state dir
   llmctl version [--json] [-out FILE]
   llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
 
@@ -9804,20 +9804,28 @@ func cmdBackup(args []string) error {
 	// `llmctl backup verify <file>` checks any local archive offline (F262),
 	// complementing `llmctl backups verify <name>` for stored snapshots.
 	if len(args) > 0 && args[0] == "verify" {
-		if len(args) < 2 {
-			return fmt.Errorf("usage: llmctl backup verify <file.tar.gz>")
+		vfs := flag.NewFlagSet("backup verify", flag.ExitOnError)
+		vjson := vfs.Bool("json", false, "print the verify result as JSON (F545)")
+		vfs.Parse(reorderFlags(args[1:]))
+		if vfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backup verify <file.tar.gz> [-json]")
 		}
-		entries, err := backup.Verify(args[1])
+		entries, err := backup.Verify(vfs.Arg(0))
 		if err != nil {
 			return err
 		}
-		fmt.Printf("backup %s ok — %d entries, state.json valid\n", args[1], entries)
+		if *vjson {
+			b, _ := json.Marshal(map[string]any{"file": vfs.Arg(0), "entries": entries, "ok": true})
+			fmt.Println(string(b))
+			return nil
+		}
+		fmt.Printf("backup %s ok — %d entries, state.json valid\n", vfs.Arg(0), entries)
 		return nil
 	}
-	out := ""
-	if len(args) > 0 {
-		out = args[0]
-	}
+	bfs := flag.NewFlagSet("backup", flag.ExitOnError)
+	bjson := bfs.Bool("json", false, "print the backup result as JSON (F545)")
+	bfs.Parse(reorderFlags(args))
+	out := bfs.Arg(0)
 	if out == "" {
 		out = fmt.Sprintf("llmctl-backup-%s.tar.gz", time.Now().UTC().Format("20060102-150405"))
 	}
@@ -9831,16 +9839,24 @@ func cmdBackup(args []string) error {
 		return err
 	}
 	st, _ := f.Stat()
+	if *bjson {
+		b, _ := json.Marshal(map[string]any{"file": out, "bytes": st.Size()})
+		fmt.Println(string(b))
+		return nil
+	}
 	fmt.Printf("backup written to %s (%s)\n", out, fmtSize(st.Size()))
 	return nil
 }
 
 // cmdRestore imports a tar.gz backup into the llmctl state directory.
 func cmdRestore(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl restore <file.tar.gz>")
+	rfs := flag.NewFlagSet("restore", flag.ExitOnError)
+	rjson := rfs.Bool("json", false, "print the restore result as JSON (F545)")
+	rfs.Parse(reorderFlags(args))
+	if rfs.NArg() == 0 {
+		return fmt.Errorf("usage: llmctl restore <file.tar.gz> [-json]")
 	}
-	f, err := os.Open(args[0])
+	f, err := os.Open(rfs.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -9848,6 +9864,11 @@ func cmdRestore(args []string) error {
 	n, err := backup.Restore(f)
 	if err != nil {
 		return err
+	}
+	if *rjson {
+		b, _ := json.Marshal(map[string]any{"restored": n, "home": paths.Home()})
+		fmt.Println(string(b))
+		return nil
 	}
 	fmt.Printf("restored %d file(s) into %s\n", n, paths.Home())
 	return nil
