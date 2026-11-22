@@ -222,7 +222,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
-  llmctl chats [filter] [-n 20] [-json] | chats show|search|export|fork|delete …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|delete …
   llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
@@ -3659,6 +3659,10 @@ func cmdChats(args []string) error {
 	fs := flag.NewFlagSet("chats", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of conversations")
 	jsonOut := fs.Bool("json", false, "print the chat list as JSON (for scripts)")
+	// Accept "list" as an explicit subcommand: llmctl chats list [filter].
+	if len(args) > 0 && args[0] == "list" {
+		args = args[1:]
+	}
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -5822,6 +5826,7 @@ func cmdChat(args []string) error {
 	system := fs.String("system", "", "system prompt prepended to the conversation (F188)")
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
+	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -5980,6 +5985,7 @@ func cmdChat(args []string) error {
 			bodyBytes, _ := io.ReadAll(resp.Body)
 			return fmt.Errorf("chat returned %d: %s", resp.StatusCode, string(bodyBytes))
 		}
+		var reply strings.Builder
 		rd := bufio.NewReader(resp.Body)
 		for {
 			l, err := rd.ReadString('\n')
@@ -6003,9 +6009,33 @@ func cmdChat(args []string) error {
 			}
 			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
 				fmt.Print(chunk.Choices[0].Delta.Content)
+				reply.WriteString(chunk.Choices[0].Delta.Content)
 			}
 		}
 		fmt.Println()
+		if *saveChat != "" {
+			msgs := []map[string]string{}
+			for _, h := range hist {
+				msgs = append(msgs, map[string]string{"role": fmt.Sprint(h["role"]), "content": fmt.Sprint(h["content"])})
+			}
+			msgs = append(msgs, map[string]string{"role": "assistant", "content": reply.String()})
+			code, out, err := cc.Post("/api/v1/chats", map[string]any{
+				"title":    *saveChat,
+				"model":    model,
+				"messages": msgs,
+			})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("chat save: %s", out)
+			}
+			var saved struct {
+				ID string `json:"id"`
+			}
+			json.Unmarshal(out, &saved)
+			fmt.Printf("[saved as chat %s: %q]\n", saved.ID, *saveChat)
+		}
 		return nil
 	}
 	if key == "" {

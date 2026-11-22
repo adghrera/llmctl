@@ -268,7 +268,8 @@ toggle for a light theme (choice remembered). Tabs:
   page with category filtering and copy-to-clipboard. CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` (F218).
- - **Chat CLI** — `llmctl chats [filter] [-json]` lists saved conversations,
+ - **Chat CLI** — `llmctl chats [filter] [-json]` (or `chats list [filter]`)
+   lists saved conversations,
    `llmctl chats show <id> [-json]` prints one with a message preview,
    `llmctl chats search <query> [-json]` full-text searches message content
    with match snippets, and `chats export <id> [-md] [-out f]`,
@@ -496,7 +497,8 @@ llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
 llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|stdin|prompts…] [-json]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
-                                     print the streamed reply, exit; for scripts, F277)
+                                     print the streamed reply, exit; for scripts, F277;
+                                     add -save "Title" to also store the exchange as a saved chat, F294)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)
 llmctl version
