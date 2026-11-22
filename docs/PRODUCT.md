@@ -542,7 +542,9 @@ toggle for a light theme (choice remembered). Tabs:
   every N seconds (F555); `scheduler runs -stats` rolls the log up per task —
   count, ok/errors, average duration, last run (F601), with a matching Stats
   toggle on the Scheduler page (F602) and an Auto-refresh checkbox that polls
-  the ring every 5s while on (F608). Each task row also shows its most
+  the ring every 5s while on (F608). `scheduler runs -task T` keeps only the
+  runs of one task (id or name; the CSV gained a task_id column), and the
+  Scheduler page's Recent Runs card has a matching task dropdown (F688). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
    and `llmctl scheduler list` (F184), plus an "Export CSV" button on the
    task list with the same columns as `scheduler list --csv` (F391).

@@ -5076,9 +5076,11 @@ func cmdScheduler(args []string) error {
 		outFile := fs.String("out", "", "write the run log JSON to this file instead of stdout (F476)")
 		watch := fs.Int("watch", 0, "poll every N seconds and print new runs until Ctrl-C (0 = print once) (F555)")
 		stats := fs.Bool("stats", false, "aggregate the runs per task instead of listing them (F601)")
+		taskF := fs.String("task", "", "only runs of this task (id or name) (F688)")
 		fs.Parse(reorderFlags(rest))
 		type runRow struct {
 			Time       time.Time `json:"time"`
+			TaskID     string    `json:"taskId"`
 			Name       string    `json:"name"`
 			Kind       string    `json:"kind"`
 			Status     string    `json:"status"`
@@ -5096,6 +5098,15 @@ func cmdScheduler(args []string) error {
 			var runs []runRow
 			if err := json.Unmarshal(out, &runs); err != nil {
 				return nil, err
+			}
+			if *taskF != "" { // F688: exact task id or name filter
+				keep := runs[:0]
+				for _, r := range runs {
+					if r.TaskID == *taskF || r.Name == *taskF {
+						keep = append(keep, r)
+					}
+				}
+				runs = keep
 			}
 			return runs, nil
 		}
@@ -5202,9 +5213,9 @@ func cmdScheduler(args []string) error {
 		}
 		if *csvOut { // F418: header-only when empty keeps the stream parseable
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"time", "name", "kind", "status", "duration_ms", "detail"})
+			_ = w.Write([]string{"time", "task_id", "name", "kind", "status", "duration_ms", "detail"})
 			for _, r := range runs {
-				_ = w.Write([]string{r.Time.UTC().Format(time.RFC3339), r.Name, r.Kind, r.Status,
+				_ = w.Write([]string{r.Time.UTC().Format(time.RFC3339), r.TaskID, r.Name, r.Kind, r.Status,
 					strconv.FormatInt(r.DurationMs, 10), r.Detail})
 			}
 			w.Flush()

@@ -17,6 +17,7 @@ export default function Scheduler() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
+  const [runTask, setRunTask] = useState(""); // Recent Runs task filter (F688)
   const [runStats, setRunStats] = useState(false); // per-task rollup (CLI `scheduler runs -stats` parity, F602)
   const [autoRuns, setAutoRuns] = useState(false); // live-refresh the run ring (F608)
 
@@ -534,6 +535,22 @@ export default function Scheduler() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Recent Runs</h2>
             <div className="row" style={{ gap: 6 }}>
+            {new Set(runs.map((r) => r.name)).size > 1 && (
+              <select
+                className="input"
+                style={{ fontSize: 12 }}
+                title="filter the run log by task (CLI: llmctl scheduler runs -task T, F688)"
+                value={runTask}
+                onChange={(e) => setRunTask(e.target.value)}
+              >
+                <option value="">all tasks</option>
+                {Array.from(new Set(runs.map((r) => r.name))).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            )}
             <label style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }} title="poll every 5s while a task fires (F608)">
               <input type="checkbox" checked={autoRuns} onChange={(e) => setAutoRuns(e.target.checked)} />
               Auto-refresh
@@ -552,9 +569,9 @@ export default function Scheduler() {
                 // Same columns as `llmctl scheduler runs --csv` (F419).
                 const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
                 const rows = [
-                  "time,name,kind,status,duration_ms,detail",
-                  ...runs.map((r) =>
-                    [r.time, r.name, r.kind, r.status, String(r.durationMs), r.detail || ""]
+                  "time,task_id,name,kind,status,duration_ms,detail",
+                  ...(runTask ? runs.filter((r) => r.name === runTask) : runs).map((r) =>
+                    [r.time, r.taskId || "", r.name, r.kind, r.status, String(r.durationMs), r.detail || ""]
                       .map(esc)
                       .join(",")
                   ),
@@ -587,7 +604,7 @@ export default function Scheduler() {
               <tbody>
                 {(() => {
                   const by = new Map<string, { kind: string; count: number; ok: number; sum: number; last: string }>();
-                  for (const r of runs) {
+                  for (const r of (runTask ? runs.filter((r) => r.name === runTask) : runs)) {
                     const g = by.get(r.name) ?? { kind: r.kind, count: 0, ok: 0, sum: 0, last: "" };
                     g.count++;
                     if (r.status === "ok") g.ok++;
@@ -628,7 +645,7 @@ export default function Scheduler() {
               </tr>
             </thead>
             <tbody>
-              {runs.slice(0, 10).map((r, i) => (
+              {(runTask ? runs.filter((r) => r.name === runTask) : runs).slice(0, 10).map((r, i) => (
                 <tr key={i}>
                   <td className="muted" style={{ fontSize: 12 }}>{new Date(r.time).toLocaleString()}</td>
                   <td>{r.name}</td>
