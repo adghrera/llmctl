@@ -5543,14 +5543,29 @@ func cmdTools(args []string) error {
 		return nil
 	case "run":
 		rfs := flag.NewFlagSet("tools run", flag.ExitOnError)
-		argsJSON := rfs.String("args", "{}", "JSON object of tool arguments")
+		argsJSON := rfs.String("args", "{}", "JSON object of tool arguments (use - to read from stdin, F338)")
+		argsFile := rfs.String("args-file", "", "read the JSON arguments from this file (F338)")
 		timeout := rfs.Int("timeout", 0, "timeout in seconds (0 = default)")
 		rfs.Parse(reorderFlags(rest))
 		if rfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl tools run <id> [-args JSON] [-timeout N]")
+			return fmt.Errorf("usage: llmctl tools run <id> [-args JSON|-|-args-file F] [-timeout N]")
+		}
+		rawArgs := *argsJSON
+		if *argsFile != "" {
+			b, err := os.ReadFile(*argsFile)
+			if err != nil {
+				return err
+			}
+			rawArgs = string(b)
+		} else if rawArgs == "-" {
+			b, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return err
+			}
+			rawArgs = string(b)
 		}
 		var parsed map[string]any
-		if err := json.Unmarshal([]byte(*argsJSON), &parsed); err != nil {
+		if err := json.Unmarshal([]byte(rawArgs), &parsed); err != nil {
 			return fmt.Errorf("-args must be a JSON object: %w", err)
 		}
 		body := map[string]any{"args": parsed}

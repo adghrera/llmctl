@@ -321,7 +321,8 @@ toggle for a light theme (choice remembered). Tabs:
    search (F247, F250, F268, F272, F291, F320).
  - **Tools CLI** — `llmctl tools [-json]` lists installed tools;
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
-   and `tools run <id> -args '<json>'` execute one from the shell (F248, F250).
+   and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`)
+   execute one from the shell (F248, F250, F338).
  - **MCP CLI** — `llmctl mcp [-json]` lists configured MCP servers;
    `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`,
    `mcp test <id>` (connect and list advertised tools) and
