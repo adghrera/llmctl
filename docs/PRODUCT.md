@@ -142,8 +142,8 @@ GitHub release, or file list. No recompile.
   replica whose connection fails is retried on the next replica
   automatically (F070). The Instances page shows each instance's in-flight
   request count and has a Chat button that deep-links to the Chat page with
-  that instance's model preselected (`/chat?model=`, F362) and an Export CSV
-  button matching `llmctl ps --csv` (F406), plus a Stats toggle rolling the
+  that instance's model preselected (`/chat?model=`, F362) and Export CSV/JSON
+  buttons matching `llmctl ps --csv`/`-json` (F406, F731), plus a Stats toggle rolling the
   list up per model — replicas, running, served, restarts — mirroring
   `llmctl ps -stats` (F635), and a tag-filter dropdown twin of `llmctl ps
   -tag` (F708). Its log viewer (stderr/stdout

@@ -677,6 +677,21 @@ export default function Instances() {
           </button>
           <button
             className="btn sm"
+            disabled={shownInstances.length === 0}
+            title="download the instance list as JSON (CLI: llmctl ps -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(shownInstances, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-ps-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
+          <button
+            className="btn sm"
             aria-pressed={showStats}
             disabled={instances.length === 0}
             title="group instances per model — CLI: llmctl ps -stats (F635)"
