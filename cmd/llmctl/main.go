@@ -113,7 +113,7 @@ Usage:
   llmctl status [-json] [-watch N]
   llmctl doctor [-json]
   llmctl ps [-watch N] [-json]
-  llmctl backends list
+  llmctl backends list [-json]
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
   llmctl backends add <plugin.json>
@@ -441,9 +441,16 @@ func cmdBackends(args []string) error {
 	}
 	switch sub {
 	case "list":
+		fs := flag.NewFlagSet("backends list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw backends JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/backends")
 		if err != nil {
 			return err
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var list []map[string]any
 		json.Unmarshal(out, &list)
@@ -593,12 +600,19 @@ func cmdModels(args []string) error {
 		fmt.Printf("%-40s %-12s %-10s\n", "total: "+strconv.Itoa(len(list))+" model(s)", "", fmtSize(total))
 		return nil
 	case "aliases":
+		fs := flag.NewFlagSet("aliases", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw aliases JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/aliases")
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("aliases returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var als []struct {
 			Alias string `json:"alias"`
@@ -642,15 +656,22 @@ func cmdModels(args []string) error {
 		fmt.Printf("removed alias %s\n", rest[0])
 		return nil
 	case "show":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models show <id>")
+		sfs := flag.NewFlagSet("models show", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw model JSON (for scripts)")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl models show <id> [-json]")
 		}
-		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("models show returned %d: %s", code, out)
+		}
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var mv struct {
 			ID            string   `json:"id"`

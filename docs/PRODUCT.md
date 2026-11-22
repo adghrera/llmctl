@@ -387,7 +387,7 @@ llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also show
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total,
-                                    price and idle-unload; list --json for scripts;
+                                    price and idle-unload; list/show/aliases --json for scripts;
                                     remove --file also deletes a registered external file)
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
