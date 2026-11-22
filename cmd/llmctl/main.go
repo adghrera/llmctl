@@ -6993,9 +6993,10 @@ func cmdMcp(args []string) error {
 	case "add":
 		afs := flag.NewFlagSet("mcp add", flag.ExitOnError)
 		sargs := afs.String("args", "", "space-separated server arguments")
+		aout := afs.String("out", "", "write the raw created-server JSON to this file instead of stdout (F511)")
 		afs.Parse(reorderFlags(rest))
 		if afs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl mcp add <name> <command> [-args 'a b']")
+			return fmt.Errorf("usage: llmctl mcp add <name> <command> [-args 'a b'] [-out FILE]")
 		}
 		body := map[string]any{"name": afs.Arg(0), "command": afs.Arg(1)}
 		if *sargs != "" {
@@ -7011,6 +7012,13 @@ func cmdMcp(args []string) error {
 		}
 		if code != 201 && code != 200 {
 			return fmt.Errorf("mcp add returned %d: %s", code, out)
+		}
+		if *aout != "" { // F511: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*aout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *aout, len(out))
+			return nil
 		}
 		var rec struct {
 			ID string `json:"id"`

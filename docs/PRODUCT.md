@@ -393,7 +393,7 @@ toggle for a light theme (choice remembered). Tabs:
    execute one from the shell (F248, F250, F338).
  - **MCP CLI** — `llmctl mcp [-json] [-csv]` lists configured MCP servers
    (`--csv` exports id,name,enabled,command, F403);
-   `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`,
+   `mcp add <name> <command> [-args 'a b'] [-out FILE]` (-out writes the raw created-server JSON, F511), `mcp remove|enable|disable <id>`,
    `mcp test <id> [--csv|--json] [-out FILE]` (connect and list advertised tools;
    --csv/--json export name,description, F436) and
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
