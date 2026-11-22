@@ -46,6 +46,9 @@ type modelMt struct {
 	// over served requests, and their count.
 	tpsSum float64
 	tpsN   int64
+	// Per-request time-to-first-token in ms, streaming served requests (F112).
+	ttftSum float64
+	ttftN   int64
 }
 
 type costCounter struct {
@@ -94,7 +97,7 @@ func (m *metricsCollector) pricingFor(model string) cost.ModelPricing {
 }
 
 // record adds one completed gateway request. model may be "" (unknown).
-func (m *metricsCollector) record(model, key, keyLabel string, status int, latencyMs float64, stream bool, respBody []byte, rid string) {
+func (m *metricsCollector) record(model, key, keyLabel string, status int, latencyMs, ttftMs float64, stream bool, respBody []byte, rid string) {
 	var pTok, cTok int64
 	if stream {
 		pTok, cTok = scanUsageSSE(respBody)
@@ -127,6 +130,10 @@ func (m *metricsCollector) record(model, key, keyLabel string, status int, laten
 	if status < 400 && cTok > 0 && latencyMs > 0 {
 		mm.tpsSum += float64(cTok) / (latencyMs / 1000.0)
 		mm.tpsN++
+	}
+	if status < 400 && ttftMs > 0 {
+		mm.ttftSum += ttftMs
+		mm.ttftN++
 	}
 	// Daily rollup (F097): UTC date -> model -> counters.
 	day := time.Now().UTC().Format("2006-01-02")
@@ -186,6 +193,7 @@ func (m *metricsCollector) record(model, key, keyLabel string, status int, laten
 		Key:       keyLabel,
 		Status:    status,
 		LatencyMs: latencyMs,
+		TtftMs:    ttftMs,
 		PromptTok: pTok,
 		CompTok:   cTok,
 		Stream:    stream,
@@ -358,6 +366,9 @@ func (m *metricsCollector) Snapshot() map[string]any {
 		}
 		if v.tpsN > 0 {
 			entry["tokens_per_sec"] = round2(v.tpsSum / float64(v.tpsN))
+		}
+		if v.ttftN > 0 {
+			entry["ttft_avg_ms"] = round2(v.ttftSum / float64(v.ttftN))
 		}
 		for lk, lv := range latencyStats(v.latSamples) {
 			entry["latency_"+lk] = lv

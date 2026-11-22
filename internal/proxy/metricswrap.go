@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"time"
 )
 
 // recordingResponseWriter passes every byte straight through (streaming is
@@ -13,10 +14,11 @@ import (
 // can be scanned after the fact.
 type recordingResponseWriter struct {
 	http.ResponseWriter
-	status  int
-	buf     bytes.Buffer
-	cap     int
-	written bool
+	status     int
+	buf        bytes.Buffer
+	cap        int
+	written    bool
+	firstWrite time.Time // moment of the first body byte (TTFT, F112)
 }
 
 func newRecordingResponseWriter(w http.ResponseWriter) *recordingResponseWriter {
@@ -34,6 +36,9 @@ func (w *recordingResponseWriter) WriteHeader(code int) {
 func (w *recordingResponseWriter) Write(b []byte) (int, error) {
 	if !w.written {
 		w.written = true // implicit 200
+	}
+	if w.firstWrite.IsZero() {
+		w.firstWrite = time.Now()
 	}
 	if w.buf.Len() < w.cap {
 		remain := w.cap - w.buf.Len()

@@ -43,6 +43,7 @@ export default function Usage() {
       p50: v.latency_p50_ms,
       p95: v.latency_p95_ms,
       tps: v.tokens_per_sec,
+      ttft: v.ttft_avg_ms,
     })
   );
 
@@ -105,6 +106,7 @@ export default function Usage() {
                 <th>Errors</th>
                 <th>p50</th>
                 <th>p95</th>
+                <th>ttft</th>
                 <th>tok/s</th>
                 <th>Prompt</th>
                 <th>Completion</th>
@@ -122,6 +124,7 @@ export default function Usage() {
                     <td className="oc-num">{m.errors}</td>
                     <td className="oc-num">{m.p50 != null ? m.p50.toFixed(0) + " ms" : "—"}</td>
                     <td className="oc-num">{m.p95 != null ? m.p95.toFixed(0) + " ms" : "—"}</td>
+                    <td className="oc-num">{m.ttft != null ? m.ttft.toFixed(0) + " ms" : "—"}</td>
                     <td className="oc-num">{m.tps != null ? m.tps.toFixed(1) : "—"}</td>
                     <td className="oc-num">{m.prompt.toLocaleString()}</td>
                     <td className="oc-num">{m.completion.toLocaleString()}</td>

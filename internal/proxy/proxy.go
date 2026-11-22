@@ -222,7 +222,11 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := newRecordingResponseWriter(w)
 		next.ServeHTTP(rec, r)
-		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes(), rid)
+		var ttftMs float64
+		if holder.Stream && !rec.firstWrite.IsZero() {
+			ttftMs = float64(rec.firstWrite.Sub(start).Microseconds()) / 1000.0
+		}
+		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, rec.status, float64(time.Since(start).Microseconds())/1000.0, ttftMs, holder.Stream, rec.buf.Bytes(), rid)
 	})
 }
 

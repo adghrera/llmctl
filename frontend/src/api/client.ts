@@ -372,6 +372,7 @@ export interface RequestLogEntry {
   key?: string;
   status: number;
   latencyMs: number;
+  ttftMs?: number;
   promptTok: number;
   compTok: number;
   stream?: boolean;

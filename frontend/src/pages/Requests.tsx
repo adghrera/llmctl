@@ -180,7 +180,14 @@ export default function Requests() {
                 <td>
                   <span className={`badge ${statusTone(e.status)}`}>{e.status}</span>
                 </td>
-                <td>{e.latencyMs < 1000 ? `${Math.round(e.latencyMs)} ms` : `${(e.latencyMs / 1000).toFixed(1)} s`}</td>
+                <td>
+                  {e.latencyMs < 1000 ? `${Math.round(e.latencyMs)} ms` : `${(e.latencyMs / 1000).toFixed(1)} s`}
+                  {e.ttftMs ? (
+                    <span className="muted" title="time to first token">
+                      {" "}(ttft {e.ttftMs < 1000 ? `${Math.round(e.ttftMs)}` : `${(e.ttftMs / 1000).toFixed(1)}s`})
+                    </span>
+                  ) : null}
+                </td>
                 <td className="muted" style={{ fontSize: 12 }}>
                   {e.promptTok} + {e.compTok}
                 </td>

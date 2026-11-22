@@ -18,6 +18,7 @@ type RequestLogEntry struct {
 	Key       string    `json:"key,omitempty"` // API key prefix (first 8 chars)
 	Status    int       `json:"status"`
 	LatencyMs float64   `json:"latencyMs"`
+	TtftMs    float64   `json:"ttftMs,omitempty"` // streaming time-to-first-token (F112)
 	PromptTok int64     `json:"promptTok"`
 	CompTok   int64     `json:"compTok"`
 	Stream    bool      `json:"stream,omitempty"`
