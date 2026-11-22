@@ -244,7 +244,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
+  llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
@@ -4001,6 +4001,7 @@ func cmdBackups(args []string) error {
 	case "list":
 		jsonOut := fs.Bool("json", false, "print the raw backups JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the backup list as CSV (F383)")
+		outFile := fs.String("out", "", "write the raw backups JSON to this file instead of stdout (F475)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/backups")
 		if err != nil {
@@ -4008,6 +4009,13 @@ func cmdBackups(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("backups list returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F475: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
