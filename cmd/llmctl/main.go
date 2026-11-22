@@ -4928,9 +4928,10 @@ func cmdChats(args []string) error {
 	if len(args) > 0 && args[0] == "search" {
 		qfs := flag.NewFlagSet("chats search", flag.ExitOnError)
 		qjson := qfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		qout := qfs.String("out", "", "write the raw search JSON to this file instead of stdout (F482)")
 		qfs.Parse(reorderFlags(args[1:]))
 		if qfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl chats search <query> [-json]")
+			return fmt.Errorf("usage: llmctl chats search <query> [-json] [-out FILE]")
 		}
 		q := strings.Join(qfs.Args(), " ")
 		cc, err := daemon.NewControlClient()
@@ -4943,6 +4944,13 @@ func cmdChats(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("chats search: %s", out)
+		}
+		if *qout != "" { // F482: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*qout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *qout, len(out))
+			return nil
 		}
 		if *qjson {
 			fmt.Print(string(out))

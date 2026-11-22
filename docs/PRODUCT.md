@@ -349,7 +349,7 @@ toggle for a light theme (choice remembered). Tabs:
    lists saved conversations (`--csv` exports the list, F378),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]` prints one
    with a message preview,
-   `llmctl chats search <query> [-json]` full-text searches message content
+   `llmctl chats search <query> [-json] [-out FILE]` full-text searches message content
    with match snippets, `chats export <id> [-md] [-out f]` and
    `chats export-all [-out DIR] [-md]` (bulk file export, F325),
    `chats import <file.json>` re-imports an exported chat under a fresh id
