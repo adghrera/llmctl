@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1035,14 +1035,37 @@ func cmdKey(args []string) error {
 		if err != nil {
 			return err
 		}
-		var list []map[string]any
-		json.Unmarshal(out, &list)
+		var list []struct {
+			ID          string  `json:"id"`
+			Name        string  `json:"name"`
+			Prefix      string  `json:"prefix"`
+			TokenQuota  int64   `json:"tokenQuota"`
+			UsedTok     int64   `json:"usedTokens"`
+			UsedCost    float64 `json:"usedCost"`
+			MaxRequests int64   `json:"maxRequests"`
+			UsedReqs    int64   `json:"usedRequests"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
 		if len(list) == 0 {
 			fmt.Println("no keys")
 			return nil
 		}
+		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "QUOTA")
 		for _, k := range list {
-			fmt.Printf("%s  %s…  (%s)\n", k["id"], k["prefix"], k["name"])
+			quota := ""
+			if k.TokenQuota > 0 {
+				quota = fmt.Sprintf("tok %d/%d", k.UsedTok, k.TokenQuota)
+			}
+			if k.MaxRequests > 0 {
+				if quota != "" {
+					quota += ", "
+				}
+				quota += fmt.Sprintf("req %d/%d", k.UsedReqs, k.MaxRequests)
+			}
+			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %s\n",
+				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, quota)
 		}
 		return nil
 	case "revoke":
