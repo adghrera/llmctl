@@ -12101,7 +12101,7 @@ func cmdChat(args []string) error {
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
 	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
 	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
-	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI); comma-separated ids search all and merge (F666)")
+	kbFlag := fs.String("kb", "", "prepend the top knowledge-base matches as context (one-shot and REPL; comma-separated ids search all and merge, like the Chat UI; F302, F666, F667)")
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
 	temp := fs.Float64("temperature", -1, "with -prompt: sampling temperature (-1 = model default, F319)")
 	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")
@@ -12443,7 +12443,7 @@ func cmdChat(args []string) error {
 	if strings.TrimSpace(*system) != "" {
 		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 	}
-	kbID := "" // knowledge base attached via /kb (F342)
+	kbID := strings.TrimSpace(*kbFlag) // -kb seeds the REPL too (F667); /kb can change it
 	outW := bufio.NewWriter(os.Stdout)
 
 	for {
@@ -12471,7 +12471,7 @@ func cmdChat(args []string) error {
 			rest := strings.TrimSpace(strings.TrimPrefix(line, cmd))
 			switch cmd {
 			case "/help":
-				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID /save [title] /quit")
+				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID[,ID…] /kb - /save [title] /quit")
 			case "/clear":
 				history = history[:0]
 				if strings.TrimSpace(*system) != "" {
@@ -12507,7 +12507,8 @@ func cmdChat(args []string) error {
 					fmt.Println("[knowledge base detached]")
 					continue
 				}
-				// Validate the id against the KB list before attaching.
+				// Validate every comma-separated id against the KB list
+				// before attaching (F667).
 				code, out, err := cc.Get("/api/v1/knowledge-bases")
 				if err != nil {
 					fmt.Printf("[kb lookup failed: %v]\n", err)
@@ -12521,17 +12522,33 @@ func cmdChat(args []string) error {
 					ID string `json:"id"`
 				}
 				json.Unmarshal(out, &kbs)
-				found := false
-				for _, k := range kbs {
-					if k.ID == rest {
-						found = true
+				var ids []string
+				bad := ""
+				for _, id := range strings.Split(rest, ",") {
+					id = strings.TrimSpace(id)
+					if id == "" {
+						continue
 					}
+					found := false
+					for _, k := range kbs {
+						if k.ID == id {
+							found = true
+						}
+					}
+					if !found {
+						bad = id
+						break
+					}
+					ids = append(ids, id)
 				}
-				if !found {
-					fmt.Printf("[no knowledge base %q — see llmctl kb list]\n", rest)
+				if bad != "" || len(ids) == 0 {
+					if bad == "" {
+						bad = rest
+					}
+					fmt.Printf("[no knowledge base %q — see llmctl kb list]\n", bad)
 					continue
 				}
-				kbID = rest
+				kbID = strings.Join(ids, ",")
 				fmt.Printf("[knowledge base %q attached — top matches will be added to each message]\n", kbID)
 			case "/save":
 				title := rest

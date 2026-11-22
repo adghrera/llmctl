@@ -766,12 +766,12 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -continue to append to the most recently updated saved chat, F312;
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
-                                     add -kb ID[,ID2…] to prepend the top knowledge-base matches as context, F302, comma-separated ids merge across KBs F666;
+                                     add -kb ID[,ID2…] to prepend the top knowledge-base matches as context, F302, comma-separated ids merge across KBs F666, applies in the REPL too F667;
                                      add -out FILE to write the reply text to a file instead of stdout, F448)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)
                                     (interactive REPL: /help /clear /system TEXT /model ID
-                                     /kb ID (/kb - detaches) /save [title] /quit, F331, F342)
+                                     /kb ID[,ID…] (/kb - detaches) /save [title] /quit, F331, F342, multi F667)
 llmctl version [--json] [-out FILE]            (--json prints {"cli","daemon"}; daemon empty when not running, F440; -out writes that JSON to a file, F518)
 llmctl completion [bash|zsh|fish|powershell]         (print a shell-completion script for llmctl + subcommands, F341, F350, F354; powershell adds a Register-ArgumentCompleter for $PROFILE, F425; bash/zsh/fish also complete entity ids — models, instances, keys, kb/memory/prompt/chat/skill/tool/mcp/scheduler/backup ids — from the running daemon, F550)
 ```
