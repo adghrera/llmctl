@@ -29,6 +29,8 @@ export default function Chat() {
   );
   const [pendingApproval, setPendingApproval] = useState<{ id: string; name: string; query: string } | null>(null);
   const [systemPrompt, setSystemPrompt] = useState("");
+  const [maxTok, setMaxTok] = useState("");
+  const [temp, setTemp] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -358,6 +360,8 @@ export default function Chat() {
         }
       } else {
         for await (const delta of chatStream(key, model, history, {
+          maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
+          temperature: temp.trim() !== "" ? Number(temp) : undefined,
           onUsage: (u) => {
             usage = u;
           },
@@ -657,7 +661,7 @@ export default function Chat() {
           </div>
           <details style={{ alignSelf: "stretch", marginTop: 8 }}>
             <summary className="muted" style={{ cursor: "pointer", fontSize: 13 }}>
-              System prompt{systemPrompt.trim() ? " (set)" : ""}
+              System prompt{systemPrompt.trim() ? " (set)" : ""} · sampling
             </summary>
             <textarea
               rows={3}
@@ -666,6 +670,28 @@ export default function Chat() {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
             />
+            <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+              <input
+                style={{ width: 130 }}
+                type="number"
+                min={1}
+                placeholder="max tokens"
+                title="max tokens per reply (empty = model default)"
+                value={maxTok}
+                onChange={(e) => setMaxTok(e.target.value)}
+              />
+              <input
+                style={{ width: 130 }}
+                type="number"
+                step="0.1"
+                min={0}
+                max={2}
+                placeholder="temperature"
+                title="sampling temperature (empty = model default)"
+                value={temp}
+                onChange={(e) => setTemp(e.target.value)}
+              />
+            </div>
           </details>
         </div>
         {agentMode && (

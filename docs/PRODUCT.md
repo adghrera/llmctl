@@ -181,7 +181,8 @@ toggle for a light theme (choice remembered). Tabs:
   In agent mode an optional "Ask before tool calls" gate shows each pending
   tool call (name + arguments) inline and runs it only after you approve
   (F055). A collapsible "System prompt" editor sets a per-conversation
-  system prompt sent with every request (F063). The last reply can be
+  system prompt sent with every request (F063), and the same panel holds
+  optional max-tokens/temperature inputs for the conversation (F360). The last reply can be
   regenerated in place, and the last user message can be pulled back into
   the input for editing and resending (F064). Replies render as markdown
   (built-in safe renderer: code fences, lists, links, emphasis) and every
