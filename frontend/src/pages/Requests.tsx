@@ -50,7 +50,7 @@ export default function Requests() {
   const [params] = useSearchParams();  const [entries, setEntries] = useState<RequestLogEntry[]>([]);
   const [auto, setAuto] = useState(true);
   const [fModel, setFModel] = useState(params.get("model") || "");
-  const [fStatus, setFStatus] = useState("");
+  const [fStatus, setFStatus] = useState(params.get("status") ?? "");
   const [fMinMs, setFMinMs] = useState("");
   const [fStream, setFStream] = useState("");
   const [fKey, setFKey] = useState(params.get("key") || "");
