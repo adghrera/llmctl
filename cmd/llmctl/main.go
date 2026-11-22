@@ -13084,13 +13084,14 @@ func cmdChat(args []string) error {
 			break
 		}
 		// REPL slash commands (F331).
+		regen := false // /regenerate falls through to the send path (F684)
 		if strings.HasPrefix(line, "/") {
 			fields := strings.Fields(line)
 			cmd := fields[0]
 			rest := strings.TrimSpace(strings.TrimPrefix(line, cmd))
 			switch cmd {
 			case "/help":
-				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID[,ID…] /kb - /save [title] /title TEXT /tag [a,b|-] /quit")
+				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID[,ID…] /kb - /save [title] /title TEXT /tag [a,b|-] /regenerate /quit")
 			case "/clear":
 				history = history[:0]
 				if strings.TrimSpace(*system) != "" {
@@ -13278,14 +13279,34 @@ func cmdChat(args []string) error {
 				} else {
 					fmt.Printf("[tags set: %s]\n", strings.Join(tags, ", "))
 				}
+			case "/regenerate":
+				// Drop the last assistant reply and re-send the last user
+				// message — handy after /system or /model tweaks (F684).
+				if len(history) == 0 {
+					fmt.Println("[nothing to regenerate — ask something first]")
+					continue
+				}
+				if fmt.Sprint(history[len(history)-1]["role"]) == "assistant" {
+					history = history[:len(history)-1]
+				}
+				if len(history) == 0 || fmt.Sprint(history[len(history)-1]["role"]) != "user" {
+					fmt.Println("[nothing to regenerate — ask something first]")
+					continue
+				}
+				line = fmt.Sprint(history[len(history)-1]["content"])
+				regen = true
 			default:
 				fmt.Printf("[unknown command %q — try /help]\n", cmd)
 			}
-			continue
+			if !regen {
+				continue
+			}
 		}
 
-		// Append user message.
-		history = append(history, map[string]any{"role": "user", "content": line})
+		// Append user message (skipped when /regenerate re-sends the last one).
+		if !regen {
+			history = append(history, map[string]any{"role": "user", "content": line})
+		}
 
 		// With -file and/or a /kb attached, prepend their context turns for
 		// this message (same shape as the one-shot flags, F342, F669).
