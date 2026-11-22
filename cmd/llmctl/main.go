@@ -143,9 +143,9 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json]
   llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv] [--json]
-  llmctl metrics [-watch N]
+  llmctl metrics [-watch N] [-json]
   llmctl events [-n 20]
-  llmctl webhooks [-n 20]     recent webhook delivery attempts
+  llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -1344,6 +1344,7 @@ func cmdBackups(args []string) error {
 func cmdMetrics(args []string) error {
 	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	jsonOut := fs.Bool("json", false, "print the raw metrics JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1356,6 +1357,10 @@ func cmdMetrics(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("metrics returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		return printMetrics(out)
 	}
@@ -1755,6 +1760,7 @@ type eventRow struct {
 func cmdWebhooks(args []string) error {
 	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of deliveries")
+	jsonOut := fs.Bool("json", false, "print the delivery log as JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1780,6 +1786,14 @@ func cmdWebhooks(args []string) error {
 	}
 	if len(list) > *n {
 		list = list[:*n]
+	}
+	if *jsonOut {
+		b, err := json.Marshal(list)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
 	}
 	if len(list) == 0 {
 		fmt.Println("no webhook deliveries yet")

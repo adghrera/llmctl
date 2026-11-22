@@ -226,6 +226,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F214 | P3 | 214 | ui | Relative time on Requests | COMPLETED | The Requests page time column now shows `5m ago`-style relative time (absolute timestamp in the tooltip), matching the Instances page (F208). Verified live: served bundle contains the ago strings. |
 | F215 | P3 | 215 | keys | Key rotation | COMPLETED | `POST /api/v1/keys/{id}/rotate` + `llmctl key rotate <id>` + a Rotate button on the Keys page replace a key's secret while keeping its id, name, quotas and usage counters; the new secret is shown once (reuses the keybox), the old one fails with 401 immediately. Verified live: old key 200 → rotate → old 401, new 200, same id. |
 | F216 | P3 | 216 | cli | `status -watch N` | COMPLETED | `llmctl status -watch N` live-refreshes the status view every N seconds (clear-screen loop, same pattern as `ps -watch`). Verified live: one-shot, `-json` and `-watch 1` all behave. |
+| F217 | P3 | 217 | cli | `metrics -json` + `webhooks -json` | COMPLETED | `llmctl metrics -json` prints the raw metrics JSON; `llmctl webhooks -json` prints the delivery log as JSON (honors `-n`). Verified live: both parse as JSON; table modes unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
