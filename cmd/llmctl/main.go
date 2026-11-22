@@ -248,7 +248,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test   recent webhook delivery attempts / send a test event
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
@@ -4738,6 +4738,7 @@ func cmdWebhooks(args []string) error {
 	event := fs.String("event", "", "only deliveries for this event name, e.g. instance.crashed (F357)")
 	csvOut := fs.Bool("csv", false, "output the delivery log as CSV (F380)")
 	jsonOut := fs.Bool("json", false, "print the delivery log as JSON (for scripts)")
+	outFile := fs.String("out", "", "write the delivery log JSON to this file instead of stdout (F478)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -4765,10 +4766,18 @@ func cmdWebhooks(args []string) error {
 	if err := json.Unmarshal(out, &list); err != nil {
 		return err
 	}
-	if *jsonOut {
+	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F478)
 		b, err := json.Marshal(list)
 		if err != nil {
 			return err
+		}
+		if *outFile != "" {
+			b = append(b, '\n')
+			if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+			return nil
 		}
 		fmt.Println(string(b))
 		return nil
