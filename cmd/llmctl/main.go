@@ -241,7 +241,7 @@ Usage:
   llmctl key disable <id> [-json] / llmctl key enable <id> [-json]
   llmctl key rotate <id> [-json] [-out FILE]
   llmctl key list [--csv] [-out FILE]
-  llmctl key revoke <id>
+  llmctl key revoke <id> [-json]
   llmctl key reset-usage <id>
   llmctl autostart list [--csv] [-out FILE]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
@@ -9308,17 +9308,24 @@ func cmdKey(args []string) error {
 		}
 		return nil
 	case "revoke":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl key revoke <id>")
+		rfs := flag.NewFlagSet("key revoke", flag.ExitOnError)
+		rjson := rfs.Bool("json", false, "print the raw response JSON (F565)")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl key revoke <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/keys/" + rest[0])
+		code, out, err := cc.Delete("/api/v1/keys/" + url.PathEscape(rfs.Arg(0)))
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("revoke returned %d", code)
+			return fmt.Errorf("revoke returned %d: %s", code, out)
 		}
+		if *rjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("key %s revoked\n", rfs.Arg(0))
 		return nil
 	case "prune":
 		pfs := flag.NewFlagSet("key prune", flag.ExitOnError)
