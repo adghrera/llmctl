@@ -256,7 +256,8 @@ toggle for a light theme (choice remembered). Tabs:
   (total prompt+completion tokens); once spent, the gateway returns 429
   until the quota is raised. Usage counters persist across restarts and are
   tracked per key id, so keys that share a visible prefix never share usage
-  (F109). Keys page shows usage and estimated cost and links each key to its
+  (F109). Keys page shows usage and estimated cost, today's per-key usage
+  (F127), and links each key to its
   recent requests (request log filtered by key id, F120). Optional per-key model
   allowlist
   (403 for other models; aliases resolved before checking) and concurrency

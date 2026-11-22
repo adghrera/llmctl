@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useStore } from "../state/store";
@@ -13,6 +13,24 @@ export default function Keys() {
   const [maxReq, setMaxReq] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () => {
+      const day = new Date().toISOString().slice(0, 10);
+      api
+        .dailyKeyUsage(2)
+        .then((d) => alive && setToday(d[day] ?? {}))
+        .catch(() => {});
+    };
+    tick();
+    const t = setInterval(tick, 15000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   const create = async () => {
     setBusy(true);
@@ -157,6 +175,7 @@ export default function Keys() {
                 <th>Prefix</th>
                 <th>Created</th>
                 <th>Used / quota</th>
+                <th>Today</th>
                 <th>Models</th>
                 <th />
               </tr>
@@ -173,6 +192,14 @@ export default function Keys() {
                     {k.maxRequests ? (
                       <span className="muted"> · {k.usedRequests ?? 0}/{k.maxRequests} reqs</span>
                     ) : null}
+                  </td>
+                  <td className="mono">
+                    {(() => {
+                      const u = today[k.id];
+                      return u
+                        ? `${(u.prompt + u.comp).toLocaleString()} tok · ${u.requests} req${u.cost ? ` · $${u.cost.toFixed(4)}` : ""}`
+                        : "—";
+                    })()}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {k.allowedModels?.length ? k.allowedModels.join(", ") : "all"}

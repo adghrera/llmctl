@@ -508,6 +508,10 @@ export const api = {
     req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number; cost?: number }>>>(
       `/usage/daily?days=${days}`
     ),
+  dailyKeyUsage: (days = 14) =>
+    req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number; cost?: number }>>>(
+      `/usage/keys?days=${days}`
+    ),
   events: (limit = 50, kind = "") =>
     req<{ time: string; kind: string; instance?: string; model?: string }[]>(
       `/events?limit=${limit}${kind ? "&kind=" + encodeURIComponent(kind) : ""}`
