@@ -795,6 +795,21 @@ export default function SettingsPage() {
           </button>
           <button
             className="btn"
+            disabled={backups.length === 0}
+            title="download the snapshot list as JSON (CLI: llmctl backups list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(backups, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-backups-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
+          <button
+            className="btn"
             disabled={snapBusy || backups.length === 0}
             title="delete all but the newest snapshots (CLI: llmctl backups prune)"
             onClick={async () => {

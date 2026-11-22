@@ -715,7 +715,7 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl backups restore <name>` or the Restore button, F175, F176; CLI
   `backups create [-name LABEL]` and a UI label input embed a sanitized label
   in the file name, llmctl-<label>-<ts>.tar.gz, F443, F444), next to an
-  Export CSV button matching `backups list --csv` (F398).
+  Export CSV/JSON buttons matching `backups list --csv`/`-json` (F398, F725).
   `llmctl backups list --csv` exports the snapshot inventory
   (name,size_bytes,created), header-only when empty (F383), and
   `llmctl backups -watch N` reprints the list every N seconds — handy while
