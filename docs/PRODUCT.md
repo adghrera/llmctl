@@ -383,13 +383,13 @@ toggle for a light theme (choice remembered). Tabs:
  - **Skills CLI** — `llmctl skills [filter] [-json] [-csv]` lists skill packs
    (filter matches id/name/description/tags; `--csv` exports
    id,enabled,name,description,tags with tags joined by `;`, header-only
-   when empty, F384); `skills show|enable|disable|delete <id>`
+   when empty, F384); `skills show <id> [-out FILE]|enable|disable|delete <id>`
    manages them, `skills add <manifest.json>` creates one from a JSON
    manifest and `skills export <id> [-out f]` dumps one back out (F245, F288, F305).
  - **Memory CLI** — `llmctl memory [filter] [-json] [-csv]` lists memory entries
    (`--csv` exports id,created_at,tags (`;`-joined),content, F401);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
-   [-tags a,b]`, `memory show <id>`, `memory search <query> [-json] [-csv] [-out FILE]`,
+   [-tags a,b]`, `memory show <id> [-out FILE]`, `memory search <query> [-json] [-csv] [-out FILE]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321); the Memory page
    has matching Export JSON / Import JSON buttons (F410).
@@ -405,7 +405,7 @@ toggle for a light theme (choice remembered). Tabs:
    search (F247, F250, F268, F272, F291, F320).
  - **Tools CLI** — `llmctl tools [-json] [-csv] [-out FILE]` lists installed tools
    (`--csv` exports id,enabled,sandbox,runtime,name,description, F389);
-   `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
+   `tools install <dir>` installs a local pack, `tools show <id> [-out FILE]|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`;
    `-out FILE` writes the result to a file, F458)
    execute one from the shell (F248, F250, F338).

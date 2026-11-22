@@ -271,10 +271,10 @@ Usage:
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
-  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
-  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
+  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
-  llmctl tools [-json|-csv|-out FILE] | tools show|install [-json]|enable|disable [-json]|run|delete <id> [-json]
+  llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list]
@@ -6996,15 +6996,25 @@ func cmdSkills(args []string) error {
 		}
 		return nil
 	case "show":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl skills show <id>")
+		sfs := flag.NewFlagSet("skills show", flag.ExitOnError)
+		sout := sfs.String("out", "", "write the skill JSON to this file instead of stdout (F619)")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills show <id> [-out FILE]")
 		}
-		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
-			return fmt.Errorf("skill %s: %s", rest[0], out)
+			return fmt.Errorf("skill %s: %s", sfs.Arg(0), out)
+		}
+		if *sout != "" { // F619: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		fmt.Print(string(out))
 		return nil
@@ -7382,15 +7392,25 @@ func cmdMemory(args []string) error {
 		}
 		return nil
 	case "show":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl memory show <id>")
+		mfs := flag.NewFlagSet("memory show", flag.ExitOnError)
+		mout := mfs.String("out", "", "write the entry JSON to this file instead of stdout (F619)")
+		mfs.Parse(reorderFlags(rest))
+		if mfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl memory show <id> [-out FILE]")
 		}
-		code, out, err := cc.Get("/api/v1/memory/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Get("/api/v1/memory/" + url.PathEscape(mfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
-			return fmt.Errorf("memory %s: %s", rest[0], out)
+			return fmt.Errorf("memory %s: %s", mfs.Arg(0), out)
+		}
+		if *mout != "" { // F619: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*mout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *mout, len(out))
+			return nil
 		}
 		fmt.Print(string(out))
 		return nil
@@ -8153,8 +8173,11 @@ func cmdTools(args []string) error {
 		fmt.Printf("installed tool %s\n", rec.ID)
 		return nil
 	case "show":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl tools show <id>")
+		tfs := flag.NewFlagSet("tools show", flag.ExitOnError)
+		tout := tfs.String("out", "", "write the tool JSON to this file instead of stdout (F619)")
+		tfs.Parse(reorderFlags(rest))
+		if tfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl tools show <id> [-out FILE]")
 		}
 		code, out, err := cc.Get("/api/v1/tools")
 		if err != nil {
@@ -8168,13 +8191,20 @@ func cmdTools(args []string) error {
 			return err
 		}
 		for _, t := range list {
-			if t["id"] == rest[0] {
+			if t["id"] == tfs.Arg(0) {
 				b, _ := json.MarshalIndent(t, "", "  ")
+				if *tout != "" { // F619: JSON to a file, stdout stays clean
+					if err := os.WriteFile(*tout, append(b, '\n'), 0o644); err != nil {
+						return err
+					}
+					fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *tout, len(b)+1)
+					return nil
+				}
 				fmt.Println(string(b))
 				return nil
 			}
 		}
-		return fmt.Errorf("no such tool: %s", rest[0])
+		return fmt.Errorf("no such tool: %s", tfs.Arg(0))
 	case "enable", "disable":
 		teds := flag.NewFlagSet("tools "+sub, flag.ExitOnError)
 		tejson := teds.Bool("json", false, "print the raw response JSON (F537)")
