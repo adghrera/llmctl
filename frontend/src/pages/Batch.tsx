@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type BatchResult } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
@@ -16,6 +16,7 @@ export default function Batch() {
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<BatchResult[] | null>(null);
   const [meta, setMeta] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null); // load prompts from a file (CLI `batch -file`, F712)
 
   useEffect(() => {
     if (!model && running.length) setModel(running[0].modelId);
@@ -122,11 +123,33 @@ export default function Batch() {
           onChange={(e) => setPrompts(e.target.value)}
           placeholder="One prompt per line"
         />
+        <div className="row" style={{ alignItems: "center" }}>
         <button className="btn primary" disabled={busy || !model} onClick={run}>
           {busy ? "Running…" : "Run batch"}
         </button>
-        {!running.length && <span className="muted small" style={{ marginLeft: 10 }}>start an instance first</span>}
-        {meta && <span className="muted small" style={{ marginLeft: 10 }}>{meta}</span>}
+        <button
+          className="btn sm"
+          title="load prompts from a text file, one per line (CLI: llmctl batch -file)"
+          onClick={() => fileRef.current?.click()}
+        >
+          Load file
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".txt,.md,text/plain"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            setPrompts(await f.text());
+            ok(`loaded prompts from ${f.name}`);
+          }}
+        />
+        {!running.length && <span className="muted small">start an instance first</span>}
+        {meta && <span className="muted small">{meta}</span>}
+        </div>
       </div>
       {results && (
         <div className="card">
