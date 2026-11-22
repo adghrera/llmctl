@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api, KB, MemoryEntry, Model, PromptTemplate, SearchChatResult } from "../api/client";
+import { api, ApiKey, Instance, KB, MemoryEntry, Model, PromptTemplate, SearchChatResult } from "../api/client";
 
 // Global search across local resources (F283): models, chats, memory,
-// knowledge bases and prompt templates. Pure client-side fan-out over the
-// existing endpoints.
+// knowledge bases, prompt templates, instances and API keys (F364). Pure
+// client-side fan-out over the existing endpoints.
 
 export default function Search() {
   const [params] = useSearchParams();
@@ -15,6 +15,8 @@ export default function Search() {
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
   const [kbs, setKbs] = useState<KB[]>([]);
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
   const [searched, setSearched] = useState(false);
 
   const run = async (query: string) => {
@@ -23,7 +25,7 @@ export default function Search() {
     setRunning(true);
     setSearched(true);
     const low = t.toLowerCase();
-    const [m, c, mem, kb, pr] = await Promise.allSettled([
+    const [m, c, mem, kb, pr, inst, ks] = await Promise.allSettled([
       api.models().then((all) =>
         all.filter(
           (x) =>
@@ -51,12 +53,30 @@ export default function Search() {
             p.content.toLowerCase().includes(low)
         )
       ),
+      api.instances().then((all) =>
+        all.filter(
+          (i) =>
+            i.id.toLowerCase().includes(low) ||
+            i.modelId.toLowerCase().includes(low) ||
+            i.backendId.toLowerCase().includes(low) ||
+            (i.note || "").toLowerCase().includes(low)
+        )
+      ),
+      api.keys().then((all) =>
+        all.filter(
+          (k) =>
+            k.name.toLowerCase().includes(low) ||
+            k.prefix.toLowerCase().includes(low)
+        )
+      ),
     ]);
     setModels(m.status === "fulfilled" ? m.value : []);
     setChats(c.status === "fulfilled" ? c.value : []);
     setMemories(mem.status === "fulfilled" ? mem.value : []);
     setKbs(kb.status === "fulfilled" ? kb.value : []);
     setPrompts(pr.status === "fulfilled" ? pr.value : []);
+    setInstances(inst.status === "fulfilled" ? inst.value : []);
+    setKeys(ks.status === "fulfilled" ? ks.value : []);
     setRunning(false);
   };
 
@@ -65,7 +85,9 @@ export default function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const total = models.length + chats.length + memories.length + kbs.length + prompts.length;
+  const total =
+    models.length + chats.length + memories.length + kbs.length + prompts.length +
+    instances.length + keys.length;
 
   return (
     <>
@@ -74,7 +96,7 @@ export default function Search() {
         <div className="row" style={{ gap: 8 }}>
           <input
             style={{ flex: 1 }}
-            placeholder="Search models, chats, memory, knowledge bases and prompts…"
+            placeholder="Search models, chats, memory, knowledge bases, prompts, instances and keys…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && run(q)}
@@ -163,6 +185,34 @@ export default function Search() {
               <span className="muted small">
                 {k.kb.doc_count} doc(s)
                 {k.kb.description ? ` · ${k.kb.description.slice(0, 60)}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {instances.length > 0 && (
+        <div className="card">
+          <h2>Instances ({instances.length})</h2>
+          {instances.map((i) => (
+            <div className="row" key={i.id} style={{ gap: 8, marginBottom: 4 }}>
+              <Link to="/instances">{i.id}</Link>
+              <span className="muted small">
+                {i.modelId} · {i.backendId} · {i.status}
+                {i.note ? ` · ${i.note.slice(0, 40)}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {keys.length > 0 && (
+        <div className="card">
+          <h2>API Keys ({keys.length})</h2>
+          {keys.map((k) => (
+            <div className="row" key={k.id} style={{ gap: 8, marginBottom: 4 }}>
+              <Link to="/keys">{k.name || k.prefix}</Link>
+              <span className="muted small">
+                {k.prefix}…{k.disabled ? " · disabled" : ""}
               </span>
             </div>
           ))}
