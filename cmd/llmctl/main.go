@@ -184,7 +184,7 @@ Usage:
   llmctl jobs [-json] [--csv] [-watch N]
   llmctl search <query> [-max N] [-json] [--csv]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
-  llmctl embed -model ID <text>
+  llmctl embed -model ID [-json] [-out FILE] <text>
   llmctl complete -model ID [-json] [-out FILE] <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
@@ -1255,6 +1255,7 @@ func cmdEmbed(args []string) error {
 	model := fs.String("model", "", "embedding model id (required)")
 	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	jsonOut := fs.Bool("json", false, "print the raw embeddings JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw embeddings JSON to this file instead of stdout (implies -json, F456)")
 	fs.Parse(reorderFlags(args))
 	if *model == "" {
 		return fmt.Errorf("usage: llmctl embed -model ID [-key K] [-json] <text…>  (or pipe text to stdin)")
@@ -1280,6 +1281,13 @@ func cmdEmbed(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("embed: %s", out)
+	}
+	if *outFile != "" { // F456: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
 	}
 	if *jsonOut {
 		fmt.Print(string(out))
