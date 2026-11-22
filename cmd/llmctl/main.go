@@ -235,7 +235,7 @@ Usage:
   llmctl key generate [name] [-json] [-out FILE]
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...> [-json]
-  llmctl key update <id> [-name X] [-quota N] [-models a,b] …
+  llmctl key update <id> [-name X] [-quota N] [-models a,b] … [-json]
   llmctl key disable <id> [-json] / llmctl key enable <id> [-json]
   llmctl key rotate <id> [-json] [-out FILE]
   llmctl key list [--csv] [-out FILE]
@@ -244,29 +244,29 @@ Usage:
   llmctl autostart list [--csv] [-out FILE]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
   llmctl autostart remove <model> [-json]
-  llmctl autostart export [-out FILE] | autostart import <file.json>
-  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name>|export|import
-  llmctl catalog list [-json|-csv|-out FILE] | install <id>
+  llmctl autostart export [-out FILE] | autostart import <file.json> [-json]
+  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name> [-json]|export|import [-json]
+  llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json]
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
-  llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
+  llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [--csv] [-out FILE]
-  llmctl scheduler export [-out FILE] | scheduler import <file.json>
+  llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv|-out FILE on list]
+  llmctl backups [list|create [-name LABEL]|restore <name>|verify <name> [-json]|download <name>|delete <name>] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
-  llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
-  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add|export|enable|disable|delete <id>
-  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add|update|search|export|import|delete …
-  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
-  llmctl tools [-json|-csv|-out FILE] | tools show|install|enable|disable|run|delete <id>
-  llmctl mcp [-json|-csv|-out FILE] | mcp add|remove|enable|disable|test <id …> | mcp export|import
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin [-json]|prune|delete [-json]|delete-all …
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
+  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
+  llmctl tools [-json|-csv|-out FILE] | tools show|install [-json]|enable|disable [-json]|run|delete <id> [-json]
+  llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> | settings test-webhook
