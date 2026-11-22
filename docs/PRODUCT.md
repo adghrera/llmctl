@@ -344,7 +344,8 @@ toggle for a light theme (choice remembered). Tabs:
   in internal/prompt/templates.go, plus user-defined custom templates stored
   in state (F306): POST/DELETE /api/v1/prompts, merged into the list with a
   `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts update <id>
-  [-name N …]` / `prompts delete <id>`;
+  [-name N …]` / `prompts delete <id>` / `prompts duplicate <id> <new-id> [-name N]`
+  (copies any template, built-in or custom, to a new custom id, F638);
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)
   plus a live text filter with `?q=` deep links from Search (F322) and an
   Export CSV button on the template list (F394) and a Stats toggle rolling the
@@ -695,7 +696,7 @@ llmctl kb add-doc <kb> <path> [-json] | kb update <id> … [-json] | memory upda
 llmctl scheduler update <id> … [-json] | tools install <dir> [-json] | backups verify <name> [-json] | skills add <manifest.json> [-json]   (print the raw response JSON with -json, F540)
 llmctl catalog install <id> [-json] | kb embed <kb> … [-json]   (print the raw response JSON with -json, F541)
 llmctl presets|scheduler|memory|mcp|prompts|autostart import <file.json> [-json]   (print {"created","skipped"} as JSON; per-item skip notices move to stderr, F542)
-llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json]   (print the raw response / result JSON with -json, F544)
+llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json] | prompts duplicate <id> <new-id> … [-json]   (print the raw response / result JSON with -json, F544, F638)
 llmctl backup [file] [-json] | backup verify <file> [-json] | restore <file> [-json]   (print {file,bytes} / {file,entries,ok} / {restored,home} as JSON, F545)
 llmctl backups restore|download|delete … [-json] | chats delete-all -yes [-json]   (raw response / {file,bytes} / {deleted,total} with -json, F546)
 llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON | -d-file F|-] [-out FILE]   raw management-API call; body printed verbatim, non-2xx exits non-zero (F547)

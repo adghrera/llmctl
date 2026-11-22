@@ -270,7 +270,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] | memory -stats (per-tag roll-up) …
@@ -2277,7 +2277,7 @@ var llmSubCommands = map[string]string{
 	"memory":    "list show add update search delete export import",
 	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save start delete export import",
-	"prompts":   "list show render run categories add update delete export import",
+	"prompts":   "list show render run categories add duplicate update delete export import",
 	"scheduler": "list show add update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
 	"skills":    "list show add export enable disable delete",
@@ -9171,6 +9171,61 @@ func costOnce(args []string) error {
 
 // cmdPrompts lists the built-in prompt library (F218).
 func cmdPrompts(args []string) error {
+	if len(args) > 0 && args[0] == "duplicate" {
+		// Copy an existing template (built-in or custom) to a new custom id (F638).
+		dfs := flag.NewFlagSet("prompts duplicate", flag.ExitOnError)
+		name := dfs.String("name", "", "new display name (default: original + \" copy\")")
+		category := dfs.String("category", "", "new category (default: original)")
+		djson := dfs.Bool("json", false, "print the raw created-prompt JSON")
+		dfs.Parse(reorderFlags(args[1:]))
+		if dfs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl prompts duplicate <id> <new-id> [-name N] [-category C] [-json]")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/prompts/" + url.PathEscape(dfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompt %s not found (%d)", dfs.Arg(0), code)
+		}
+		var src struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Category    string `json:"category"`
+			Content     string `json:"content"`
+		}
+		if err := json.Unmarshal(out, &src); err != nil {
+			return err
+		}
+		newName := *name
+		if newName == "" {
+			newName = src.Name + " copy"
+		}
+		newCat := *category
+		if newCat == "" {
+			newCat = src.Category
+		}
+		code, out, err = cc.Post("/api/v1/prompts", map[string]any{
+			"id": dfs.Arg(1), "name": newName, "category": newCat,
+			"description": src.Description, "content": src.Content,
+		})
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("prompts duplicate: %s", out)
+		}
+		if *djson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("prompt duplicated: %s -> %s (%s)\n", dfs.Arg(0), dfs.Arg(1), newName)
+		return nil
+	}
 	if len(args) > 0 && args[0] == "add" {
 		// Create a custom prompt template (F306).
 		afs := flag.NewFlagSet("prompts add", flag.ExitOnError)
