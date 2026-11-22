@@ -908,17 +908,24 @@ func cmdPresets(args []string) error {
 		fmt.Printf("preset %s started — instance %s on port %d\n", name, inst.ID, inst.Port)
 		return nil
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl presets delete <name>")
+		pdfs := flag.NewFlagSet("presets delete", flag.ExitOnError)
+		pdjson := pdfs.Bool("json", false, "print the raw response JSON (F538)")
+		pdfs.Parse(reorderFlags(rest))
+		if pdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl presets delete <name> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/presets/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/presets/" + url.PathEscape(pdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("presets delete returned %d: %s", code, out)
 		}
-		fmt.Printf("preset %s deleted\n", rest[0])
+		if *pdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("preset %s deleted\n", pdfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown presets subcommand: %s (list|save|start|delete)", sub)
@@ -5589,21 +5596,28 @@ func cmdChats(args []string) error {
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {
-		if len(args) < 2 {
-			return fmt.Errorf("usage: llmctl chats delete <id>")
+		cdfs := flag.NewFlagSet("chats delete", flag.ExitOnError)
+		cdjson := cdfs.Bool("json", false, "print the raw response JSON (F538)")
+		cdfs.Parse(reorderFlags(args[1:]))
+		if cdfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl chats delete <id> [-json]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Delete("/api/v1/chats/" + url.PathEscape(args[1]))
+		code, out, err := cc.Delete("/api/v1/chats/" + url.PathEscape(cdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("chat delete: %s", out)
 		}
-		fmt.Printf("deleted chat %s\n", args[1])
+		if *cdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted chat %s\n", cdfs.Arg(0))
 		return nil
 	}
 	fs := flag.NewFlagSet("chats", flag.ExitOnError)
@@ -6226,9 +6240,10 @@ func cmdMemory(args []string) error {
 	case "add":
 		afs := flag.NewFlagSet("memory add", flag.ExitOnError)
 		tags := afs.String("tags", "", "comma-separated tags")
+		mjson := afs.Bool("json", false, "print the raw created-entry JSON (F538)")
 		afs.Parse(reorderFlags(rest))
 		if afs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl memory add \"<text>\" [-tags a,b]")
+			return fmt.Errorf("usage: llmctl memory add \"<text>\" [-tags a,b] [-json]")
 		}
 		body := map[string]any{"content": strings.Join(afs.Args(), " ")}
 		if *tags != "" {
@@ -6246,6 +6261,10 @@ func cmdMemory(args []string) error {
 		}
 		if code != 201 {
 			return fmt.Errorf("memory add returned %d: %s", code, out)
+		}
+		if *mjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var rec struct {
 			Entry struct {
@@ -6735,9 +6754,10 @@ func cmdKb(args []string) error {
 	case "create":
 		cfs := flag.NewFlagSet("kb create", flag.ExitOnError)
 		desc := cfs.String("desc", "", "description")
+		kcjson := cfs.Bool("json", false, "print the raw created-kb JSON (F538)")
 		cfs.Parse(reorderFlags(rest))
 		if cfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl kb create <name> [-desc X]")
+			return fmt.Errorf("usage: llmctl kb create <name> [-desc X] [-json]")
 		}
 		code, out, err := cc.Post("/api/v1/knowledge-bases", map[string]any{"name": cfs.Arg(0), "description": *desc})
 		if err != nil {
@@ -6745,6 +6765,10 @@ func cmdKb(args []string) error {
 		}
 		if code != 201 {
 			return fmt.Errorf("kb create returned %d: %s", code, out)
+		}
+		if *kcjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var rec struct {
 			KB struct {
@@ -7598,21 +7622,28 @@ func cmdPrompts(args []string) error {
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {
-		if len(args) < 2 {
-			return fmt.Errorf("usage: llmctl prompts delete <id>")
+		prdfs := flag.NewFlagSet("prompts delete", flag.ExitOnError)
+		prdjson := prdfs.Bool("json", false, "print the raw response JSON (F538)")
+		prdfs.Parse(reorderFlags(args[1:]))
+		if prdfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl prompts delete <id> [-json]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Delete("/api/v1/prompts/" + url.PathEscape(args[1]))
+		code, out, err := cc.Delete("/api/v1/prompts/" + url.PathEscape(prdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("prompts delete: %s", out)
 		}
-		fmt.Printf("deleted prompt %s\n", args[1])
+		if *prdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted prompt %s\n", prdfs.Arg(0))
 		return nil
 	}
 	if len(args) > 0 && args[0] == "export" {
