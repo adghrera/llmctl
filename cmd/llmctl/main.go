@@ -265,7 +265,7 @@ Usage:
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
-  llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
+  llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]   recent webhook delivery attempts / send a test event
@@ -5313,7 +5313,31 @@ func printMetrics(out []byte, modelFilter string, csvOut bool) error {
 }
 
 // cmdUsage prints the daily per-model usage rollup (newest day first).
+// cmdUsage prints daily usage; -watch N reprints the view every N seconds
+// until interrupted (F587), like status -watch.
 func cmdUsage(args []string) error {
+	watch := 0
+	for i, a := range args {
+		if a == "-watch" && i+1 < len(args) {
+			watch, _ = strconv.Atoi(args[i+1])
+		} else if strings.HasPrefix(a, "-watch=") {
+			watch, _ = strconv.Atoi(strings.TrimPrefix(a, "-watch="))
+		}
+	}
+	if watch <= 0 {
+		return usageOnce(args)
+	}
+	for {
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live usage — refreshing every %ds (Ctrl-C to stop)\n\n", watch)
+		if err := usageOnce(args); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(watch) * time.Second)
+	}
+}
+
+func usageOnce(args []string) error {
 	fs := flag.NewFlagSet("usage", flag.ExitOnError)
 	n := fs.Int("n", 14, "number of days")
 	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
@@ -5322,6 +5346,7 @@ func cmdUsage(args []string) error {
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	jsonOut := fs.Bool("json", false, "print the raw usage JSON (for scripts)")
 	outFile := fs.String("out", "", "write the usage JSON to this file instead of stdout (F474)")
+	fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once) (F587)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
