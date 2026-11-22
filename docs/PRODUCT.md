@@ -473,7 +473,7 @@ llmctl search <query> [-max N] [-json]             (keyless web search, F274)
 llmctl structured -model ID -schema f.json [-key K] <prompt>   (schema-validated JSON, F279)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
 llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
-llmctl compare -models A,B [-system S] [-max-tokens N] [-json] <prompt> (CLI twin of Compare page, F301, F314)
+llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt> (CLI twin of Compare page, F301, F314, F343)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
 llmctl bench -models A,B [-n N] [-conc C] [-json]             (multi-model comparison table, F303, F315)
@@ -536,7 +536,7 @@ llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
                  | settings test-webhook (send a test event)
-llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|stdin|prompts…] [-json]
+llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|stdin|prompts…] [-json]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
                                      print the streamed reply, exit; for scripts, F277;

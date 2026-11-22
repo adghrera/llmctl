@@ -170,7 +170,7 @@ Usage:
   llmctl structured -model ID -schema file.json <prompt>
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
-  llmctl compare -models A,B [-system S] [-max-tokens N] [-json] <prompt>
+  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
@@ -243,7 +243,7 @@ Usage:
   llmctl cost [-keys] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
-  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
+  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
@@ -1473,10 +1473,11 @@ func cmdCompare(args []string) error {
 	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	system := fs.String("system", "", "system prompt prepended to the conversation")
 	maxTok := fs.Int("max-tokens", 0, "max tokens per response (0 = model default)")
+	temp := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F343)")
 	jsonOut := fs.Bool("json", false, "print [{model, reply} | {model, error}] as one JSON array instead of streamed text (F314)")
 	fs.Parse(reorderFlags(args))
 	if *modelsFlag == "" {
-		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] <prompt>  (or pipe stdin)")
+		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] [-temperature T] <prompt>  (or pipe stdin)")
 	}
 	prompt := strings.Join(fs.Args(), " ")
 	if prompt == "" {
@@ -1510,6 +1511,9 @@ func cmdCompare(args []string) error {
 		body := map[string]any{"model": m, "messages": msgs}
 		if *maxTok > 0 {
 			body["max_tokens"] = *maxTok
+		}
+		if *temp >= 0 {
+			body["temperature"] = *temp
 		}
 		if !*jsonOut {
 			fmt.Printf("=== %s ===\n", m)
@@ -6620,6 +6624,7 @@ func cmdBatch(args []string) error {
 	model := fs.String("model", "", "model id (required)")
 	system := fs.String("system", "", "system prompt")
 	maxTokens := fs.Int("max-tokens", 0, "max tokens per completion")
+	temperature := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F343)")
 	concurrency := fs.Int("concurrency", 4, "parallel requests (max 8)")
 	key := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (needed when auth is on; default $LLMCTL_API_KEY)")
 	file := fs.String("file", "", "read prompts from this file, one per line")
@@ -6650,7 +6655,7 @@ func cmdBatch(args []string) error {
 		add(a)
 	}
 	if *model == "" || len(prompts) == 0 {
-		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-file F|piped stdin|prompts…]")
+		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-temperature T] [-file F|piped stdin|prompts…]")
 	}
 	body := map[string]any{
 		"model": *model, "prompts": prompts, "concurrency": *concurrency,
@@ -6660,6 +6665,9 @@ func cmdBatch(args []string) error {
 	}
 	if *maxTokens > 0 {
 		body["maxTokens"] = *maxTokens
+	}
+	if *temperature >= 0 {
+		body["temperature"] = *temperature
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
