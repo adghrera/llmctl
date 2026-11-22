@@ -298,7 +298,8 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl requests -stats -by …`, F549, F554, F594), with one-click
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
-  stream/plain, key prefix or id, and a since/until time range (F189). The serving replica is also echoed to clients as
+  stream/plain, key prefix or id (with a key-name dropdown to pick it, F735),
+  and a since/until time range (F189). The serving replica is also echoed to clients as
   the `X-LLMCtrl-Instance` response header (F115). Authenticated requests also
   echo the serving key's id as the `X-LLMCtrl-Key` response header (F233).
   Each request has an id echoed as the X-Request-Id response header (a

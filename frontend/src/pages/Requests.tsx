@@ -46,11 +46,16 @@ export default function Requests() {
   const [fMinMs, setFMinMs] = useState("");
   const [fStream, setFStream] = useState("");
   const [fKey, setFKey] = useState(params.get("key") || "");
+  const [keyNames, setKeyNames] = useState<{ id: string; name: string }[]>([]); // for the key dropdown (F735)
   const [fInstance, setFInstance] = useState(params.get("instance") || "");
   const [fSince, setFSince] = useState("");
   const [fUntil, setFUntil] = useState("");
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [groupBy, setGroupBy] = useState("");
+
+  useEffect(() => {
+    api.keys().then(setKeyNames).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -146,6 +151,21 @@ export default function Requests() {
           value={fMinMs}
           onChange={(e) => setFMinMs(e.target.value)}
         />
+        {keyNames.length > 0 && (
+          <select
+            style={{ width: 150 }}
+            title="filter by API key name — sets the key-id filter (CLI: llmctl requests -key, F735)"
+            value={keyNames.some((k) => k.id === fKey) ? fKey : ""}
+            onChange={(e) => setFKey(e.target.value)}
+          >
+            <option value="">all keys</option>
+            {keyNames.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name || k.id}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           style={{ width: 120 }}
           placeholder="key prefix"
