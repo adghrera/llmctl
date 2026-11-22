@@ -340,6 +340,8 @@ toggle for a light theme (choice remembered). Tabs:
   `instance.stop` (start/stop an instance on schedule — e.g. load a model
   every morning, unload it at night), plus `backup` (state snapshot).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
+  `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
+  specs between instances (fresh ids on import, F326).
    Cron expressions are validated on create/update (5 fields, in-range
    values; invalid → 400) so a typo can’t silently mis-schedule (F159).
   Optionally set a webhook URL: after

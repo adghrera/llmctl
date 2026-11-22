@@ -222,6 +222,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false]
   llmctl scheduler runs [-n 20]
+  llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
@@ -2500,7 +2501,7 @@ func untilStr(t time.Time) string {
 
 func cmdScheduler(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl scheduler <list|show|add|update|run|enable|disable|delete> [id] [flags]")
+		return fmt.Errorf("usage: llmctl scheduler <list|show|add|update|run|enable|disable|delete|export|import> [id] [flags]")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -2515,6 +2516,72 @@ func cmdScheduler(args []string) error {
 		return nil
 	}
 	switch sub {
+	case "export":
+		// Dump all schedule specs as a JSON array (feed to `scheduler import`, F326).
+		efs := flag.NewFlagSet("scheduler export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/scheduler")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler export: %s", out)
+		}
+		var list []struct {
+			Spec json.RawMessage `json:"spec"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		specs := []json.RawMessage{}
+		for _, r := range list {
+			specs = append(specs, r.Spec)
+		}
+		data, err := json.MarshalIndent(specs, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d schedules to %s\n", len(specs), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	case "import":
+		// Create schedules from a `scheduler export` file (F326). Each
+		// import creates fresh ids; re-running duplicates rather than merges.
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl scheduler import <file.json>")
+		}
+		data, err := os.ReadFile(rest[0])
+		if err != nil {
+			return err
+		}
+		var specs []map[string]any
+		if err := json.Unmarshal(data, &specs); err != nil {
+			return fmt.Errorf("import file: %w", err)
+		}
+		var created, skipped int
+		for _, spec := range specs {
+			delete(spec, "id") // the store mints its own ids
+			code, out, err := cc.Post("/api/v1/scheduler", spec)
+			if err != nil {
+				return err
+			}
+			if code != 201 {
+				fmt.Printf("  skip: %s\n", out)
+				skipped++
+				continue
+			}
+			created++
+		}
+		fmt.Printf("imported %d schedules (%d skipped)\n", created, skipped)
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("scheduler list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw scheduler JSON (for scripts)")
