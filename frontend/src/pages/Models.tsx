@@ -170,6 +170,33 @@ export default function Models() {
     }
   };
 
+  // per-model USD price per 1M tokens (in/out); empty = not set
+  const [priceDraft, setPriceDraft] = useState<Record<string, { i: string; o: string }>>({});
+  const savePrice = async (id: string) => {
+    const d = priceDraft[id] ?? { i: "", o: "" };
+    const pi = d.i === "" ? 0 : Number(d.i);
+    const po = d.o === "" ? 0 : Number(d.o);
+    if (Number.isNaN(pi) || Number.isNaN(po) || pi < 0 || po < 0) {
+      err("prices must be >= 0 (USD per 1M tokens; empty = 0)");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.setModelPrice(id, pi, po);
+      ok(pi || po ? `price: $${pi}/M in · $${po}/M out` : "price cleared (free)");
+      setPriceDraft((m) => {
+        const c = { ...m };
+        delete c[id];
+        return c;
+      });
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const installedIds = new Set(models.map((m) => m.id));
 
   // GGUF metadata viewer
@@ -378,6 +405,7 @@ export default function Models() {
                 <th>Size</th>
                 <th>Context</th>
                 <th>Idle</th>
+                <th>Price $/M</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -431,6 +459,41 @@ export default function Models() {
                       )}
                       {!m.idleUnloadMin && (idleDraft[m.id] ?? "") === "" && <span className="muted">global</span>}
                       {m.idleUnloadMin === -1 && (idleDraft[m.id] ?? "") === "" && <span className="badge">pinned</span>}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                      <input
+                        style={{ width: 56 }}
+                        placeholder={m.priceInPerM ? String(m.priceInPerM) : "in"}
+                        title="USD per 1M prompt tokens"
+                        value={priceDraft[m.id]?.i ?? ""}
+                        disabled={busy}
+                        onChange={(e) => setPriceDraft((p) => ({ ...p, [m.id]: { i: e.target.value, o: p[m.id]?.o ?? "" } }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") savePrice(m.id);
+                        }}
+                      />
+                      <span className="muted">/</span>
+                      <input
+                        style={{ width: 56 }}
+                        placeholder={m.priceOutPerM ? String(m.priceOutPerM) : "out"}
+                        title="USD per 1M completion tokens"
+                        value={priceDraft[m.id]?.o ?? ""}
+                        disabled={busy}
+                        onChange={(e) => setPriceDraft((p) => ({ ...p, [m.id]: { i: p[m.id]?.i ?? "", o: e.target.value } }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") savePrice(m.id);
+                        }}
+                      />
+                      {((priceDraft[m.id]?.i ?? "") !== "" || (priceDraft[m.id]?.o ?? "") !== "") && (
+                        <button className="btn sm" disabled={busy} onClick={() => savePrice(m.id)}>
+                          Set
+                        </button>
+                      )}
+                      {!m.priceInPerM && !m.priceOutPerM && (priceDraft[m.id]?.i ?? "") === "" && (priceDraft[m.id]?.o ?? "") === "" && (
+                        <span className="muted">free</span>
+                      )}
                     </span>
                   </td>
                   <td>

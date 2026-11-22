@@ -131,7 +131,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Models** — HuggingFace search + file picker, download with live progress.
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
   survive model swaps; the gateway advertises them in /v1/models. Optional
-  per-model USD pricing (`llmctl models price <id> <in> <out>`) drives the
+  per-model USD pricing (`llmctl models price <id> <in> <out>`, or the
+   Models page "Price $/M" column, F137) drives the
   per-key cost estimates (F102).
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop. Each
   instance can carry a free-text note (Vars dialog) shown under its id and
