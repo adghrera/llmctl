@@ -250,6 +250,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F238 | P3 | 238 | scheduler | Relative next-run times | COMPLETED | Scheduler next-run now reads at a glance: UI shows `in 12m` (absolute time on hover, via new `until()` helper), and `llmctl scheduler list` gained a NEXT column with the same style. Verified live: CLI column shows `in 39d` for a Jan-1 cron; bundle contains the helper. |
 | F239 | P3 | 239 | ui | Relative times on Keys + Overview | COMPLETED | Keys page: created/last-used/expiry now render `5m ago` / `expires in 3d` style (exact time on hover); Overview event log times are relative too. Verified: tsc + vite build clean, served bundle contains the new strings. |
 | F240 | P3 | 240 | cli | `doctor -quiet` | COMPLETED | `llmctl doctor -quiet` prints only warn/error checks plus a one-line summary (`all checks passed` / `N warning(s), no errors`) — cron/monitoring friendly; exit code unchanged. Verified live: quiet run with and without active warnings. |
+| F241 | P3 | 241 | ui | Health card on Overview | COMPLETED | The Overview page now shows a Health card backed by `/api/v1/doctor`: a compact "all N checks passed" line when healthy, otherwise a table of the warn/error checks only (refreshed every 60s). Verified: tsc + vite build clean, served bundle contains the card and endpoint. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

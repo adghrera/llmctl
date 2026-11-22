@@ -565,6 +565,8 @@ export const api = {
     req<{ time: string; kind: string; instance?: string; model?: string }[]>(
       `/events?limit=${limit}${kind ? "&kind=" + encodeURIComponent(kind) : ""}`
     ),
+  doctor: () =>
+    req<{ ok: boolean; checks: { name: string; status: string; detail: string }[] }>("/doctor"),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   disk: () =>
     req<{ dir: string; modelsBytes: number; modelsCount: number; freeBytes?: number; totalBytes?: number }>(

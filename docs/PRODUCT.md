@@ -129,7 +129,8 @@ GitHub release, or file list. No recompile.
 ### Web UI
 Embedded SPA (no CDN deps — works offline). Dark by default with a header
 toggle for a light theme (choice remembered). Tabs:
-- **Overview** — status counts, a "Today (UTC)" usage card (requests, errors,
+- **Overview** — status counts, a Health card showing only failing doctor
+  checks (or "all N checks passed", F241), a "Today (UTC)" usage card (requests, errors,
   tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
   usage, disk usage
   (model bytes + free space), running instances, active jobs, and a recent

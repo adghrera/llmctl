@@ -13,6 +13,22 @@ export default function Overview() {
   const [eventKinds, setEventKinds] = useState<string[]>([]);
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
   const [daemonLog, setDaemonLog] = useState<string | null>(null);
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () =>
+      api
+        .doctor()
+        .then((d) => alive && setHealth(d))
+        .catch(() => {});
+    tick();
+    const t = setInterval(tick, 60000); // health changes slowly
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -103,6 +119,38 @@ export default function Overview() {
           <div className="empty">connecting to daemon…</div>
         )}
       </div>
+      {health && (
+        <div className="card">
+          <h2>Health</h2>
+          {health.checks.filter((c) => c.status !== "ok").length === 0 ? (
+            <p>
+              <span className="badge ok">ok</span> all {health.checks.length} checks passed
+            </p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Check</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {health.checks
+                  .filter((c) => c.status !== "ok")
+                  .map((c) => (
+                    <tr key={c.name}>
+                      <td>
+                        <span className={`badge ${c.status === "error" ? "err" : "warn"}`}>{c.status}</span>{" "}
+                        <span className="mono" style={{ fontSize: 12 }}>{c.name}</span>
+                      </td>
+                      <td className="muted" style={{ fontSize: 12 }}>{c.detail}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
       {today && (
         <div className="card">
           <h2>Today (UTC)</h2>
