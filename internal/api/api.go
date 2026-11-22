@@ -117,6 +117,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PATCH /api/v1/instances/{id}/maxparallel", s.setMaxParallel)
 	m.HandleFunc("PATCH /api/v1/models/{id}/price", s.setModelPrice)
 	m.HandleFunc("PATCH /api/v1/models/{id}/idle", s.setModelIdle)
+	m.HandleFunc("PATCH /api/v1/models/{id}/rename", s.renameModel)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/logs/daemon", s.daemonLog)
@@ -1084,6 +1085,69 @@ func (s *Server) setModelIdle(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true, "idleUnloadMin": *req.IdleUnloadMin})
+}
+
+// renameModel handles PATCH /api/v1/models/{id}/rename — change a model's id,
+// updating instance records, autostart entries and aliases that reference it
+// (F284). Refused while any instance of the model is running.
+func (s *Server) renameModel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		NewID string `json:"newId"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	if !modelIDRe.MatchString(req.NewID) {
+		writeErr(w, 400, "newId must match ^[a-z0-9][a-z0-9_-]{0,79}$")
+		return
+	}
+	if req.NewID == id {
+		writeErr(w, 400, "newId equals the current id")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Models[id] == nil {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	if st.Models[req.NewID] != nil {
+		writeErr(w, 409, "model already registered: "+req.NewID)
+		return
+	}
+	for instID, inst := range st.Instances {
+		if inst.ModelID == id && inst.Status == store.StatusRunning {
+			writeErr(w, 409, "instance "+instID+" is running — stop it before renaming")
+			return
+		}
+	}
+	renamed := 0
+	s.store.Update(func(st *store.State) error {
+		m := st.Models[id]
+		if m == nil {
+			return nil
+		}
+		delete(st.Models, id)
+		st.Models[req.NewID] = m
+		for _, inst := range st.Instances {
+			if inst.ModelID == id {
+				inst.ModelID = req.NewID
+				renamed++
+			}
+		}
+		if spec := st.AutoStart[id]; spec != nil {
+			delete(st.AutoStart, id)
+			st.AutoStart[req.NewID] = spec
+		}
+		for alias, mid := range st.Aliases {
+			if mid == id {
+				st.Aliases[alias] = req.NewID
+			}
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "id": req.NewID, "instancesUpdated": renamed})
 }
 
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {

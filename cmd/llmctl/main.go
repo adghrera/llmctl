@@ -1450,7 +1450,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|show|add|probe|price|ctx|idle|metadata|install|remove|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|show|add|rename|probe|price|ctx|idle|metadata|install|remove|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1458,6 +1458,20 @@ func cmdModels(args []string) error {
 		return err
 	}
 	switch sub {
+	case "rename":
+		if len(rest) < 2 {
+			return fmt.Errorf("usage: llmctl models rename <id> <new-id>")
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(rest[0])+"/rename",
+			map[string]any{"newId": rest[1]})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("models rename: %s", out)
+		}
+		fmt.Printf("model %s renamed to %s\n", rest[0], rest[1])
+		return nil
 	case "add":
 		afs := flag.NewFlagSet("models add", flag.ExitOnError)
 		backendID := afs.String("backend", "", "backend id (default: llama.cpp)")
