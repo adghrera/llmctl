@@ -385,10 +385,12 @@ toggle for a light theme (choice remembered). Tabs:
  - **MCP CLI** — `llmctl mcp [-json] [-csv]` lists configured MCP servers
    (`--csv` exports id,name,enabled,command, F403);
    `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`,
-   `mcp test <id>` (connect and list advertised tools) and
+   `mcp test <id> [--csv|--json]` (connect and list advertised tools;
+   --csv/--json export name,description, F436) and
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
    enabled state preserved, F330) (F249); the MCP page has matching
-   Export JSON / Import JSON buttons (F411).
+   Export JSON / Import JSON buttons (F411) and an Export CSV on the tested
+   server's Tools card with the same columns (F437).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
    per-model table; `-keys` shows per-key costs with names, `-model M` /
    `-key K` filter the table to one id, `--csv` exports the table, `-json` emits

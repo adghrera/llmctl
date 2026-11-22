@@ -6533,8 +6533,12 @@ func cmdMcp(args []string) error {
 		return nil
 	case "test":
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl mcp test <id>")
+			return fmt.Errorf("usage: llmctl mcp test <id> [--csv|--json]")
 		}
+		tfs := flag.NewFlagSet("mcp test", flag.ExitOnError)
+		jsonOut := tfs.Bool("json", false, "print the advertised tools as JSON (for scripts)")
+		csvOut := tfs.Bool("csv", false, "output the advertised tools as CSV (F436)")
+		tfs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(rest[0])+"/test", map[string]any{})
 		if err != nil {
 			return err
@@ -6550,6 +6554,23 @@ func cmdMcp(args []string) error {
 		}
 		if err := json.Unmarshal(out, &res); err != nil {
 			return err
+		}
+		if *jsonOut { // F436
+			b, err := json.Marshal(res.Tools)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if *csvOut { // F436: header-only when the server advertises no tools
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"name", "description"})
+			for _, t := range res.Tools {
+				_ = w.Write([]string{t.Name, t.Description})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("ok — %d tool(s)\n", len(res.Tools))
 		for _, t := range res.Tools {

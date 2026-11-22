@@ -234,7 +234,28 @@ export default function MCP() {
       </div>
       {testResult && (
         <div className="card">
-          <h2>Tools — {testResult.id}</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Tools — {testResult.id}</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl mcp test --csv` (F437).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "name,description",
+                  ...testResult.tools.map((t) => [t.name, t.description || ""].map(esc).join(",")),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-mcp-tools-${testResult.id}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
           {testResult.tools.length === 0 ? (
             <div className="empty">server connected but advertises no tools</div>
           ) : (
