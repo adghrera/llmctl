@@ -8,6 +8,7 @@ export default function Files() {
   const [busy, setBusy] = useState(false);
   const [contentView, setContentView] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [dragOver, setDragOver] = useState(false);
 
   const load = () =>
     api
@@ -25,12 +26,13 @@ export default function Files() {
     }
   };
 
-  const upload = async () => {
-    if (!file) return;
+  const upload = async (dropped?: File) => {
+    const f = dropped ?? file;
+    if (!f) return;
     setBusy(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", f);
       await api.uploadFile(formData);
       ok("file uploaded");
       setFile(null);
@@ -79,11 +81,27 @@ export default function Files() {
 
   return (
     <>
-      <div className="card">
+      <div
+        className="card"
+        // Drop a file anywhere on the card to upload it (F452).
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) void upload(f);
+        }}
+        style={dragOver ? { outline: "2px dashed var(--primary, #888)", outlineOffset: -2 } : undefined}
+      >
         <h2>Upload a file</h2>
         <p style={{ opacity: 0.75, margin: "4px 0 10px" }}>
           Upload text-based files (.txt, .md, .py, .js, .json, etc.) to reference
-          in chat using <code>/file &lt;filename&gt;</code>. Max 10 MiB.
+          in chat using <code>/file &lt;filename&gt;</code>. Max 10 MiB. You can
+          also drop a file onto this card.
         </p>
         <div className="row" style={{ gap: 8, marginBottom: 8 }}>
           <input
@@ -99,7 +117,7 @@ export default function Files() {
           <button
             className="btn primary"
             disabled={busy || !file}
-            onClick={upload}
+            onClick={() => void upload()}
           >
             {busy ? "Uploading…" : "Upload"}
           </button>
