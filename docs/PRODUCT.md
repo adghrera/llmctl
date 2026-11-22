@@ -263,9 +263,11 @@ toggle for a light theme (choice remembered). Tabs:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` (F218).
  - **Chat CLI** — `llmctl chats [filter] [-json]` lists saved conversations,
-   `llmctl chats show <id> [-json]` prints one with a message preview and
+   `llmctl chats show <id> [-json]` prints one with a message preview,
    `llmctl chats search <query> [-json]` full-text searches message content
-   with match snippets (over the chat-store API, F244, F267).
+   with match snippets, and `chats export <id> [-md] [-out f]`,
+   `chats fork <id> [-at N] [-title T]`, `chats delete <id>` manage them
+   (over the chat-store API, F244, F267, F269).
  - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs
    (filter matches id/name/description/tags); `skills show|enable|disable|delete <id>`
    manages them (F245).

@@ -190,7 +190,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
-  llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json] | llmctl chats search <query> [-json]
+  llmctl chats [filter] [-n 20] [-json] | chats show|search|export|fork|delete …
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|search|delete …
   llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|delete …
@@ -2795,6 +2795,88 @@ func cmdChats(args []string) error {
 				fmt.Printf("    [%s] %s\n", m.Role, sn)
 			}
 		}
+		return nil
+	}
+	if len(args) > 0 && args[0] == "export" {
+		efs := flag.NewFlagSet("chats export", flag.ExitOnError)
+		md := efs.Bool("md", false, "export as Markdown instead of JSON")
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(args[1:]))
+		if efs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl chats export <id> [-md] [-out file]")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		path := "/api/v1/chats/" + url.PathEscape(efs.Arg(0)) + "/export"
+		if *md {
+			path += "?format=md"
+		}
+		code, out, err := cc.Get(path)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat export: %s", out)
+		}
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %s to %s (%s)\n", efs.Arg(0), *outFile, fmtSize(int64(len(out))))
+			return nil
+		}
+		fmt.Print(string(out))
+		return nil
+	}
+	if len(args) > 0 && args[0] == "fork" {
+		ffs := flag.NewFlagSet("chats fork", flag.ExitOnError)
+		at := ffs.Int("at", 0, "fork after this message index (0 = whole chat)")
+		title := ffs.String("title", "", "title for the new chat")
+		ffs.Parse(reorderFlags(args[1:]))
+		if ffs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl chats fork <id> [-at N] [-title T]")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		body := map[string]any{"forkAt": *at}
+		if *title != "" {
+			body["title"] = *title
+		}
+		code, out, err := cc.Post("/api/v1/chats/"+url.PathEscape(ffs.Arg(0))+"/fork", body)
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("chat fork: %s", out)
+		}
+		var ch struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		}
+		json.Unmarshal(out, &ch)
+		fmt.Printf("forked %s → %s (%s)\n", ffs.Arg(0), ch.ID, ch.Title)
+		return nil
+	}
+	if len(args) > 0 && args[0] == "delete" {
+		if len(args) < 2 {
+			return fmt.Errorf("usage: llmctl chats delete <id>")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Delete("/api/v1/chats/" + url.PathEscape(args[1]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat delete: %s", out)
+		}
+		fmt.Printf("deleted chat %s\n", args[1])
 		return nil
 	}
 	fs := flag.NewFlagSet("chats", flag.ExitOnError)
