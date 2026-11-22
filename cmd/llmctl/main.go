@@ -273,7 +273,7 @@ Usage:
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
-  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|run|delete <id> [-json]
@@ -2340,7 +2340,7 @@ var llmSubCommands = map[string]string{
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
-	"skills":    "list show add export enable disable delete",
+	"skills":    "list show add update export enable disable delete",
 	"tools":     "list show install enable disable run delete",
 }
 
@@ -7284,7 +7284,7 @@ func cmdSkills(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "export", "enable", "disable", "delete":
+		case "list", "show", "add", "update", "export", "enable", "disable", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -7324,6 +7324,77 @@ func cmdSkills(args []string) error {
 		}
 		json.Unmarshal(out, &rec)
 		fmt.Printf("skill created: %s (%s)\n", rec.Manifest.Name, rec.Manifest.ID)
+		return nil
+	case "update":
+		// Edit an existing skill's metadata in place (PUT, F652).
+		sufs := flag.NewFlagSet("skills update", flag.ExitOnError)
+		suname := sufs.String("name", "", "display name")
+		sudesc := sufs.String("desc", "", "description")
+		sutmpl := sufs.String("template", "", "prompt template")
+		sutags := sufs.String("tags", "", "comma-separated tags")
+		sujson := sufs.Bool("json", false, "print the raw updated-skill JSON")
+		sufs.Parse(reorderFlags(rest))
+		if sufs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]")
+		}
+		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(sufs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skills update: %s", out)
+		}
+		var cur struct {
+			Manifest struct {
+				ShortName      string   `json:"short_name"`
+				Name           string   `json:"name"`
+				Description    string   `json:"description"`
+				PromptTemplate string   `json:"prompt_template"`
+				Tags           []string `json:"tags"`
+				Enabled        bool     `json:"enabled"`
+			} `json:"manifest"`
+		}
+		if err := json.Unmarshal(out, &cur); err != nil {
+			return err
+		}
+		body := map[string]any{
+			"short_name":      cur.Manifest.ShortName,
+			"name":            cur.Manifest.Name,
+			"description":     cur.Manifest.Description,
+			"prompt_template": cur.Manifest.PromptTemplate,
+			"tags":            cur.Manifest.Tags,
+			"enabled":         cur.Manifest.Enabled,
+		}
+		if *suname != "" {
+			body["name"] = *suname
+		}
+		if *sudesc != "" {
+			body["description"] = *sudesc
+		}
+		if *sutmpl != "" {
+			body["prompt_template"] = *sutmpl
+		}
+		if *sutags != "" {
+			list := []string{}
+			for _, t := range strings.Split(*sutags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					list = append(list, t)
+				}
+			}
+			body["tags"] = list
+		}
+		code, out, err = cc.Put("/api/v1/skills/"+url.PathEscape(sufs.Arg(0)), body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skills update: %s", out)
+		}
+		if *sujson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("skill %s updated\n", sufs.Arg(0))
 		return nil
 	case "list":
 		fs := flag.NewFlagSet("skills", flag.ExitOnError)
