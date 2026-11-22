@@ -149,7 +149,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
   llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
@@ -1183,8 +1183,15 @@ func cmdRequests(args []string) error {
 	watch := fs.Int("watch", 0, "poll every N seconds and print new requests until Ctrl-C (0 = print once)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	stats := fs.Bool("stats", false, "print aggregate stats (count, errors, latency percentiles, tokens, cost) instead of the table")
+	by := fs.String("by", "", "with -stats: group by model, key or instance")
 	jsonOut := fs.Bool("json", false, "print the raw requests JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
+	if *by != "" && *by != "model" && *by != "key" && *by != "instance" {
+		return fmt.Errorf("-by must be model, key or instance")
+	}
+	if *by != "" && !*stats {
+		return fmt.Errorf("-by requires -stats")
+	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
@@ -1267,52 +1274,99 @@ func cmdRequests(args []string) error {
 		}
 	}
 	if *stats {
-		var errs int
-		lats := make([]float64, 0, len(entries))
-		var in, outTok int64
-		var cost float64
-		for _, e := range entries {
-			if e.Status >= 400 {
-				errs++
+		// statsOf computes aggregates over one slice of entries (F227/F235).
+		type statsAgg struct {
+			Requests int     `json:"requests"`
+			Errors   int     `json:"errors"`
+			ErrorPct float64 `json:"errorPct"`
+			AvgMs    float64 `json:"avgMs"`
+			P50Ms    float64 `json:"p50Ms"`
+			P95Ms    float64 `json:"p95Ms"`
+			MaxMs    float64 `json:"maxMs"`
+			In       int64   `json:"promptTokens"`
+			Out      int64   `json:"completionTokens"`
+			Cost     float64 `json:"costUSD"`
+		}
+		statsOf := func(es []reqRow) statsAgg {
+			var a statsAgg
+			lats := make([]float64, 0, len(es))
+			for _, e := range es {
+				if e.Status >= 400 {
+					a.Errors++
+				}
+				lats = append(lats, e.LatencyMs)
+				a.In += e.PromptTok
+				a.Out += e.CompTok
+				a.Cost += e.Cost
 			}
-			lats = append(lats, e.LatencyMs)
-			in += e.PromptTok
-			outTok += e.CompTok
-			cost += e.Cost
-		}
-		sort.Float64s(lats)
-		pct := func(p float64) float64 {
-			if len(lats) == 0 {
-				return 0
+			a.Requests = len(es)
+			sort.Float64s(lats)
+			pct := func(p float64) float64 {
+				if len(lats) == 0 {
+					return 0
+				}
+				return lats[int(p*float64(len(lats)-1))]
 			}
-			i := int(p * float64(len(lats)-1))
-			return lats[i]
+			for _, l := range lats {
+				a.AvgMs += l
+			}
+			if len(lats) > 0 {
+				a.AvgMs /= float64(len(lats))
+			}
+			a.P50Ms, a.P95Ms, a.MaxMs = pct(0.5), pct(0.95), pct(1.0)
+			if a.Requests > 0 {
+				a.ErrorPct = 100 * float64(a.Errors) / float64(a.Requests)
+			}
+			return a
 		}
-		var avg float64
-		for _, l := range lats {
-			avg += l
+		// -by model|key|instance: one row per group (F235).
+		if *by != "" {
+			groups := map[string][]reqRow{}
+			for _, e := range entries {
+				g := e.Model
+				switch *by {
+				case "key":
+					g = e.Key
+				case "instance":
+					g = e.Instance
+				}
+				if g == "" {
+					g = "-"
+				}
+				groups[g] = append(groups[g], e)
+			}
+			names := make([]string, 0, len(groups))
+			for g := range groups {
+				names = append(names, g)
+			}
+			sort.Strings(names)
+			if *jsonOut {
+				out2 := map[string]any{}
+				for _, g := range names {
+					out2[g] = statsOf(groups[g])
+				}
+				b, _ := json.Marshal(map[string]any{"by": *by, "groups": out2})
+				fmt.Println(string(b))
+				return nil
+			}
+			fmt.Printf("%-20s %7s %7s %8s %8s %10s %10s %9s\n", strings.ToUpper(*by), "REQS", "ERRORS", "P50 MS", "P95 MS", "IN", "OUT", "COST $")
+			for _, g := range names {
+				a := statsOf(groups[g])
+				fmt.Printf("%-20s %7d %4d %3.0f%% %8.0f %8.0f %10d %10d %9.4f\n", g, a.Requests, a.Errors, a.ErrorPct, a.P50Ms, a.P95Ms, a.In, a.Out, a.Cost)
+			}
+			return nil
 		}
-		if len(lats) > 0 {
-			avg /= float64(len(lats))
-		}
-		errRate := 0.0
-		if len(entries) > 0 {
-			errRate = 100 * float64(errs) / float64(len(entries))
-		}
+		a := statsOf(entries)
 		if *jsonOut {
-			b, _ := json.Marshal(map[string]any{
-				"requests": len(entries), "errors": errs, "errorPct": errRate,
-				"latencyMs":    map[string]float64{"avg": avg, "p50": pct(0.5), "p95": pct(0.95), "max": pct(1.0)},
-				"promptTokens": in, "completionTokens": outTok, "costUSD": cost,
-			})
+			b, _ := json.Marshal(a)
 			fmt.Println(string(b))
 			return nil
 		}
-		fmt.Printf("requests:  %d (%d errors, %.1f%%)\n", len(entries), errs, errRate)
-		fmt.Printf("latency:   avg %.0f ms  p50 %.0f  p95 %.0f  max %.0f\n", avg, pct(0.5), pct(0.95), pct(1.0))
-		fmt.Printf("tokens:    %d in, %d out\n", in, outTok)
-		if cost > 0 {
-			fmt.Printf("cost:      $%.4f\n", cost)
+		fmt.Printf("requests:  %d (%d errors, %.1f%%)\n", a.Requests, a.Errors, a.ErrorPct)
+		fmt.Printf("latency:   avg %.0f ms  p50 %.0f  p95 %.0f  max %.0f\n", a.AvgMs, a.P50Ms, a.P95Ms, a.MaxMs)
+		fmt.Printf("tokens:    %d in, %d out\n", a.In, a.Out)
+		if a.Cost > 0 {
+			fmt.Printf("cost:      $%.4f\n", a.Cost)
 		}
 		return nil
 	}
