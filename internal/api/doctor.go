@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -308,6 +309,45 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 				add("scheduler", "warn", fmt.Sprintf("%d schedule(s), %d/%d recent run(s) failed", len(recs), fails, len(runs)))
 			default:
 				add("scheduler", "ok", fmt.Sprintf("%d schedule(s), recent runs ok", len(recs)))
+			}
+		}
+	}
+
+	// KB embedding endpoints: warn when a configured endpoint is unreachable
+	// — search silently falls back to TF-IDF, so surface it (F552).
+	if ts, err := s.ragStore(); err == nil {
+		if list, err := ts.List(); err == nil {
+			var configured, down []string
+			for _, rec := range list {
+				if rec.KB.Embed == nil || rec.KB.Embed.URL == "" {
+					continue
+				}
+				configured = append(configured, rec.KB.Name)
+				u, perr := url.Parse(rec.KB.Embed.URL)
+				if perr != nil || u.Hostname() == "" {
+					down = append(down, rec.KB.Name+" (bad url)")
+					continue
+				}
+				port := u.Port()
+				if port == "" {
+					if u.Scheme == "https" {
+						port = "443"
+					} else {
+						port = "80"
+					}
+				}
+				conn, derr := net.DialTimeout("tcp", net.JoinHostPort(u.Hostname(), port), 2*time.Second)
+				if derr != nil {
+					down = append(down, rec.KB.Name+" ("+rec.KB.Embed.URL+")")
+					continue
+				}
+				conn.Close()
+			}
+			switch {
+			case len(down) > 0:
+				add("embeddings", "warn", fmt.Sprintf("%d/%d embedding endpoint(s) unreachable: %v", len(down), len(configured), down))
+			case len(configured) > 0:
+				add("embeddings", "ok", fmt.Sprintf("%d embedding endpoint(s) reachable", len(configured)))
 			}
 		}
 	}

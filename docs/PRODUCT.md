@@ -590,7 +590,8 @@ llmctl disk [-json] [--csv] [-out FILE]            (model dir + volume disk usag
                                     alias targets a deleted model, F228), webhook (warns when recent
                                     notify-webhook deliveries failed, F232), low disk (state check
                                     warns below 1 GiB free, F236), scheduler (warns when a schedule
-                                    references a missing model or recent runs failed, F334);
+                                    references a missing model or recent runs failed, F334), embeddings
+                                    (warns when a KB's configured embedding endpoint is unreachable, F552);
                                     exit ≠0 on errors)
 llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --csv: one-shot CSV export; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F467; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
