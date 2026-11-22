@@ -377,7 +377,9 @@ toggle for a light theme (choice remembered). Tabs:
   `compare -file` (F672), a "Load file" button attaching a local text file as
   context (twin of `-file`, F733) and a Results Export JSON
   button matching `llmctl compare --json` shape (F431) plus an Export CSV
-  button matching `llmctl compare --csv` (F607).
+  button matching `llmctl compare --csv` (F607). While running, the Compare
+  button becomes a Stop button aborting every in-flight stream, keeping
+  partial replies (F755).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
   A sibling **Bench page** (F671) is the UI twin of `llmctl bench`: pick
   instances, requests and concurrency, and it measures per-model latency

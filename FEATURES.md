@@ -765,6 +765,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F752 | P3 | 752 | jobs | Overview jobs Stats toggle | COMPLETED | The Overview Recent jobs card gained a Stats toggle rolling the job list up per kind (total/running/done/error/last) — UI twin of `llmctl jobs -stats` (F751). Verified live: served bundle carries the toggle. |
 | F753 | P3 | 753 | requests | Requests status deep link | COMPLETED | The Requests page now reads `?status=` from the URL (class 2/4/5 or exact code), pre-selecting the status dropdown — completes the deep-link param family (key/instance/model/since/until already read params). Verified live: served bundle carries the param read. |
 | F754 | P3 | 754 | chats | Chat Stop button | COMPLETED | While a reply streams, the Send button becomes a Stop button that aborts the in-flight request (AbortController through chatStream/agentStream); the partial reply is kept and persisted. Verified live: served bundle carries the button. |
+| F755 | P3 | 755 | compare | Compare Stop button | COMPLETED | While a comparison fans out, the Compare button becomes a Stop button that aborts every in-flight stream (partial replies kept per model, marked "stopped") — Chat Stop twin (F754). Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

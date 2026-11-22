@@ -8,6 +8,7 @@ export default function Compare() {
   const [prompt, setPrompt] = useState("");
   const [results, setResults] = useState<Record<string, { content: string; error?: string; done: boolean }>>({});
   const [streaming, setStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null); // stop all in-flight fan-out streams (F755)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
   const [maxTok, setMaxTok] = useState("");
   const [temp, setTemp] = useState("");
@@ -50,6 +51,9 @@ export default function Compare() {
     }
 
     setStreaming(true);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    let stopped = false;
     const newResults: Record<string, { content: string; error?: string; done: boolean }> = {};
     for (const id of selected) {
       newResults[id] = { content: "", done: false };
@@ -96,6 +100,7 @@ export default function Compare() {
               ...(key ? { Authorization: `Bearer ${key}` } : {}),
             },
             body,
+            signal: ctrl.signal,
           });
           if (!resp.ok || !resp.body) {
             const t = await resp.text();
@@ -130,12 +135,22 @@ export default function Compare() {
           }
           setResults((prev) => ({ ...prev, [id]: { ...prev[id], done: true } }));
         } catch (e) {
-          setResults((prev) => ({ ...prev, [id]: { content: "", error: e instanceof Error ? e.message : String(e), done: true } }));
+          const aborted = e instanceof DOMException && e.name === "AbortError";
+          if (aborted) stopped = true;
+          setResults((prev) => ({
+            ...prev,
+            [id]: {
+              content: prev[id]?.content || "",
+              error: aborted ? "stopped" : e instanceof Error ? e.message : String(e),
+              done: true,
+            },
+          }));
         }
       })
     );
+    abortRef.current = null;
     setStreaming(false);
-    ok("comparison complete");
+    ok(stopped ? "stopped" : "comparison complete");
   };
 
   const selectedInstances = instances.filter((i) => selected.has(i.id));
@@ -265,13 +280,23 @@ export default function Compare() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
-          <button
-            className="btn primary"
-            disabled={streaming || !prompt.trim() || selected.size === 0}
-            onClick={runComparison}
-          >
-            {streaming ? "Running…" : "Compare"}
-          </button>
+          {streaming ? (
+            <button
+              className="btn danger"
+              title="stop all in-flight comparisons (keeps partial replies)"
+              onClick={() => abortRef.current?.abort()}
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              className="btn primary"
+              disabled={!prompt.trim() || selected.size === 0}
+              onClick={runComparison}
+            >
+              Compare
+            </button>
+          )}
         </div>
       </div>
 
