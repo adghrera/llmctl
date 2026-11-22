@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type GatewayMetrics, type GPUInfo } from "../api/client";
 import { ago } from "../lib/time";
 import { useStore } from "../state/store";
@@ -14,7 +14,25 @@ export default function Overview() {
   const [eventModel, setEventModel] = useState("");
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
   const [daemonLog, setDaemonLog] = useState<string | null>(null);
+  const [daemonFollow, setDaemonFollow] = useState(false);
+  const daemonPreRef = useRef<HTMLPreElement>(null);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
+
+  // Follow mode for the daemon log card: re-tail every 2s while on,
+  // the UI counterpart of `llmctl logs -daemon -f` (F423).
+  useEffect(() => {
+    if (!daemonFollow || daemonLog === null) return;
+    const t = setInterval(() => {
+      api.daemonLog().then((r) => setDaemonLog(r.logs)).catch(() => {});
+    }, 2000);
+    return () => clearInterval(t);
+  }, [daemonFollow, daemonLog === null]);
+
+  useEffect(() => {
+    if (daemonFollow && daemonPreRef.current) {
+      daemonPreRef.current.scrollTop = daemonPreRef.current.scrollHeight;
+    }
+  }, [daemonLog, daemonFollow]);
 
   useEffect(() => {
     let alive = true;
@@ -374,11 +392,23 @@ export default function Overview() {
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Daemon log</h2>
+          <div className="row" style={{ gap: 6 }}>
+          <button
+            className={`btn sm${daemonFollow ? " primary" : ""}`}
+            title="keep tailing the daemon log every 2s (CLI: llmctl logs -daemon -f)"
+            onClick={() => setDaemonFollow((v) => !v)}
+            disabled={daemonLog === null}
+          >
+            {daemonFollow ? "Following" : "Follow"}
+          </button>
           <button
             className="btn sm"
             onClick={async () => {
               try {
-                if (daemonLog !== null) return setDaemonLog(null);
+                if (daemonLog !== null) {
+                  setDaemonFollow(false);
+                  return setDaemonLog(null);
+                }
                 const r = await api.daemonLog();
                 setDaemonLog(r.logs);
               } catch (e) {
@@ -388,9 +418,11 @@ export default function Overview() {
           >
             {daemonLog === null ? "Show" : "Hide"}
           </button>
+          </div>
         </div>
         {daemonLog !== null && (
           <pre
+            ref={daemonPreRef}
             style={{
               margin: "10px 0 0",
               fontSize: 11,

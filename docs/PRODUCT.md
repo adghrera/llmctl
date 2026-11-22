@@ -156,7 +156,8 @@ toggle for a light theme (choice remembered). Tabs:
   `GET /api/v1/events`, F099) with kind and model filters (`?kind=`, `?model=`,
   F116, F351; also `llmctl events -kind … -model …`) and an Export CSV button
   matching `llmctl events --csv` columns (F371). A "Daemon log" card shows the tail of the
-   daemon's own log on demand (F173). `llmctl events -watch N` live-tails
+   daemon's own log on demand (F173) with a Follow toggle that keeps tailing it
+  every 2s (UI counterpart of `llmctl logs -daemon -f`, F423). `llmctl events -watch N` live-tails
    the feed, printing new events every N seconds (F187).
 - **Search** — one box across local resources (F283): fan-out over the
   existing endpoints to find models (id/backend/path), saved chats (full-text
