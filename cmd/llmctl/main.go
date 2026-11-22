@@ -190,7 +190,7 @@ Usage:
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
-  llmctl disk [-json] [--csv]
+  llmctl disk [-json] [--csv] [-out FILE]
   llmctl ps [-watch N] [--csv] [-json]
   llmctl backends list [-json|-csv]
   llmctl backends install <id> [--asset <hint>]
@@ -604,6 +604,7 @@ func cmdDisk(args []string) error {
 	fs := flag.NewFlagSet("disk", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw disk JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the disk report as CSV (F451)")
+	outFile := fs.String("out", "", "write the raw disk JSON to this file instead of stdout (F465)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -615,6 +616,13 @@ func cmdDisk(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("disk returned %d: %s", code, out)
+	}
+	if *outFile != "" { // F465: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
 	}
 	if *jsonOut {
 		fmt.Print(string(out))

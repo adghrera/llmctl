@@ -475,6 +475,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F462 | P3 | 462 | cli | `search -out FILE` | COMPLETED | `llmctl search <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human list are unchanged. Verified live: -out wrote the real results payload (2089 bytes), plain path unchanged. |
 | F463 | P3 | 463 | cli | `gpu -out FILE` | COMPLETED | `llmctl gpu -out FILE` writes the raw GPU JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the real GPU inventory (AMD Radeon 8060S), plain and -json unchanged. |
 | F464 | P3 | 464 | cli | `doctor -out FILE` | COMPLETED | `llmctl doctor -out FILE` writes the doctor JSON to the file (raw payload, or the filtered one with -check; stdout stays clean, notice on stderr), for scripting; --csv, -json, -quiet and the human output are unchanged. Verified live: -out wrote the full report (982 B) and the -check-filtered payload (90 B), plain and -json unchanged. |
+| F465 | P3 | 465 | cli | `disk -out FILE` | COMPLETED | `llmctl disk -out FILE` writes the raw disk JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human report are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
