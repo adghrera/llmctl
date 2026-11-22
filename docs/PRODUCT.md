@@ -410,7 +410,8 @@ toggle for a light theme (choice remembered). Tabs:
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
    per-model table; `-keys` shows per-key costs with names, `-model M` /
    `-key K` filter the table to one id, `--csv` exports the table, `-json` emits
-   `{totals, groups}`, `-out FILE` writes that JSON to a file (F251, F349, F370, F470).
+   `{totals, groups}`, `-out FILE` writes that JSON to a file, `-watch N`
+   reprints the view every N seconds (F251, F349, F370, F470, F588).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [--csv] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243) and CSV inventory export (F381).

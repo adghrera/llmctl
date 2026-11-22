@@ -276,7 +276,7 @@ Usage:
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
-  llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
+  llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
@@ -8272,7 +8272,31 @@ func cmdMcp(args []string) error {
 }
 
 // cmdCost prints token/cost totals from the gateway counters (F251).
+// cmdCost prints estimated costs; -watch N reprints the view every N seconds
+// until interrupted (F588), like usage -watch.
 func cmdCost(args []string) error {
+	watch := 0
+	for i, a := range args {
+		if a == "-watch" && i+1 < len(args) {
+			watch, _ = strconv.Atoi(args[i+1])
+		} else if strings.HasPrefix(a, "-watch=") {
+			watch, _ = strconv.Atoi(strings.TrimPrefix(a, "-watch="))
+		}
+	}
+	if watch <= 0 {
+		return costOnce(args)
+	}
+	for {
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live cost — refreshing every %ds (Ctrl-C to stop)\n\n", watch)
+		if err := costOnce(args); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(watch) * time.Second)
+	}
+}
+
+func costOnce(args []string) error {
 	fs := flag.NewFlagSet("cost", flag.ExitOnError)
 	byKey := fs.Bool("keys", false, "show per-key costs instead of per-model")
 	modelF := fs.String("model", "", "show only this model id (F349)")
@@ -8280,6 +8304,7 @@ func cmdCost(args []string) error {
 	csvOut := fs.Bool("csv", false, "output the cost table as CSV (F370)")
 	jsonOut := fs.Bool("json", false, "print the raw cost JSON (for scripts)")
 	outFile := fs.String("out", "", "write the cost JSON to this file instead of stdout (F470)")
+	fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once) (F588)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
