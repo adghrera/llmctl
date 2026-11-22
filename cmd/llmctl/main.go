@@ -206,7 +206,7 @@ Usage:
   llmctl structured -model ID -schema file.json [-key K] [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-key K] [-json] [-out FILE] <text>
   llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>
-  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [--csv] [-out FILE] <prompt>
+  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-file PATH] [-json] [--csv] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C] [-json|--csv] [-out FILE]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
@@ -2172,12 +2172,13 @@ func cmdCompare(args []string) error {
 	jsonOut := fs.Bool("json", false, "print [{model, reply} | {model, error}] as one JSON array instead of streamed text (F314)")
 	csvOut := fs.Bool("csv", false, "output one CSV row per model — model,ok,reply,error (implies -json, F606)")
 	outFile := fs.String("out", "", "write the JSON array to this file instead of stdout (implies -json, F454)")
+	fileFlag := fs.String("file", "", "prepend a local file's contents as context to every model (like chat -file, F670)")
 	fs.Parse(reorderFlags(args))
 	if *outFile != "" || *csvOut {
 		*jsonOut = true // -out and --csv both work off the collected results
 	}
 	if *modelsFlag == "" {
-		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] [-temperature T] <prompt>  (or pipe stdin)")
+		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] [-temperature T] [-file PATH] <prompt>  (or pipe stdin)")
 	}
 	prompt := strings.Join(fs.Args(), " ")
 	if prompt == "" {
@@ -2198,6 +2199,13 @@ func cmdCompare(args []string) error {
 		Error string `json:"error,omitempty"`
 	}
 	var results []cmpRes
+	fileCtx := ""
+	if *fileFlag != "" {
+		fileCtx, err = fileContextFor(*fileFlag)
+		if err != nil {
+			return err
+		}
+	}
 	for _, m := range strings.Split(*modelsFlag, ",") {
 		m = strings.TrimSpace(m)
 		if m == "" {
@@ -2206,6 +2214,9 @@ func cmdCompare(args []string) error {
 		msgs := []map[string]string{}
 		if strings.TrimSpace(*system) != "" {
 			msgs = append(msgs, map[string]string{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		if fileCtx != "" { // file context before the prompt, like chat -file (F670)
+			msgs = append(msgs, map[string]string{"role": "user", "content": fileCtx})
 		}
 		msgs = append(msgs, map[string]string{"role": "user", "content": prompt})
 		body := map[string]any{"model": m, "messages": msgs}
