@@ -229,7 +229,7 @@ Usage:
   llmctl models hf-files <repo> [-json] [-out FILE]
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...] [-json]
   llmctl stop <instance> [--force] | llmctl stop --all [--json]
-  llmctl restart <instance> | llmctl restart --all [--json]
+  llmctl restart <instance> [-json] | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
   llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
@@ -3199,8 +3199,14 @@ func cmdModels(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Println(string(out))
-		fmt.Println("download started (track: web UI or llmctl status)")
+		var jr struct {
+			Job   string `json:"job"`
+			Model string `json:"model"`
+		}
+		if err := json.Unmarshal(out, &jr); err != nil {
+			return err
+		}
+		fmt.Printf("download started for model %s (job %s) — track: web UI or llmctl jobs\n", jr.Model, jr.Job)
 		return nil
 	case "remove":
 		if len(rest) == 0 {
@@ -3486,7 +3492,7 @@ func cmdStop(args []string) error {
 func cmdRestart(args []string) error {
 	fs := flag.NewFlagSet("restart", flag.ExitOnError)
 	all := fs.Bool("all", false, "restart every running instance (F445)")
-	jsonOut := fs.Bool("json", false, "with --all: print one aggregate JSON object (F533)")
+	jsonOut := fs.Bool("json", false, "print the raw response JSON (single) or one aggregate object (--all) (F533, F567)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 && !*all {
 		return fmt.Errorf("usage: llmctl restart <instance> | llmctl restart --all [--json]")
@@ -3555,10 +3561,14 @@ func cmdRestart(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(out))
 	if code != 200 {
-		return fmt.Errorf("restart returned %d", code)
+		return fmt.Errorf("restart returned %d: %s", code, out)
 	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	fmt.Printf("restarted %s\n", fs.Arg(0))
 	return nil
 }
 

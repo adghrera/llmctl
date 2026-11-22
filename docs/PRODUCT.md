@@ -618,7 +618,7 @@ llmctl models unused [--csv] [-out FILE]              (models with no instance +
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]
 llmctl stop <instance> [--force] [--json]
 llmctl stop --all                          (stop every running instance, attached ones stay, F278; human confirmation by default, --json for raw, F566)
-llmctl restart <instance> | llmctl restart --all [--json]   (--all restarts each running instance, reporting per-instance failures, F445; --all --json prints one aggregate {"restarted":[…]} object, F533)
+llmctl restart <instance> [-json] | llmctl restart --all [--json]   (single restart prints "restarted X", --all reports per-instance failures, F445; --json prints the raw response or, with --all, one aggregate {"restarted":[…]} object, F533, F567)
 llmctl maxparallel <instance> <n> [-json]  (concurrent-request cap, 0 = unlimited, F270; -json prints the raw response, F532)
 llmctl note <instance> <text> [-json]        (free-text annotation, F271; -json prints the raw response, F529)
 llmctl autorestart <instance> <on|off> [-json]  (crash auto-restart toggle, F271; -json prints the raw response, F530)
