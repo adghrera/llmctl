@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ScheduleSpec, ScheduleRun } from "../api/client";
+import { until } from "../lib/time";
 import { ok, err } from "../ui/toast";
 
 export default function Scheduler() {
@@ -256,7 +257,7 @@ export default function Scheduler() {
                   </td>
                   <td style={{ fontSize: 12, opacity: 0.7 }}>
                     {s.next_run
-                      ? new Date(s.next_run).toLocaleString()
+                      ? <span title={new Date(s.next_run).toLocaleString()}>{until(s.next_run)}</span>
                       : "—"}
                   </td>
                   <td style={{ fontSize: 12, opacity: 0.7 }}>

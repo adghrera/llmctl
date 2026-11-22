@@ -968,6 +968,27 @@ func cmdLogs(args []string) error {
 }
 
 // cmdScheduler manages cron-scheduled tasks (list/add/run/enable/disable/delete).
+// untilStr renders a future time as "in 5m"-style relative text (F238);
+// past or zero times render as "now"/"due".
+func untilStr(t time.Time) string {
+	if t.IsZero() {
+		return "—"
+	}
+	s := int64(time.Until(t).Seconds())
+	switch {
+	case s <= 0:
+		return "due"
+	case s < 60:
+		return fmt.Sprintf("in %ds", s)
+	case s < 3600:
+		return fmt.Sprintf("in %dm", s/60)
+	case s < 86400:
+		return fmt.Sprintf("in %dh", s/3600)
+	default:
+		return fmt.Sprintf("in %dd", s/86400)
+	}
+}
+
 func cmdScheduler(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("usage: llmctl scheduler <list|add|run|enable|disable|delete> [id] [flags]")
@@ -1022,7 +1043,7 @@ func cmdScheduler(args []string) error {
 			fmt.Println("no scheduled tasks")
 			return nil
 		}
-		fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %s\n", "ID", "ON", "KIND", "CRON", "MODEL", "LAST", "NAME")
+		fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %s\n", "ID", "ON", "KIND", "CRON", "MODEL", "LAST", "NEXT", "NAME")
 		for _, r := range recs {
 			kind := r.Spec.Kind
 			if kind == "" {
@@ -1039,7 +1060,11 @@ func cmdScheduler(args []string) error {
 					last += " " + t.Local().Format("01-02 15:04")
 				}
 			}
-			fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, last, r.Spec.Name)
+			next := "—"
+			if t, err := time.Parse(time.RFC3339, r.Spec.NextRun); err == nil {
+				next = untilStr(t)
+			}
+			fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, last, next, r.Spec.Name)
 		}
 		return nil
 	case "add":
