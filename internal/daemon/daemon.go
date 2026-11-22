@@ -478,28 +478,44 @@ func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervi
 		}
 
 		state, err := st.Load()
-		if err != nil || state.Settings == nil || state.Settings.IdleUnloadMin <= 0 {
+		if err != nil || state.Settings == nil {
 			continue
 		}
 		if gw.InFlight() > 0 {
 			continue
 		}
-		idle := time.Duration(state.Settings.IdleUnloadMin) * time.Minute
+		var idle time.Duration // 0 = global disabled
+		if state.Settings.IdleUnloadMin > 0 {
+			idle = time.Duration(state.Settings.IdleUnloadMin) * time.Minute
+		}
 		now := time.Now()
 		for _, id := range state.SortedInstanceIDs() {
 			inst := state.Instances[id]
 			if inst.Status != store.StatusRunning {
 				continue
 			}
+			// Per-model override: -1 pins the model, >0 replaces the
+			// global timeout (which may itself be off); 0 follows the
+			// global setting (F136).
+			modelIdle := idle
+			if mm := state.Models[inst.ModelID]; mm != nil && mm.IdleUnloadMin != 0 {
+				if mm.IdleUnloadMin < 0 {
+					continue
+				}
+				modelIdle = time.Duration(mm.IdleUnloadMin) * time.Minute
+			}
+			if modelIdle <= 0 {
+				continue
+			}
 			last := gw.ModelLastUsed(inst.ModelID)
 			if last.IsZero() {
 				last = inst.StartedAt
 			}
-			if now.Sub(last) < idle {
+			if now.Sub(last) < modelIdle {
 				continue
 			}
 			logger.Info("idle unload: stopping instance", "instance", id, "model", inst.ModelID,
-				"idleFor", now.Sub(last).Round(time.Second), "limitMin", state.Settings.IdleUnloadMin)
+				"idleFor", now.Sub(last).Round(time.Second), "limitMin", int(modelIdle.Minutes()))
 			if err := sv.Stop(id, false); err != nil {
 				logger.Error("idle unload: stop failed", "instance", id, "error", err)
 			} else {

@@ -44,6 +44,10 @@ type ModelRecord struct {
 	// used for per-key cost tracking (F102). 0 = free/local.
 	PriceInPerM  float64 `json:"priceInPerM,omitempty"`
 	PriceOutPerM float64 `json:"priceOutPerM,omitempty"`
+	// IdleUnloadMin overrides the global idle-unload timeout (minutes) for
+	// instances of this model: 0 = global setting, -1 = never unload (pin),
+	// >0 = custom minutes (F136).
+	IdleUnloadMin int `json:"idleUnloadMin,omitempty"`
 }
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.

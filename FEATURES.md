@@ -145,6 +145,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F133 | P3 | 133 | cli | `llmctl ps` uptime + note | COMPLETED | `ps` now shows each running instance's uptime (`2h05m` style) and its free-text note (F119, truncated to 40 chars). Verified live against the running daemon. |
 | F134 | P3 | 134 | usage | Overview "Today" card | COMPLETED | The Overview page shows today's (UTC) requests, errors, tokens and estimated cost, summed from the daily rollup and refreshed every 30 s. Verified: rollup endpoint returns today's totals, build clean. |
 | F135 | P2 | 135 | keys | Key expiry | COMPLETED | Keys can carry an expiry (`expiresInDays` at create or PATCH; 0 = never). The gateway rejects expired keys with 403 `key_expired` even though the secret still matches; the Keys page shows a "days" input and an expires/expired line per key. Verified live: 7-day key works, backdated key → 403, PATCH expiresInDays 0 clears and works again. |
+| F136 | P2 | 136 | instances | Per-model idle-unload override | COMPLETED | `PATCH /api/v1/models/{id}/idle` sets `idleUnloadMin`: -1 pins the model (never auto-unloaded), >0 overrides the global timeout (works even with global off), 0 follows the global setting. Models page has an "Idle" column (pinned badge, inline set). Verified live: pinned model survived while a global-following instance unloaded; 1-min override beat a 60-min global; validation + 404 checked. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

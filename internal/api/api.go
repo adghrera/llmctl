@@ -111,6 +111,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PATCH /api/v1/instances/{id}/note", s.setNote)
 	m.HandleFunc("PATCH /api/v1/instances/{id}/maxparallel", s.setMaxParallel)
 	m.HandleFunc("PATCH /api/v1/models/{id}/price", s.setModelPrice)
+	m.HandleFunc("PATCH /api/v1/models/{id}/idle", s.setModelIdle)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs/download", s.instanceLogsDownload)
@@ -391,13 +392,15 @@ type modelView struct {
 	CtxSize    int      `json:"ctxSize,omitempty"`
 	PriceIn    float64  `json:"priceInPerM,omitempty"`  // USD / 1M input tokens (F102)
 	PriceOut   float64  `json:"priceOutPerM,omitempty"` // USD / 1M output tokens (F102)
+	// IdleUnloadMin: 0 = global, -1 = pinned, >0 = custom minutes (F136).
+	IdleUnloadMin int `json:"idleUnloadMin,omitempty"`
 }
 
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []modelView{}
 	for id, m := range st.Models {
-		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM}
+		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin}
 		for _, inst := range st.Instances {
 			if inst.ModelID == id {
 				v.Instances = append(v.Instances, inst.ID)
@@ -967,6 +970,36 @@ func (s *Server) setModelPrice(w http.ResponseWriter, r *http.Request) {
 		s.gw.SetModelPricing(id, cost.ModelPricing{InputPerM: mm.PriceInPerM, OutputPerM: mm.PriceOutPerM})
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "priceInPerM": mm.PriceInPerM, "priceOutPerM": mm.PriceOutPerM})
+}
+
+// setModelIdle handles PATCH /api/v1/models/{id}/idle — per-model idle-unload
+// override: 0 = follow the global setting, -1 = never unload (pin), >0 =
+// custom minutes (F136).
+func (s *Server) setModelIdle(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		IdleUnloadMin *int `json:"idleUnloadMin"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil || req.IdleUnloadMin == nil {
+		writeErr(w, 400, "expected {\"idleUnloadMin\": <minutes, -1 or 0>}")
+		return
+	}
+	if *req.IdleUnloadMin < -1 {
+		writeErr(w, 400, "idleUnloadMin must be -1 (never), 0 (global) or >0")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Models[id] == nil {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if m := st.Models[id]; m != nil {
+			m.IdleUnloadMin = *req.IdleUnloadMin
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "idleUnloadMin": *req.IdleUnloadMin})
 }
 
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {

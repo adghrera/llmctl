@@ -144,6 +144,32 @@ export default function Models() {
     }
   };
 
+  // per-model idle-unload override: -1 = never, 0/empty = global, >0 = minutes
+  const [idleDraft, setIdleDraft] = useState<Record<string, string>>({});
+  const saveIdle = async (id: string) => {
+    const raw = (idleDraft[id] ?? "").trim();
+    const n = raw === "" ? 0 : Number(raw);
+    if (Number.isNaN(n) || n < -1 || n > 100000) {
+      err("idle must be -1 (never), 0 (global) or minutes");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.setModelIdle(id, n);
+      ok(n === -1 ? "model pinned (never idle-unloaded)" : n === 0 ? "idle unload follows global setting" : `idle unload after ${n} min for this model`);
+      setIdleDraft((d) => {
+        const c = { ...d };
+        delete c[id];
+        return c;
+      });
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const installedIds = new Set(models.map((m) => m.id));
 
   // GGUF metadata viewer
@@ -351,6 +377,7 @@ export default function Models() {
                 <th>Backend</th>
                 <th>Size</th>
                 <th>Context</th>
+                <th>Idle</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -381,6 +408,29 @@ export default function Models() {
                         </button>
                       )}
                       {!m.ctxSize && (ctxDraft[m.id] ?? "") === "" && <span className="muted">default</span>}
+                    </span>
+                  </td>
+                  <td>
+                    <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                      <input
+                        style={{ width: 70 }}
+                        inputMode="numeric"
+                        placeholder={m.idleUnloadMin === -1 ? "never" : m.idleUnloadMin ? String(m.idleUnloadMin) : "global"}
+                        title="Idle-unload minutes for this model: -1 = never (pin), 0 = global setting"
+                        value={idleDraft[m.id] ?? ""}
+                        disabled={busy}
+                        onChange={(e) => setIdleDraft((d) => ({ ...d, [m.id]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveIdle(m.id);
+                        }}
+                      />
+                      {(idleDraft[m.id] ?? "") !== "" && (
+                        <button className="btn sm" disabled={busy} onClick={() => saveIdle(m.id)}>
+                          Set
+                        </button>
+                      )}
+                      {!m.idleUnloadMin && (idleDraft[m.id] ?? "") === "" && <span className="muted">global</span>}
+                      {m.idleUnloadMin === -1 && (idleDraft[m.id] ?? "") === "" && <span className="badge">pinned</span>}
                     </span>
                   </td>
                   <td>

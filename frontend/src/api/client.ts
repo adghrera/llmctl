@@ -30,6 +30,7 @@ export interface Model {
   running?: boolean;
   instances?: string[];
   ctxSize?: number;
+  idleUnloadMin?: number;
 }
 
 export interface Instance {
@@ -471,6 +472,8 @@ export const api = {
   removeModel: (id: string) => req<{ ok: boolean }>(`/models/${encodeURIComponent(id)}`, { method: "DELETE" }),
   setModelCtx: (id: string, ctxSize: number) =>
     req<{ ok: boolean; restartRequired?: boolean }>(`/models/${encodeURIComponent(id)}/ctx`, { method: "PUT", body: JSON.stringify({ ctxSize }) }),
+  setModelIdle: (id: string, idleUnloadMin: number) =>
+    req<{ ok: boolean; idleUnloadMin: number }>(`/models/${encodeURIComponent(id)}/idle`, { method: "PATCH", body: JSON.stringify({ idleUnloadMin }) }),
   modelMetadata: (id: string) =>
     req<ModelMetadata>(`/models/${encodeURIComponent(id)}/metadata`),
   hfSearch: (q: string, limit = 15) =>

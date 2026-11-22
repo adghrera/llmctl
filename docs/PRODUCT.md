@@ -275,7 +275,9 @@ toggle for a light theme (choice remembered). Tabs:
   `POST /api/v1/keys/{id}/reset-usage` (F107).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
-  automatically, freeing VRAM for other models. Instances page shows each
+  automatically, freeing VRAM for other models. Per-model override on the
+  Models page "Idle" column: `-1` pins a model (never unloaded), `>0` sets
+  custom minutes even when the global is off (F136). Instances page shows each
   instance's last-used time.
 - **Startup timeout** — Settings → "Startup timeout" (seconds, 0 = default
   240): how long an instance start waits for the backend to become healthy.
