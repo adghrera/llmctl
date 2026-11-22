@@ -180,7 +180,7 @@ Usage:
   llmctl down
   llmctl status [-json] [-watch N]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]...
-  llmctl gpu [-json] [--csv]
+  llmctl gpu [-json] [--csv] [-out FILE]
   llmctl jobs [-json] [--csv] [-watch N]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
@@ -519,6 +519,7 @@ func cmdGPU(args []string) error {
 	fs := flag.NewFlagSet("gpu", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw GPU JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the GPU list as CSV (F430)")
+	outFile := fs.String("out", "", "write the raw GPU JSON to this file instead of stdout (F463)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -530,6 +531,13 @@ func cmdGPU(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("gpu returned %d: %s", code, out)
+	}
+	if *outFile != "" { // F463: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
 	}
 	if *jsonOut {
 		fmt.Print(string(out))
