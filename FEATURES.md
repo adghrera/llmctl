@@ -201,6 +201,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F189 | P3 | 189 | requests | Time-range filter | COMPLETED | `GET /api/v1/requests` accepts `since`/`until` (RFC3339); `llmctl requests -since/-until` also take durations (`30m`, `2h` = "that long ago"), and the Requests page gained two datetime pickers. Verified live: since-future → 0 rows, since-1h → subset, CLI duration flags match. |
 | F190 | P3 | 190 | keys | NOTE column in `key list` | COMPLETED | `llmctl key list` now shows each key's free-text note (F186) in a trailing NOTE column (truncated to 28 chars). Verified live: a key created with a note shows it in the list. |
 | F191 | P3 | 191 | cli | `llmctl webhooks` | COMPLETED | New CLI command prints recent webhook delivery attempts (time, event, status, ok, URL/error) from `GET /api/v1/webhook/log`. Verified live: a successful test delivery and a connection-refused failure both render correctly. |
+| F192 | P3 | 192 | cli | Human-readable model sizes | COMPLETED | `llmctl models list` shows sizes as KiB/MiB/GiB with a `total:` row; `models show` and `hf-files` also format sizes. Verified live: a 5 MiB model renders `5.0 MiB` and the total row sums correctly. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

@@ -495,7 +495,9 @@ func cmdModels(args []string) error {
 			return nil
 		}
 		fmt.Printf("%-40s %-12s %-10s %-9s %-14s %-7s %s\n", "ID", "BACKEND", "SIZE", "CTX", "PRICE $/M", "IDLE", "RUNNING")
+		var total int64
 		for _, m := range list {
+			total += m.SizeBytes
 			ctxv := "-"
 			if m.CtxSize > 0 {
 				ctxv = fmt.Sprintf("%d", m.CtxSize)
@@ -511,8 +513,9 @@ func cmdModels(args []string) error {
 			case m.IdleMin > 0:
 				idle = fmt.Sprintf("%dm", m.IdleMin)
 			}
-			fmt.Printf("%-40s %-12s %-10v %-9s %-14s %-7s %v\n", m.ID, m.BackendID, m.SizeBytes, ctxv, price, idle, m.Running)
+			fmt.Printf("%-40s %-12s %-10s %-9s %-14s %-7s %v\n", m.ID, m.BackendID, fmtSize(m.SizeBytes), ctxv, price, idle, m.Running)
 		}
+		fmt.Printf("%-40s %-12s %-10s\n", "total: "+strconv.Itoa(len(list))+" model(s)", "", fmtSize(total))
 		return nil
 	case "aliases":
 		code, out, err := cc.Get("/api/v1/aliases")
@@ -608,7 +611,7 @@ func cmdModels(args []string) error {
 		if mv.Running {
 			status = "running"
 		}
-		fmt.Printf("id:       %s\nbackend:  %s\npath:     %s\nsize:     %d bytes\nctx:      %s\nprice:    %s\nidle:     %s\nstatus:   %s\n", mv.ID, mv.BackendID, mv.Path, mv.SizeBytes, ctxv, price, idle, status)
+		fmt.Printf("id:       %s\nbackend:  %s\npath:     %s\nsize:     %s\nctx:      %s\nprice:    %s\nidle:     %s\nstatus:   %s\n", mv.ID, mv.BackendID, mv.Path, fmtSize(mv.SizeBytes), ctxv, price, idle, status)
 		if len(mv.Instances) > 0 {
 			fmt.Printf("instances: %s\n", strings.Join(mv.Instances, ", "))
 		}
@@ -724,7 +727,8 @@ func cmdModels(args []string) error {
 		var files []map[string]any
 		json.Unmarshal(out, &files)
 		for _, f := range files {
-			fmt.Printf("%s  (%v bytes)\n", f["path"], f["sizeBytes"])
+			size, _ := f["sizeBytes"].(float64)
+			fmt.Printf("%s  (%s)\n", f["path"], fmtSize(int64(size)))
 		}
 		return nil
 	default:
