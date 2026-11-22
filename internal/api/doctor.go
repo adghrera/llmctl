@@ -85,6 +85,22 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		add("models", "ok", fmt.Sprintf("%d registered, all files present", len(st.Models)))
 	}
 
+	// Aliases: warn when an alias points at a model that no longer exists (F228).
+	if len(st.Aliases) > 0 {
+		var dead []string
+		for a, target := range st.Aliases {
+			if _, ok := st.Models[target]; !ok {
+				dead = append(dead, a+"→"+target)
+			}
+		}
+		sort.Strings(dead)
+		if len(dead) > 0 {
+			add("aliases", "warn", fmt.Sprintf("%d alias(es) point at unknown models: %v", len(dead), dead))
+		} else {
+			add("aliases", "ok", fmt.Sprintf("%d alias(es), all targets registered", len(st.Aliases)))
+		}
+	}
+
 	// Orphaned model files: files under the models dir no record points at
 	// (left behind by external deletes). Warn with count + size (F206).
 	{
