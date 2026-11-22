@@ -288,7 +288,7 @@ Usage:
   llmctl version [--json] [-out FILE]
   llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
   llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON|-d-file F] [-out FILE]   raw management-API call
-  llmctl open [-print]   open the web UI in your browser (-print just shows the URL)
+  llmctl open [route] [-print]   open the web UI (or one page, e.g. llmctl open requests) in your browser (-print just shows the URL)
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
 web UI (http://127.0.0.1:8080/) on one port.
@@ -10989,6 +10989,9 @@ func cmdOpen(args []string) error {
 		return err
 	}
 	ui := cc.Base
+	if fs.NArg() > 0 { // F598: deep-link to a UI page, e.g. llmctl open requests
+		ui = strings.TrimSuffix(ui, "/") + "/" + strings.Trim(fs.Arg(0), "/")
+	}
 	if *printOnly {
 		fmt.Println(ui)
 		return nil
