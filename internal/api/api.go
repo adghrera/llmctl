@@ -227,6 +227,7 @@ func (s *Server) Handler() http.Handler {
 	// Settings
 	m.HandleFunc("GET /api/v1/settings", s.getSettings)
 	m.HandleFunc("POST /api/v1/settings/notify-test", s.testNotifyWebhook)
+	m.HandleFunc("GET /api/v1/webhook/log", s.webhookLog)
 	m.HandleFunc("PATCH /api/v1/settings", s.updateSettings)
 	return s.recoverer(m)
 }
@@ -1688,6 +1689,12 @@ func (s *Server) testNotifyWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// webhookLog handles GET /api/v1/webhook/log — recent webhook delivery
+// attempts, newest first (F144).
+func (s *Server) webhookLog(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, webhook.History(50))
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {

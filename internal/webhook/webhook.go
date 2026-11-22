@@ -13,8 +13,47 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
+
+// Delivery is one webhook POST attempt kept in a small in-memory ring so the
+// UI can show what was sent and whether it landed (F144).
+type Delivery struct {
+	Time   time.Time `json:"time"`
+	URL    string    `json:"url"`
+	Event  string    `json:"event,omitempty"` // "event" field of the payload, if any
+	Status int       `json:"status,omitempty"`
+	OK     bool      `json:"ok"`
+	Error  string    `json:"error,omitempty"`
+}
+
+const deliveryLogSize = 50
+
+var (
+	histMu  sync.Mutex
+	histBuf []Delivery
+)
+
+func record(d Delivery) {
+	histMu.Lock()
+	defer histMu.Unlock()
+	histBuf = append(histBuf, d)
+	if len(histBuf) > deliveryLogSize {
+		histBuf = append(histBuf[:0], histBuf[len(histBuf)-deliveryLogSize:]...)
+	}
+}
+
+// History returns up to n recent delivery attempts, newest first.
+func History(n int) []Delivery {
+	histMu.Lock()
+	defer histMu.Unlock()
+	out := make([]Delivery, 0, n)
+	for i := len(histBuf) - 1; i >= 0 && len(out) < n; i-- {
+		out = append(out, histBuf[i])
+	}
+	return out
+}
 
 // Post sends v as JSON to url with Content-Type application/json. Returns an
 // error if the URL is not http(s) or the request fails / returns >= 300.
@@ -47,6 +86,13 @@ func PostWithSecret(ctx context.Context, url string, v any, secret string) error
 		req.Header.Set("X-LLMCtrl-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
 	}
 	resp, err := http.DefaultClient.Do(req)
+	err = wrapDo(err, resp, url)
+	record(deliveryFrom(url, b, resp, err))
+	return err
+}
+
+// wrapDo turns a transport error or a >= 300 status into an error.
+func wrapDo(err error, resp *http.Response, url string) error {
 	if err != nil {
 		return fmt.Errorf("webhook: post: %w", err)
 	}
@@ -55,4 +101,23 @@ func PostWithSecret(ctx context.Context, url string, v any, secret string) error
 		return fmt.Errorf("webhook: %s returned %d", url, resp.StatusCode)
 	}
 	return nil
+}
+
+// deliveryFrom builds a ring entry; the event label is the payload's "event"
+// field when present (best-effort).
+func deliveryFrom(url string, body []byte, resp *http.Response, err error) Delivery {
+	d := Delivery{Time: time.Now().UTC(), URL: url, OK: err == nil, Error: ""}
+	if err != nil {
+		d.Error = err.Error()
+	}
+	if resp != nil {
+		d.Status = resp.StatusCode
+	}
+	var probe struct {
+		Event string `json:"event"`
+	}
+	if json.Unmarshal(body, &probe) == nil {
+		d.Event = probe.Event
+	}
+	return d
 }

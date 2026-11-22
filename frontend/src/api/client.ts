@@ -417,8 +417,16 @@ export interface ApiKey {
   todayCost?: number;
 }
 
-export interface Settings {
-  requireAuth: boolean;
+export interface WebhookDelivery {
+  time: string;
+  url: string;
+  event?: string;
+  status?: number;
+  ok: boolean;
+  error?: string;
+}
+
+export interface Settings {  requireAuth: boolean;
   idleUnloadMin: number;
   notifyWebhook?: string;
   notifyWebhookSecret?: string;
@@ -752,6 +760,8 @@ export const api = {
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   testNotifyWebhook: () =>
     req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),
+  webhookLog: () =>
+    req<WebhookDelivery[]>("/webhook/log"),
   restoreBackup: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);

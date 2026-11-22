@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type Settings } from "../api/client";
+import { api, type Settings, type WebhookDelivery } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function SettingsPage() {
@@ -10,6 +10,8 @@ export default function SettingsPage() {
   const [webhook, setWebhook] = useState("");
   const [whEvents, setWhEvents] = useState("");
   const [whSecret, setWhSecret] = useState("");
+  const [whLog, setWhLog] = useState<WebhookDelivery[]>([]);
+  const loadWhLog = () => api.webhookLog().then(setWhLog).catch(() => setWhLog([]));
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -18,6 +20,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     api.backups().then(setBackups).catch(() => setBackups([]));
+    loadWhLog();
   }, []);
 
   useEffect(() => {
@@ -155,6 +158,7 @@ export default function SettingsPage() {
       const r = await api.testNotifyWebhook();
       if (r.ok) ok("test notification delivered");
       else err(`webhook failed: ${r.error}`);
+      loadWhLog();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -316,6 +320,32 @@ export default function SettingsPage() {
               When set, every webhook POST carries X-LLMCtrl-Signature:
               sha256=HMAC(secret, body) so receivers can verify it.
             </p>
+            {whLog.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <span className="muted small">recent deliveries</span>
+                <table style={{ marginTop: 4 }}>
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Event</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {whLog.slice(0, 5).map((d, i) => (
+                      <tr key={i}>
+                        <td className="muted" style={{ fontSize: 12 }}>{new Date(d.time).toLocaleTimeString()}</td>
+                        <td className="mono" style={{ fontSize: 12 }}>{d.event || "—"}</td>
+                        <td>
+                          <span className={`badge ${d.ok ? "ok" : "err"}`}>{d.status || (d.ok ? 200 : "err")}</span>
+                          {!d.ok && d.error ? <span className="muted" style={{ fontSize: 11 }}> {d.error}</span> : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
           <div>
             <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
