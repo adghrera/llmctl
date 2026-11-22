@@ -136,7 +136,8 @@ toggle for a light theme (choice remembered). Tabs:
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with a kind filter (`?kind=`, F116; also
   `llmctl events -kind …`). A "Daemon log" card shows the tail of the
-   daemon's own log on demand (F173).
+   daemon's own log on demand (F173). `llmctl events -watch N` live-tails
+   the feed, printing new events every N seconds (F187).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
@@ -385,7 +386,7 @@ llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
 llmctl backups [list|create|restore <name>|delete <name]]
 llmctl usage [-n 14] [-key ID | -keys] [--csv]
 llmctl metrics [-watch N]          (-watch N: live refresh every N seconds)
-llmctl events [-n 20]
+llmctl events [-n 20] [-watch N]
 llmctl chat [--model ID] [--key KEY]
 llmctl version
 ```

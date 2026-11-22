@@ -1499,6 +1499,7 @@ func cmdEvents(args []string) error {
 	fs := flag.NewFlagSet("events", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of events")
 	kind := fs.String("kind", "", "only this event kind, e.g. instance.crashed")
+	watch := fs.Int("watch", 0, "poll every N seconds and print new events until Ctrl-C (0 = print once)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1508,32 +1509,73 @@ func cmdEvents(args []string) error {
 	if *kind != "" {
 		u += "&kind=" + url.QueryEscape(*kind)
 	}
-	code, out, err := cc.Get(u)
+	fetch := func() ([]eventRow, error) {
+		code, out, err := cc.Get(u)
+		if err != nil {
+			return nil, err
+		}
+		if code != 200 {
+			return nil, fmt.Errorf("events returned %d: %s", code, out)
+		}
+		var evs []eventRow
+		if err := json.Unmarshal(out, &evs); err != nil {
+			return nil, err
+		}
+		return evs, nil
+	}
+	printRow := func(e eventRow) {
+		fmt.Printf("%-19s %-26s %-16s %s\n",
+			e.Time.Local().Format("2006-01-02 15:04:05"), e.Kind, e.Instance, e.Model)
+	}
+	evs, err := fetch()
 	if err != nil {
-		return err
-	}
-	if code != 200 {
-		return fmt.Errorf("events returned %d: %s", code, out)
-	}
-	var evs []struct {
-		Time     time.Time `json:"time"`
-		Kind     string    `json:"kind"`
-		Instance string    `json:"instance"`
-		Model    string    `json:"model"`
-	}
-	if err := json.Unmarshal(out, &evs); err != nil {
 		return err
 	}
 	if len(evs) == 0 {
 		fmt.Println("no events since daemon start")
+	} else {
+		fmt.Printf("%-19s %-26s %-16s %s\n", "TIME", "EVENT", "INSTANCE", "MODEL")
+		for _, e := range evs {
+			printRow(e)
+		}
+	}
+	if *watch <= 0 {
 		return nil
 	}
-	fmt.Printf("%-19s %-26s %-16s %s\n", "TIME", "EVENT", "INSTANCE", "MODEL")
-	for _, e := range evs {
-		fmt.Printf("%-19s %-26s %-16s %s\n",
-			e.Time.Local().Format("2006-01-02 15:04:05"), e.Kind, e.Instance, e.Model)
+	// Live tail: remember what we've shown and print only newer events (F187).
+	seen := map[string]bool{}
+	key := func(e eventRow) string {
+		return fmt.Sprintf("%d|%s|%s|%s", e.Time.UnixNano(), e.Kind, e.Instance, e.Model)
 	}
-	return nil
+	for _, e := range evs {
+		seen[key(e)] = true
+	}
+	fmt.Printf("\nwatching for new events every %ds (Ctrl-C to stop)…\n", *watch)
+	for {
+		time.Sleep(time.Duration(*watch) * time.Second)
+		cur, err := fetch()
+		if err != nil {
+			return err
+		}
+		var fresh []eventRow
+		for _, e := range cur { // newest-first; collect unseen
+			if !seen[key(e)] {
+				fresh = append(fresh, e)
+				seen[key(e)] = true
+			}
+		}
+		for i := len(fresh) - 1; i >= 0; i-- { // print oldest-first
+			printRow(fresh[i])
+		}
+	}
+}
+
+// eventRow is one entry of the daemon events feed.
+type eventRow struct {
+	Time     time.Time `json:"time"`
+	Kind     string    `json:"kind"`
+	Instance string    `json:"instance"`
+	Model    string    `json:"model"`
 }
 
 func cmdKey(args []string) error {
