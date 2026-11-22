@@ -578,7 +578,8 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl backups list --csv` exports the snapshot inventory
   (name,size_bytes,created), header-only when empty (F383), and
   `llmctl backups -watch N` reprints the list every N seconds — handy while
-  scheduled backups fire (F609).
+  scheduled backups fire (F609); the Settings card has a matching
+  Auto-refresh checkbox (F610).
 - **API console** — a Settings page card that sends any METHOD + /path (with an
   optional JSON body for POST/PUT/PATCH) straight to the management API and
   pretty-prints the status and response, the browser counterpart of

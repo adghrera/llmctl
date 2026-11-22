@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
   const [snapLabel, setSnapLabel] = useState("");
   const [snapBusy, setSnapBusy] = useState(false);
+  const [autoSnap, setAutoSnap] = useState(false); // live-refresh the snapshot list (CLI `backups -watch`, F610)
   // API console state (F589, UI counterpart of `llmctl api`).
   const [apiMethod, setApiMethod] = useState("GET");
   const [apiPath, setApiPath] = useState("/api/v1/status");
@@ -39,6 +40,14 @@ export default function SettingsPage() {
     api.doctor().then(setHealth).catch(() => setHealth(null));
     loadWhLog();
   }, []);
+
+  // Poll the snapshot list while the toggle is on (F610), so scheduled
+  // backups appear without a reload.
+  useEffect(() => {
+    if (!autoSnap) return;
+    const t = setInterval(() => api.backups().then(setBackups).catch(() => {}), 5000);
+    return () => clearInterval(t);
+  }, [autoSnap]);
 
   useEffect(() => {
     api.settings().then((s) => {
@@ -658,6 +667,13 @@ export default function SettingsPage() {
           (~/.llmctl/backups). Create one on the Scheduler page.
         </p>
         <div className="row" style={{ marginBottom: 10 }}>
+          <label
+            style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}
+            title="poll every 5s so scheduled backups appear without a reload (CLI: llmctl backups -watch N, F610)"
+          >
+            <input type="checkbox" checked={autoSnap} onChange={(e) => setAutoSnap(e.target.checked)} />
+            Auto-refresh
+          </label>
           <input
             className="oc-input"
             style={{ width: 160 }}
