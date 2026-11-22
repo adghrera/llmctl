@@ -104,7 +104,7 @@ Usage:
   llmctl down
   llmctl status [-json]
   llmctl doctor [-json]
-  llmctl ps [-watch N]
+  llmctl ps [-watch N] [-json]
   llmctl backends list
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
@@ -317,6 +317,7 @@ func cmdDoctor(args []string) error {
 func cmdPS(args []string) error {
 	fs := flag.NewFlagSet("ps", flag.ExitOnError)
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	jsonOut := fs.Bool("json", false, "print the raw instances JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -326,6 +327,10 @@ func cmdPS(args []string) error {
 		_, out, err := cc.Get("/api/v1/instances")
 		if err != nil {
 			return err
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		return printPS(out)
 	}

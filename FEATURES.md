@@ -206,6 +206,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F194 | P3 | 194 | cli | `ps -watch N` | COMPLETED | `llmctl ps -watch N` live-refreshes the instance table every N seconds (same pattern as `metrics -watch`). Verified live: watch mode clears and reprints the table each second. |
 | F195 | P3 | 195 | keys | Enable/disable toggle | COMPLETED | Keys can be temporarily blocked without deletion: `disabled` on the record, `PATCH {"disabled":true}`, `llmctl key enable/disable <id>`, gateway 403 `key_disabled`, "off" badge on the Keys page, `disabled` in `key list`/`key show`. Verified live: disable → 403, enable → 200 (with requireAuth on). |
 | F196 | P3 | 196 | cli | `requests -json` | COMPLETED | `llmctl requests -json` prints the raw request-log JSON (like `status -json`), filters included. Verified live: `-json -n 3` parses as JSON with 3 entries; table mode unchanged. |
+| F197 | P3 | 197 | cli | `ps -json` | COMPLETED | `llmctl ps -json` prints the raw instances JSON for scripts. Verified live: output parses as JSON (1 instance); table mode unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
