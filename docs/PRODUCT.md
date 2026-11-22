@@ -642,6 +642,7 @@ llmctl kb add-doc <kb> <path> [-json] | kb update <id> … [-json] | memory upda
 llmctl scheduler update <id> … [-json] | tools install <dir> [-json] | backups verify <name> [-json] | skills add <manifest.json> [-json]   (print the raw response JSON with -json, F540)
 llmctl catalog install <id> [-json] | kb embed <kb> … [-json]   (print the raw response JSON with -json, F541)
 llmctl presets|scheduler|memory|mcp|prompts|autostart import <file.json> [-json]   (print {"created","skipped"} as JSON; per-item skip notices move to stderr, F542)
+llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json]   (print the raw response / result JSON with -json, F544)
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep

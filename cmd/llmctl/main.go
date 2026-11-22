@@ -5440,9 +5440,10 @@ func cmdChats(args []string) error {
 		ffs := flag.NewFlagSet("chats fork", flag.ExitOnError)
 		at := ffs.Int("at", 0, "fork after this message index (0 = whole chat)")
 		title := ffs.String("title", "", "title for the new chat")
+		fjson := ffs.Bool("json", false, "print the raw new-chat JSON (F544)")
 		ffs.Parse(reorderFlags(args[1:]))
 		if ffs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl chats fork <id> [-at N] [-title T]")
+			return fmt.Errorf("usage: llmctl chats fork <id> [-at N] [-title T] [-json]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -5459,6 +5460,10 @@ func cmdChats(args []string) error {
 		if code != 201 {
 			return fmt.Errorf("chat fork: %s", out)
 		}
+		if *fjson {
+			fmt.Print(string(out))
+			return nil
+		}
 		var ch struct {
 			ID    string `json:"id"`
 			Title string `json:"title"`
@@ -5469,9 +5474,10 @@ func cmdChats(args []string) error {
 	}
 	if len(args) > 0 && args[0] == "rename" {
 		rfs := flag.NewFlagSet("chats rename", flag.ExitOnError)
+		rjson := rfs.Bool("json", false, "print the raw updated-chat JSON (F544)")
 		rfs.Parse(reorderFlags(args[1:]))
 		if rfs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl chats rename <id> <new title>")
+			return fmt.Errorf("usage: llmctl chats rename <id> <new title> [-json]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -5496,6 +5502,10 @@ func cmdChats(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("chat rename: %s", out)
 		}
+		if *rjson {
+			fmt.Print(string(out))
+			return nil
+		}
 		fmt.Printf("renamed chat %s to %q\n", rfs.Arg(0), conv["title"])
 		return nil
 	}
@@ -5506,6 +5516,7 @@ func cmdChats(args []string) error {
 		before := pfs.String("before", "", "prune chats last updated before this date (YYYY-MM-DD)")
 		older := pfs.Int("older-than", 0, "prune chats last updated more than N days ago")
 		yes := pfs.Bool("yes", false, "actually delete (default is a dry run)")
+		prjson := pfs.Bool("json", false, "print the prune result as JSON (F544)")
 		pfs.Parse(reorderFlags(args[1:]))
 		if *before == "" && *older == 0 {
 			return fmt.Errorf("refusing to prune everything — pass -before YYYY-MM-DD and/or -older-than N")
@@ -5558,10 +5569,24 @@ func cmdChats(args []string) error {
 			doomed = append(doomed, c)
 		}
 		if len(doomed) == 0 {
+			if *prjson {
+				b, _ := json.Marshal(map[string]any{"pruned": 0, "doomed": 0, "pinnedSkipped": skippedPinned, "olderThan": cutoff.Format("2006-01-02")})
+				fmt.Println(string(b))
+				return nil
+			}
 			fmt.Printf("no chats older than %s (pinned skipped: %d)\n", cutoff.Format("2006-01-02"), skippedPinned)
 			return nil
 		}
 		if !*yes {
+			if *prjson {
+				rows := []map[string]string{}
+				for _, c := range doomed {
+					rows = append(rows, map[string]string{"id": c.ID, "title": c.Title, "updatedAt": c.UpdatedAt.Format("2006-01-02")})
+				}
+				b, _ := json.Marshal(map[string]any{"dryRun": true, "wouldDelete": len(doomed), "pinnedSkipped": skippedPinned, "olderThan": cutoff.Format("2006-01-02"), "chats": rows})
+				fmt.Println(string(b))
+				return nil
+			}
 			fmt.Printf("would delete %d chat(s) older than %s (pinned skipped: %d):\n", len(doomed), cutoff.Format("2006-01-02"), skippedPinned)
 			for _, c := range doomed {
 				fmt.Printf("  %s  %s  %s\n", c.ID, c.UpdatedAt.Format("2006-01-02"), c.Title)
@@ -5574,6 +5599,11 @@ func cmdChats(args []string) error {
 			if code, _, err := cc.Delete("/api/v1/chats/" + url.PathEscape(c.ID)); err == nil && code == 200 {
 				n++
 			}
+		}
+		if *prjson {
+			b, _ := json.Marshal(map[string]any{"pruned": n, "doomed": len(doomed), "pinnedSkipped": skippedPinned, "olderThan": cutoff.Format("2006-01-02")})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("pruned %d/%d chat(s) (pinned skipped: %d)\n", n, len(doomed), skippedPinned)
 		return nil
@@ -7631,9 +7661,10 @@ func cmdPrompts(args []string) error {
 		desc := afs.String("desc", "", "description (optional)")
 		content := afs.String("content", "", "template text (or use -file / piped stdin)")
 		file := afs.String("file", "", "read the template text from this file")
+		pajson := afs.Bool("json", false, "print the raw created-prompt JSON (F544)")
 		afs.Parse(reorderFlags(args[1:]))
 		if afs.NArg() == 0 || *name == "" {
-			return fmt.Errorf("usage: llmctl prompts add <id> -name N [-category C] [-desc D] (-content TEXT | -file F | piped stdin)")
+			return fmt.Errorf("usage: llmctl prompts add <id> -name N [-category C] [-desc D] (-content TEXT | -file F | piped stdin) [-json]")
 		}
 		text := *content
 		if text == "" && *file != "" {
@@ -7666,6 +7697,10 @@ func cmdPrompts(args []string) error {
 		}
 		if code != 201 {
 			return fmt.Errorf("prompts add: %s", out)
+		}
+		if *pajson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("prompt created: %s (%s)\n", *name, afs.Arg(0))
 		return nil
