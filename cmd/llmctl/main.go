@@ -271,7 +271,7 @@ Usage:
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
-  llmctl settings [-json] [-out FILE] | llmctl settings set <flags> | settings test-webhook
+  llmctl settings [-json] [-out FILE] | llmctl settings set <flags> | settings test-webhook [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
@@ -8790,14 +8790,31 @@ func cmdSettings(args []string) error {
 		return err
 	}
 	if len(args) > 0 && args[0] == "test-webhook" {
+		twfs := flag.NewFlagSet("settings test-webhook", flag.ExitOnError)
+		twjson := twfs.Bool("json", false, "print the raw response JSON (F574)")
+		twfs.Parse(reorderFlags(args[1:]))
 		code, out, err := cc.Post("/api/v1/settings/notify-test", map[string]any{})
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("notify-test returned %d", code)
+			return fmt.Errorf("notify-test returned %d: %s", code, out)
 		}
+		if *twjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var tr struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(out, &tr); err != nil {
+			return err
+		}
+		if !tr.OK {
+			return fmt.Errorf("webhook test failed: %s", tr.Error)
+		}
+		fmt.Println("test notification delivered to the configured webhook")
 		return nil
 	}
 	if len(args) > 0 && args[0] == "set" {

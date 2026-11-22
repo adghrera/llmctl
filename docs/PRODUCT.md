@@ -658,7 +658,7 @@ llmctl requests -stats -by day   per-UTC-day aggregate rows added to the model/k
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
-                 | settings test-webhook (send a test event)
+                 | settings test-webhook [-json] (send a test event; prints a delivery confirmation, F574)
 llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|stdin|prompts…] [-json] [-out FILE]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
