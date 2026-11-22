@@ -379,7 +379,33 @@ export default function Overview() {
       )}
       {completedJobs.length > 0 && (
         <div className="card">
-          <h2>Recent jobs</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Recent jobs</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl jobs --csv` (F433).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "id,kind,target,status,progress,message,error,updated",
+                  ...completedJobs.map((j) =>
+                    [j.id, j.kind, j.target, j.status, j.progress.toFixed(2),
+                      j.message || "", j.error || "", j.updated || j.created || ""]
+                      .map(esc)
+                      .join(",")
+                  ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-jobs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
           <ul>
             {completedJobs.map((j) => (
               <li key={j.id} className="mono">

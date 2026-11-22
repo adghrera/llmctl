@@ -443,6 +443,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F430 | P3 | 430 | cli | `gpu --csv` | COMPLETED | `llmctl gpu --csv` exports vendor,name,total_bytes,used_bytes,used_pct (raw byte counts instead of the table's human sizes), header-only when no GPUs. Verified live: the real GPU exported with correct bytes and 86.7% matching the table. |
 | F431 | P3 | 431 | ui | Compare results Export JSON | COMPLETED | The Compare Results header has an Export JSON button producing `[{model, reply}|{model, error}]` — the same shape as `llmctl compare --json`; disabled while streaming. Verified live: CLI compare returned the shape for the running model and the UI replay produced an identical-shaped array. |
 | F432 | P3 | 432 | ui | Structured result Export JSON | COMPLETED | The Structured Result header has an Export JSON button downloading the validated JSON output as a .json file. Verified live: served bundle contains the export. |
+| F433 | P3 | 433 | ui | Overview Recent jobs Export CSV | COMPLETED | The Recent jobs card header has an Export CSV button with the same columns as `llmctl jobs --csv` (id,kind,target,status,progress,message,error,updated; progress 2 decimals like the CLI). Verified live: served bundle contains the export; replay over API-shaped jobs quoted comma/quote-containing fields correctly. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

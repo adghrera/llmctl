@@ -413,6 +413,7 @@ export interface Job {
   message?: string;
   error?: string;
   created: string;
+  updated?: string;
 }
 
 export interface ApiKey {
