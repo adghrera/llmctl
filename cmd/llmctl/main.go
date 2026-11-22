@@ -222,7 +222,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|delete …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete …
   llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
@@ -3636,6 +3636,38 @@ func cmdChats(args []string) error {
 		}
 		json.Unmarshal(out, &ch)
 		fmt.Printf("forked %s → %s (%s)\n", ffs.Arg(0), ch.ID, ch.Title)
+		return nil
+	}
+	if len(args) > 0 && args[0] == "rename" {
+		rfs := flag.NewFlagSet("chats rename", flag.ExitOnError)
+		rfs.Parse(reorderFlags(args[1:]))
+		if rfs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl chats rename <id> <new title>")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(rfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat %s: %s", rfs.Arg(0), out)
+		}
+		var conv map[string]any
+		if err := json.Unmarshal(out, &conv); err != nil {
+			return err
+		}
+		conv["title"] = strings.Join(rfs.Args()[1:], " ")
+		code, out, err = cc.Put("/api/v1/chats/"+url.PathEscape(rfs.Arg(0)), conv)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat rename: %s", out)
+		}
+		fmt.Printf("renamed chat %s to %q\n", rfs.Arg(0), conv["title"])
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {

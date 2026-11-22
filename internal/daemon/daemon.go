@@ -428,6 +428,10 @@ func (cc *ControlClient) Post(path string, body any) (int, []byte, error) {
 	return cc.Do(http.MethodPost, path, body)
 }
 
+func (cc *ControlClient) Put(path string, body any) (int, []byte, error) {
+	return cc.Do(http.MethodPut, path, body)
+}
+
 func (cc *ControlClient) Get(path string) (int, []byte, error) {
 	return cc.Do(http.MethodGet, path, nil)
 }
