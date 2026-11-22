@@ -248,7 +248,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json]   recent webhook delivery attempts
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
@@ -4502,6 +4502,21 @@ type eventRow struct {
 // cmdWebhooks shows recent webhook delivery attempts (F191), backed by
 // GET /api/v1/webhook/log.
 func cmdWebhooks(args []string) error {
+	if len(args) > 0 && args[0] == "test" { // F447: discoverable twin of settings test-webhook
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Post("/api/v1/settings/notify-test", map[string]any{})
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("notify-test returned %d", code)
+		}
+		return nil
+	}
 	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of deliveries")
 	event := fs.String("event", "", "only deliveries for this event name, e.g. instance.crashed (F357)")

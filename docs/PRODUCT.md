@@ -620,7 +620,7 @@ llmctl backups [list|create [-name LABEL]|restore <name>|delete <name]]   (list:
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
-llmctl webhooks [-n 20] [-event E] [--csv] [-json]    recent webhook delivery attempts
+llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test    recent delivery attempts / send a test event (F447)
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
