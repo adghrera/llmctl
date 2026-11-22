@@ -1006,7 +1006,7 @@ func cmdStructured(args []string) error {
 	fs := flag.NewFlagSet("structured", flag.ExitOnError)
 	model := fs.String("model", "", "model id (required)")
 	schemaF := fs.String("schema", "", "path to a JSON Schema file (required)")
-	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	retries := fs.Int("retries", 2, "validation retries")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 || *model == "" || *schemaF == "" {
@@ -1073,7 +1073,7 @@ func cmdStructured(args []string) error {
 func cmdEmbed(args []string) error {
 	fs := flag.NewFlagSet("embed", flag.ExitOnError)
 	model := fs.String("model", "", "embedding model id (required)")
-	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	jsonOut := fs.Bool("json", false, "print the raw embeddings JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	if *model == "" {
@@ -1129,7 +1129,7 @@ func cmdBench(args []string) error {
 	fs := flag.NewFlagSet("bench", flag.ExitOnError)
 	model := fs.String("model", "", "model id to benchmark (required, unless -models is used)")
 	modelsFlag := fs.String("models", "", "comma-separated model ids to benchmark and compare (F303)")
-	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	n := fs.Int("n", 5, "number of requests")
 	conc := fs.Int("conc", 1, "concurrent requests")
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
@@ -1350,7 +1350,7 @@ func cmdBench(args []string) error {
 func cmdComplete(args []string) error {
 	fs := flag.NewFlagSet("complete", flag.ExitOnError)
 	model := fs.String("model", "", "model id (required)")
-	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	maxTok := fs.Int("max-tokens", 256, "max tokens to generate")
 	temp := fs.Float64("temperature", 0.7, "sampling temperature")
 	jsonOut := fs.Bool("json", false, "print the raw completions JSON (for scripts)")
@@ -1405,7 +1405,7 @@ func cmdComplete(args []string) error {
 func cmdCompare(args []string) error {
 	fs := flag.NewFlagSet("compare", flag.ExitOnError)
 	modelsFlag := fs.String("models", "", "comma-separated model ids or aliases (required)")
-	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	system := fs.String("system", "", "system prompt prepended to the conversation")
 	maxTok := fs.Int("max-tokens", 0, "max tokens per response (0 = model default)")
 	jsonOut := fs.Bool("json", false, "print [{model, reply} | {model, error}] as one JSON array instead of streamed text (F314)")
@@ -6234,7 +6234,7 @@ func cmdBatch(args []string) error {
 	system := fs.String("system", "", "system prompt")
 	maxTokens := fs.Int("max-tokens", 0, "max tokens per completion")
 	concurrency := fs.Int("concurrency", 4, "parallel requests (max 8)")
-	key := fs.String("key", "", "gateway API key (needed when auth is on)")
+	key := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (needed when auth is on; default $LLMCTL_API_KEY)")
 	file := fs.String("file", "", "read prompts from this file, one per line")
 	jsonOut := fs.Bool("json", false, "print the raw batch JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
@@ -6831,7 +6831,7 @@ func cmdAutoStart(args []string) error {
 func cmdChat(args []string) error {
 	fs := flag.NewFlagSet("chat", flag.ExitOnError)
 	modelFlag := fs.String("model", "", "model id to chat with")
-	keyFlag := fs.String("key", "", "API key (if auth is enabled)")
+	keyFlag := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	system := fs.String("system", "", "system prompt prepended to the conversation (F188)")
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")

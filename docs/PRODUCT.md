@@ -86,6 +86,8 @@ GitHub release, or file list. No recompile.
 - Gateway auth (require API key on /v1/*) is OFF by default on a fresh install — chat works without a key.
 - Turn it ON in Settings → Require API Key (or start with `--api-key K`) to reject requests without a valid key (401).
 - Revoke keys anytime on the API Keys page.
+- CLI gateway commands (`chat`, `compare`, `bench`, …) take the key via `-key`
+  or, by default, the `LLMCTL_API_KEY` environment variable (F327).
 
 ### Management API (all UI features are API-backed)
 | Endpoint | Purpose |
