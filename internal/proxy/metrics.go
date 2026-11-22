@@ -42,6 +42,10 @@ type modelMt struct {
 	compTok    int64
 	latSamples []float64 // per-model reservoir of latencies in ms
 	seen       int64
+	// Per-request completion-token throughput (F110): sum of cTok/latency
+	// over served requests, and their count.
+	tpsSum float64
+	tpsN   int64
 }
 
 type costCounter struct {
@@ -120,6 +124,10 @@ func (m *metricsCollector) record(model, key, keyLabel string, status int, laten
 	}
 	mm.promptTok += pTok
 	mm.compTok += cTok
+	if status < 400 && cTok > 0 && latencyMs > 0 {
+		mm.tpsSum += float64(cTok) / (latencyMs / 1000.0)
+		mm.tpsN++
+	}
 	// Daily rollup (F097): UTC date -> model -> counters.
 	day := time.Now().UTC().Format("2006-01-02")
 	dm := m.daily[day]
@@ -347,6 +355,9 @@ func (m *metricsCollector) Snapshot() map[string]any {
 			"errors":            v.errs,
 			"prompt_tokens":     v.promptTok,
 			"completion_tokens": v.compTok,
+		}
+		if v.tpsN > 0 {
+			entry["tokens_per_sec"] = round2(v.tpsSum / float64(v.tpsN))
 		}
 		for lk, lv := range latencyStats(v.latSamples) {
 			entry["latency_"+lk] = lv
