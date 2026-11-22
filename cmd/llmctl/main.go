@@ -270,7 +270,7 @@ Usage:
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
-  llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
+  llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
@@ -6813,6 +6813,7 @@ func cmdChats(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the chat list as JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the chat list as CSV (F378)")
 	outFile := fs.String("out", "", "write the chat list JSON to this file instead of stdout (F492)")
+	stats := fs.Bool("stats", false, "aggregate the chats per model instead of listing them (F625)")
 	// Accept "list" as an explicit subcommand: llmctl chats list [filter].
 	if len(args) > 0 && args[0] == "list" {
 		args = args[1:]
@@ -6859,6 +6860,82 @@ func cmdChats(args []string) error {
 			}
 		}
 		list = keep
+	}
+	if *stats { // F625: one row per model (chats, messages, tokens, last updated)
+		type cst struct {
+			Model    string `json:"model"`
+			Chats    int    `json:"chats"`
+			Messages int    `json:"messages"`
+			Tokens   int    `json:"tokens"`
+			Last     string `json:"last"`
+		}
+		byModel := map[string]*cst{}
+		lastT := map[string]time.Time{}
+		for _, c := range list {
+			g := byModel[c.Model]
+			if g == nil {
+				g = &cst{Model: c.Model}
+				byModel[c.Model] = g
+			}
+			g.Chats++
+			g.Messages += c.Messages
+			g.Tokens += c.Tokens
+			if t, err := time.Parse(time.RFC3339, c.UpdatedAt); err == nil {
+				if t.After(lastT[c.Model]) {
+					lastT[c.Model] = t
+				}
+			} else if g.Last == "" {
+				g.Last = c.UpdatedAt
+			}
+		}
+		names := make([]string, 0, len(byModel))
+		for k := range byModel {
+			names = append(names, k)
+		}
+		sort.Slice(names, func(i, j int) bool { return byModel[names[i]].Tokens > byModel[names[j]].Tokens })
+		rows := make([]cst, 0, len(names))
+		for _, k := range names {
+			g := byModel[k]
+			if !lastT[k].IsZero() {
+				g.Last = lastT[k].UTC().Format(time.RFC3339)
+			}
+			rows = append(rows, *g)
+		}
+		if *jsonOut || *outFile != "" {
+			b, _ := json.Marshal(rows)
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"model", "chats", "messages", "tokens", "last"})
+			for _, r := range rows {
+				_ = w.Write([]string{r.Model, strconv.Itoa(r.Chats), strconv.Itoa(r.Messages),
+					strconv.Itoa(r.Tokens), r.Last})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		if len(rows) == 0 {
+			fmt.Println("no saved chats")
+			return nil
+		}
+		fmt.Printf("%-18s %6s %6s %9s %-20s\n", "MODEL", "CHATS", "MSGS", "TOKENS", "LAST (UTC)")
+		for _, r := range rows {
+			last := r.Last
+			if t, err := time.Parse(time.RFC3339, r.Last); err == nil {
+				last = t.Format("2006-01-02 15:04:05")
+			}
+			fmt.Printf("%-18s %6d %6d %9d %-20s\n", r.Model, r.Chats, r.Messages, r.Tokens, last)
+		}
+		return nil
 	}
 	if len(list) > *n {
 		list = list[:*n]

@@ -364,8 +364,9 @@ toggle for a light theme (choice remembered). Tabs:
    and `llmctl prompts categories [-json] [-csv] [-out FILE]` (lists categories, one
    per line; -json prints the raw array, -csv a one-column table, -out writes it to a file, F595, F616)
    (F218, F298, F304).
- - **Chat CLI** — `llmctl chats [filter] [-json] [-out FILE]` (or `chats list [filter]`)
-   lists saved conversations with a per-chat token total (`--csv` exports the list, F378, F603),
+ - **Chat CLI** — `llmctl chats [filter] [-json] [-out FILE] [-stats]` (or `chats list [filter]`)
+   lists saved conversations with a per-chat token total (`--csv` exports the list, F378, F603;
+   `-stats` rolls the history up per model — chats, messages, tokens, last updated, F625),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]` prints one
    with a message preview,
    `llmctl chats search <query> [-json] [-csv] [-out FILE]` full-text searches message content
