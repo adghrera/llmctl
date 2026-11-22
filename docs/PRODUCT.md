@@ -195,7 +195,8 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl backends remove`, F658), Export CSV and Export JSON on the list
   (F404, F715).
 - **Models** — HuggingFace search + file picker, download with live progress.
-  The installed-models table has a live text filter (id/backend/path, F332)
+  The installed-models table has a live text filter (id/backend/path, F332),
+  a click-to-copy model-id cell (F738),
   and a tag dropdown filtering by exact tag (UI twin of `models list -tag`,
   F682), and Export CSV / Export JSON buttons for the filtered list (same columns as
   `llmctl models list --csv`, F377, F718) plus a Stats toggle rolling the filtered

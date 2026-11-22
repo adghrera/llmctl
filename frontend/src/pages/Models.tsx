@@ -651,7 +651,17 @@ export default function Models() {
               {shown.map((m) => (
                 <tr key={m.id}>
                   <td className="mono">
-                    {m.id}
+                    <span
+                      style={{ cursor: "pointer" }}
+                      title="click to copy the model id (use it as model=… on the gateway)"
+                      onClick={() => {
+                        if (navigator.clipboard) {
+                          void navigator.clipboard.writeText(m.id).then(() => ok(`copied ${m.id}`));
+                        }
+                      }}
+                    >
+                      {m.id}
+                    </span>
                     {(m.tags?.length ?? 0) > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "2px 0" }}>
                         {m.tags!.map((t) => (
