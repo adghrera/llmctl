@@ -601,7 +601,7 @@ llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases,
 llmctl models probe [-json]                          (what /v1/models serves now, F252)
 llmctl models routable [-key K] [-json|-csv|-out FILE]  (what /v1/models serves for one key, via the gateway — reflects the key's allowlist, F337; --csv exports id,owned_by, F407; -out writes the raw JSON, F499)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
-llmctl models metadata <id> [-json]                     (GGUF header metadata, F268)
+llmctl models metadata <id> [-json] [-out FILE]        (GGUF header metadata, F268; -out writes the raw JSON, F500)
 llmctl models unused [--csv]                           (models with no instance + reclaimable size, F280; --csv exports id,size_bytes, F408)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]

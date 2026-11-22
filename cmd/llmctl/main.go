@@ -201,7 +201,7 @@ Usage:
   llmctl models show <id> [-json] [-out FILE]
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
-  llmctl models metadata <id> [-json]
+  llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv]
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
@@ -2617,6 +2617,7 @@ func cmdModels(args []string) error {
 		}
 		mfs := flag.NewFlagSet("models metadata", flag.ExitOnError)
 		mjson := mfs.Bool("json", false, "print the raw metadata JSON (for scripts)")
+		mout := mfs.String("out", "", "write the raw metadata JSON to this file instead of stdout (F500)")
 		mfs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(rest[0]) + "/metadata")
 		if err != nil {
@@ -2624,6 +2625,13 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("metadata for %s: %s", rest[0], out)
+		}
+		if *mout != "" { // F500: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*mout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *mout, len(out))
+			return nil
 		}
 		if *mjson {
 			fmt.Print(string(out))
