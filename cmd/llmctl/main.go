@@ -190,7 +190,7 @@ Usage:
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv]   (benchmark + comparison table)
-  llmctl disk [-json]
+  llmctl disk [-json] [--csv]
   llmctl ps [-watch N] [--csv] [-json]
   llmctl backends list [-json|-csv]
   llmctl backends install <id> [--asset <hint>]
@@ -580,6 +580,7 @@ func cmdGPU(args []string) error {
 func cmdDisk(args []string) error {
 	fs := flag.NewFlagSet("disk", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw disk JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the disk report as CSV (F451)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -605,6 +606,16 @@ func cmdDisk(args []string) error {
 	}
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
+	}
+	if *csvOut { // F451: raw byte values, one row
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"dir", "models_count", "models_bytes", "free_bytes", "total_bytes"})
+		_ = w.Write([]string{res.Dir, strconv.Itoa(res.ModelsCount),
+			strconv.FormatInt(res.ModelsBytes, 10),
+			strconv.FormatInt(res.FreeBytes, 10),
+			strconv.FormatInt(res.TotalBytes, 10)})
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("dir:     %s\n", res.Dir)
 	fmt.Printf("models:  %d file(s), %s\n", res.ModelsCount, fmtSize(res.ModelsBytes))
