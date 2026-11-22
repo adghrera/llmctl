@@ -22,6 +22,7 @@ export default function Structured() {
   const [schema, setSchema] = useState(EXAMPLE_SCHEMA);
   const [maxTok, setMaxTok] = useState("");
   const [temp, setTemp] = useState("");
+  const [retries, setRetries] = useState(""); // validation retries, CLI -retries twin (F692)
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
   const [meta, setMeta] = useState<string>("");
@@ -52,6 +53,7 @@ export default function Structured() {
         schema: parsedSchema,
         maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
+        maxRetries: Number(retries) > 0 ? Math.min(Number(retries), 5) : undefined,
       });
       if (r.ok) {
         setResult(JSON.stringify(r.json, null, 2));
@@ -118,6 +120,16 @@ export default function Structured() {
             title="sampling temperature (empty = model default)"
             value={temp}
             onChange={(e) => setTemp(e.target.value)}
+          />
+          <input
+            style={{ width: 130 }}
+            type="number"
+            min={1}
+            max={5}
+            placeholder="retries"
+            title="validation retries on bad JSON, 1–5 (CLI: llmctl structured -retries, F692)"
+            value={retries}
+            onChange={(e) => setRetries(e.target.value)}
           />
         </div>
         <textarea

@@ -247,7 +247,8 @@ toggle for a light theme (choice remembered). Tabs:
   model for JSON only, validates the reply against the schema and retries
   with the validation error appended until it matches (or gives up with the
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
-  optional max-tokens/temperature inputs (F359) and a Result Export JSON
+  optional max-tokens/temperature inputs (F359), a validation-retries input
+  (1–5, CLI twin `-retries`, F692) and a Result Export JSON
   button (F432).
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
