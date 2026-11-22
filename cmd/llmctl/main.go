@@ -269,7 +269,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json] | prompts categories [-json|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
@@ -9061,9 +9061,10 @@ func cmdPrompts(args []string) error {
 		saveChat := rfs.String("save", "", "save the exchange as a saved chat under this title (F583)")
 		contChat := rfs.String("chat", "", "continue this saved chat — its history is sent and the reply is appended (F584)")
 		rjson := rfs.Bool("json", false, "print the raw gateway JSON instead of the reply text")
+		rout := rfs.String("out", "", "write the reply text to this file instead of stdout (F614)")
 		rfs.Parse(reorderFlags(args[1:]))
 		if rfs.NArg() == 0 || *modelF == "" {
-			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-save TITLE | -chat ID] [-key K] [-json]")
+			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-save TITLE | -chat ID] [-key K] [-json] [-out FILE]")
 		}
 		if *saveChat != "" && *contChat != "" {
 			return fmt.Errorf("-save and -chat are mutually exclusive")
@@ -9167,7 +9168,16 @@ func cmdPrompts(args []string) error {
 		if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Choices) == 0 {
 			return fmt.Errorf("unexpected gateway response: %s", body)
 		}
-		if *rjson {
+		if *rout != "" { // F614: reply text to a file, stdout stays clean
+			content := parsed.Choices[0].Message.Content
+			if *rjson {
+				content = string(body)
+			}
+			if err := os.WriteFile(*rout, []byte(content+"\n"), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *rout, len(content)+1)
+		} else if *rjson {
 			fmt.Print(string(body))
 		} else {
 			fmt.Println(parsed.Choices[0].Message.Content)
