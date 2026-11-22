@@ -126,6 +126,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F114 | P2 | 114 | gateway | Per-instance concurrency cap | COMPLETED | `maxParallel` per instance (`PATCH /api/v1/instances/{id}/maxparallel`, editable in the Vars dialog): replicas at their cap are skipped, and 503 `overloaded_error` when all are saturated. Verified live: cap 1 on a slow instance → parallel pair got 200+503, next request 200 after the slot freed. |
 | F115 | P3 | 115 | usage | Which instance served a request | COMPLETED | Every gateway response carries `X-LLMCtrl-Instance: <id>`, and the request ring records the serving replica (`instance` field) — shown as a column on the Requests page and in CSV export and `llmctl requests` output. Verified live: header + ring + CLI all show `so`. |
 | F116 | P3 | 116 | daemon | Events feed kind filter | COMPLETED | `GET /api/v1/events?kind=<kind>` returns only that event kind; `llmctl events -kind <kind>` and a "kind" dropdown on the Overview events card use it. Verified live: cold-start event returned by the exact kind, unknown kind → empty. |
+| F117 | P3 | 117 | usage | Daily-usage CSV export | COMPLETED | The Usage page's Daily History card has an "Export CSV" button producing a per-day, per-model CSV (date, model, requests, errors, prompt/completion tokens, cost). Verified: generator output checked against sample data (sorting, cost formatting, quoting). |
 
 ## Shipped (v0.2 architecture, this iteration)
 

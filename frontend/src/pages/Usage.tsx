@@ -2,6 +2,25 @@ import { useEffect, useState } from "react";
 import { api, type GatewayMetrics } from "../api/client";
 import { err } from "../ui/toast";
 
+function csvField(s: string): string {
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export function dailyToCsv(daily: NonNullable<Awaited<ReturnType<typeof api.dailyUsage>>>): string {
+  const head = ["date", "model", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"];
+  const rows: string[] = [];
+  for (const [date, models] of Object.entries(daily).sort((a, b) => b[0].localeCompare(a[0]))) {
+    for (const [model, u] of Object.entries(models)) {
+      rows.push(
+        [date, model, String(u.requests), String(u.errors), String(u.prompt), String(u.comp), (u.cost ?? 0).toFixed(6)]
+          .map(csvField)
+          .join(","),
+      );
+    }
+  }
+  return [head.join(","), ...rows].join("\n") + "\n";
+}
+
 export default function Usage() {
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [chats, setChats] = useState<any[]>([]);
@@ -162,7 +181,22 @@ export default function Usage() {
 
       {daily && Object.keys(daily).length > 0 && (
         <div className="card">
-          <h2>Daily History</h2>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Daily History</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                const blob = new Blob([dailyToCsv(daily)], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-daily-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
           <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
             Gateway usage per UTC day (last {Object.keys(daily).length} days
             with traffic); survives daemon restarts.

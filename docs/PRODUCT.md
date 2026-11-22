@@ -160,7 +160,8 @@ toggle for a light theme (choice remembered). Tabs:
   time-to-first-token and completion throughput (tok/s), and
   per-conversation context percentage. A "Daily History" table shows the
   per-day, per-model rollup (requests, errors, tokens, estimated cost) which
-  persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103).
+  persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103)
+  and can be exported as CSV (F117).
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
   key, status, latency, tokens) in an auto-refreshing table, with one-click
   CSV export and combinable filters (model, status class, min latency,
