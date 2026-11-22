@@ -268,7 +268,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
@@ -8708,10 +8708,14 @@ func cmdPrompts(args []string) error {
 		temp := rfs.Float64("temperature", -1, "sampling temperature (-1 = model default)")
 		maxTok := rfs.Int("max-tokens", 0, "max tokens to generate (0 = model default)")
 		saveChat := rfs.String("save", "", "save the exchange as a saved chat under this title (F583)")
+		contChat := rfs.String("chat", "", "continue this saved chat — its history is sent and the reply is appended (F584)")
 		rjson := rfs.Bool("json", false, "print the raw gateway JSON instead of the reply text")
 		rfs.Parse(reorderFlags(args[1:]))
 		if rfs.NArg() == 0 || *modelF == "" {
-			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-temperature T] [-max-tokens N] [-save TITLE] [-key K] [-json]")
+			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-save TITLE | -chat ID] [-key K] [-json]")
+		}
+		if *saveChat != "" && *contChat != "" {
+			return fmt.Errorf("-save and -chat are mutually exclusive")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -8744,9 +8748,37 @@ func cmdPrompts(args []string) error {
 			}
 			rendered = strings.ReplaceAll(rendered, "{{"+strings.TrimSpace(k)+"}}", v)
 		}
+		var hist []map[string]string
+		contTitle := ""
+		if *contChat != "" { // F584: continue a saved chat
+			ccode, cout, err := cc.Get("/api/v1/chats/" + url.PathEscape(*contChat))
+			if err != nil {
+				return err
+			}
+			if ccode != 200 {
+				return fmt.Errorf("chat %s: %s", *contChat, cout)
+			}
+			var ch struct {
+				Title    string `json:"title"`
+				Messages []struct {
+					Role    string `json:"role"`
+					Content string `json:"content"`
+				} `json:"messages"`
+			}
+			if err := json.Unmarshal(cout, &ch); err != nil {
+				return err
+			}
+			contTitle = ch.Title
+			for _, m := range ch.Messages {
+				hist = append(hist, map[string]string{"role": m.Role, "content": m.Content})
+			}
+		}
 		msgs := []map[string]any{}
-		if strings.TrimSpace(*system) != "" {
+		if strings.TrimSpace(*system) != "" && len(hist) == 0 {
 			msgs = append(msgs, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		for _, m := range hist {
+			msgs = append(msgs, map[string]any{"role": m["role"], "content": m["content"]})
 		}
 		msgs = append(msgs, map[string]any{"role": "user", "content": rendered})
 		reqBody := map[string]any{"model": *modelF, "messages": msgs}
@@ -8789,7 +8821,21 @@ func cmdPrompts(args []string) error {
 		} else {
 			fmt.Println(parsed.Choices[0].Message.Content)
 		}
-		if *saveChat != "" { // F583: keep the exchange like chat -save does
+		if *contChat != "" { // F584: append the exchange to the continued chat
+			smsgs := append(hist,
+				map[string]string{"role": "user", "content": rendered},
+				map[string]string{"role": "assistant", "content": parsed.Choices[0].Message.Content})
+			scode, sout, err := cc.Put("/api/v1/chats/"+url.PathEscape(*contChat), map[string]any{
+				"title": contTitle, "model": *modelF, "messages": smsgs,
+			})
+			if err != nil {
+				return err
+			}
+			if scode != 200 {
+				return fmt.Errorf("chat update: %s", sout)
+			}
+			fmt.Fprintf(os.Stderr, "appended to chat %s\n", *contChat)
+		} else if *saveChat != "" { // F583: keep the exchange like chat -save does
 			smsgs := []map[string]string{}
 			if strings.TrimSpace(*system) != "" {
 				smsgs = append(smsgs, map[string]string{"role": "system", "content": strings.TrimSpace(*system)})
