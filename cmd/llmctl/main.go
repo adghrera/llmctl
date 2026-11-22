@@ -220,7 +220,7 @@ Usage:
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
-  llmctl logs -daemon [--tail N] [-f]
+  llmctl logs -daemon [--tail N] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...>
@@ -3216,6 +3216,13 @@ func cmdLogs(args []string) error {
 		if err != nil {
 			return err
 		}
+		if *outFile != "" { // F516: write the tail to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, []byte(logs), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(logs))
+			return nil
+		}
 		fmt.Print(logs)
 		if !*follow {
 			return nil
@@ -3243,7 +3250,7 @@ func cmdLogs(args []string) error {
 		}
 	}
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f] | llmctl logs -daemon [--tail N] [-f]")
+		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f] | llmctl logs -daemon [--tail N] [-out FILE] [-f]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
