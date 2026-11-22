@@ -275,6 +275,20 @@ export default function MCP() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              title="download the advertised tools as JSON"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(testResult.tools, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-mcp-tools-${testResult.id}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
           </div>
           {testResult.tools.length === 0 ? (
             <div className="empty">server connected but advertises no tools</div>

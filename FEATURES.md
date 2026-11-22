@@ -730,6 +730,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F717 | P3 | 717 | kb | KB page Export JSON | COMPLETED | The Knowledge Bases page gained an Export JSON button beside Export CSV — UI twin of `llmctl kb list -json`. Verified live: served bundle carries the button. |
 | F718 | P3 | 718 | ui | Export JSON on Models/Requests/Usage/Cost/Search | COMPLETED | The last list pages that only had Export CSV gained Export JSON buttons: Models (`models list -json`), Requests (`requests -json`), Usage (daily and daily-by-key cards, `usage -json`), Cost (per-key and per-model cards, `cost -json`) and Search (matches as a {kind,name,detail} JSON array). Verified live: all titles present in the served bundle. |
 | F719 | P3 | 719 | ui | Overview Export JSON on jobs + events | COMPLETED | The Overview page's jobs card and events feed gained Export JSON buttons beside their Export CSV — UI twins of `llmctl jobs -json` and `llmctl events -json`. Verified live: both titles present in the served bundle. |
+| F720 | P3 | 720 | mcp | MCP tested-tools Export JSON | COMPLETED | The MCP page's test-result (advertised tools) list gained an Export JSON button beside its Export CSV. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
