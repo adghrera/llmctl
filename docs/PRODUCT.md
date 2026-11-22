@@ -372,8 +372,9 @@ toggle for a light theme (choice remembered). Tabs:
   [-name N …]` / `prompts delete <id>` / `prompts duplicate <id> <new-id> [-name N]`
   (copies any template, built-in or custom, to a new custom id, F638);
   custom templates carry free-form tags — `prompts tag <id> [a,b]` (empty clears),
-  `prompts -tag T` filters, and the Prompts page shows tag badges plus a Tag
-  button per custom entry (built-ins stay read-only, F694);
+  `prompts -tag T` filters, and the Prompts page shows tag badges, a Tag
+  button and a tag-filter dropdown per custom entry (built-ins stay read-only,
+  F694, dropdown F695);
   `prompts retag OLD NEW` renames a category across all custom templates in one
   shot (built-ins untouched, F641);
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)

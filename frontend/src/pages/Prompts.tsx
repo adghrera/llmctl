@@ -9,6 +9,7 @@ export default function Prompts() {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedTag, setSelectedTag] = useState(""); // tag filter, CLI -tag twin (F695)
   const [filter, setFilter] = useState(params.get("q") || "");
   const [copied, setCopied] = useState<Set<string>>(new Set());
   const [showStats, setShowStats] = useState(false); // per-category rollup (CLI `prompts -stats` parity, F636)
@@ -223,6 +224,7 @@ export default function Prompts() {
 
   const filtered = templates.filter((t) => {
     if (selectedCategory && t.category !== selectedCategory) return false;
+    if (selectedTag && !(t.tags ?? []).includes(selectedTag)) return false;
     const low = filter.trim().toLowerCase();
     if (!low) return true;
     return (
@@ -285,6 +287,24 @@ export default function Prompts() {
           >
             All
           </button>
+          {new Set(templates.flatMap((t) => t.tags ?? [])).size > 0 && (
+            <select
+              className="input"
+              style={{ width: "auto", fontSize: 12 }}
+              title="filter by tag — CLI: llmctl prompts -tag (F695)"
+              value={selectedTag}
+              onChange={(e) => setSelectedTag(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {Array.from(new Set(templates.flatMap((t) => t.tags ?? [])))
+                .sort()
+                .map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+            </select>
+          )}
           <button className="btn sm primary" onClick={() => (adding ? closeForm() : setAdding(true))}>
             {adding ? "Cancel" : "New template"}
           </button>
