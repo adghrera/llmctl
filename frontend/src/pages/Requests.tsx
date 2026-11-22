@@ -9,6 +9,14 @@ function statusTone(s: number): string {
   return "run";
 }
 
+function ago(t: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(t).getTime()) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
 function csvField(s: string): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
@@ -227,8 +235,8 @@ export default function Requests() {
                     </button>
                     {e.id || "—"}
                   </td>
-                <td className="muted" style={{ fontSize: 12 }}>
-                  {new Date(e.time).toLocaleTimeString()}
+                <td className="muted" style={{ fontSize: 12 }} title={new Date(e.time).toLocaleString()}>
+                  {ago(e.time)}
                 </td>
                 <td className="mono">
                   {e.model || "—"}

@@ -223,6 +223,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F211 | P3 | 211 | ui | Dim disabled key rows | COMPLETED | Disabled keys now render at reduced opacity in the Keys table, complementing the "off" badge (F195) and toggle (F205). Verified live: served bundle contains the opacity style. |
 | F212 | P3 | 212 | gateway | `/v1/models` probe cache | COMPLETED | Upstream `/v1/models` probes are now cached per instance for 2s, so client polling doesn't hammer every backend; results unchanged within the TTL. Verified live: repeated calls return the same model list. |
 | F213 | P3 | 213 | cli | `events -json` | COMPLETED | `llmctl events -json` prints the raw events-feed JSON (honors `-n`/`-kind`) for scripts. Verified live: output parses as JSON; table mode unchanged. |
+| F214 | P3 | 214 | ui | Relative time on Requests | COMPLETED | The Requests page time column now shows `5m ago`-style relative time (absolute timestamp in the tooltip), matching the Instances page (F208). Verified live: served bundle contains the ago strings. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
