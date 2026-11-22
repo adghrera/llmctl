@@ -232,7 +232,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|pin|unpin|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
-  llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|search|embed|delete …
+  llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl cost [-keys] [-json]
@@ -4652,7 +4652,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "update", "docs", "doc", "add-doc", "search", "embed", "delete":
+		case "list", "show", "create", "update", "docs", "doc", "add-doc", "export", "search", "embed", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -4867,6 +4867,59 @@ func cmdKb(args []string) error {
 			return nil
 		}
 		fmt.Print(string(body))
+		return nil
+	case "export":
+		// Write every document of a KB into a directory (re-import with
+		// repeated `kb add-doc`, F324).
+		xfs := flag.NewFlagSet("kb export", flag.ExitOnError)
+		outDir := xfs.String("out", "", "target directory (default ./kb-<id>)")
+		xfs.Parse(reorderFlags(rest))
+		if xfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl kb export <kb-id> [-out DIR]")
+		}
+		kbID := xfs.Arg(0)
+		dir := *outDir
+		if dir == "" {
+			dir = "kb-" + kbID
+		}
+		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(kbID) + "/documents")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb export: %s", out)
+		}
+		var docs []struct {
+			ID       string `json:"id"`
+			Filename string `json:"filename"`
+		}
+		if err := json.Unmarshal(out, &docs); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		var n int
+		for _, d := range docs {
+			code, body, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(kbID) +
+				"/documents/" + url.PathEscape(d.ID) + "/content")
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				fmt.Printf("  skip %s: %s\n", d.Filename, body)
+				continue
+			}
+			name := filepath.Base(strings.ReplaceAll(d.Filename, "\\", "/")) // no path escape
+			if name == "." || name == "/" || name == "" {
+				name = d.ID
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), body, 0o644); err != nil {
+				return err
+			}
+			n++
+		}
+		fmt.Printf("exported %d document(s) from %s to %s/\n", n, kbID, dir)
 		return nil
 	case "add-doc":
 		dfs := flag.NewFlagSet("kb add-doc", flag.ExitOnError)

@@ -307,7 +307,8 @@ toggle for a light theme (choice remembered). Tabs:
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
    `kb show|docs|delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
    document's text, F320) and
-   `kb add-doc <kb-id> <path> [-name X]` upload documents and
+   `kb add-doc <kb-id> <path> [-name X]` upload documents,
+   `kb export <kb-id> [-out DIR]` dumps all documents as files (F324) and
    `kb search <kb-id> <query> [-limit N] [-json]` runs RAG search and
    `kb embed <kb-id> -url U -model M [-key K] | -clear` configures semantic
    search (F247, F250, F268, F272, F291, F320).
