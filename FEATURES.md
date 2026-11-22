@@ -727,6 +727,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F714 | P3 | 714 | bench | Bench page Export CSV/JSON | COMPLETED | The Bench page results table gained Export CSV and Export JSON buttons — CSV mirrors `llmctl bench --csv` columns (model,ok,fails,avg/p50/p95/max ms,req/s,tok/s,first_error), JSON dumps the per-model stats rows. Verified live: served bundle carries both buttons. |
 | F715 | P3 | 715 | ui | Export JSON on Backends/Tools/Skills | COMPLETED | The Backends, Tools and Skills pages gained Export JSON buttons beside their existing Export CSV — UI twins of `backends list -json`, `tools list -json` and `skills list -json`. Verified live: all three titles present in the served bundle. |
 | F716 | P3 | 716 | files | Files page Export JSON | COMPLETED | The Files page gained an Export JSON button beside Export CSV — UI twin of `llmctl files -json`. Verified live: served bundle carries the button. |
+| F717 | P3 | 717 | kb | KB page Export JSON | COMPLETED | The Knowledge Bases page gained an Export JSON button beside Export CSV — UI twin of `llmctl kb list -json`. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

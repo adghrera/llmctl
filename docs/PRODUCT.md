@@ -585,7 +585,7 @@ toggle for a light theme (choice remembered). Tabs:
   document content as context; several KBs can be selected at once (multi-select
   on the Chat page, comma-separated `-kb A,B` in the CLI) and the merged top
   chunks are injected (F666). Dedicated Knowledge Bases page with an
-  Export CSV button on the KB list (F393) and per-KB Export/Import JSON
+  Export CSV and Export JSON buttons on the KB list (F393, F717) and per-KB Export/Import JSON
   (all documents as a [{filename, content}] array, the UI counterpart of
   `llmctl kb export`, F435); dropping a file onto the KB detail card uploads
   it as a document (F453). A Tags button per KB (and `llmctl kb tag` /

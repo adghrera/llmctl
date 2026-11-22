@@ -379,6 +379,21 @@ export default function KnowledgeBases() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={kbs.length === 0}
+            title="download the knowledge-base list as JSON (CLI: llmctl kb list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(kbs, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-kb-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
           </div>
         </div>
         {kbs.length === 0 && (
