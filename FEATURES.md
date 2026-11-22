@@ -234,6 +234,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F222 | P3 | 222 | cli | `requests -watch N` | COMPLETED | `llmctl requests -watch N` live-tails the request log: prints new matching entries as they arrive (id-based dedupe, same pattern as `events -watch`). Verified live: a gateway call made during the watch printed within 1s. |
 | F223 | P3 | 223 | doctor | No-usable-key security check | COMPLETED | The doctor security check now warns when auth is required but no API key exists or all keys are disabled/expired, and reports the usable-key count when ok. Verified live: all three paths (ok / no keys / all disabled). |
 | F224 | P3 | 224 | cli | `llmctl batch` | COMPLETED | New CLI over the batch API: prompts from args, `-file` (one per line) or piped stdin; `-model -system -max-tokens -concurrency -key` (gateway bearer) and `-json` for raw output; table shows ✓/✗ per prompt + totals. Verified live against a JSON stub: 2-prompt stdin run and `-json` both pass. |
+| F225 | P3 | 225 | cli | `scheduler runs -json` | COMPLETED | `llmctl scheduler runs -json` prints the run log as JSON (honors `-n`, prints `[]` when empty). Verified live: empty ring and table mode both behave. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

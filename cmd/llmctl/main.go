@@ -1050,6 +1050,7 @@ func cmdScheduler(args []string) error {
 	case "runs":
 		fs := flag.NewFlagSet("scheduler runs", flag.ExitOnError)
 		n := fs.Int("n", 20, "number of recent runs")
+		jsonOut := fs.Bool("json", false, "print the run log as JSON (for scripts)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler/runs")
 		if err != nil {
@@ -1068,6 +1069,21 @@ func cmdScheduler(args []string) error {
 		}
 		if err := json.Unmarshal(out, &runs); err != nil {
 			return err
+		}
+		if *jsonOut {
+			if len(runs) > *n {
+				runs = runs[:*n]
+			}
+			if len(runs) == 0 {
+				fmt.Println("[]")
+				return nil
+			}
+			b, err := json.Marshal(runs)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
 		}
 		if len(runs) == 0 {
 			fmt.Println("no scheduler runs yet (ring is in-memory, cleared on daemon restart)")
