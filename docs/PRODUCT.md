@@ -279,8 +279,9 @@ toggle for a light theme (choice remembered). Tabs:
    manages them and `skills add <manifest.json>` creates one from a JSON
    manifest (F245, F288).
  - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
-   `memory add "<text>" [-tags a,b]`, `memory show <id>`, `memory search
-   <query> [-json]`, `memory delete <id>` (F246, F267).
+   `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
+   [-tags a,b]`, `memory show <id>`, `memory search <query> [-json]`,
+   `memory delete <id>` (F246, F267, F289).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb show|docs|delete <id>` and
    `kb add-doc <kb-id> <path> [-name X]` upload documents and

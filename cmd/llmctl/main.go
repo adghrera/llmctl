@@ -223,7 +223,7 @@ Usage:
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl chats [filter] [-n 20] [-json] | chats show|search|export|fork|delete …
   llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
-  llmctl memory [filter] [-n 30] [-json] | memory show|add|search|delete …
+  llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
   llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
@@ -3810,11 +3810,44 @@ func cmdMemory(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "delete", "search":
+		case "list", "show", "add", "update", "delete", "search":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "update":
+		ufs := flag.NewFlagSet("memory update", flag.ExitOnError)
+		content := ufs.String("content", "", "new content")
+		tags := ufs.String("tags", "", "comma-separated tags (replaces)")
+		ufs.Parse(reorderFlags(rest))
+		if ufs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl memory update <id> [-content C] [-tags a,b]")
+		}
+		if *content == "" && *tags == "" {
+			return fmt.Errorf("nothing to change (pass -content and/or -tags)")
+		}
+		body := map[string]any{}
+		if *content != "" {
+			body["content"] = *content
+		}
+		if *tags != "" {
+			list := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					list = append(list, t)
+				}
+			}
+			body["tags"] = list
+		}
+		code, out, err := cc.Do("PUT", "/api/v1/memory/"+url.PathEscape(ufs.Arg(0)), body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory update: %s", out)
+		}
+		fmt.Printf("memory entry %s updated\n", ufs.Arg(0))
+		return nil
 	case "search":
 		sfs := flag.NewFlagSet("memory search", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")

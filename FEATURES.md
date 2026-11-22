@@ -298,6 +298,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F286 | P3 | 286 | ui | Models rename button | COMPLETED | The Models page gained a Rename button per row (prompt for the new id → `renameModel` API client call → list refresh), wiring the F284 endpoint into the UI. Verified: `tsc -b` + `vite build` clean, served bundle contains the button; endpoint behavior already verified live in F284. |
 | F287 | P3 | 287 | cli | `llmctl complete` | COMPLETED | `llmctl complete -model ID [-key K] [-max-tokens N] [-temperature T] [-json] <prompt>` covers the gateway's /v1/completions route (the last /v1 endpoint without a CLI): prints the completion text or raw JSON, stdin pipable. Verified live through the gateway: text output, `-json` parse, piped prompt, unknown-model error. |
 | F288 | P3 | 288 | cli | `skills add` | COMPLETED | `llmctl skills add <manifest.json>` creates a skill pack from a JSON manifest (POST /api/v1/skills) — previously UI-only. Verified live: created a skill from a manifest file, `skills show` confirmed it, missing file and invalid JSON rejected with clean errors, deleted after. |
+| F289 | P3 | 289 | cli | `memory update` | COMPLETED | `llmctl memory update <id> [-content C] [-tags a,b]` edits a memory entry (PUT /api/v1/memory/{id}) — previously UI-only. Verified live: content and tags round-trip confirmed via `memory show`, no-flag and unknown-id errors clean, entry deleted after. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
