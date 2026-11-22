@@ -241,7 +241,7 @@ Usage:
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
-  llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
+  llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N]
@@ -6855,6 +6855,7 @@ func cmdFiles(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("files", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw files JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the file list as CSV (F381)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/files")
 		if err != nil {
@@ -6881,8 +6882,25 @@ func cmdFiles(args []string) error {
 			return err
 		}
 		if len(list) == 0 {
+			if *csvOut { // keep the stream parseable (F381)
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"id", "filename", "content_type", "size_bytes", "source", "created_at"})
+				w.Flush()
+				return w.Error()
+			}
 			fmt.Println("no uploaded files (upload via the web UI)")
 			return nil
+		}
+		if *csvOut { // F381
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "filename", "content_type", "size_bytes", "source", "created_at"})
+			for _, f := range list {
+				_ = w.Write([]string{f.ID, f.Entry.Filename, f.Entry.ContentType,
+					strconv.FormatInt(f.Entry.Size, 10), f.Entry.Source,
+					f.Entry.CreatedAt.UTC().Format(time.RFC3339)})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("%-16s %10s  %-28s %-8s %-17s %s\n", "ID", "SIZE", "TYPE", "SOURCE", "CREATED", "FILENAME")
 		for _, f := range list {

@@ -358,8 +358,8 @@ toggle for a light theme (choice remembered). Tabs:
    `-key K` filter the table to one id, `--csv` exports the table, `-json` emits
    `{totals, groups}` (F251, F349, F370).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
-   <id>] [-json]` covers the whole uploaded-files API from the shell, including
-   uploads (F219, F243).
+   <id>] [--csv] [-json]` covers the whole uploaded-files API from the shell, including
+   uploads (F219, F243) and CSV inventory export (F381).
 - **File upload** — upload text-based files stored at
   `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
@@ -569,7 +569,7 @@ llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh ev
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
 llmctl webhooks [-n 20] [-event E] [--csv] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…]
-llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
+llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
