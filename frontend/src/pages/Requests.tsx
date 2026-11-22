@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, type RequestLogEntry } from "../api/client";
 import { ago } from "../lib/time";
-import { ok } from "../ui/toast";
+import { ok, err } from "../ui/toast";
 
 function statusTone(s: number): string {
   if (s >= 500) return "err";
@@ -47,7 +47,7 @@ function toCsv(entries: RequestLogEntry[]): string {
 }
 
 export default function Requests() {
-  const [params] = useSearchParams();  const [entries, setEntries] = useState<RequestLogEntry[]>([]);
+  const [params, setParams] = useSearchParams();  const [entries, setEntries] = useState<RequestLogEntry[]>([]);
   const [auto, setAuto] = useState(true);
   const [fModel, setFModel] = useState(params.get("model") || "");
   const [fStatus, setFStatus] = useState(params.get("status") ?? "");
@@ -60,6 +60,7 @@ export default function Requests() {
   const [fInstance, setFInstance] = useState(params.get("instance") || "");
   const [fSince, setFSince] = useState(fromTimeParam(params.get("since")));
   const [fUntil, setFUntil] = useState(fromTimeParam(params.get("until")));
+  const fId = params.get("id") || ""; // single-request deep link (F758)
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [groupBy, setGroupBy] = useState("");
 
@@ -71,7 +72,23 @@ export default function Requests() {
 
   useEffect(() => {
     let alive = true;
-    const load = () =>
+    const load = () => {
+      // ?id= shows one logged request by X-Request-Id, twin of `requests -id` (F758).
+      if (fId) {
+        api
+          .requestById(fId)
+          .then((e) => {
+            if (!alive) return;
+            setEntries([e]);
+            setOpenIdx(0);
+          })
+          .catch((e2) => {
+            if (!alive) return;
+            setEntries([]);
+            err(e2 instanceof Error ? e2.message : String(e2));
+          });
+        return;
+      }
       api
         .requests(200, {
           model: fModel.trim() || undefined,
@@ -85,6 +102,7 @@ export default function Requests() {
         })
         .then((d) => alive && setEntries(d))
         .catch(() => {});
+    };
     load();
     if (!auto) return () => { alive = false; };
     const t = setInterval(load, 5000);
@@ -92,7 +110,7 @@ export default function Requests() {
       alive = false;
       clearInterval(t);
     };
-  }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance, fSince, fUntil]);
+  }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance, fSince, fUntil, fId]);
 
   return (
     <div className="card">
@@ -241,7 +259,7 @@ export default function Requests() {
           <option value="1">streaming</option>
           <option value="0">plain</option>
         </select>
-        {(fModel || fStatus || fMinMs || fStream || fKey || fInstance || fSince || fUntil) && (
+        {(fModel || fStatus || fMinMs || fStream || fKey || fInstance || fSince || fUntil || fId) && (
           <button
             className="btn sm"
             onClick={() => {
@@ -253,6 +271,11 @@ export default function Requests() {
               setFInstance("");
               setFSince("");
               setFUntil("");
+              if (fId) {
+                const next = new URLSearchParams(params);
+                next.delete("id");
+                setParams(next, { replace: true });
+              }
             }}
           >
             Clear

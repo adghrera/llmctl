@@ -314,7 +314,8 @@ toggle for a light theme (choice remembered). Tabs:
   and a since/until time range (F189). The model, key, instance, status and
   since/until filters can also be preset from the URL
   (`/requests?model=…&key=…&instance=…&status=…&since=…&until=…`,
-  F741, F747, F753). The serving replica is also echoed to clients as
+  F741, F747, F753), and `?id=…` shows one request by X-Request-Id
+  (twin of `requests -id`, F758). The serving replica is also echoed to clients as
   the `X-LLMCtrl-Instance` response header (F115). Authenticated requests also
   echo the serving key's id as the `X-LLMCtrl-Key` response header (F233).
   Each request has an id echoed as the X-Request-Id response header (a

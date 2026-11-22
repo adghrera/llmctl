@@ -768,6 +768,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F755 | P3 | 755 | compare | Compare Stop button | COMPLETED | While a comparison fans out, the Compare button becomes a Stop button that aborts every in-flight stream (partial replies kept per model, marked "stopped") — Chat Stop twin (F754). Verified live: served bundle carries the button. |
 | F756 | P3 | 756 | bench | Bench Stop button | COMPLETED | While a bench runs, the Run bench button becomes a Stop button that cancels in-flight requests and skips the remaining models (finished rows kept) — Chat/Compare Stop twin (F754, F755). Verified live: served bundle carries the button. |
 | F757 | P3 | 757 | requests | Request detail Copy JSON | COMPLETED | The expanded request row gained a Copy JSON button copying the full JSON detail to the clipboard — click-to-copy family extended to the detail view. Verified live: served bundle carries the button. |
+| F758 | P3 | 758 | requests | Requests ?id= deep link | COMPLETED | `/requests?id=<X-Request-Id>` now shows the single logged request (auto-expanded), twin of `llmctl requests -id`; Clear removes the id param. Verified live: endpoint replay + served bundle carries the param read. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

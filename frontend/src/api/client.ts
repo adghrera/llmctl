@@ -634,6 +634,7 @@ export const api = {
     if (filters.until) q.set("until", filters.until);
     return req<RequestLogEntry[]>(`/requests?${q.toString()}`);
   },
+  requestById: (id: string) => req<RequestLogEntry>(`/requests/${encodeURIComponent(id)}`),
   aliases: () => req<ModelAlias[]>("/aliases"),
   createAlias: (alias: string, model: string) =>
     req<ModelAlias>("/aliases", { method: "POST", body: JSON.stringify({ alias, model }) }),
