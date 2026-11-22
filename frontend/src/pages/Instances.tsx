@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type AutoStartSpec, type PresetSpec, type InstanceLogTail } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
@@ -450,6 +451,11 @@ export default function Instances() {
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
                       Logs
                     </button>
+                    <Link to={`/requests?instance=${encodeURIComponent(i.id)}`}>
+                      <button className="btn sm" style={{ marginRight: 6 }} title="gateway requests served by this instance">
+                        Req
+                      </button>
+                    </Link>
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel, i.note)}>
                       Vars
                     </button>
