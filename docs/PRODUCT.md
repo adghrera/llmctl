@@ -329,7 +329,8 @@ toggle for a light theme (choice remembered). Tabs:
    move entries between instances (F246, F267, F289, F321).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
-   `kb show|docs|delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
+   `kb show <id> [-json]` (human view: description, doc list, search mode —
+   embeddings vs TF-IDF — F366), `kb docs|delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
    document's text, F320) and
    `kb add-doc <kb-id> <path> [-name X]` upload documents,
    `kb export <kb-id> [-out DIR]` dumps all documents as files (F324) and

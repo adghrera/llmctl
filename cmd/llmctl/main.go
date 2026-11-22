@@ -5364,17 +5364,71 @@ func cmdKb(args []string) error {
 		}
 		return nil
 	case "show":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl kb show <id>")
+		sfs := flag.NewFlagSet("kb show", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw KB JSON (for scripts)")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl kb show <id> [-json]")
 		}
-		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
-			return fmt.Errorf("kb %s: %s", rest[0], out)
+			return fmt.Errorf("kb %s: %s", sfs.Arg(0), out)
 		}
-		fmt.Print(string(out))
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		// Human view (F366): header, search mode, then the document list.
+		var rec struct {
+			ID  string `json:"id"`
+			Dir string `json:"dir"`
+			KB  struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				DocCount    int    `json:"doc_count"`
+				CreatedAt   string `json:"created_at"`
+				UpdatedAt   string `json:"updated_at"`
+				Embed       *struct {
+					URL   string `json:"url"`
+					Model string `json:"model"`
+				} `json:"embed"`
+			} `json:"kb"`
+			Docs []struct {
+				Filename    string `json:"filename"`
+				ContentType string `json:"content_type"`
+				Size        int64  `json:"size"`
+				Source      string `json:"source"`
+				CreatedAt   string `json:"created_at"`
+			} `json:"docs"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("%s  %s\n", rec.ID, rec.KB.Name)
+		if rec.KB.Description != "" {
+			fmt.Printf("  description: %s\n", rec.KB.Description)
+		}
+		search := "TF-IDF (no embedding model set)"
+		if rec.KB.Embed != nil {
+			search = fmt.Sprintf("embeddings: %s @ %s", rec.KB.Embed.Model, rec.KB.Embed.URL)
+		}
+		fmt.Printf("  docs:        %d\n", rec.KB.DocCount)
+		fmt.Printf("  search:      %s\n", search)
+		fmt.Printf("  created:     %s   updated: %s\n", shortTime(rec.KB.CreatedAt), shortTime(rec.KB.UpdatedAt))
+		if len(rec.Docs) > 0 {
+			fmt.Printf("  documents:\n")
+			for _, d := range rec.Docs {
+				src := ""
+				if d.Source != "" {
+					src = "  " + d.Source
+				}
+				fmt.Printf("    %-40s %8s  %-16s %s%s\n", d.Filename, fmtSize(d.Size), d.ContentType, shortTime(d.CreatedAt), src)
+			}
+		}
 		return nil
 	case "docs":
 		if len(rest) == 0 {
@@ -8111,4 +8165,14 @@ func fmtSize(n int64) string {
 		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
 	}
 	return fmt.Sprintf("%d B", n)
+}
+
+// shortTime renders an RFC3339 timestamp as local "2006-01-02 15:04", or
+// returns the input unchanged if it doesn't parse (F366).
+func shortTime(rfc string) string {
+	t, err := time.Parse(time.RFC3339, rfc)
+	if err != nil {
+		return rfc
+	}
+	return t.Local().Format("2006-01-02 15:04")
 }
