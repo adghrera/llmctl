@@ -207,7 +207,7 @@ Usage:
   llmctl disk [-json] [--csv] [-out FILE]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE]
   llmctl backends list [-json|-csv|-out FILE]
-  llmctl backends install <id> [--asset <hint>] [-json]
+  llmctl backends install <id> [--asset <hint>] [-json] [--wait]
   llmctl backends uninstall <id> [-json]
   llmctl backends add <plugin.json> [-json]
   llmctl backends remove <id> [-json]
@@ -222,7 +222,7 @@ Usage:
   llmctl models aliases [--csv] [-out FILE]
   llmctl models alias <name> <model-id> [-json]
   llmctl models unalias <name> [-json]
-  llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID] [-json] [-out FILE]
+  llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID] [-json] [-out FILE] [--wait]
   llmctl models remove <id> [--file] [-json]
   llmctl models ctx <model-id> <tokens|0> [-json] [-out FILE]
   llmctl models price <model-id> <in-per-M> <out-per-M> [-json] [-out FILE]
@@ -249,7 +249,7 @@ Usage:
   llmctl autostart remove <model> [-json]
   llmctl autostart export [-out FILE] | autostart import <file.json> [-json]
   llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name> [-json]|export|import [-json]
-  llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json]
+  llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json] [--wait]
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
@@ -1073,9 +1073,10 @@ func cmdCatalog(args []string) error {
 	case "install":
 		cifs := flag.NewFlagSet("catalog install", flag.ExitOnError)
 		cijson := cifs.Bool("json", false, "print the raw response JSON (F541)")
+		ciwait := cifs.Bool("wait", false, "block until the download finishes (F576)")
 		cifs.Parse(reorderFlags(rest))
 		if cifs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl catalog install <id> [-json]  (see: llmctl catalog list)")
+			return fmt.Errorf("usage: llmctl catalog install <id> [-json] [--wait]  (see: llmctl catalog list)")
 		}
 		code, out, err := cc.Post("/api/v1/catalog/install", map[string]any{"id": cifs.Arg(0)})
 		if err != nil {
@@ -1086,9 +1087,24 @@ func cmdCatalog(args []string) error {
 		}
 		if *cijson {
 			fmt.Print(string(out))
+			if *ciwait {
+				var cj struct {
+					Job string `json:"job"`
+				}
+				json.Unmarshal(out, &cj)
+				return waitJob(cj.Job, true)
+			}
 			return nil
 		}
-		fmt.Printf("catalog install %s started — track with: llmctl models show %s\n", cifs.Arg(0), cifs.Arg(0))
+		var cj struct {
+			Job   string `json:"job"`
+			Model string `json:"model"`
+		}
+		json.Unmarshal(out, &cj)
+		fmt.Printf("catalog install %s started (job %s) — track: llmctl jobs wait %s\n", cifs.Arg(0), cj.Job, cj.Job)
+		if *ciwait {
+			return waitJob(cj.Job, false)
+		}
 		return nil
 	default:
 		return fmt.Errorf("unknown catalog subcommand: %s (list|install)", sub)
@@ -1387,6 +1403,15 @@ func cmdJobsWait(args []string) error {
 		}
 		time.Sleep(time.Duration(*interval) * time.Second)
 	}
+}
+
+// waitJob blocks on cmdJobsWait with default timing; used by the install
+// commands' --wait flag (F576).
+func waitJob(jobID string, jsonOut bool) error {
+	if jsonOut {
+		return cmdJobsWait([]string{jobID, "-json"})
+	}
+	return cmdJobsWait([]string{jobID})
 }
 
 // cmdWebSearch runs the daemon's keyless web search (GET /api/v1/search, F274).
@@ -2588,10 +2613,11 @@ func cmdBackends(args []string) error {
 	case "install":
 		bifs := flag.NewFlagSet("backends install", flag.ExitOnError)
 		bijson := bifs.Bool("json", false, "print the raw job JSON (F566)")
+		biwait := bifs.Bool("wait", false, "block until the install finishes (F576)")
 		asset := bifs.String("asset", "", "asset hint")
 		bifs.Parse(reorderFlags(rest))
 		if bifs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl backends install <id> [--asset hint] [-json]")
+			return fmt.Errorf("usage: llmctl backends install <id> [--asset hint] [-json] [--wait]")
 		}
 		path := "/api/v1/backends/" + bifs.Arg(0) + "/install"
 		if *asset != "" {
@@ -2606,6 +2632,13 @@ func cmdBackends(args []string) error {
 		}
 		if *bijson {
 			fmt.Print(string(out))
+			if *biwait {
+				var bj struct {
+					Job string `json:"job"`
+				}
+				json.Unmarshal(out, &bj)
+				return waitJob(bj.Job, true)
+			}
 			return nil
 		}
 		var bj struct {
@@ -2613,6 +2646,9 @@ func cmdBackends(args []string) error {
 		}
 		json.Unmarshal(out, &bj)
 		fmt.Printf("backend %s install started (job %s) — track: llmctl jobs wait %s\n", bifs.Arg(0), bj.Job, bj.Job)
+		if *biwait {
+			return waitJob(bj.Job, false)
+		}
 		return nil
 	case "uninstall":
 		bufs := flag.NewFlagSet("backends uninstall", flag.ExitOnError)
@@ -3264,9 +3300,10 @@ func cmdModels(args []string) error {
 		id := fs.String("id", "", "model id")
 		ijson := fs.Bool("json", false, "print the raw job JSON (for scripts) (F562)")
 		iout := fs.String("out", "", "write the raw job JSON to this file instead of stdout (F562)")
+		iwait := fs.Bool("wait", false, "block until the download finishes (F576)")
 		fs.Parse(reorderFlags(rest))
 		if fs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl models install <repo-or-url> [--file f] [--rev r] [--backend id] [--id ID] [-json] [-out FILE]")
+			return fmt.Errorf("usage: llmctl models install <repo-or-url> [--file f] [--rev r] [--backend id] [--id ID] [-json] [-out FILE] [--wait]")
 		}
 		body := map[string]any{"repo": fs.Arg(0), "file": *file, "revision": *rev, "backend": *backend, "id": *id}
 		code, out, err := cc.Post("/api/v1/models/install", body)
@@ -3276,17 +3313,6 @@ func cmdModels(args []string) error {
 		if code != 202 {
 			return fmt.Errorf("install returned %d: %s", code, out)
 		}
-		if *iout != "" { // raw JSON to a file, stdout stays clean
-			if err := os.WriteFile(*iout, out, 0o644); err != nil {
-				return err
-			}
-			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *iout, len(out))
-			return nil
-		}
-		if *ijson {
-			fmt.Print(string(out))
-			return nil
-		}
 		var jr struct {
 			Job   string `json:"job"`
 			Model string `json:"model"`
@@ -3294,7 +3320,27 @@ func cmdModels(args []string) error {
 		if err := json.Unmarshal(out, &jr); err != nil {
 			return err
 		}
+		if *iout != "" { // raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*iout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *iout, len(out))
+			if *iwait {
+				return waitJob(jr.Job, *ijson)
+			}
+			return nil
+		}
+		if *ijson {
+			fmt.Print(string(out))
+			if *iwait {
+				return waitJob(jr.Job, true)
+			}
+			return nil
+		}
 		fmt.Printf("download started for model %s (job %s) — track: llmctl jobs wait %s\n", jr.Model, jr.Job, jr.Job)
+		if *iwait {
+			return waitJob(jr.Job, false)
+		}
 		return nil
 	case "remove":
 		mrfs := flag.NewFlagSet("models remove", flag.ExitOnError)

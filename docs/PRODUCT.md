@@ -601,10 +601,10 @@ llmctl disk [-json] [--csv] [-out FILE]            (model dir + volume disk usag
                                     exit ≠0 on errors)
 llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --csv: one-shot CSV export; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F467; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
-llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388; mutations print one-line confirmations, `-json` for raw, F566)
-llmctl catalog list [-json|-csv] | install <id>      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387)
+llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388; mutations print one-line confirmations, `-json` for raw, F566; install `--wait` blocks until the job finishes, F576)
+llmctl catalog list [-json|-csv] | install <id> [--wait]      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387; install `--wait` blocks until the download finishes, F576)
 llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328; save/start -json print the raw response, F524, F525)
-llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -out FILE writes the raw JSON, F479,
+llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -out FILE writes the raw JSON, F479; install `--wait` blocks until the download finishes, F576,
 llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE] (register an existing local GGUF, F275; -ctx sets the default context window and -json prints the raw created-model JSON, F551; -out writes it to a file, F513)
 llmctl models rename <id> <new-id> [-json]           (change a model id; aliases follow, F284; -json prints the raw response, F523)
                                     price and idle-unload; show also lists aliases pointing at the
