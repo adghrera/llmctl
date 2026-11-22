@@ -234,7 +234,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
-  llmctl presets list [-json|-csv]|save -name N -model ID [...]|start <name>|delete <name>|export|import
+  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...]|start <name>|delete <name>|export|import
   llmctl catalog list [-json|-csv] | install <id>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
@@ -757,6 +757,7 @@ func cmdPresets(args []string) error {
 		fs := flag.NewFlagSet("presets list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw presets JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the preset list as CSV (F386)")
+		outFile := fs.String("out", "", "write the raw presets JSON to this file instead of stdout (F493)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/presets")
 		if err != nil {
@@ -764,6 +765,13 @@ func cmdPresets(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("presets returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F493: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
