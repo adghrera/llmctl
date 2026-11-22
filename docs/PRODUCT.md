@@ -623,7 +623,7 @@ llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/run
                                     update: same flags, changes only what you pass, F290)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]] [-out FILE]   (--csv also exports -stats rows, F420; -out writes the raw JSON, also with -id, F473)
 llmctl backups [list|create [-name LABEL]|restore <name>|delete <name]]   (list: human sizes + total, --json)
-llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
+llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE]   (-out writes the usage JSON — raw, or the -model-filtered one — to a file, F474)
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -out writes the raw JSON to a file, refreshed each -watch tick, F469)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE]   (-out writes the raw JSON to a file, F468)
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test    recent delivery attempts / send a test event (F447)

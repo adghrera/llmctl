@@ -245,7 +245,7 @@ Usage:
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
-  llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
+  llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test   recent webhook delivery attempts / send a test event
@@ -4284,6 +4284,7 @@ func cmdUsage(args []string) error {
 	keysFlag := fs.Bool("keys", false, "show daily usage for all keys instead of per-model")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	jsonOut := fs.Bool("json", false, "print the raw usage JSON (for scripts)")
+	outFile := fs.String("out", "", "write the usage JSON to this file instead of stdout (F474)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -4297,7 +4298,14 @@ func cmdUsage(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("usage returned %d: %s", code, out)
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F474)
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+				return nil
+			}
 			fmt.Print(string(out))
 			return nil
 		}
@@ -4357,7 +4365,14 @@ func cmdUsage(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("usage returned %d: %s", code, out)
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F474)
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+				return nil
+			}
 			fmt.Print(string(out))
 			return nil
 		}
@@ -4438,7 +4453,14 @@ func cmdUsage(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("usage returned %d: %s", code, out)
 	}
-	if *jsonOut && *modelFlag == "" {
+	if (*jsonOut || *outFile != "") && *modelFlag == "" { // -out writes the same payload to a file (F474)
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
+		}
 		fmt.Print(string(out))
 		return nil
 	}
@@ -4464,10 +4486,17 @@ func cmdUsage(args []string) error {
 				delete(daily, day)
 			}
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the filtered payload to a file (F474)
 			b, err := json.Marshal(daily)
 			if err != nil {
 				return err
+			}
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+				return nil
 			}
 			fmt.Println(string(b))
 			return nil
