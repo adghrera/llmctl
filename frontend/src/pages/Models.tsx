@@ -14,6 +14,25 @@ export default function Models() {
   const { models, backends, refreshOne } = useStore();
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
+  const [today, setToday] = useState<Record<string, { requests: number; cost: number }>>({});
+
+  useEffect(() => {
+    api
+      .dailyUsage(1)
+      .then((d) => {
+        const out: Record<string, { requests: number; cost: number }> = {};
+        for (const models of Object.values(d)) {
+          for (const [mid, u] of Object.entries(models)) {
+            out[mid] = {
+              requests: (out[mid]?.requests ?? 0) + u.requests,
+              cost: (out[mid]?.cost ?? 0) + (u.cost ?? 0),
+            };
+          }
+        }
+        setToday(out);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.catalog().then(setCatalog).catch(() => setCatalog([]));
@@ -406,6 +425,7 @@ export default function Models() {
                 <th>Context</th>
                 <th>Idle</th>
                 <th>Price $/M</th>
+                <th>Today</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -495,6 +515,11 @@ export default function Models() {
                         <span className="muted">free</span>
                       )}
                     </span>
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {today[m.id]
+                      ? `${today[m.id].requests} req${today[m.id].cost > 0 ? ` · $${today[m.id].cost.toFixed(4)}` : ""}`
+                      : "—"}
                   </td>
                   <td>
                     {m.running ? (

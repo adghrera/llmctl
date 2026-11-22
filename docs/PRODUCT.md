@@ -138,7 +138,8 @@ toggle for a light theme (choice remembered). Tabs:
   survive model swaps; the gateway advertises them in /v1/models. Optional
   per-model USD pricing (`llmctl models price <id> <in> <out>`, or the
    Models page "Price $/M" column, F137) drives the
-  per-key cost estimates (F102).
+  per-key cost estimates (F102). A "Today" column shows each model's request
+   count and estimated cost for the current UTC day (F160).
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop. Each
   instance can carry a free-text note (Vars dialog) shown under its id and
   persisted across restarts (F119); running instances show their uptime (F125)
