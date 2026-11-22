@@ -68,6 +68,20 @@ func newMetricsCollector() *metricsCollector {
 	}
 }
 
+// setPricing replaces the per-model pricing table used for cost tracking.
+func (m *metricsCollector) setPricing(p map[string]cost.ModelPricing) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.pricing = p
+}
+
+// setModelPricing updates one model's pricing entry (F102).
+func (m *metricsCollector) setModelPricing(model string, p cost.ModelPricing) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.pricing[model] = p
+}
+
 func (m *metricsCollector) pricingFor(model string) cost.ModelPricing {
 	if p, ok := m.pricing[model]; ok {
 		return p
@@ -271,6 +285,7 @@ func (m *metricsCollector) seedKeyUsage(usage map[string]KeyUsage) {
 				OutputTok: u.OutputTok,
 				TotalTok:  u.TotalTok,
 				Requests:  u.Requests,
+				Cost:      u.Cost,
 			}
 		}
 	}

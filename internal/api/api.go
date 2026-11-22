@@ -108,6 +108,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/instances/stop-all", s.stopAllInstances)
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("POST /api/v1/instances/{id}/autorestart", s.setAutoRestart)
+	m.HandleFunc("PATCH /api/v1/models/{id}/price", s.setModelPrice)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs/download", s.instanceLogsDownload)
@@ -383,13 +384,15 @@ type modelView struct {
 	Instances  []string `json:"instances,omitempty"`
 	Downloaded bool     `json:"downloaded"`
 	CtxSize    int      `json:"ctxSize,omitempty"`
+	PriceIn    float64  `json:"priceInPerM,omitempty"`  // USD / 1M input tokens (F102)
+	PriceOut   float64  `json:"priceOutPerM,omitempty"` // USD / 1M output tokens (F102)
 }
 
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []modelView{}
 	for id, m := range st.Models {
-		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize}
+		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM}
 		for _, inst := range st.Instances {
 			if inst.ModelID == id {
 				v.Instances = append(v.Instances, inst.ID)
@@ -849,6 +852,46 @@ func (s *Server) setInstanceVars(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// setModelPrice handles PATCH /api/v1/models/{id}/price — set the USD
+// per-1M-token price used for per-key cost estimates (F102).
+func (s *Server) setModelPrice(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		PriceInPerM  *float64 `json:"priceInPerM"`
+		PriceOutPerM *float64 `json:"priceOutPerM"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	if (req.PriceInPerM != nil && *req.PriceInPerM < 0) || (req.PriceOutPerM != nil && *req.PriceOutPerM < 0) {
+		writeErr(w, 400, "prices must be >= 0")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Models[id] == nil {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if m := st.Models[id]; m != nil {
+			if req.PriceInPerM != nil {
+				m.PriceInPerM = *req.PriceInPerM
+			}
+			if req.PriceOutPerM != nil {
+				m.PriceOutPerM = *req.PriceOutPerM
+			}
+		}
+		return nil
+	})
+	st, _ = s.store.Load()
+	mm := st.Models[id]
+	if s.gw != nil {
+		s.gw.SetModelPricing(id, cost.ModelPricing{InputPerM: mm.PriceInPerM, OutputPerM: mm.PriceOutPerM})
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "priceInPerM": mm.PriceInPerM, "priceOutPerM": mm.PriceOutPerM})
+}
+
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	force := r.URL.Query().Get("force") == "true"
@@ -1228,6 +1271,7 @@ type keyView struct {
 	CreatedAt     time.Time `json:"createdAt"`
 	TokenQuota    int64     `json:"tokenQuota,omitempty"`
 	UsedTok       int64     `json:"usedTokens"`              // tokens spent since daemon start (F074)
+	UsedCost      float64   `json:"usedCost"`                // estimated USD spent (F102)
 	AllowedModels []string  `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
 	MaxConcurrent int       `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
 }
@@ -1242,7 +1286,10 @@ func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 			if len(p) > 8 {
 				p = p[:8] // gateway counters key on the first 8 chars
 			}
-			v.UsedTok = s.gw.KeyTotalTokens(p)
+			if ku, ok := s.gw.KeyUsage()[p]; ok {
+				v.UsedTok = ku.TotalTok
+				v.UsedCost = ku.Cost
+			}
 		}
 		out = append(out, v)
 	}

@@ -29,6 +29,7 @@ import (
 	"llmctl/internal/api"
 	"llmctl/internal/backend"
 	"llmctl/internal/backup"
+	"llmctl/internal/cost"
 	"llmctl/internal/events"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
@@ -159,7 +160,7 @@ func Run(ctx context.Context, opts Options) error {
 	if cur, err := st.Load(); err == nil && len(cur.KeyUsage) > 0 {
 		seed := make(map[string]proxy.KeyUsage, len(cur.KeyUsage))
 		for k, u := range cur.KeyUsage {
-			seed[k] = proxy.KeyUsage{InputTok: u.Input, OutputTok: u.Output, TotalTok: u.Total, Requests: u.Requests}
+			seed[k] = proxy.KeyUsage{InputTok: u.Input, OutputTok: u.Output, TotalTok: u.Total, Requests: u.Requests, Cost: u.Cost}
 		}
 		gw.SeedKeyUsage(seed)
 	}
@@ -167,6 +168,7 @@ func Run(ctx context.Context, opts Options) error {
 	if cur, err := st.Load(); err == nil && len(cur.DailyUsage) > 0 {
 		gw.SeedDaily(cur.DailyUsage)
 	}
+	syncPricing(st, gw) // per-model price overrides (F102)
 	go flushKeyUsageLoop(ctx, st, gw, logger)
 
 	// Initialize scheduler and start the scheduler loop.
@@ -396,9 +398,26 @@ func flushKeyUsageLoop(ctx context.Context, st *store.Store, gw *proxy.Server, l
 	}
 }
 
+// syncPricing pushes per-model price overrides from state into the gateway's
+// cost tracker (F102).
+func syncPricing(st *store.Store, gw *proxy.Server) {
+	cur, err := st.Load()
+	if err != nil {
+		return
+	}
+	p := map[string]cost.ModelPricing{}
+	for id, m := range cur.Models {
+		if m.PriceInPerM != 0 || m.PriceOutPerM != 0 {
+			p[id] = cost.ModelPricing{InputPerM: m.PriceInPerM, OutputPerM: m.PriceOutPerM}
+		}
+	}
+	gw.SetPricing(p)
+}
+
 // flushUsage writes the gateway's per-key counters and daily rollup to the
 // state file (F080, F097).
 func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
+	syncPricing(st, gw)
 	usage := gw.KeyUsage()
 	daily := gw.DailyUsage()
 	if len(usage) == 0 && len(daily) == 0 {
@@ -408,7 +427,7 @@ func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 		s.KeyUsage = make(map[string]*store.KeyUsageRecord, len(usage))
 		for k, u := range usage {
 			s.KeyUsage[k] = &store.KeyUsageRecord{
-				Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests,
+				Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests, Cost: u.Cost,
 			}
 		}
 		s.DailyUsage = daily // deep copy from the collector (F097)

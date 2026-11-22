@@ -105,6 +105,7 @@ Usage:
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id>
   llmctl models ctx <model-id> <tokens|0>
+  llmctl models price <model-id> <in-per-M> <out-per-M>
   llmctl models hf-search <query>
   llmctl models hf-files <repo>
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
@@ -416,6 +417,28 @@ func cmdModels(args []string) error {
 		fmt.Println(string(out))
 		if code != 200 {
 			return fmt.Errorf("ctx returned %d", code)
+		}
+		return nil
+	case "price":
+		if len(rest) < 3 {
+			return fmt.Errorf("usage: llmctl models price <model-id> <in-per-M> <out-per-M>  (USD, 0 = free)")
+		}
+		inP, err := strconv.ParseFloat(rest[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid price: %s", rest[1])
+		}
+		outP, err := strconv.ParseFloat(rest[2], 64)
+		if err != nil {
+			return fmt.Errorf("invalid price: %s", rest[2])
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/models/"+urlEscape(rest[0])+"/price",
+			map[string]any{"priceInPerM": inP, "priceOutPerM": outP})
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("price returned %d", code)
 		}
 		return nil
 	case "hf-search":

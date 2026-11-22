@@ -395,6 +395,7 @@ export interface ApiKey {
   createdAt: string;
   tokenQuota?: number;
   usedTokens: number;
+  usedCost?: number;
   allowedModels?: string[];
   maxConcurrent?: number;
 }

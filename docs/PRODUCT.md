@@ -124,7 +124,9 @@ toggle for a light theme (choice remembered). Tabs:
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
-  survive model swaps; the gateway advertises them in /v1/models.
+  survive model swaps; the gateway advertises them in /v1/models. Optional
+  per-model USD pricing (`llmctl models price <id> <in> <out>`) drives the
+  per-key cost estimates (F102).
 - **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop.
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Assistant messages carry real
@@ -237,9 +239,9 @@ toggle for a light theme (choice remembered). Tabs:
 - **API Keys** — generate / list / revoke. Optional per-key token quota
   (total prompt+completion tokens); once spent, the gateway returns 429
   until the quota is raised. Usage counters persist across restarts. Keys
-  page shows usage. Optional per-key model allowlist (403 for other
-  models; aliases resolved before checking) and concurrency cap
-  (429 while more than N requests are in flight).
+  page shows usage and estimated cost. Optional per-key model allowlist
+  (403 for other models; aliases resolved before checking) and concurrency
+  cap (429 while more than N requests are in flight).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each

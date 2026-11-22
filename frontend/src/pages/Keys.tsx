@@ -144,6 +144,7 @@ export default function Keys() {
                   <td>{new Date(k.createdAt).toLocaleString()}</td>
                   <td className="mono">
                     {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
+                    {k.usedCost ? <span className="muted"> · ${k.usedCost.toFixed(4)}</span> : null}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {k.allowedModels?.length ? k.allowedModels.join(", ") : "all"}

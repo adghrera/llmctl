@@ -39,6 +39,10 @@ type ModelRecord struct {
 	// instances of this model; 0 = backend default. Overridable per start
 	// via vars["ctx"].
 	CtxSize int `json:"ctxSize,omitempty"`
+	// PriceInPerM / PriceOutPerM are the estimated USD cost per 1M tokens,
+	// used for per-key cost tracking (F102). 0 = free/local.
+	PriceInPerM  float64 `json:"priceInPerM,omitempty"`
+	PriceOutPerM float64 `json:"priceOutPerM,omitempty"`
 }
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.
@@ -157,10 +161,11 @@ type State struct {
 // KeyUsageRecord is the persisted token usage for one API key prefix, so
 // per-key quotas (F074) survive daemon restarts (F080).
 type KeyUsageRecord struct {
-	Input    int64 `json:"input"`
-	Output   int64 `json:"output"`
-	Total    int64 `json:"total"`
-	Requests int64 `json:"requests"`
+	Input    int64   `json:"input"`
+	Output   int64   `json:"output"`
+	Total    int64   `json:"total"`
+	Requests int64   `json:"requests"`
+	Cost     float64 `json:"cost,omitempty"` // estimated USD (F102)
 }
 
 // DailyModelUsage is one day's gateway usage for one model (F097).

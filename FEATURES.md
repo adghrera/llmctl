@@ -111,6 +111,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F099 | P2 | 99 | daemon | Events feed | COMPLETED | New `internal/events` ring (200 entries) records instance crashes, auto-restarts and idle-unloads; `GET /api/v1/events[?limit=N]` + an "Events" card on the Overview page. Verified live: crash of a killed stdio instance appeared within one reap cycle. |
 | F100 | P1 | 100 | gateway | Start on demand | COMPLETED | `settings.startOnDemand` (Settings toggle): a gateway request for a model with an auto-start declaration and no running instance cold-starts it (serialized so parallel requests start it once); the request waits for health, alias names resolve, and an `instance.started-on-demand` event is recorded. Verified live: 503 off, 200 on (direct + alias), event logged. |
 | F101 | P3 | 101 | cli | `events` command | COMPLETED | `llmctl events [-n 20]` prints the daemon events feed (crashes, auto-restarts, idle unloads, cold starts) newest-first. Verified live against the running daemon. |
+| F102 | P2 | 102 | usage | Per-key cost + model pricing | COMPLETED | Models carry optional USD/1M-token prices (`PATCH /api/v1/models/{id}/price`, `llmctl models price <id> <in> <out>`, applied immediately and re-synced from state); per-key estimated cost is tracked, persisted across restarts (seed/flush now carry Cost) and shown in the Keys page and `/keys`. Verified live: 21/7 tokens at 100/200 → $0.0035, survived restart. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

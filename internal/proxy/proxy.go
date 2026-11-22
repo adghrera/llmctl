@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"llmctl/internal/cost"
 	"llmctl/internal/store"
 )
 
@@ -768,6 +769,17 @@ func keyPrefix(key string) string {
 
 // KeyUsage exposes per-key token totals (F074).
 func (s *Server) KeyUsage() map[string]KeyUsage { return s.collector.keyUsage() }
+
+// SetPricing replaces the per-model pricing table used for per-key cost
+// estimates (F102).
+func (s *Server) SetPricing(p map[string]cost.ModelPricing) {
+	s.collector.setPricing(p)
+}
+
+// SetModelPricing updates one model's price immediately (F102).
+func (s *Server) SetModelPricing(model string, p cost.ModelPricing) {
+	s.collector.setModelPricing(model, p)
+}
 
 // DailyUsage returns the UTC-date -> model usage rollup (F097).
 func (s *Server) DailyUsage() map[string]map[string]*store.DailyModelUsage {
