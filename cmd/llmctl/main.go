@@ -937,12 +937,19 @@ func cmdScheduler(args []string) error {
 	}
 	switch sub {
 	case "list":
+		fs := flag.NewFlagSet("scheduler list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw scheduler JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler")
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("scheduler list returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var recs []struct {
 			ID   string `json:"id"`

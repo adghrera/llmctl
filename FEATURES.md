@@ -212,6 +212,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F200 | P3 | 200 | cli | `backups list -json` | COMPLETED | `llmctl backups list -json` prints the raw snapshots JSON for scripts. Verified live: output parses as JSON (3 backups); table mode unchanged. |
 | F201 | P3 | 201 | cli | `models list -json` | COMPLETED | `llmctl models list -json` prints the raw models JSON for scripts. Verified live: output parses as JSON (7 models); table mode unchanged. |
 | F202 | P3 | 202 | cli | `key list -json` | COMPLETED | `llmctl key list -json` prints the raw keys JSON for scripts. Verified live: output parses as JSON (34 keys); table mode unchanged. |
+| F203 | P3 | 203 | cli | `scheduler list -json` | COMPLETED | `llmctl scheduler list -json` prints the raw scheduler JSON (incl. lastRun) for scripts. Verified live: empty list and a created task both parse as JSON. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

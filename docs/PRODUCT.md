@@ -385,7 +385,7 @@ llmctl key generate|show|note|enable|disable|list|revoke|prune   (generate: -quo
                                         show: one key's full view; note: set a free-text note;
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)
-llmctl scheduler list|add|run|runs|enable|disable|delete
+llmctl scheduler list|add|run|runs|enable|disable|delete   (list --json for scripts)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …]
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [--csv] [--json]
