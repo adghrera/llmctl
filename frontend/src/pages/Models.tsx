@@ -350,7 +350,7 @@ export default function Models() {
           </div>
         )}
       </div>
-      <div className="card">
+      <div className="card" id="register-local">
         <h2>Register local model</h2>
         <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
           <label className="oc-field" style={{ fontSize: 12 }}>
@@ -508,6 +508,20 @@ export default function Models() {
                   <td style={{ textAlign: "right" }}>
                     <button className="btn sm" disabled={busy || !m.downloaded} onClick={() => viewMeta(m.id)}>
                       {metaFor === m.id ? "Hide meta" : "Meta"}
+                    </button>{" "}
+                    <button
+                      className="btn sm"
+                      disabled={busy}
+                      title="pre-fill the register form from this model"
+                      onClick={() => {
+                        setRegId(`${m.id}-copy`);
+                        setRegPath(m.path);
+                        setRegBackend(m.backendId);
+                        document.getElementById("register-local")?.scrollIntoView({ behavior: "smooth" });
+                        ok("register form pre-filled — choose a new id");
+                      }}
+                    >
+                      Dup
                     </button>{" "}
                     <button className="btn sm danger" disabled={busy || m.running} onClick={() => remove(m.id)}>
                       Remove
