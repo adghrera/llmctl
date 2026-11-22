@@ -234,7 +234,7 @@ Usage:
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
+  llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
@@ -4762,6 +4762,7 @@ func cmdChats(args []string) error {
 	fs := flag.NewFlagSet("chats", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of conversations")
 	jsonOut := fs.Bool("json", false, "print the chat list as JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the chat list as CSV (F378)")
 	// Accept "list" as an explicit subcommand: llmctl chats list [filter].
 	if len(args) > 0 && args[0] == "list" {
 		args = args[1:]
@@ -4819,8 +4820,23 @@ func cmdChats(args []string) error {
 		return nil
 	}
 	if len(list) == 0 {
+		if *csvOut { // keep the stream parseable (F378)
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "title", "model", "messages", "updated_at"})
+			w.Flush()
+			return w.Error()
+		}
 		fmt.Println("no saved chats")
 		return nil
+	}
+	if *csvOut { // F378
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"id", "title", "model", "messages", "updated_at"})
+		for _, c := range list {
+			_ = w.Write([]string{c.ID, c.Title, c.Model, strconv.Itoa(c.Messages), c.UpdatedAt})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("%-18s %-14s %-4s %-14s %s\n", "ID", "MODEL", "MSGS", "UPDATED", "TITLE")
 	for _, c := range list {

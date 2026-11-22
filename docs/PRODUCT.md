@@ -310,7 +310,7 @@ toggle for a light theme (choice remembered). Tabs:
    and `llmctl prompts categories` (lists categories, one per line)
    (F218, F298, F304).
  - **Chat CLI** — `llmctl chats [filter] [-json]` (or `chats list [filter]`)
-   lists saved conversations,
+   lists saved conversations (`--csv` exports the list, F378),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full]` prints one
    with a message preview,
    `llmctl chats search <query> [-json]` full-text searches message content
