@@ -163,8 +163,8 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status [-json] [-watch N]
-  llmctl doctor [-json] [-quiet] [-check NAME]...
-  llmctl gpu [-json]
+  llmctl doctor [-json] [--csv] [-quiet] [-check NAME]...
+  llmctl gpu [-json] [--csv]
   llmctl jobs [-json] [--csv] [-watch N]
   llmctl search <query> [-max N] [-json] [--csv]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
@@ -387,6 +387,7 @@ func cmdDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw doctor JSON (for scripts)")
 	quiet := fs.Bool("quiet", false, "print only warn/error checks (for cron/monitoring)")
+	csvOut := fs.Bool("csv", false, "output the checks as CSV (F429)")
 	var only stringList
 	fs.Var(&only, "check", "only checks whose name contains this (repeatable, F259)")
 	fs.Parse(reorderFlags(args))
@@ -455,6 +456,21 @@ func cmdDoctor(args []string) error {
 		return nil
 	}
 	sym := map[string]string{"ok": "[ok]  ", "warn": "[warn]", "error": "[fail]"}
+	if *csvOut { // F429: header-only when -quiet leaves nothing
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"name", "status", "detail"})
+		for _, c := range res.Checks {
+			if *quiet && c.Status == "ok" {
+				continue
+			}
+			_ = w.Write([]string{c.Name, c.Status, c.Detail})
+		}
+		w.Flush()
+		if !res.OK {
+			return fmt.Errorf("doctor: some checks failed")
+		}
+		return w.Error()
+	}
 	warns := 0
 	for _, c := range res.Checks {
 		if c.Status == "warn" {
@@ -486,6 +502,7 @@ func cmdDoctor(args []string) error {
 func cmdGPU(args []string) error {
 	fs := flag.NewFlagSet("gpu", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw GPU JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the GPU list as CSV (F430)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -512,6 +529,21 @@ func cmdGPU(args []string) error {
 	}
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
+	}
+	if *csvOut { // F430: header-only when no GPUs detected
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"vendor", "name", "total_bytes", "used_bytes", "used_pct"})
+		for _, g := range res.GPUs {
+			pct := 0.0
+			if g.TotalBytes > 0 {
+				pct = 100 * float64(g.UsedBytes) / float64(g.TotalBytes)
+			}
+			_ = w.Write([]string{g.Vendor, g.Name,
+				strconv.FormatInt(g.TotalBytes, 10), strconv.FormatInt(g.UsedBytes, 10),
+				strconv.FormatFloat(pct, 'f', 1, 64)})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	if len(res.GPUs) == 0 {
 		fmt.Println("no GPUs detected")
