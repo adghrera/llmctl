@@ -139,6 +139,8 @@ func main() {
 		err = cmdBackup(args)
 	case "restore":
 		err = cmdRestore(args)
+	case "completion":
+		err = cmdCompletion(args)
 	case "version", "--version", "-v":
 		fmt.Printf("llmctl %s\n", version)
 	case "help", "--help", "-h":
@@ -248,6 +250,7 @@ Usage:
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
   llmctl version
+  llmctl completion [bash|zsh]  print a shell completion script
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
 web UI (http://127.0.0.1:8080/) on one port.
@@ -1588,6 +1591,56 @@ func cmdCompare(args []string) error {
 // cmdCount estimates tokens for text locally (~4 chars/token, the same
 // heuristic the chat context meter uses) — handy for sizing prompts before
 // sending them (F317).
+// llmTopCommands is the canonical top-level command list, used by both the
+// help text and shell completion (F341).
+var llmTopCommands = []string{
+	"up", "down", "status", "doctor", "gpu", "disk", "presets", "catalog",
+	"maxparallel", "jobs", "search", "structured", "embed", "complete",
+	"compare", "count", "bench", "note", "autorestart", "setvars", "ps",
+	"backends", "models", "start", "stop", "restart", "logs", "key",
+	"autostart", "requests", "backups", "usage", "metrics", "events",
+	"webhooks", "prompts", "chats", "skills", "memory", "kb", "tools",
+	"mcp", "cost", "files", "settings", "batch", "scheduler", "chat",
+	"backup", "restore", "version", "help", "completion",
+}
+
+// cmdCompletion prints a shell completion script (bash or zsh) for the
+// top-level llmctl commands (F341).
+func cmdCompletion(args []string) error {
+	shell := "bash"
+	if len(args) > 0 {
+		shell = args[0]
+	}
+	cmds := strings.Join(llmTopCommands, " ")
+	switch shell {
+	case "bash":
+		fmt.Printf(`_llmctl_completions() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  local cmds="%s"
+  COMPREPLY=( $(compgen -W "$cmds" -- "$cur") )
+}
+complete -F _llmctl_completions llmctl
+`, cmds)
+	case "zsh":
+		quoted := ""
+		for _, c := range llmTopCommands {
+			quoted += "  '" + c + "'\n"
+		}
+		fmt.Printf(`#compdef llmctl
+_llmctl() {
+  local -a cmds
+  cmds=(
+%s  )
+  _describe 'command' cmds
+}
+compdef _llmctl llmctl
+`, quoted)
+	default:
+		return fmt.Errorf("usage: llmctl completion [bash|zsh]")
+	}
+	return nil
+}
+
 func cmdCount(args []string) error {
 	fs := flag.NewFlagSet("count", flag.ExitOnError)
 	file := fs.String("file", "", "read the text from this file")

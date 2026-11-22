@@ -551,6 +551,7 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (interactive REPL: /help /clear /system TEXT /model ID
                                      /save [title] /quit, F331)
 llmctl version
+llmctl completion [bash|zsh]                       (print a shell-completion script for llmctl, F341)
 ```
 
 ## Design principles
