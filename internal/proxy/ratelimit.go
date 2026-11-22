@@ -48,11 +48,27 @@ func (rl *rateLimiter) setGetLimits(fn func(string) (float64, int)) {
 	rl.getLimits = fn
 }
 
+// setDefault changes the fallback rps/burst at runtime (F152). Existing
+// buckets refill against the new rate from the next request.
+func (rl *rateLimiter) setDefault(rps float64, burst int) {
+	if rps <= 0 {
+		rps = 20
+	}
+	if burst <= 0 {
+		burst = 60
+	}
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.rps = rps
+	rl.burst = burst
+}
+
 // allow reports whether the request with the given key is allowed.
 // key can be empty, meaning the request is not authenticated and should use the default limits.
 func (rl *rateLimiter) allow(key string) bool {
 	rl.mu.Lock()
 	l, ok := rl.created[key]
+	defRps, defBurst := rl.rps, rl.burst
 	now := time.Now()
 	if !ok {
 		// Evict idle clients past a soft cap so the map can't grow forever.
@@ -76,21 +92,21 @@ func (rl *rateLimiter) allow(key string) bool {
 	var burst int
 	if key == "" {
 		// Use the rate limiter's default rps and burst.
-		rps = float64(rl.rps)
-		burst = rl.burst
+		rps = defRps
+		burst = defBurst
 	} else {
 		if rl.getLimits != nil {
 			rpsTmp, burstTmp := rl.getLimits(key)
 			if rpsTmp == 0 && burstTmp == 0 {
-				rps = float64(rl.rps)
-				burst = rl.burst
+				rps = defRps
+				burst = defBurst
 			} else {
 				rps = rpsTmp
 				burst = burstTmp
 			}
 		} else {
-			rps = float64(rl.rps)
-			burst = rl.burst
+			rps = defRps
+			burst = defBurst
 		}
 	}
 	// Token bucket algorithm.

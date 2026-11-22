@@ -127,6 +127,8 @@ func Run(ctx context.Context, opts Options) error {
 	requireAuth := false
 	allowCORS := false
 	maxBodyMB := 0
+	rateRPS := opts.RateRPS
+	rateBurst := opts.RateBurst
 	s, err := store.Open()
 	if err == nil {
 		state, loadErr := s.Load()
@@ -134,6 +136,12 @@ func Run(ctx context.Context, opts Options) error {
 			requireAuth = state.Settings.RequireAuth
 			allowCORS = state.Settings.AllowCORS
 			maxBodyMB = state.Settings.MaxBodyMB
+			if state.Settings.RateRPS > 0 {
+				rateRPS = state.Settings.RateRPS // runtime-adjusted default wins (F152)
+			}
+			if state.Settings.RateBurst > 0 {
+				rateBurst = state.Settings.RateBurst
+			}
 		}
 	}
 
@@ -143,8 +151,8 @@ func Run(ctx context.Context, opts Options) error {
 		KeyCheck:    nil, // mgmt.KeyCheck set below
 		RequireAuth: requireAuth,
 		AllowCORS:   allowCORS,
-		RateRPS:     opts.RateRPS,
-		RateBurst:   opts.RateBurst,
+		RateRPS:     rateRPS,
+		RateBurst:   rateBurst,
 		MaxInflight: opts.MaxInflight,
 		// Persist the request log across restarts (F086).
 		RequestLogPath: paths.RequestLog(),

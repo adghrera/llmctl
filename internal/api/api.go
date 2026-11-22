@@ -1697,6 +1697,8 @@ type settingsView struct {
 	StartupTimeoutSec   int      `json:"startupTimeoutSec"`
 	StartOnDemand       bool     `json:"startOnDemand"`
 	MaxBodyMB           int      `json:"maxBodyMB"`
+	RateRPS             float64  `json:"rateRPS"`   // gateway default rps, 0 = CLI default (F152)
+	RateBurst           int      `json:"rateBurst"` // gateway default burst, 0 = CLI default (F152)
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1739,6 +1741,8 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
 		StartOnDemand:       st.Settings.StartOnDemand,
 		MaxBodyMB:           st.Settings.MaxBodyMB,
+		RateRPS:             st.Settings.RateRPS,
+		RateBurst:           st.Settings.RateBurst,
 	})
 }
 
@@ -1752,6 +1756,8 @@ type updateSettingsReq struct {
 	StartupTimeoutSec   *int      `json:"startupTimeoutSec"`
 	StartOnDemand       *bool     `json:"startOnDemand"`
 	MaxBodyMB           *int      `json:"maxBodyMB"`
+	RateRPS             *float64  `json:"rateRPS"`   // gateway default rps, 0 = CLI default (F152)
+	RateBurst           *int      `json:"rateBurst"` // gateway default burst, 0 = CLI default (F152)
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1770,6 +1776,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.MaxBodyMB != nil && (*req.MaxBodyMB < 0 || *req.MaxBodyMB > 4096) {
 		writeErr(w, 400, "maxBodyMB must be 0–4096 (0 = default 64)")
+		return
+	}
+	if req.RateRPS != nil && *req.RateRPS < 0 || req.RateBurst != nil && *req.RateBurst < 0 {
+		writeErr(w, 400, "rateRPS and rateBurst must be >= 0 (0 = default)")
 		return
 	}
 	s.store.Update(func(st *store.State) error {
@@ -1806,6 +1816,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.MaxBodyMB != nil {
 			st.Settings.MaxBodyMB = *req.MaxBodyMB
 		}
+		if req.RateRPS != nil {
+			st.Settings.RateRPS = *req.RateRPS // 0 = CLI default (F152)
+		}
+		if req.RateBurst != nil {
+			st.Settings.RateBurst = *req.RateBurst
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1817,6 +1833,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.MaxBodyMB != nil && s.gw != nil {
 		s.gw.SetMaxBodyMB(*req.MaxBodyMB)
+	}
+	if (req.RateRPS != nil || req.RateBurst != nil) && s.gw != nil {
+		st, _ := s.store.Load() // apply the persisted pair (0 = defaults) (F152)
+		s.gw.SetRateDefault(st.Settings.RateRPS, st.Settings.RateBurst)
 	}
 	// Return updated settings.
 	st, _ := s.store.Load()
@@ -1830,6 +1850,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
 		StartOnDemand:       st.Settings.StartOnDemand,
 		MaxBodyMB:           st.Settings.MaxBodyMB,
+		RateRPS:             st.Settings.RateRPS,
+		RateBurst:           st.Settings.RateBurst,
 	})
 }
 

@@ -828,6 +828,12 @@ func (s *Server) SetAllowCORS(on bool) {
 	s.allowCORS.Store(on)
 }
 
+// SetRateDefault changes the gateway's fallback per-key rate limit at
+// runtime; 0 restores the defaults (20 rps, 60 burst) (F152).
+func (s *Server) SetRateDefault(rps float64, burst int) {
+	s.limiter.setDefault(rps, burst)
+}
+
 // cors answers cross-origin preflights and adds Access-Control-Allow-*
 // headers when AllowCORS is enabled; otherwise it is a no-op (F082).
 func (s *Server) cors(next http.Handler) http.Handler {

@@ -7,6 +7,8 @@ export default function SettingsPage() {
   const [idleMin, setIdleMin] = useState(0);
   const [startupSec, setStartupSec] = useState(0);
   const [maxBodyMB, setMaxBodyMB] = useState(0);
+  const [rateRPS, setRateRPS] = useState(0);
+  const [rateBurst, setRateBurst] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [whEvents, setWhEvents] = useState("");
   const [whSecret, setWhSecret] = useState("");
@@ -29,6 +31,8 @@ export default function SettingsPage() {
       setIdleMin(s.idleUnloadMin || 0);
       setStartupSec(s.startupTimeoutSec || 0);
       setMaxBodyMB(s.maxBodyMB || 0);
+      setRateRPS(s.rateRPS || 0);
+      setRateBurst(s.rateBurst || 0);
       setWebhook(s.notifyWebhook || "");
       setWhEvents((s.notifyEvents || []).join(", "));
       setWhSecret(s.notifyWebhookSecret || "");
@@ -85,6 +89,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ maxBodyMB });
       setSettings(r);
       ok((r.maxBodyMB ?? 0) > 0 ? `max request body: ${r.maxBodyMB} MiB` : "max request body back to default (64 MiB)");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveRate = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ rateRPS, rateBurst });
+      setSettings(r);
+      ok((r.rateRPS ?? 0) > 0 ? `default rate: ${r.rateRPS} rps / burst ${r.rateBurst}` : "default rate back to CLI defaults");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -268,6 +286,36 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               Gateway requests with a larger body are rejected with 413.
               0 uses the default (64 MiB).
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Default rate limit</h3>
+              <div className="spacer" />
+              <input
+                type="number"
+                min={0}
+                step="0.1"
+                style={{ width: 80 }}
+                value={rateRPS}
+                onChange={(e) => setRateRPS(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <span className="muted small">rps</span>
+              <input
+                type="number"
+                min={0}
+                style={{ width: 80 }}
+                value={rateBurst}
+                onChange={(e) => setRateBurst(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <span className="muted small">burst</span>
+              <button className="btn primary" disabled={busy} onClick={saveRate}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Fallback per-key rate limit for keys without their own limit.
+              0 uses the CLI defaults (20 rps, burst 60).
             </p>
           </div>
           <div>

@@ -110,7 +110,10 @@ GitHub release, or file list. No recompile.
 - `GET /v1/models` (merged view of running instances)
 - `GET /healthz`
 - OpenAI error envelope; 401/404/429/502/503 semantics.
-- Per-client rate limit + global in-flight cap.
+- Per-client rate limit + global in-flight cap. The fallback per-key rate
+  (used when a key has no own limit, and for unauthenticated traffic keyed on
+  IP) is adjustable at runtime from Settings or `PATCH /api/v1/settings`
+  (`rateRPS`/`rateBurst`, 0 = CLI defaults) and persists across restarts (F152).
 - Replicas of one model are load-balanced least-loaded-first (F113), and a
   replica whose connection fails is retried on the next replica
   automatically (F070). The Instances page shows each instance's in-flight

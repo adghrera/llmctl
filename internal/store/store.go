@@ -143,6 +143,10 @@ type Settings struct {
 	StartOnDemand bool `json:"startOnDemand"`
 	// MaxBodyMB caps gateway request body size in MiB; 0 = 64 default (F121).
 	MaxBodyMB int `json:"maxBodyMB,omitempty"`
+	// RateRPS/RateBurst override the gateway's default per-key rate limit
+	// at runtime (0 = CLI default / 20 rps, 60 burst) (F152).
+	RateRPS   float64 `json:"rateRPS,omitempty"`
+	RateBurst int     `json:"rateBurst,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.
