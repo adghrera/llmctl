@@ -199,6 +199,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F187 | P3 | 187 | events | `events -watch` live tail | COMPLETED | `llmctl events -watch N` prints the current feed then polls every N seconds and prints only new events (deduped by time+kind+instance+model) until Ctrl-C. Verified live: killed a stdio instance's process while watching → `instance.crashed` line appeared within one poll interval. |
 | F188 | P3 | 188 | chat | `chat --system` prompt | COMPLETED | `llmctl chat --system TEXT` prepends a system message to the conversation. Verified live against an echo stub: with the flag the backend received `[{system},{user}]`, without it only `[{user}]`. |
 | F189 | P3 | 189 | requests | Time-range filter | COMPLETED | `GET /api/v1/requests` accepts `since`/`until` (RFC3339); `llmctl requests -since/-until` also take durations (`30m`, `2h` = "that long ago"), and the Requests page gained two datetime pickers. Verified live: since-future → 0 rows, since-1h → subset, CLI duration flags match. |
+| F190 | P3 | 190 | keys | NOTE column in `key list` | COMPLETED | `llmctl key list` now shows each key's free-text note (F186) in a trailing NOTE column (truncated to 28 chars). Verified live: a key created with a note shows it in the list. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
