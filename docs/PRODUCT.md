@@ -450,7 +450,8 @@ toggle for a light theme (choice remembered). Tabs:
   executions — status, duration and error/result excerpt
   (GET /api/v1/scheduler/runs, F145) with an Export CSV button matching
   `scheduler runs --csv` (F418, F419); `scheduler runs -out FILE` writes the
-  run-log JSON to a file (F476). Each task row also shows its most
+  run-log JSON to a file (F476); `scheduler runs -watch N` live-tails new runs
+  every N seconds (F555). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
    and `llmctl scheduler list` (F184), plus an "Export CSV" button on the
    task list with the same columns as `scheduler list --csv` (F391).

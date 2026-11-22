@@ -254,7 +254,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
-  llmctl scheduler runs [-n 20] [--csv] [-out FILE]
+  llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name> [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
@@ -3991,15 +3991,9 @@ func cmdScheduler(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the run log as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the run log as CSV (F418)")
 		outFile := fs.String("out", "", "write the run log JSON to this file instead of stdout (F476)")
+		watch := fs.Int("watch", 0, "poll every N seconds and print new runs until Ctrl-C (0 = print once) (F555)")
 		fs.Parse(reorderFlags(rest))
-		code, out, err := cc.Get("/api/v1/scheduler/runs")
-		if err != nil {
-			return err
-		}
-		if code != 200 {
-			return fmt.Errorf("scheduler runs returned %d: %s", code, out)
-		}
-		var runs []struct {
+		type runRow struct {
 			Time       time.Time `json:"time"`
 			Name       string    `json:"name"`
 			Kind       string    `json:"kind"`
@@ -4007,7 +4001,22 @@ func cmdScheduler(args []string) error {
 			DurationMs int64     `json:"durationMs"`
 			Detail     string    `json:"detail"`
 		}
-		if err := json.Unmarshal(out, &runs); err != nil {
+		fetch := func() ([]runRow, error) {
+			code, out, err := cc.Get("/api/v1/scheduler/runs")
+			if err != nil {
+				return nil, err
+			}
+			if code != 200 {
+				return nil, fmt.Errorf("scheduler runs returned %d: %s", code, out)
+			}
+			var runs []runRow
+			if err := json.Unmarshal(out, &runs); err != nil {
+				return nil, err
+			}
+			return runs, nil
+		}
+		runs, err := fetch()
+		if err != nil {
 			return err
 		}
 		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F476)
@@ -4042,22 +4051,53 @@ func cmdScheduler(args []string) error {
 			w.Flush()
 			return w.Error()
 		}
-		if len(runs) == 0 {
-			fmt.Println("no scheduler runs yet (ring is in-memory, cleared on daemon restart)")
-			return nil
-		}
-		if *n > 0 && *n < len(runs) {
-			runs = runs[:*n]
-		}
-		fmt.Printf("%-19s %-20s %-14s %-6s %8s %s\n", "TIME", "TASK", "KIND", "STATUS", "MS", "DETAIL")
-		for _, r := range runs {
+		printRow := func(r runRow) {
 			detail := r.Detail
 			if len(detail) > 60 {
 				detail = detail[:60] + "…"
 			}
 			fmt.Printf("%-19s %-20s %-14s %-6s %8d %s\n", r.Time.Local().Format("2006-01-02 15:04:05"), r.Name, r.Kind, r.Status, r.DurationMs, detail)
 		}
-		return nil
+		if len(runs) == 0 {
+			fmt.Println("no scheduler runs yet (ring is in-memory, cleared on daemon restart)")
+		} else {
+			if *n > 0 && *n < len(runs) {
+				runs = runs[:*n]
+			}
+			fmt.Printf("%-19s %-20s %-14s %-6s %8s %s\n", "TIME", "TASK", "KIND", "STATUS", "MS", "DETAIL")
+			for _, r := range runs {
+				printRow(r)
+			}
+		}
+		if *watch <= 0 {
+			return nil
+		}
+		// Live tail: remember what we've shown and print only newer runs (F555).
+		seen := map[string]bool{}
+		key := func(r runRow) string {
+			return fmt.Sprintf("%d|%s|%s", r.Time.UnixNano(), r.Name, r.Kind)
+		}
+		for _, r := range runs {
+			seen[key(r)] = true
+		}
+		fmt.Printf("\nwatching for new scheduler runs every %ds (Ctrl-C to stop)…\n", *watch)
+		for {
+			time.Sleep(time.Duration(*watch) * time.Second)
+			cur, err := fetch()
+			if err != nil {
+				return err
+			}
+			var fresh []runRow
+			for _, r := range cur { // newest-first; collect unseen
+				if !seen[key(r)] {
+					fresh = append(fresh, r)
+					seen[key(r)] = true
+				}
+			}
+			for i := len(fresh) - 1; i >= 0; i-- { // print oldest-first
+				printRow(fresh[i])
+			}
+		}
 	case "run":
 		if len(rest) == 0 {
 			return fmt.Errorf("usage: llmctl scheduler run <id>")
