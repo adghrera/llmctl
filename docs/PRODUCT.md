@@ -190,7 +190,8 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl backends remove`, F658), Export CSV on the list (F404).
 - **Models** — HuggingFace search + file picker, download with live progress.
   The installed-models table has a live text filter (id/backend/path, F332)
-  and an Export CSV button for the filtered list (same columns as
+  and a tag dropdown filtering by exact tag (UI twin of `models list -tag`,
+  F682), and an Export CSV button for the filtered list (same columns as
   `llmctl models list --csv`, F377) plus a Stats toggle rolling the filtered
   list up per backend — models, running, size — mirroring `models stats` (F634).
   A Rename button (and `llmctl models rename`) changes a model id, updating
@@ -567,7 +568,8 @@ toggle for a light theme (choice remembered). Tabs:
   until the quota is raised. Usage counters persist across restarts and are
   tracked per key id, so keys that share a visible prefix never share usage
   (F109). Keys page shows usage and estimated cost, today's per-key usage
-  (F127), a live text filter (name/id/prefix, F335), an Export CSV button for
+  (F127), a live text filter (name/id/prefix, F335) and a tag dropdown
+  (UI twin of `key list -tag`, F682), an Export CSV button for
   the filtered list (same columns as `llmctl key list --csv`, F375), and links
   each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed

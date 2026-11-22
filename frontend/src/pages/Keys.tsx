@@ -29,6 +29,7 @@ export default function Keys() {
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
   const [filter, setFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState(""); // tag dropdown filter (F682)
 
   useEffect(() => {
     let alive = true;
@@ -245,7 +246,9 @@ export default function Keys() {
   };
 
   const low = filter.trim().toLowerCase();
-  const shownKeys = low
+  // tag dropdown filter, UI twin of `llmctl key list -tag T` (F682)
+  const keyTags = Array.from(new Set(keys.flatMap((k) => k.tags ?? []))).sort();
+  const shownKeys0 = low
     ? keys.filter(
         (k) =>
           (k.name || "").toLowerCase().includes(low) ||
@@ -253,6 +256,7 @@ export default function Keys() {
           (k.prefix || "").toLowerCase().includes(low)
       )
     : keys;
+  const shownKeys = tagFilter ? shownKeys0.filter((k) => (k.tags ?? []).includes(tagFilter)) : shownKeys0;
 
   return (
     <>
@@ -405,6 +409,29 @@ export default function Keys() {
           onChange={(e) => setFilter(e.target.value)}
           style={{ width: "100%", margin: "4px 0 10px" }}
         />
+        {keyTags.length > 0 && (
+          <div className="row" style={{ gap: 6, alignItems: "center", margin: "0 0 10px" }}>
+            <select
+              className="input"
+              style={{ fontSize: 12, width: "auto" }}
+              title="filter by tag (CLI: llmctl key list -tag T, F682)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {keyTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            {tagFilter && (
+              <span className="muted small">
+                {shownKeys.length} of {keys.length}
+              </span>
+            )}
+          </div>
+        )}
         {keys.some((k) => k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()) && (
           <p style={{ margin: "0 0 10px" }}>
             <button className="btn sm danger" disabled={busy} onClick={pruneExpired}>

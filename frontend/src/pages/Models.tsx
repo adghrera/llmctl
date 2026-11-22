@@ -16,6 +16,7 @@ export default function Models() {
   const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
   const [today, setToday] = useState<Record<string, { requests: number; cost: number }>>({});
   const [filter, setFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState(""); // tag dropdown filter (F682)
   const [showStats, setShowStats] = useState(false); // per-backend rollup (CLI `models stats` parity, F634)
 
   useEffect(() => {
@@ -483,7 +484,7 @@ export default function Models() {
               // Same columns as `llmctl models list --csv` (F372/F377).
               const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
               const low = filter.trim().toLowerCase();
-              const shown = low
+              let shown = low
                 ? models.filter(
                     (m) =>
                       m.id.toLowerCase().includes(low) ||
@@ -492,6 +493,7 @@ export default function Models() {
                       (m.tags ?? []).some((t) => t.toLowerCase().includes(low))
                   )
                 : models;
+              if (tagFilter) shown = shown.filter((m) => (m.tags ?? []).includes(tagFilter));
               const head = ["id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note", "tags"];
               const rows = [
                 head.join(","),
@@ -525,10 +527,31 @@ export default function Models() {
           onChange={(e) => setFilter(e.target.value)}
           style={{ width: "100%", margin: "4px 0 10px" }}
         />
+        {models.some((m) => m.tags?.length) && (
+          <div className="row" style={{ gap: 6, alignItems: "center", margin: "0 0 10px" }}>
+            <select
+              className="input"
+              style={{ fontSize: 12, width: "auto" }}
+              title="filter by tag (CLI: llmctl models list -tag T, F682)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {Array.from(new Set(models.flatMap((m) => m.tags ?? [])))
+                .sort()
+                .map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+            </select>
+            {tagFilter && <span className="muted small">filtering by tag “{tagFilter}”</span>}
+          </div>
+        )}
         {models.length ? (
           (() => {
             const low = filter.trim().toLowerCase();
-            const shown = low
+            let shown = low
               ? models.filter(
                   (m) =>
                     m.id.toLowerCase().includes(low) ||
@@ -536,6 +559,7 @@ export default function Models() {
                     (m.path || "").toLowerCase().includes(low)
                 )
               : models;
+            if (tagFilter) shown = shown.filter((m) => (m.tags ?? []).includes(tagFilter));
             if (showStats) {
               // Same rollup as `llmctl models stats` (F634): one row per
               // backend, sorted by total size.
