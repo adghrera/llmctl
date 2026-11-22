@@ -252,6 +252,7 @@ export interface KB {
     id: string;
     name: string;
     description?: string;
+    tags?: string[];
     created_at: string;
     updated_at: string;
     doc_count: number;
@@ -746,6 +747,8 @@ export const api = {
   updateKB: (id: string, body: { name?: string; description?: string }) =>
     req<KB>(`/knowledge-bases/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteKB: (id: string) => req<{ ok: boolean }>(`/knowledge-bases/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setKBTags: (id: string, tags: string[]) =>
+    req<{ ok: boolean; tags: string[] }>(`/knowledge-bases/${encodeURIComponent(id)}/tags`, { method: "PATCH", body: JSON.stringify({ tags }) }),
   listKBDocs: (kbId: string) => req<KBDoc[]>(`/knowledge-bases/${encodeURIComponent(kbId)}/documents`),
   uploadKBDoc: (kbId: string, formData: FormData) =>
     fetch(`/api/v1/knowledge-bases/${encodeURIComponent(kbId)}/documents`, {

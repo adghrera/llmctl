@@ -278,7 +278,7 @@ Usage:
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
-  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
@@ -2334,7 +2334,7 @@ var llmSubCommands = map[string]string{
 	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
 	"files":     "list upload cat delete",
 	"jobs":      "wait show clear",
-	"kb":        "list show create update docs doc add-doc export search embed delete",
+	"kb":        "list show create update tag retag docs doc add-doc export search embed delete",
 	"key":       "generate duplicate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
@@ -8368,7 +8368,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "update", "docs", "doc", "add-doc", "export", "search", "embed", "delete":
+		case "list", "show", "create", "update", "tag", "retag", "docs", "doc", "add-doc", "export", "search", "embed", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -8498,10 +8498,11 @@ func cmdKb(args []string) error {
 		}
 		var list []struct {
 			KB struct {
-				ID          string `json:"id"`
-				Name        string `json:"name"`
-				Description string `json:"description"`
-				DocCount    int    `json:"doc_count"`
+				ID          string   `json:"id"`
+				Name        string   `json:"name"`
+				Description string   `json:"description"`
+				Tags        []string `json:"tags"`
+				DocCount    int      `json:"doc_count"`
 			} `json:"kb"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
@@ -8510,14 +8511,16 @@ func cmdKb(args []string) error {
 		if filter != "" {
 			var keep []struct {
 				KB struct {
-					ID          string `json:"id"`
-					Name        string `json:"name"`
-					Description string `json:"description"`
-					DocCount    int    `json:"doc_count"`
+					ID          string   `json:"id"`
+					Name        string   `json:"name"`
+					Description string   `json:"description"`
+					Tags        []string `json:"tags"`
+					DocCount    int      `json:"doc_count"`
 				} `json:"kb"`
 			}
 			for _, kb := range list {
-				if strings.Contains(strings.ToLower(kb.KB.Name+" "+kb.KB.Description), filter) {
+				hay := kb.KB.Name + " " + kb.KB.Description + " " + strings.Join(kb.KB.Tags, " ")
+				if strings.Contains(strings.ToLower(hay), filter) {
 					keep = append(keep, kb)
 				}
 			}
@@ -8542,7 +8545,7 @@ func cmdKb(args []string) error {
 		if len(list) == 0 {
 			if *csvOut { // keep the stream parseable (F379)
 				w := csv.NewWriter(os.Stdout)
-				_ = w.Write([]string{"id", "name", "docs", "description"})
+				_ = w.Write([]string{"id", "name", "docs", "description", "tags"})
 				w.Flush()
 				return w.Error()
 			}
@@ -8551,9 +8554,9 @@ func cmdKb(args []string) error {
 		}
 		if *csvOut { // F379
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "name", "docs", "description"})
+			_ = w.Write([]string{"id", "name", "docs", "description", "tags"})
 			for _, kb := range list {
-				_ = w.Write([]string{kb.KB.ID, kb.KB.Name, strconv.Itoa(kb.KB.DocCount), kb.KB.Description})
+				_ = w.Write([]string{kb.KB.ID, kb.KB.Name, strconv.Itoa(kb.KB.DocCount), kb.KB.Description, strings.Join(kb.KB.Tags, ";")})
 			}
 			w.Flush()
 			return w.Error()
@@ -8598,11 +8601,12 @@ func cmdKb(args []string) error {
 			ID  string `json:"id"`
 			Dir string `json:"dir"`
 			KB  struct {
-				Name        string `json:"name"`
-				Description string `json:"description"`
-				DocCount    int    `json:"doc_count"`
-				CreatedAt   string `json:"created_at"`
-				UpdatedAt   string `json:"updated_at"`
+				Name        string   `json:"name"`
+				Description string   `json:"description"`
+				Tags        []string `json:"tags"`
+				DocCount    int      `json:"doc_count"`
+				CreatedAt   string   `json:"created_at"`
+				UpdatedAt   string   `json:"updated_at"`
 				Embed       *struct {
 					URL   string `json:"url"`
 					Model string `json:"model"`
@@ -8623,6 +8627,9 @@ func cmdKb(args []string) error {
 		fmt.Printf("%s  %s\n", rec.ID, rec.KB.Name)
 		if rec.KB.Description != "" {
 			fmt.Printf("  description: %s\n", rec.KB.Description)
+		}
+		if len(rec.KB.Tags) > 0 {
+			fmt.Printf("  tags:        %s\n", strings.Join(rec.KB.Tags, ", "))
 		}
 		search := "TF-IDF (no embedding model set)"
 		if rec.KB.Embed != nil {
@@ -8861,6 +8868,104 @@ func cmdKb(args []string) error {
 			return nil
 		}
 		fmt.Printf("knowledge base %s updated\n", rest[0])
+		return nil
+	case "tag":
+		// Replace a KB's tags (comma-separated); empty clears (F664).
+		tfs := flag.NewFlagSet("kb tag", flag.ExitOnError)
+		tj := tfs.Bool("json", false, "print the raw response JSON")
+		tfs.Parse(reorderFlags(rest))
+		if tfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl kb tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tfs.NArg() > 1 {
+			for _, t := range strings.Split(tfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/knowledge-bases/"+url.PathEscape(tfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb tag: %s", out)
+		}
+		if *tj {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("knowledge base %s tags cleared\n", tfs.Arg(0))
+		} else {
+			fmt.Printf("knowledge base %s tags: %s\n", tfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
+	case "retag":
+		// Bulk-rename or drop a tag across all KBs (F664), twin of
+		// `memory retag`; the tag rules live in the tags endpoint.
+		rfs := flag.NewFlagSet("kb retag", flag.ExitOnError)
+		rm := rfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rjson := rfs.Bool("json", false, "print the count as JSON")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() < 1 || (!*rm && rfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl kb retag <old-tag> <new-tag> | kb retag -rm <tag> [-json]")
+		}
+		oldTag, newTag := rfs.Arg(0), rfs.Arg(1)
+		code, out, err := cc.Get("/api/v1/knowledge-bases")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb list returned %d: %s", code, out)
+		}
+		var kbs []struct {
+			ID string `json:"id"`
+			KB struct {
+				Tags []string `json:"tags"`
+			} `json:"kb"`
+		}
+		if err := json.Unmarshal(out, &kbs); err != nil {
+			return err
+		}
+		changed := 0
+		for _, k := range kbs {
+			found := false
+			var tags []string
+			for _, t := range k.KB.Tags {
+				if t != oldTag {
+					tags = append(tags, t)
+					continue
+				}
+				found = true
+				if !*rm {
+					tags = append(tags, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			code, out, err := cc.Do("PATCH", "/api/v1/knowledge-bases/"+url.PathEscape(k.ID)+"/tags",
+				map[string]any{"tags": tags})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("kb retag %s: %s", k.ID, out)
+			}
+			changed++
+		}
+		if *rjson {
+			fmt.Printf("{\"changed\":%d}\n", changed)
+			return nil
+		}
+		if *rm {
+			fmt.Printf("dropped tag %q from %d knowledge base(s)\n", oldTag, changed)
+		} else {
+			fmt.Printf("renamed tag %q to %q on %d knowledge base(s)\n", oldTag, newTag, changed)
+		}
 		return nil
 	case "create":
 		cfs := flag.NewFlagSet("kb create", flag.ExitOnError)

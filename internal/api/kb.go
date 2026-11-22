@@ -99,6 +99,48 @@ func (s *Server) updateKB(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, rec)
 }
 
+// setKBTags handles PATCH /api/v1/knowledge-bases/{id}/tags — replace a
+// KB's free-form tag list, the KB twin of model tags (F664). Tags are
+// trimmed, deduped and capped (20 tags, 40 chars each).
+func (s *Server) setKBTags(w http.ResponseWriter, r *http.Request) {
+	ts, err := s.ragStore()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	seen := map[string]bool{}
+	tags := []string{}
+	for _, t := range req.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+		seen[t] = true
+		tags = append(tags, t)
+	}
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	rec, err := ts.SetTags(r.PathValue("id"), tags)
+	if err != nil {
+		writeErr(w, statusForKB(err), err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "tags": rec.KB.Tags})
+}
+
 // deleteKB handles DELETE /api/v1/knowledge-bases/{id}.
 func (s *Server) deleteKB(w http.ResponseWriter, r *http.Request) {
 	ts, err := s.ragStore()

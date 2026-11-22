@@ -160,6 +160,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/knowledge-bases", s.createKB)
 	m.HandleFunc("GET /api/v1/knowledge-bases/{id}", s.getKB)
 	m.HandleFunc("PUT /api/v1/knowledge-bases/{id}", s.updateKB)
+	m.HandleFunc("PATCH /api/v1/knowledge-bases/{id}/tags", s.setKBTags)
 	m.HandleFunc("DELETE /api/v1/knowledge-bases/{id}", s.deleteKB)
 	m.HandleFunc("GET /api/v1/knowledge-bases/{id}/documents", s.listKBDocs)
 	m.HandleFunc("POST /api/v1/knowledge-bases/{id}/documents", s.uploadKBDoc)

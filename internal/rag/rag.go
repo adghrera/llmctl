@@ -53,6 +53,7 @@ type KB struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
+	Tags        []string  `json:"tags,omitempty"` // free-form labels (F664)
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	DocCount    int       `json:"doc_count"`
@@ -197,6 +198,28 @@ func (s *Store) Update(id, name, description string) (*Record, error) {
 	}
 	rec.KB.Name = name
 	rec.KB.Description = description
+	rec.KB.UpdatedAt = time.Now().UTC()
+	if err := writeJSON(filepath.Join(rec.Dir, ManifestName), rec.KB); err != nil {
+		return nil, err
+	}
+	return s.load(id)
+}
+
+// SetTags replaces a KB's free-form tag list (trim/dedupe/limits are the
+// caller's job), the KB twin of model tags (F664).
+func (s *Store) SetTags(id string, tags []string) (*Record, error) {
+	if !safeID.MatchString(id) {
+		return nil, fmt.Errorf("invalid kb id")
+	}
+	rec, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	if len(tags) == 0 {
+		rec.KB.Tags = nil
+	} else {
+		rec.KB.Tags = tags
+	}
 	rec.KB.UpdatedAt = time.Now().UTC()
 	if err := writeJSON(filepath.Join(rec.Dir, ManifestName), rec.KB); err != nil {
 		return nil, err

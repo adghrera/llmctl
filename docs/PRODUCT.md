@@ -430,6 +430,9 @@ toggle for a light theme (choice remembered). Tabs:
    that rolls the list up per tag, mirroring `memory -stats` (F632).
  - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
+   `kb tag <id> [a,b]` / `kb retag <old> <new> | retag -rm <tag>` label KBs with
+   free-form tags — the KB twin of model tags, shown by `kb show`, matched by
+   the list filter, exported in `--csv` (new `tags` column) (F664),
    `kb show <id> [-json] [-out FILE]` (human view: description, doc list, search mode —
    embeddings vs TF-IDF — F366; -out writes the raw JSON, F505), `kb docs <id> [-json|-csv|-out FILE]` (F618) | `kb delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
    document's text, F320) and
@@ -525,7 +528,9 @@ toggle for a light theme (choice remembered). Tabs:
   Export CSV button on the KB list (F393) and per-KB Export/Import JSON
   (all documents as a [{filename, content}] array, the UI counterpart of
   `llmctl kb export`, F435); dropping a file onto the KB detail card uploads
-  it as a document (F453). Search ranks
+  it as a document (F453). A Tags button per KB (and `llmctl kb tag` /
+  `kb retag`) labels knowledge bases with free-form tags, shown as badges
+  under the name (F664); Search ranks
   chunks by TF-IDF cosine similarity, or by embedding similarity when the KB
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).
@@ -729,6 +734,7 @@ llmctl skills|memory|kb|tools delete <id> [-json] | mcp remove <id> [-json]   (d
 llmctl skills|tools|mcp enable|disable <id> [-json]   (toggles print the raw response with -json, F537)
 llmctl presets delete <name> [-json] | chats delete <id> [-json] | prompts delete <id> [-json] | memory add "<text>" [-json] | kb create <name> [-json]   (print the raw response/created-record JSON with -json, F538)
 llmctl kb add-doc <kb> <path> [-json] | kb update <id> … [-json] | memory update <id> … [-json] | prompts update <id> … [-json] | key update <id> … [-json] | chats pin|unpin <id> [-json]   (print the raw response JSON with -json, F539)
+llmctl kb tag <id> [a,b,c] [-json] | kb retag <old> <new> | kb retag -rm <tag> [-json]   (free-form tags on knowledge bases; retag bulk-renames or drops, F664)
 llmctl scheduler update <id> … [-json] | tools install <dir> [-json] | backups verify <name> [-json] | skills add <manifest.json> [-json]   (print the raw response JSON with -json, F540)
 llmctl catalog install <id> [-json] | kb embed <kb> … [-json]   (print the raw response JSON with -json, F541)
 llmctl presets|scheduler|memory|mcp|prompts|autostart import <file.json> [-json]   (print {"created","skipped"} as JSON; per-item skip notices move to stderr, F542)

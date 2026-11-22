@@ -66,6 +66,22 @@ export default function KnowledgeBases() {
     }
   };
 
+  const setTags = async (kb: KB) => {
+    const next = window.prompt(`Tags for "${kb.kb.name}" (comma-separated, empty clears):`, (kb.kb.tags ?? []).join(", "));
+    if (next === null) return;
+    const tags = next.split(",").map((t) => t.trim()).filter(Boolean);
+    setBusy(true);
+    try {
+      await api.setKBTags(kb.id, tags);
+      ok(tags.length ? `tags on ${kb.kb.name}: ${tags.join(", ")}` : `tags cleared on ${kb.kb.name}`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const deleteKB = async (kb: KB) => {
     if (!window.confirm(`Delete knowledge base "${kb.kb.name}" and all its documents?`)) return;
     setBusy(true);
@@ -342,6 +358,13 @@ export default function KnowledgeBases() {
                   )}
                   <span style={{ opacity: 0.6, fontSize: 12 }}>{kb.kb.id}</span>
                 </div>
+                {(kb.kb.tags?.length ?? 0) > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 2 }}>
+                    {kb.kb.tags!.map((t) => (
+                      <span key={t} className="badge">{t}</span>
+                    ))}
+                  </div>
+                )}
                 {kb.kb.description && (
                   <div style={{ opacity: 0.75, fontSize: 13 }}>{kb.kb.description}</div>
                 )}
@@ -353,6 +376,9 @@ export default function KnowledgeBases() {
               <div className="row" style={{ gap: 4 }}>
                 <button className="btn sm" onClick={() => updateKB(kb)}>
                   Edit
+                </button>
+                <button className="btn sm" title="comma-separated tags (CLI: llmctl kb tag)" onClick={() => setTags(kb)}>
+                  Tags
                 </button>
                 <button
                   className="btn sm"
