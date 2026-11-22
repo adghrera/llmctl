@@ -50,7 +50,7 @@ export default function Requests() {
   const [fSince, setFSince] = useState("");
   const [fUntil, setFUntil] = useState("");
   const [openIdx, setOpenIdx] = useState<number | null>(null);
-  const [byDay, setByDay] = useState(false);
+  const [groupBy, setGroupBy] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -185,13 +185,21 @@ export default function Requests() {
       <p className="muted small" style={{ margin: "0 0 12px" }}>
         Last {entries.length} gateway requests (ring of 256, newest first).{" "}
         {entries.length > 0 && (
-          <button className="btn sm" onClick={() => setByDay(!byDay)}>
-            {byDay ? "Hide by-day stats" : "By-day stats"}
-          </button>
+          <label style={{ marginLeft: 4 }}>
+            group stats{" "}
+            <select value={groupBy} onChange={(ev) => setGroupBy(ev.target.value)}>
+              <option value="">off</option>
+              <option value="day">by day</option>
+              <option value="status">by status</option>
+              <option value="model">by model</option>
+              <option value="key">by key</option>
+              <option value="instance">by instance</option>
+            </select>
+          </label>
         )}
       </p>
       {entries.length > 0 && <StatsBar entries={entries} />}
-      {entries.length > 0 && byDay && <DayStats entries={entries} />}
+      {entries.length > 0 && groupBy && <GroupStats entries={entries} by={groupBy} />}
       {entries.length === 0 ? (
         <div className="empty">no gateway requests yet</div>
       ) : (
@@ -337,22 +345,41 @@ function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
   );
 }
 
-// DayStats groups the visible ring by UTC day — the UI counterpart of
-// `llmctl requests -stats -by day` (F549). Same percentile index as the CLI.
-function DayStats({ entries }: { entries: RequestLogEntry[] }) {
+// GroupStats groups the visible ring by day/status/model/key/instance — the
+// UI counterpart of `llmctl requests -stats -by …` (F549, F554). Same
+// percentile index as the CLI.
+function GroupStats({ entries, by }: { entries: RequestLogEntry[]; by: string }) {
+  const keyOf = (e: RequestLogEntry): string => {
+    switch (by) {
+      case "day":
+        return e.time.slice(0, 10); // RFC3339 UTC → calendar day
+      case "status":
+        return String(e.status);
+      case "model":
+        return e.model || "—";
+      case "key":
+        return e.key || "—";
+      case "instance":
+        return e.instance || "—";
+      default:
+        return "—";
+    }
+  };
   const groups = new Map<string, RequestLogEntry[]>();
   for (const e of entries) {
-    const d = e.time.slice(0, 10); // RFC3339 UTC → calendar day
+    const d = keyOf(e);
     const g = groups.get(d);
     if (g) g.push(e);
     else groups.set(d, [e]);
   }
-  const days = [...groups.keys()].sort().reverse();
+  const keys = [...groups.keys()].sort();
+  if (by === "day") keys.reverse();
+  const label = { day: "Day", status: "Status", model: "Model", key: "Key", instance: "Instance" }[by] || "Group";
   return (
     <table style={{ marginBottom: 12 }}>
       <thead>
         <tr>
-          <th>Day</th>
+          <th>{label}</th>
           <th>Reqs</th>
           <th>Errors</th>
           <th>P50</th>
@@ -363,7 +390,7 @@ function DayStats({ entries }: { entries: RequestLogEntry[] }) {
         </tr>
       </thead>
       <tbody>
-        {days.map((d) => {
+        {keys.map((d) => {
           const es = groups.get(d)!;
           const errors = es.filter((e) => e.status >= 400).length;
           const lat = es.map((e) => e.latencyMs).sort((a, b) => a - b);
