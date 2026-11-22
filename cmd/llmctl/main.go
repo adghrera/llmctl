@@ -222,7 +222,7 @@ Usage:
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-f]
   llmctl key generate [name] [-json]
-  llmctl key show <id> [-json]
+  llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...>
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
   llmctl key disable <id> / llmctl key enable <id>
@@ -8123,6 +8123,7 @@ func cmdKey(args []string) error {
 		}
 		kfs := flag.NewFlagSet("key show", flag.ExitOnError)
 		kjson := kfs.Bool("json", false, "print the raw key JSON (for scripts)")
+		kout := kfs.String("out", "", "write the raw key JSON to this file instead of stdout (F506)")
 		kfs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/keys/" + url.PathEscape(rest[0]))
 		if err != nil {
@@ -8130,6 +8131,13 @@ func cmdKey(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("key show returned %d: %s", code, out)
+		}
+		if *kout != "" { // F506: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*kout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *kout, len(out))
+			return nil
 		}
 		if *kjson {
 			fmt.Print(string(out))
