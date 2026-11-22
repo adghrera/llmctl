@@ -268,7 +268,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
@@ -2178,7 +2178,7 @@ var llmSubCommands = map[string]string{
 	"memory":    "list show add update search delete export import",
 	"models":    "list show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save start delete export import",
-	"prompts":   "list show render categories add update delete export import",
+	"prompts":   "list show render run categories add update delete export import",
 	"scheduler": "list show add update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
 	"skills":    "list show add export import enable disable delete",
@@ -8692,6 +8692,99 @@ func cmdPrompts(args []string) error {
 			return nil
 		}
 		fmt.Println(out2)
+		return nil
+	}
+	if len(args) > 0 && args[0] == "run" { // F579: render the template and send it to a model
+		rfs := flag.NewFlagSet("prompts run", flag.ExitOnError)
+		input := rfs.String("input", "", "text to substitute for {{input}} (default: piped stdin)")
+		var vlist stringList
+		rfs.Var(&vlist, "var", "substitute {{k}} for v (repeatable)")
+		modelF := rfs.String("model", "", "model id to send to (required)")
+		keyF := rfs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled)")
+		system := rfs.String("system", "", "system message prepended to the request")
+		temp := rfs.Float64("temperature", -1, "sampling temperature (-1 = model default)")
+		maxTok := rfs.Int("max-tokens", 0, "max tokens to generate (0 = model default)")
+		rjson := rfs.Bool("json", false, "print the raw gateway JSON instead of the reply text")
+		rfs.Parse(reorderFlags(args[1:]))
+		if rfs.NArg() == 0 || *modelF == "" {
+			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-temperature T] [-max-tokens N] [-key K] [-json]")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/prompts/" + url.PathEscape(rfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompt %q not found (%d)", rfs.Arg(0), code)
+		}
+		var p struct {
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal(out, &p); err != nil {
+			return err
+		}
+		text := *input
+		if text == "" {
+			if b, err := io.ReadAll(os.Stdin); err == nil {
+				text = strings.TrimSpace(string(b))
+			}
+		}
+		rendered := strings.ReplaceAll(p.Content, "{{input}}", text)
+		for _, kv := range vlist {
+			k, v, ok := strings.Cut(kv, "=")
+			if !ok || k == "" {
+				return fmt.Errorf("-var expects k=v, got %q", kv)
+			}
+			rendered = strings.ReplaceAll(rendered, "{{"+strings.TrimSpace(k)+"}}", v)
+		}
+		msgs := []map[string]any{}
+		if strings.TrimSpace(*system) != "" {
+			msgs = append(msgs, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		msgs = append(msgs, map[string]any{"role": "user", "content": rendered})
+		reqBody := map[string]any{"model": *modelF, "messages": msgs}
+		if *temp >= 0 {
+			reqBody["temperature"] = *temp
+		}
+		if *maxTok > 0 {
+			reqBody["max_tokens"] = *maxTok
+		}
+		b, _ := json.Marshal(reqBody)
+		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if *keyF != "" {
+			req.Header.Set("Authorization", "Bearer "+*keyF)
+		}
+		resp, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("chat returned %d: %s", resp.StatusCode, string(body))
+		}
+		if *rjson {
+			fmt.Print(string(body))
+			return nil
+		}
+		var parsed struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+		}
+		if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Choices) == 0 {
+			return fmt.Errorf("unexpected gateway response: %s", body)
+		}
+		fmt.Println(parsed.Choices[0].Message.Content)
 		return nil
 	}
 	if len(args) > 0 && args[0] == "show" {
