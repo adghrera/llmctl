@@ -186,8 +186,8 @@ Usage:
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json]
-  llmctl models unused
-  llmctl models routable [-key K] [-json]   (what the gateway advertises on /v1/models)
+  llmctl models unused [--csv]
+  llmctl models routable [-key K] [-json|-csv]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
   llmctl models aliases [--csv]
   llmctl models alias <name> <model-id>
@@ -2099,6 +2099,7 @@ func cmdModels(args []string) error {
 		rfs := flag.NewFlagSet("models routable", flag.ExitOnError)
 		keyF := rfs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled)")
 		rjson := rfs.Bool("json", false, "print the raw /v1/models JSON")
+		rcsv := rfs.Bool("csv", false, "output the advertised models as CSV (F407)")
 		rfs.Parse(reorderFlags(rest))
 		req, err := http.NewRequest(http.MethodGet, cc.Base+"/v1/models", nil)
 		if err != nil {
@@ -2128,6 +2129,15 @@ func cmdModels(args []string) error {
 		}
 		if err := json.Unmarshal(body, &parsed); err != nil {
 			return err
+		}
+		if *rcsv { // F407: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "owned_by"})
+			for _, m := range parsed.Data {
+				_ = w.Write([]string{m.ID, m.OwnedBy})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(parsed.Data) == 0 {
 			fmt.Println("gateway advertises no models (start an instance or check the key's allowlist)")
@@ -2175,6 +2185,9 @@ func cmdModels(args []string) error {
 	case "unused":
 		// Models with no running instance and no stored instance record —
 		// cleanup candidates (F280).
+		uufs := flag.NewFlagSet("models unused", flag.ExitOnError)
+		uucsv := uufs.Bool("csv", false, "output the unused models as CSV (F408)")
+		uufs.Parse(reorderFlags(rest))
 		_, mout, err := cc.Get("/api/v1/models")
 		if err != nil {
 			return err
@@ -2202,21 +2215,38 @@ func cmdModels(args []string) error {
 		for _, i := range insts {
 			used[i.ModelID] = true
 		}
-		var total int64
-		n := 0
+		var unused []struct {
+			ID   string
+			Size int64
+		}
 		for _, m := range models {
 			if m.Running || used[m.ID] {
 				continue
 			}
+			unused = append(unused, struct {
+				ID   string
+				Size int64
+			}{m.ID, m.Size})
+		}
+		if *uucsv { // F408: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "size_bytes"})
+			for _, m := range unused {
+				_ = w.Write([]string{m.ID, strconv.FormatInt(m.Size, 10)})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		var total int64
+		for _, m := range unused {
 			fmt.Printf("%-24s %-12s %s\n", m.ID, fmtSize(m.Size), "llmctl models remove "+m.ID)
 			total += m.Size
-			n++
 		}
-		if n == 0 {
+		if len(unused) == 0 {
 			fmt.Println("every model has a running or stored instance")
 			return nil
 		}
-		fmt.Printf("total: %d unreferenced model(s), %s reclaimable\n", n, fmtSize(total))
+		fmt.Printf("total: %d unreferenced model(s), %s reclaimable\n", len(unused), fmtSize(total))
 		return nil
 	case "list":
 		fs := flag.NewFlagSet("models list", flag.ExitOnError)
