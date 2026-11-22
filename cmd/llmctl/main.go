@@ -150,7 +150,7 @@ Usage:
   llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats]
   llmctl backups [list|create|restore <name>|delete <name>]
-  llmctl usage [-n 14] [-key ID] [-keys] [--csv] [--json]
+  llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
@@ -1573,6 +1573,7 @@ func cmdUsage(args []string) error {
 	fs := flag.NewFlagSet("usage", flag.ExitOnError)
 	n := fs.Int("n", 14, "number of days")
 	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
+	modelFlag := fs.String("model", "", "in per-model mode, show only this model id")
 	keysFlag := fs.Bool("keys", false, "show daily usage for all keys instead of per-model")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	jsonOut := fs.Bool("json", false, "print the raw usage JSON (for scripts)")
@@ -1712,7 +1713,7 @@ func cmdUsage(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("usage returned %d: %s", code, out)
 	}
-	if *jsonOut {
+	if *jsonOut && *modelFlag == "" {
 		fmt.Print(string(out))
 		return nil
 	}
@@ -1725,6 +1726,27 @@ func cmdUsage(args []string) error {
 	}
 	if err := json.Unmarshal(out, &daily); err != nil {
 		return err
+	}
+	// -model filter: keep only that model's rows (F230).
+	if *modelFlag != "" {
+		for day, models := range daily {
+			for m := range models {
+				if m != *modelFlag {
+					delete(models, m)
+				}
+			}
+			if len(models) == 0 {
+				delete(daily, day)
+			}
+		}
+		if *jsonOut {
+			b, err := json.Marshal(daily)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
+		}
 	}
 	if len(daily) == 0 {
 		fmt.Println("no usage recorded yet")

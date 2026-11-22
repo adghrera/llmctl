@@ -239,6 +239,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F227 | P3 | 227 | cli | `requests -stats` | COMPLETED | `llmctl requests -stats` prints aggregates over the (filtered) request log: count, error count/rate, avg/p50/p95/max latency, total tokens and cost. Verified live: full log and `-status 4` filter both compute correctly. |
 | F228 | P3 | 228 | doctor | Dead-alias check | COMPLETED | `llmctl doctor` gained an "aliases" check: warns when an alias targets a model that no longer exists (can happen after model deletion), ok otherwise. Verified live: delete-then-warn, remove-then-ok. |
 | F229 | P3 | 229 | cli | `requests -stats -json` | COMPLETED | `llmctl requests -stats -json` emits the aggregate stats as JSON (counts, error rate, latency percentiles, tokens, cost); plain `-json` still prints the raw log. Verified live: both modes parse correctly. |
+| F230 | P3 | 230 | cli | `usage -model ID` | COMPLETED | `llmctl usage -model ID` filters the per-model daily table (and `-json` output, and the totals row) to one model. Verified live: table, filtered JSON and unfiltered JSON all correct. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
