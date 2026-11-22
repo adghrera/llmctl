@@ -334,6 +334,7 @@ export default function Keys() {
                     ) : (
                       <span>
                         {k.name}{" "}
+                        {k.disabled && <span className="badge err" title="key disabled">off</span>}{" "}
                         <button
                           className="btn sm"
                           title="rename key"

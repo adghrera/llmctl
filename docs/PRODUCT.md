@@ -301,7 +301,9 @@ toggle for a light theme (choice remembered). Tabs:
   requests count; F105). Optional per-key rate limit (`rateRPS` sustained
    + `rateBurst`, set at create or PATCH; 0 = gateway default; 429 on excess;
    F130). Keys may expire (`expiresInDays` at create/PATCH, 0 = never; expired
-   keys get 403 `key_expired`; F135). Expired keys can be bulk-deleted with
+   keys get 403 `key_expired`; F135). Keys can also be temporarily blocked and
+    re-enabled without deleting them (`llmctl key disable/enable`, PATCH
+    `{"disabled":true}`; blocked keys get 403 `key_disabled`; F195). Expired keys can be bulk-deleted with
    `llmctl key prune` / `POST /api/v1/keys/prune` or the Keys page "Prune
    expired" button (F167). A per-key daily cost budget
    (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once
@@ -379,7 +381,7 @@ llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
-llmctl key generate|show|note|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
+llmctl key generate|show|note|enable|disable|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
                                         show: one key's full view; note: set a free-text note;
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note; prune deletes expired keys)

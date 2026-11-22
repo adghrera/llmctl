@@ -317,6 +317,12 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				fmt.Sprintf("API key %q expired at %s", keyRecord.Name, keyRecord.ExpiresAt.UTC().Format(time.RFC3339)))
 			return
 		}
+		// Disabled keys are blocked until re-enabled (F195).
+		if keyRecord != nil && keyRecord.Disabled {
+			writeErr(w, http.StatusForbidden, "key_disabled",
+				fmt.Sprintf("API key %q is disabled", keyRecord.Name))
+			return
+		}
 		// Counter key: the unique key id when known (F109), else the 8-char
 		// prefix. The old prefix-only keying collided because generated keys
 		// share the "sk-llm-" prefix (only 1 hex char of variance).

@@ -436,6 +436,7 @@ export interface ApiKey {
   lifetimeCompletionTokens?: number;
   lifetimeCost?: number;
   note?: string;
+  disabled?: boolean;
 }
 
 export interface WebhookDelivery {

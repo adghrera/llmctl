@@ -129,6 +129,7 @@ Usage:
   llmctl key generate [name]
   llmctl key show <id>
   llmctl key note <id> <text...>
+  llmctl key disable <id> / llmctl key enable <id>
   llmctl key list
   llmctl key revoke <id>
   llmctl key reset-usage <id>
@@ -1805,11 +1806,15 @@ func cmdKey(args []string) error {
 			LifetimeComp       int64      `json:"lifetimeCompletionTokens"`
 			LifetimeCost       float64    `json:"lifetimeCost"`
 			Note               string     `json:"note"`
+			Disabled           bool       `json:"disabled"`
 		}
 		if err := json.Unmarshal(out, &kv); err != nil {
 			return err
 		}
 		fmt.Printf("id:       %s\nname:     %s\nprefix:   %s…\ncreated:  %s\n", kv.ID, kv.Name, kv.Prefix, kv.CreatedAt.Local().Format("2006-01-02 15:04"))
+		if kv.Disabled {
+			fmt.Printf("status:   disabled\n")
+		}
 		fmt.Printf("usage:    %d tok · %d reqs · $%.4f\n", kv.UsedTok, kv.UsedReqs, kv.UsedCost)
 		if kv.TokenQuota > 0 || kv.MaxRequests > 0 {
 			fmt.Printf("quota:    ")
@@ -1859,6 +1864,20 @@ func cmdKey(args []string) error {
 			fmt.Printf("note set: %s\n", note)
 		}
 		return nil
+	case "disable", "enable":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl key %s <id>", sub)
+		}
+		disabled := sub == "disable"
+		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(rest[0]), map[string]any{"disabled": disabled})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("key %s returned %d: %s", sub, code, out)
+		}
+		fmt.Printf("key %s %sd\n", rest[0], sub)
+		return nil
 	case "list":
 		_, out, err := cc.Get("/api/v1/keys")
 		if err != nil {
@@ -1878,6 +1897,7 @@ func cmdKey(args []string) error {
 			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
 			TodayCost          float64    `json:"todayCost"`
 			Note               string     `json:"note"`
+			Disabled           bool       `json:"disabled"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
@@ -1903,6 +1923,9 @@ func cmdKey(args []string) error {
 					quota += ", "
 				}
 				quota += fmt.Sprintf("$%.4f/%.2f/day", k.TodayCost, k.DailyCostBudgetUSD)
+			}
+			if k.Disabled {
+				quota = "disabled"
 			}
 			expires := "-"
 			if k.ExpiresAt != nil {

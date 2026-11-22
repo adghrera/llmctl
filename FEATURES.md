@@ -204,6 +204,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F192 | P3 | 192 | cli | Human-readable model sizes | COMPLETED | `llmctl models list` shows sizes as KiB/MiB/GiB with a `total:` row; `models show` and `hf-files` also format sizes. Verified live: a 5 MiB model renders `5.0 MiB` and the total row sums correctly. |
 | F193 | P3 | 193 | cli | `doctor -json` | COMPLETED | `llmctl doctor -json` prints the raw doctor payload (like `status -json`) and skips the table; exit code still ≠0 when checks fail. Verified live: output parses as JSON (8 checks), plain mode unchanged. |
 | F194 | P3 | 194 | cli | `ps -watch N` | COMPLETED | `llmctl ps -watch N` live-refreshes the instance table every N seconds (same pattern as `metrics -watch`). Verified live: watch mode clears and reprints the table each second. |
+| F195 | P3 | 195 | keys | Enable/disable toggle | COMPLETED | Keys can be temporarily blocked without deletion: `disabled` on the record, `PATCH {"disabled":true}`, `llmctl key enable/disable <id>`, gateway 403 `key_disabled`, "off" badge on the Keys page, `disabled` in `key list`/`key show`. Verified live: disable → 403, enable → 200 (with requireAuth on). |
 
 ## Shipped (v0.2 architecture, this iteration)
 
