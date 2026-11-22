@@ -456,7 +456,7 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 				data = append(data, modelObj{inst.ModelID, "model", "llmctl"})
 			}
 		}
-		for _, m := range upstreamModels(inst) {
+		for _, m := range cachedUpstreamModels(inst) {
 			if !seen[m] {
 				seen[m] = true
 				if permits(m) {
@@ -827,6 +827,38 @@ func writeErr(w http.ResponseWriter, code int, errType, msg string) {
 	writeJSON(w, code, map[string]any{
 		"error": map[string]any{"message": msg, "type": errType, "code": nil},
 	})
+}
+
+// upstreamTTL is how long a probed instance model list is reused across
+// /v1/models calls, so client polling doesn't hammer every backend (F212).
+const upstreamTTL = 2 * time.Second
+
+var (
+	upstreamMu    sync.Mutex
+	upstreamCache = map[string]struct {
+		ids []string
+		at  time.Time
+	}{}
+)
+
+// cachedUpstreamModels wraps upstreamModels with a short per-instance TTL.
+func cachedUpstreamModels(inst *store.InstanceRecord) []string {
+	key := fmt.Sprintf("%s:%d", inst.ID, inst.Port)
+	upstreamMu.Lock()
+	if c, ok := upstreamCache[key]; ok && time.Since(c.at) < upstreamTTL {
+		ids := c.ids
+		upstreamMu.Unlock()
+		return ids
+	}
+	upstreamMu.Unlock()
+	ids := upstreamModels(inst)
+	upstreamMu.Lock()
+	upstreamCache[key] = struct {
+		ids []string
+		at  time.Time
+	}{ids, time.Now()}
+	upstreamMu.Unlock()
+	return ids
 }
 
 // upstreamModels queries an instance's own /v1/models (1s budget).
