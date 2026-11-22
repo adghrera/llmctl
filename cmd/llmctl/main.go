@@ -65,6 +65,8 @@ func main() {
 		err = cmdStructured(args)
 	case "embed":
 		err = cmdEmbed(args)
+	case "complete":
+		err = cmdComplete(args)
 	case "bench":
 		err = cmdBench(args)
 	case "note":
@@ -161,6 +163,7 @@ Usage:
   llmctl search <query> [-max N] [-json]
   llmctl structured -model ID -schema file.json <prompt>
   llmctl embed -model ID <text>
+  llmctl complete -model ID <prompt>
   llmctl bench -model ID [-n N] [-conc C]
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
@@ -1249,6 +1252,62 @@ func cmdBench(args []string) error {
 		fmt.Printf("  %.0f tok/s", float64(totalTok)/elapsed.Seconds())
 	}
 	fmt.Println()
+	return nil
+}
+
+// cmdComplete calls the gateway's /v1/completions route (F287).
+func cmdComplete(args []string) error {
+	fs := flag.NewFlagSet("complete", flag.ExitOnError)
+	model := fs.String("model", "", "model id (required)")
+	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	maxTok := fs.Int("max-tokens", 256, "max tokens to generate")
+	temp := fs.Float64("temperature", 0.7, "sampling temperature")
+	jsonOut := fs.Bool("json", false, "print the raw completions JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	if *model == "" {
+		return fmt.Errorf("usage: llmctl complete -model ID [-key K] [-max-tokens N] [-temperature T] [-json] <prompt>  (or pipe stdin)")
+	}
+	prompt := strings.Join(fs.Args(), " ")
+	if prompt == "" {
+		if b, err := io.ReadAll(os.Stdin); err == nil {
+			prompt = strings.TrimSpace(string(b))
+		}
+	}
+	if prompt == "" {
+		return fmt.Errorf("no prompt (pass it as an argument or pipe it to stdin)")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.DoKey("POST", "/v1/completions", map[string]any{
+		"model":       *model,
+		"prompt":      prompt,
+		"max_tokens":  *maxTok,
+		"temperature": *temp,
+	}, *keyF)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("complete: %s", out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var res struct {
+		Choices []struct {
+			Text string `json:"text"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil || len(res.Choices) == 0 {
+		return fmt.Errorf("complete: unexpected response: %s", out)
+	}
+	fmt.Print(res.Choices[0].Text)
+	if !strings.HasSuffix(res.Choices[0].Text, "\n") {
+		fmt.Println()
+	}
 	return nil
 }
 

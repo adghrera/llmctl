@@ -431,6 +431,7 @@ llmctl jobs [-json] [-watch N]                     (background install jobs, F27
 llmctl search <query> [-max N] [-json]             (keyless web search, F274)
 llmctl structured -model ID -schema f.json [-key K] <prompt>   (schema-validated JSON, F279)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
+llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
 llmctl disk [-json]                                (model dir + volume disk usage)
                                     health sweep: state dir, backends, models,
