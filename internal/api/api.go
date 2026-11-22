@@ -201,6 +201,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/structured", s.structured)
 	m.HandleFunc("POST /api/v1/batch", s.batch)
 	m.HandleFunc("GET /api/v1/requests", s.recentRequests)
+	m.HandleFunc("GET /api/v1/requests/{id}", s.requestByID)
 	// Web search (keyless)
 	m.HandleFunc("GET /api/v1/search", s.searchHandler)
 	m.HandleFunc("GET /api/v1/chats", s.listChats)
@@ -1117,6 +1118,21 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 		out = out[:limit]
 	}
 	writeJSON(w, 200, out)
+}
+
+// requestByID handles GET /api/v1/requests/{id} — one logged request looked
+// up by its X-Request-Id (F104).
+func (s *Server) requestByID(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway not running")
+		return
+	}
+	e, ok := s.gw.RequestByID(r.PathValue("id"))
+	if !ok {
+		writeErr(w, 404, "request id not found (ring keeps the last 256 requests)")
+		return
+	}
+	writeJSON(w, 200, e)
 }
 
 // instanceLogs returns the tail of an instance's stderr.log (and optionally

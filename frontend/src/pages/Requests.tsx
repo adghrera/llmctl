@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type RequestLogEntry } from "../api/client";
+import { ok } from "../ui/toast";
 
 function statusTone(s: number): string {
   if (s >= 500) return "err";
@@ -146,7 +147,16 @@ export default function Requests() {
           <tbody>
             {entries.map((e, i) => (
               <tr key={i}>
-                <td className="mono muted" style={{ fontSize: 11 }}>
+                <td
+                  className="mono muted"
+                  style={{ fontSize: 11, cursor: e.id ? "pointer" : "default" }}
+                  title={e.id ? "click to copy request id" : undefined}
+                  onClick={() => {
+                    if (e.id && navigator.clipboard) {
+                      void navigator.clipboard.writeText(e.id).then(() => ok(`copied ${e.id}`));
+                    }
+                  }}
+                >
                   {e.id || "—"}
                 </td>
                 <td className="muted" style={{ fontSize: 12 }}>

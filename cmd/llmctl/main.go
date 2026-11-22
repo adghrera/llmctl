@@ -700,11 +700,23 @@ func cmdRequests(args []string) error {
 	model := fs.String("model", "", "filter by model id")
 	status := fs.String("status", "", "status class (4, 5) or exact code (404)")
 	minMs := fs.Int("min-ms", 0, "minimum latency in ms")
+	id := fs.String("id", "", "show the single request with this id")
 	n := fs.Int("n", 20, "number of entries")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
+	}
+	if *id != "" {
+		code, out, err := cc.Get("/api/v1/requests/" + url.PathEscape(*id))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("request %s: %s", *id, out)
+		}
+		fmt.Println(string(out))
+		return nil
 	}
 	q := url.Values{}
 	q.Set("limit", strconv.Itoa(*n))

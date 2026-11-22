@@ -160,6 +160,11 @@ func (s *Server) RecentRequests(n int) []RequestLogEntry {
 	return s.collector.reqLog.recent(n)
 }
 
+// RequestByID looks up one logged request by its X-Request-Id (F104).
+func (s *Server) RequestByID(id string) (RequestLogEntry, bool) {
+	return s.collector.reqLog.byID(id)
+}
+
 // ListenAndServe blocks serving until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	ln, err := net.Listen("tcp", s.addr)

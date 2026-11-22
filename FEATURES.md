@@ -113,6 +113,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F101 | P3 | 101 | cli | `events` command | COMPLETED | `llmctl events [-n 20]` prints the daemon events feed (crashes, auto-restarts, idle unloads, cold starts) newest-first. Verified live against the running daemon. |
 | F102 | P2 | 102 | usage | Per-key cost + model pricing | COMPLETED | Models carry optional USD/1M-token prices (`PATCH /api/v1/models/{id}/price`, `llmctl models price <id> <in> <out>`, applied immediately and re-synced from state); per-key estimated cost is tracked, persisted across restarts (seed/flush now carry Cost) and shown in the Keys page and `/keys`. Verified live: 21/7 tokens at 100/200 → $0.0035, survived restart. |
 | F103 | P3 | 103 | usage | Cost in daily rollup | COMPLETED | The daily per-model rollup now accumulates estimated USD cost (from model pricing), persisted with the rollup and shown as a Cost column in the Usage page and `llmctl usage`. Verified live: priced request → $0.0035 in API, UI and CLI. |
+| F104 | P3 | 104 | requests | Lookup by request id | COMPLETED | `GET /api/v1/requests/{id}` returns one logged request by its X-Request-Id (404 when outside the ring); `llmctl requests --id <id>`; the Requests page id cells copy to clipboard on click. Verified live: found by id, 404 for unknown, CLI round-trip. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

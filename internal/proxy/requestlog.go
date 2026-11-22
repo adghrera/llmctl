@@ -123,3 +123,15 @@ func (l *requestLog) recent(n int) []RequestLogEntry {
 	}
 	return out
 }
+
+// byID returns the ring entry with the given request id (F104).
+func (l *requestLog) byID(id string) (RequestLogEntry, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, e := range l.buf {
+		if e.ID == id {
+			return e, true
+		}
+	}
+	return RequestLogEntry{}, false
+}
