@@ -1215,6 +1215,7 @@ func cmdRequests(args []string) error {
 
 // cmdBackups lists, creates or deletes state snapshots in ~/.llmctl/backups.
 func cmdBackups(args []string) error {
+	fs := flag.NewFlagSet("backups", flag.ExitOnError)
 	sub := "list"
 	rest := args
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -1226,12 +1227,18 @@ func cmdBackups(args []string) error {
 	}
 	switch sub {
 	case "list":
+		jsonOut := fs.Bool("json", false, "print the raw backups JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/backups")
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("backups list returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var bs []struct {
 			Name    string `json:"name"`
