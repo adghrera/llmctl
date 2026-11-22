@@ -137,6 +137,7 @@ Usage:
   llmctl backends remove <id>
   llmctl models list
   llmctl models show <id>
+  llmctl models probe
   llmctl models aliases
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
@@ -579,7 +580,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|show|install|remove|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|show|probe|install|remove|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -638,6 +639,37 @@ func cmdModels(args []string) error {
 			fmt.Printf("%-40s %-12s %-10s %-9s %-14s %-7s %v\n", m.ID, m.BackendID, fmtSize(m.SizeBytes), ctxv, price, idle, m.Running)
 		}
 		fmt.Printf("%-40s %-12s %-10s\n", "total: "+strconv.Itoa(len(list))+" model(s)", "", fmtSize(total))
+		return nil
+	case "probe":
+		pfs := flag.NewFlagSet("models probe", flag.ExitOnError)
+		pjson := pfs.Bool("json", false, "print the probe JSON (for scripts)")
+		pfs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/models/probe")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("probe returned %d: %s", code, out)
+		}
+		if *pjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			ID      string `json:"id"`
+			OwnedBy string `json:"ownedBy"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no models served (start an instance: llmctl start <model>)")
+			return nil
+		}
+		fmt.Printf("%-20s %s\n", "ID", "SOURCE")
+		for _, m := range list {
+			fmt.Printf("%-20s %s\n", m.ID, m.OwnedBy)
+		}
 		return nil
 	case "aliases":
 		fs := flag.NewFlagSet("aliases", flag.ExitOnError)

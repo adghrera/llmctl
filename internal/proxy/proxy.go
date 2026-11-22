@@ -484,6 +484,36 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
 
+// ServedModels is the unauthenticated view of /v1/models (no per-key
+// allowlist): running instances, their upstream models, and aliases.
+// Backs the management probe endpoint (F252).
+func (s *Server) ServedModels() []map[string]string {
+	out := []map[string]string{}
+	seen := map[string]bool{}
+	add := func(id, ownedBy string) {
+		if !seen[id] {
+			seen[id] = true
+			out = append(out, map[string]string{"id": id, "ownedBy": ownedBy})
+		}
+	}
+	for _, inst := range s.router.RunningInstances() {
+		add(inst.ModelID, "llmctl")
+		for _, m := range cachedUpstreamModels(inst) {
+			add(m, "llmctl")
+		}
+	}
+	aliases := s.router.Aliases()
+	names := make([]string, 0, len(aliases))
+	for a := range aliases {
+		names = append(names, a)
+	}
+	sort.Strings(names)
+	for _, a := range names {
+		add(a, "llmctl-alias")
+	}
+	return out
+}
+
 func (s *Server) proxyChat(w http.ResponseWriter, r *http.Request) {
 	s.proxyAny(w, r, "/v1/chat/completions")
 }

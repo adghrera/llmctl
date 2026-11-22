@@ -95,6 +95,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/backends/{id}", s.removePlugin)
 	// Models
 	m.HandleFunc("GET /api/v1/models", s.listModels)
+	m.HandleFunc("GET /api/v1/models/probe", s.probeModels)
 	m.HandleFunc("GET /api/v1/models/{id}", s.getModel)
 	m.HandleFunc("POST /api/v1/models", s.registerModel)
 	m.HandleFunc("POST /api/v1/models/install", s.installModel)
@@ -440,6 +441,17 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 		out = append(out, modelViewFor(st, id))
 	}
 	writeJSON(w, 200, out)
+}
+
+// probeModels handles GET /api/v1/models/probe — what the gateway would
+// advertise on /v1/models right now (running instances + aliases), without
+// needing a gateway API key (F252).
+func (s *Server) probeModels(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway unavailable")
+		return
+	}
+	writeJSON(w, 200, s.gw.ServedModels())
 }
 
 // modelViewFor builds the API view of one model, incl. instance membership.
