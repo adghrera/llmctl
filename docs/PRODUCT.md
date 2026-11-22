@@ -372,7 +372,8 @@ toggle for a light theme (choice remembered). Tabs:
   in state (F306): POST/DELETE /api/v1/prompts, merged into the list with a
   `custom` flag; CLI `prompts add <id> -name N [-content T] [-tags a,b]` / `prompts update <id>
   [-name N …]` / `prompts delete <id>` / `prompts duplicate <id> <new-id> [-name N]`
-  (copies any template, built-in or custom, to a new custom id, F638);
+  (copies any template, built-in or custom, to a new custom id, F638; copies
+  the source's tags too, F703);
   custom templates carry free-form tags — `prompts tag <id> [a,b]` (empty clears),
   `prompts -tag T` filters, and the Prompts page shows tag badges, a Tag
   button and a tag-filter dropdown per custom entry (built-ins stay read-only,
@@ -418,7 +419,8 @@ toggle for a light theme (choice remembered). Tabs:
    `-tag` exports only chats carrying that tag, F686),
    `chats import <file.json> [-json] [-out FILE]` re-imports an exported chat under a fresh id
    (F368; -out writes the saved chat JSON, F510),
-   `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
+   `chats fork <id> [-at N] [-title T]` (forks inherit the source chat's
+   tags, F703), `chats rename <id> <title>`,
    `chats pin|unpin <id>` (pinned chats sort first, F310; the Chat page
    shows a 📌 marker and a Pin/Unpin button, F311),
    `chats tag <id> [a,b]` / `chats retag <old> <new> | retag -rm <tag>` label
@@ -534,7 +536,7 @@ toggle for a light theme (choice remembered). Tabs:
   (`-json` for the raw record, F563; `-tags a,b` tags at creation, F702).
   `llmctl scheduler duplicate <id>
   [-name N]` copies an existing task (cron, kind, model, prompt, kb, webhook,
-  enabled state all carried over) under a new name — default `<old name> copy`
+  enabled state, tags all carried over) under a new name — default `<old name> copy`
   (F646); the Scheduler page has a matching Duplicate button on each row (F647).
   `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
   specs between instances (fresh ids on import, F326); the Scheduler page has

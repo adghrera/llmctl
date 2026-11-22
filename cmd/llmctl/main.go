@@ -4875,16 +4875,17 @@ func cmdScheduler(args []string) error {
 		}
 		var rec struct {
 			Spec struct {
-				Name       string `json:"name"`
-				CronExpr   string `json:"cron_expr"`
-				Kind       string `json:"kind"`
-				Model      string `json:"model"`
-				Prompt     string `json:"prompt"`
-				Instance   string `json:"instance"`
-				Keep       int    `json:"keep"`
-				KB         string `json:"kb"`
-				Enabled    bool   `json:"enabled"`
-				WebhookURL string `json:"webhook_url"`
+				Name       string   `json:"name"`
+				CronExpr   string   `json:"cron_expr"`
+				Kind       string   `json:"kind"`
+				Model      string   `json:"model"`
+				Prompt     string   `json:"prompt"`
+				Instance   string   `json:"instance"`
+				Keep       int      `json:"keep"`
+				KB         string   `json:"kb"`
+				Enabled    bool     `json:"enabled"`
+				WebhookURL string   `json:"webhook_url"`
+				Tags       []string `json:"tags"`
 			} `json:"spec"`
 		}
 		if err := json.Unmarshal(out, &rec); err != nil {
@@ -4907,6 +4908,9 @@ func cmdScheduler(args []string) error {
 		}
 		if rec.Spec.WebhookURL != "" {
 			body["webhook_url"] = rec.Spec.WebhookURL
+		}
+		if len(rec.Spec.Tags) > 0 { // copies tags too (F703)
+			body["tags"] = rec.Spec.Tags
 		}
 		code, out, err = cc.Post("/api/v1/scheduler", body)
 		if err != nil {
@@ -10460,10 +10464,11 @@ func cmdPrompts(args []string) error {
 			return fmt.Errorf("prompt %s not found (%d)", dfs.Arg(0), code)
 		}
 		var src struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Category    string `json:"category"`
-			Content     string `json:"content"`
+			Name        string   `json:"name"`
+			Description string   `json:"description"`
+			Category    string   `json:"category"`
+			Content     string   `json:"content"`
+			Tags        []string `json:"tags"`
 		}
 		if err := json.Unmarshal(out, &src); err != nil {
 			return err
@@ -10476,10 +10481,14 @@ func cmdPrompts(args []string) error {
 		if newCat == "" {
 			newCat = src.Category
 		}
-		code, out, err = cc.Post("/api/v1/prompts", map[string]any{
+		dupBody := map[string]any{
 			"id": dfs.Arg(1), "name": newName, "category": newCat,
 			"description": src.Description, "content": src.Content,
-		})
+		}
+		if len(src.Tags) > 0 { // copies tags too (F703)
+			dupBody["tags"] = src.Tags
+		}
+		code, out, err = cc.Post("/api/v1/prompts", dupBody)
 		if err != nil {
 			return err
 		}

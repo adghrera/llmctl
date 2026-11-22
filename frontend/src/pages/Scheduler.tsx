@@ -212,6 +212,7 @@ export default function Scheduler() {
         keep: s.keep,
         webhook_url: s.webhook_url,
         enabled: s.enabled,
+        tags: s.tags, // copies tags too (F703)
       });
       ok(`task "${finalName}" created`);
       await load();

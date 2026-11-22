@@ -831,7 +831,7 @@ export const api = {
       body: JSON.stringify({ tags }),
     }),
   prompts: () => req<PromptTemplate[]>("/prompts"),
-  createPrompt: (body: { id: string; name: string; category?: string; description?: string; content: string }) =>
+  createPrompt: (body: { id: string; name: string; category?: string; description?: string; content: string; tags?: string[] }) =>
     req<PromptTemplate>("/prompts", { method: "POST", body: JSON.stringify(body) }),
   deletePrompt: (id: string) =>
     req<{ ok: boolean }>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),

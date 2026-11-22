@@ -270,6 +270,7 @@ func (s *Store) Fork(id string, forkAt int, title string) (*Conversation, error)
 		Title:     title,
 		Model:     src.Model,
 		AgentMode: src.AgentMode,
+		Tags:      src.Tags, // forks inherit the source tags (F703)
 		Messages:  make([]Message, forkAt),
 	}
 	copy(c.Messages, src.Messages[:forkAt])

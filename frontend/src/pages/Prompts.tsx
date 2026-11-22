@@ -140,6 +140,7 @@ export default function Prompts() {
         category: t.category,
         description: t.description,
         content: t.content,
+        tags: t.tags, // copies tags too (F703)
       });
       ok(`template ${newId.trim()} created`);
       await load();
