@@ -56,6 +56,8 @@ func main() {
 		err = cmdCatalog(args)
 	case "maxparallel":
 		err = cmdMaxParallel(args)
+	case "jobs":
+		err = cmdJobs(args)
 	case "note":
 		err = cmdNote(args)
 	case "autorestart":
@@ -146,6 +148,7 @@ Usage:
   llmctl status [-json] [-watch N]
   llmctl doctor [-json] [-quiet] [-check NAME]...
   llmctl gpu [-json]
+  llmctl jobs [-json] [-watch N]
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -852,6 +855,70 @@ func cmdSetVars(args []string) error {
 	}
 	fmt.Printf("instance %s vars updated (restart to apply)\n", fs.Arg(0))
 	return nil
+}
+
+// cmdJobs lists background jobs (model/backend installs) tracked by the
+// daemon (GET /api/v1/jobs, F273).
+func cmdJobs(args []string) error {
+	fs := flag.NewFlagSet("jobs", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
+	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	printOnce := func() error {
+		code, out, err := cc.Get("/api/v1/jobs")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("jobs returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			ID       string    `json:"id"`
+			Kind     string    `json:"kind"`
+			Target   string    `json:"target"`
+			Status   string    `json:"status"`
+			Progress float64   `json:"progress"`
+			Message  string    `json:"message"`
+			Error    string    `json:"error"`
+			Updated  time.Time `json:"updated"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no jobs (installs appear here: llmctl models install …)")
+			return nil
+		}
+		fmt.Printf("%-16s %-20s %-9s %5s %s\n", "KIND", "TARGET", "STATUS", "%", "MESSAGE")
+		for _, j := range list {
+			msg := j.Message
+			if j.Error != "" {
+				msg = "error: " + j.Error
+			}
+			if len(msg) > 50 {
+				msg = msg[:50] + "…"
+			}
+			fmt.Printf("%-16s %-20s %-9s %4.0f%% %s\n", j.Kind, j.Target, j.Status, j.Progress*100, msg)
+		}
+		return nil
+	}
+	if *watch <= 0 {
+		return printOnce()
+	}
+	for {
+		if err := printOnce(); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(*watch) * time.Second)
+	}
 }
 
 func cmdPS(args []string) error {
