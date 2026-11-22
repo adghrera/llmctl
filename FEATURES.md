@@ -208,6 +208,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F196 | P3 | 196 | cli | `requests -json` | COMPLETED | `llmctl requests -json` prints the raw request-log JSON (like `status -json`), filters included. Verified live: `-json -n 3` parses as JSON with 3 entries; table mode unchanged. |
 | F197 | P3 | 197 | cli | `ps -json` | COMPLETED | `llmctl ps -json` prints the raw instances JSON for scripts. Verified live: output parses as JSON (1 instance); table mode unchanged. |
 | F198 | P3 | 198 | cli | `usage -json` | COMPLETED | `llmctl usage -json` prints raw usage JSON in all three modes (per-model, `-keys`, `-key ID`). Verified live: daily and keys modes parse as JSON; table mode unchanged. |
+| F199 | P3 | 199 | cli | Human sizes in `backups list` | COMPLETED | `llmctl backups list` gets a header row, KiB/MiB/GiB sizes and a `total:` row (same style as F192). Verified live: 3 snapshots render with sizes and correct total. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

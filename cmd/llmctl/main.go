@@ -1245,9 +1245,13 @@ func cmdBackups(args []string) error {
 			fmt.Println("no snapshots (create one: llmctl backups create)")
 			return nil
 		}
+		fmt.Printf("%-34s %10s  %s\n", "NAME", "SIZE", "CREATED")
+		var total int64
 		for _, b := range bs {
-			fmt.Printf("%-34s %10d bytes  %s\n", b.Name, b.Size, b.Created)
+			total += b.Size
+			fmt.Printf("%-34s %10s  %s\n", b.Name, fmtSize(b.Size), b.Created)
 		}
+		fmt.Printf("%-34s %10s\n", "total: "+strconv.Itoa(len(bs))+" snapshot(s)", fmtSize(total))
 		return nil
 	case "create":
 		code, out, err := cc.Post("/api/v1/backups", nil)
