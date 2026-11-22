@@ -242,7 +242,7 @@ Usage:
   llmctl key rotate <id> [-json] [-out FILE]
   llmctl key list [--csv] [-out FILE]
   llmctl key revoke <id> [-json]
-  llmctl key reset-usage <id>
+  llmctl key reset-usage <id> [-json]
   llmctl autostart list [--csv] [-out FILE]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
   llmctl autostart remove <model> [-json]
@@ -9439,17 +9439,24 @@ func cmdKey(args []string) error {
 		}
 		return nil
 	case "reset-usage":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl key reset-usage <id>")
+		ruFS := flag.NewFlagSet("key reset-usage", flag.ExitOnError)
+		rujson := ruFS.Bool("json", false, "print the raw response JSON (F572)")
+		ruFS.Parse(reorderFlags(rest))
+		if ruFS.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl key reset-usage <id> [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/keys/"+rest[0]+"/reset-usage", map[string]any{})
+		code, out, err := cc.Post("/api/v1/keys/"+url.PathEscape(ruFS.Arg(0))+"/reset-usage", map[string]any{})
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("reset-usage returned %d", code)
+			return fmt.Errorf("reset-usage returned %d: %s", code, out)
 		}
+		if *rujson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("usage counters reset for key %s\n", ruFS.Arg(0))
 		return nil
 	case "rotate":
 		rfs := flag.NewFlagSet("key rotate", flag.ExitOnError)
@@ -9477,7 +9484,16 @@ func cmdKey(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Println(string(out))
+		var rot struct {
+			ID     string `json:"id"`
+			Key    string `json:"key"`
+			Prefix string `json:"prefix"`
+		}
+		if err := json.Unmarshal(out, &rot); err != nil {
+			return err
+		}
+		fmt.Printf("key %s rotated — new secret: %s\n", rot.ID, rot.Key)
+		fmt.Println("store it now; it is shown only this once")
 		return nil
 	default:
 		return fmt.Errorf("unknown key subcommand: %s", sub)
