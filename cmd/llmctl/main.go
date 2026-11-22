@@ -189,7 +189,7 @@ Usage:
   llmctl models unused
   llmctl models routable [-key K] [-json]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
-  llmctl models aliases
+  llmctl models aliases [--csv]
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
@@ -218,7 +218,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
-  llmctl presets list|save -name N -model ID [...]|start <name>|delete <name>|export|import
+  llmctl presets list [-json|-csv]|save -name N -model ID [...]|start <name>|delete <name>|export|import
   llmctl catalog list [-json] | install <id>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
@@ -566,6 +566,10 @@ func cmdDisk(args []string) error {
 
 // sortedVars renders a vars map as stable "k=v k=v" text for tables.
 func sortedVars(m map[string]string) string {
+	return sortedVarsJoin(m, " ")
+}
+
+func sortedVarsJoin(m map[string]string, sep string) string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -575,7 +579,7 @@ func sortedVars(m map[string]string) string {
 	for _, k := range keys {
 		parts = append(parts, k+"="+m[k])
 	}
-	return strings.Join(parts, " ")
+	return strings.Join(parts, sep)
 }
 
 // cmdPresets manages start presets (named start recipes from the Instances
@@ -652,6 +656,7 @@ func cmdPresets(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("presets list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw presets JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the preset list as CSV (F386)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/presets")
 		if err != nil {
@@ -674,6 +679,16 @@ func cmdPresets(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *csvOut { // F386: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"name", "model", "instance", "backend", "port", "vars"})
+			for _, p := range list {
+				_ = w.Write([]string{p.Name, p.ModelID, p.Instance, p.BackendID,
+					strconv.Itoa(p.Port), sortedVarsJoin(p.Vars, ";")})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(list) == 0 {
 			fmt.Println("no presets (save one: llmctl presets save -name N -model ID)")
@@ -2338,6 +2353,7 @@ func cmdModels(args []string) error {
 	case "aliases":
 		fs := flag.NewFlagSet("aliases", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw aliases JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the alias list as CSV (F385)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/aliases")
 		if err != nil {
@@ -2356,6 +2372,15 @@ func cmdModels(args []string) error {
 		}
 		if err := json.Unmarshal(out, &als); err != nil {
 			return err
+		}
+		if *csvOut { // F385: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"alias", "model"})
+			for _, a := range als {
+				_ = w.Write([]string{a.Alias, a.Model})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(als) == 0 {
 			fmt.Println("no aliases (add one: llmctl models alias <name> <model-id>)")

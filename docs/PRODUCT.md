@@ -176,7 +176,8 @@ toggle for a light theme (choice remembered). Tabs:
   and link to their gateway request history (F132); the Req button shows how
   many requests the instance has served since daemon start (F150). Named start
   presets (model + vars + port recipe) can be saved and one-click started from
-  the page, and from the CLI with `llmctl presets list|save|start|delete|export|import` (F265, F328).
+  the page, and from the CLI with `llmctl presets list|save|start|delete|export|import` (F265, F328);
+  `presets list --csv` exports name,model,instance,backend,port,vars (`;`-joined k=v, raw values) (F386).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a
@@ -536,14 +537,14 @@ llmctl ps [-watch N] [--csv] [-json]      (-watch N: live refresh; --csv: one-sh
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
 llmctl catalog list [-json] | install <id>      (curated model picker, F266)
-llmctl presets list|save|start|delete|export|import  (named start recipes, F265, F328)
+llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export,
 llmctl models add <id> <file> [-backend ID]              (register an existing local GGUF, F275)
 llmctl models rename <id> <new-id>                    (change a model id; aliases follow, F284)
                                     price and idle-unload; show also lists aliases pointing at the
                                     model (F367); list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)
-llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180)
+llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180; `aliases --csv` exports alias,model, F385)
 llmctl models probe [-json]                          (what /v1/models serves now, F252)
 llmctl models routable [-key K] [-json]              (what /v1/models serves for one key, via the gateway — reflects the key's allowlist, F337)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
