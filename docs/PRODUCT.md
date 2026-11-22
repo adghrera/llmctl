@@ -206,7 +206,7 @@ toggle for a light theme (choice remembered). Tabs:
   and link to their gateway request history (F132); the Req button shows how
   many requests the instance has served since daemon start (F150). Named start
   presets (model + vars + port recipe) can be saved and one-click started from
-  the page, and from the CLI with `llmctl presets list|save|start|delete|export|import` (F265, F328);
+  the page, and from the CLI with `llmctl presets list|save|duplicate|start|delete|export|import` (F265, F328; `duplicate` copies a preset's model/instance/backend/port/vars under a new name, F648);
   `presets list --csv` exports name,model,instance,backend,port,vars (`;`-joined k=v, raw values) (F386),
   and the Instances page Saved-configs card has matching Export CSV /
   Export JSON / Import JSON buttons (F399, F413).
@@ -658,7 +658,7 @@ llmctl ps [-watch N] [--csv] [-json] [-out FILE] [-stats]   (-watch N: live refr
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388; mutations print one-line confirmations, `-json` for raw, F566; install `--wait` blocks until the job finishes, F576)
 llmctl catalog list [-json|-csv] | install <id> [--wait]      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387; install `--wait` blocks until the download finishes, F576)
-llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328; save/start -json print the raw response, F524, F525)
+llmctl presets list [-json|-csv]|save|duplicate|start|delete|export|import  (named start recipes, F265, F328; save/start -json print the raw response, F524, F525; duplicate <name> <new-name> copies model/instance/backend/port/vars, F648)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -json for the raw array, -out FILE writes the raw JSON, F479; install `--wait` blocks until the download finishes, F576,
 llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE] (register an existing local GGUF, F275; -ctx sets the default context window and -json prints the raw created-model JSON, F551; -out writes it to a file, F513)
 llmctl models rename <id> <new-id> [-json]           (change a model id; aliases follow, F284; -json prints the raw response, F523)

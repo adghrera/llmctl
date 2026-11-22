@@ -255,7 +255,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
   llmctl autostart remove <model> [-json]
   llmctl autostart export [-out FILE] | autostart import <file.json> [-json]
-  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name> [-json]|export|import [-json]
+  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|duplicate <name> <new-name> [-json]|start <name> [-json]|delete <name> [-json]|export|import [-json]
   llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json] [--wait]
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
@@ -819,7 +819,7 @@ func sortedVarsJoin(m map[string]string, sep string) string {
 // page): list, save, start, delete (F265).
 func cmdPresets(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl presets <list|save|start|delete|export|import> [flags]")
+		return fmt.Errorf("usage: llmctl presets <list|save|duplicate|start|delete|export|import> [flags]")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1000,6 +1000,61 @@ func cmdPresets(args []string) error {
 		}
 		fmt.Printf("preset %s saved\n", *name)
 		return nil
+	case "duplicate":
+		// Copy an existing preset under a new name (F648).
+		dfs := flag.NewFlagSet("presets duplicate", flag.ExitOnError)
+		djson := dfs.Bool("json", false, "print the raw response JSON")
+		dfs.Parse(reorderFlags(rest))
+		if dfs.NArg() != 2 {
+			return fmt.Errorf("usage: llmctl presets duplicate <name> <new-name> [-json]")
+		}
+		code, out, err := cc.Get("/api/v1/presets")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("presets duplicate: %s", out)
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		var body map[string]any
+		for _, p := range list {
+			if p["name"] != dfs.Arg(0) {
+				continue
+			}
+			body = map[string]any{"name": dfs.Arg(1), "modelId": p["modelId"]}
+			if v, _ := p["instance"].(string); v != "" {
+				body["instance"] = v
+			}
+			if v, _ := p["backendId"].(string); v != "" {
+				body["backendId"] = v
+			}
+			if v, _ := p["port"].(float64); v > 0 {
+				body["port"] = int(v)
+			}
+			if v, ok := p["vars"].(map[string]any); ok && len(v) > 0 {
+				body["vars"] = v
+			}
+			break
+		}
+		if body == nil {
+			return fmt.Errorf("unknown preset: %s", dfs.Arg(0))
+		}
+		code, out, err = cc.Post("/api/v1/presets", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 && code != 201 {
+			return fmt.Errorf("presets duplicate returned %d: %s", code, out)
+		}
+		if *djson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("preset %s duplicated from %s\n", dfs.Arg(1), dfs.Arg(0))
+		return nil
 	case "start":
 		fs := flag.NewFlagSet("presets start", flag.ExitOnError)
 		port := fs.Int("port", 0, "override the preset port")
@@ -1062,7 +1117,7 @@ func cmdPresets(args []string) error {
 		fmt.Printf("preset %s deleted\n", pdfs.Arg(0))
 		return nil
 	default:
-		return fmt.Errorf("unknown presets subcommand: %s (list|save|start|delete)", sub)
+		return fmt.Errorf("unknown presets subcommand: %s (list|save|duplicate|start|delete)", sub)
 	}
 }
 
@@ -2280,7 +2335,7 @@ var llmSubCommands = map[string]string{
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
 	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
-	"presets":   "list save start delete export import",
+	"presets":   "list save duplicate start delete export import",
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
