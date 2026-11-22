@@ -31,7 +31,7 @@ type Server struct {
 	apiKeys      [][]byte // pre-encoded; empty list = auth disabled
 	keyCheck     func(string) *store.APIKeyRecord // hashed-key verifier (overrides apiKeys)
 	requireAuth  *atomic.Bool // if false, no key needed (auth disabled globally)
-	allowCORS    *atomic.Bool // if true, CORS headers + OPTIONS preflight (F082)
+	allowCORS    *atomic.Bool                     // if true, CORS headers + OPTIONS preflight (F082)
 	limiter      *rateLimiter
 	router       *Router
 	logger       *slog.Logger
@@ -50,7 +50,7 @@ type Config struct {
 	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
 	KeyCheck    func(token string) *store.APIKeyRecord
 	RequireAuth bool // if false, auth is disabled regardless of keys
-	AllowCORS   bool // if true, gateway sends CORS headers + answers OPTIONS (F082)
+	AllowCORS   bool    // if true, gateway sends CORS headers + answers OPTIONS (F082)
 	RateRPS     float64 // sustained requests/sec per client
 	RateBurst   int
 	MaxInflight int
