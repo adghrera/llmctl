@@ -83,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 	// Meta
 	m.HandleFunc("GET /api/v1/status", s.status)
 	m.HandleFunc("GET /api/v1/health", s.status)
+	m.HandleFunc("GET /api/v1/doctor", s.doctor)
 	m.HandleFunc("POST /api/v1/shutdown", s.shutdown)
 	// Backends
 	m.HandleFunc("GET /api/v1/backends", s.listBackends)

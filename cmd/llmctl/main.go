@@ -39,6 +39,8 @@ func main() {
 		err = cmdDown(args)
 	case "status":
 		err = cmdStatus(args)
+	case "doctor":
+		err = cmdDoctor(args)
 	case "ps":
 		err = cmdPS(args)
 	case "backends":
@@ -97,6 +99,7 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status
+  llmctl doctor
   llmctl ps
   llmctl backends list
   llmctl backends install <id> [--asset <hint>]
@@ -210,6 +213,45 @@ func cmdStatus(args []string) error {
 	fmt.Printf("instances: %v\n", st["instances"])
 	fmt.Printf("gateway: %v\n", st["gateway"])
 	_ = code
+	return nil
+}
+
+// cmdDoctor runs the daemon-side health sweep and prints one line per check
+// (F146). Exit code is non-zero when any check errored.
+func cmdDoctor(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/doctor")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("doctor returned %d: %s", code, out)
+	}
+	var res struct {
+		OK     bool `json:"ok"`
+		Checks []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Detail string `json:"detail"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	sym := map[string]string{"ok": "[ok]  ", "warn": "[warn]", "error": "[fail]"}
+	for _, c := range res.Checks {
+		s, ok := sym[c.Status]
+		if !ok {
+			s = c.Status
+		}
+		fmt.Printf("%s %-9s %s\n", s, c.Name, c.Detail)
+	}
+	if !res.OK {
+		return fmt.Errorf("doctor: some checks failed")
+	}
 	return nil
 }
 
