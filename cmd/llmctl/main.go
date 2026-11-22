@@ -2160,7 +2160,7 @@ var llmTopCommands = []string{
 	"autostart", "requests", "backups", "usage", "metrics", "events",
 	"webhooks", "prompts", "chats", "skills", "memory", "kb", "tools",
 	"mcp", "cost", "files", "settings", "batch", "scheduler", "chat",
-	"backup", "restore", "version", "help", "completion", "api",
+	"backup", "restore", "version", "help", "completion", "api", "open",
 }
 
 // llmSubCommands lists the subcommands of each top-level command that has
@@ -2172,6 +2172,7 @@ var llmSubCommands = map[string]string{
 	"catalog":   "list install",
 	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
 	"files":     "list upload cat delete",
+	"jobs":      "wait show",
 	"kb":        "list show create update docs doc add-doc export search embed delete",
 	"key":       "generate show note enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
