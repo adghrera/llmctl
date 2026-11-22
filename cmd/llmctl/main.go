@@ -253,7 +253,7 @@ Usage:
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add|update|search|export|import|delete …
-  llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json|-csv|-out FILE] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
@@ -6095,6 +6095,7 @@ func cmdKb(args []string) error {
 		fs := flag.NewFlagSet("kb", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the knowledge bases as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the knowledge-base list as CSV (F379)")
+		outFile := fs.String("out", "", "write the knowledge-base JSON to this file instead of stdout (F491)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/knowledge-bases")
 		if err != nil {
@@ -6134,10 +6135,18 @@ func cmdKb(args []string) error {
 			}
 			list = keep
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F491)
 			b, err := json.Marshal(list)
 			if err != nil {
 				return err
+			}
+			if *outFile != "" {
+				b = append(b, '\n')
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
 			}
 			fmt.Println(string(b))
 			return nil
