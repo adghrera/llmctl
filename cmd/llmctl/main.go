@@ -5783,9 +5783,10 @@ func cmdMemory(args []string) error {
 	case "search":
 		sfs := flag.NewFlagSet("memory search", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		sout := sfs.String("out", "", "write the raw search JSON to this file instead of stdout (F484)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl memory search <query> [-json]")
+			return fmt.Errorf("usage: llmctl memory search <query> [-json] [-out FILE]")
 		}
 		q := strings.Join(sfs.Args(), " ")
 		code, out, err := cc.Get("/api/v1/memory/search?q=" + url.QueryEscape(q))
@@ -5794,6 +5795,13 @@ func cmdMemory(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("memory search: %s", out)
+		}
+		if *sout != "" { // F484: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		if *sjson {
 			fmt.Print(string(out))

@@ -370,7 +370,7 @@ toggle for a light theme (choice remembered). Tabs:
  - **Memory CLI** — `llmctl memory [filter] [-json] [-csv]` lists memory entries
    (`--csv` exports id,created_at,tags (`;`-joined),content, F401);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
-   [-tags a,b]`, `memory show <id>`, `memory search <query> [-json]`,
+   [-tags a,b]`, `memory show <id>`, `memory search <query> [-json] [-out FILE]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321); the Memory page
    has matching Export JSON / Import JSON buttons (F410).
