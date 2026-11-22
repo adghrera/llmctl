@@ -192,7 +192,7 @@ Usage:
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv] [-out FILE]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE]
-  llmctl backends list [-json|-csv]
+  llmctl backends list [-json|-csv|-out FILE]
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
   llmctl backends add <plugin.json>
@@ -2231,10 +2231,18 @@ func cmdBackends(args []string) error {
 		fs := flag.NewFlagSet("backends list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw backends JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the backends list as CSV (F388)")
+		outFile := fs.String("out", "", "write the raw backends JSON to this file instead of stdout (F496)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/backends")
 		if err != nil {
 			return err
+		}
+		if *outFile != "" { // F496: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
