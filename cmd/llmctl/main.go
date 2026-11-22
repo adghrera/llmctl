@@ -111,7 +111,7 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status [-json] [-watch N]
-  llmctl doctor [-json]
+  llmctl doctor [-json] [-quiet]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
   llmctl backends install <id> [--asset <hint>]
@@ -298,6 +298,7 @@ func cmdStatus(args []string) error {
 func cmdDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw doctor JSON (for scripts)")
+	quiet := fs.Bool("quiet", false, "print only warn/error checks (for cron/monitoring)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -329,7 +330,14 @@ func cmdDoctor(args []string) error {
 		return nil
 	}
 	sym := map[string]string{"ok": "[ok]  ", "warn": "[warn]", "error": "[fail]"}
+	warns := 0
 	for _, c := range res.Checks {
+		if c.Status == "warn" {
+			warns++
+		}
+		if *quiet && c.Status == "ok" {
+			continue
+		}
 		s, ok := sym[c.Status]
 		if !ok {
 			s = c.Status
@@ -338,6 +346,13 @@ func cmdDoctor(args []string) error {
 	}
 	if !res.OK {
 		return fmt.Errorf("doctor: some checks failed")
+	}
+	if *quiet {
+		if warns > 0 {
+			fmt.Printf("doctor: %d warning(s), no errors\n", warns)
+		} else {
+			fmt.Println("doctor: all checks passed")
+		}
 	}
 	return nil
 }

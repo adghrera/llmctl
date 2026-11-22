@@ -249,6 +249,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F237 | P3 | 237 | ui | Shared relative-time helper | COMPLETED | `ago()` moved to `src/lib/time.ts` and now also used by the Settings webhook delivery log and the Chat history list (exact timestamp on hover). Verified: tsc + vite build clean, served bundle contains the helper. |
 | F238 | P3 | 238 | scheduler | Relative next-run times | COMPLETED | Scheduler next-run now reads at a glance: UI shows `in 12m` (absolute time on hover, via new `until()` helper), and `llmctl scheduler list` gained a NEXT column with the same style. Verified live: CLI column shows `in 39d` for a Jan-1 cron; bundle contains the helper. |
 | F239 | P3 | 239 | ui | Relative times on Keys + Overview | COMPLETED | Keys page: created/last-used/expiry now render `5m ago` / `expires in 3d` style (exact time on hover); Overview event log times are relative too. Verified: tsc + vite build clean, served bundle contains the new strings. |
+| F240 | P3 | 240 | cli | `doctor -quiet` | COMPLETED | `llmctl doctor -quiet` prints only warn/error checks plus a one-line summary (`all checks passed` / `N warning(s), no errors`) — cron/monitoring friendly; exit code unchanged. Verified live: quiet run with and without active warnings. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
