@@ -11,6 +11,7 @@ export default function Batch() {
   const [system, setSystem] = useState("");
   const [maxTok, setMaxTok] = useState("");
   const [temp, setTemp] = useState("");
+  const [conc, setConc] = useState(""); // parallel workers, CLI -concurrency twin (F691)
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<BatchResult[] | null>(null);
@@ -39,6 +40,7 @@ export default function Batch() {
         system: system.trim() || undefined,
         maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
+        concurrency: Number(conc) > 0 ? Math.min(Number(conc), 8) : undefined,
       });
       setResults(r.results);
       setMeta(`${r.ok} ok, ${r.failed} failed — ${r.concurrency} concurrent`);
@@ -101,6 +103,16 @@ export default function Batch() {
             title="sampling temperature (empty = model default)"
             value={temp}
             onChange={(e) => setTemp(e.target.value)}
+          />
+          <input
+            style={{ width: 130 }}
+            type="number"
+            min={1}
+            max={8}
+            placeholder="concurrency"
+            title="parallel requests, 1–8 (CLI: llmctl batch -concurrency, F691)"
+            value={conc}
+            onChange={(e) => setConc(e.target.value)}
           />
         </div>
         <textarea

@@ -252,7 +252,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional
-  max-tokens/temperature inputs (F359) and a Results Export CSV button
+  max-tokens/temperature inputs (F359), a concurrency input (1–8 workers,
+  CLI twin `-concurrency`, F691) and a Results Export CSV button
   (index,prompt,ok,content,error, F424). CLI:
   `llmctl batch -model ID [-file F|piped stdin|prompts…] [-key K] [-json]
   [-out FILE] [--csv]` (F224; -out writes the raw JSON to a file, F449; --csv
