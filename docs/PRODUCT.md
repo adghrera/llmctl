@@ -405,7 +405,8 @@ toggle for a light theme (choice remembered). Tabs:
    with a message preview (and a tags line when the chat is tagged, F678),
    `llmctl chats search <query> [-json] [-csv] [-out FILE]` full-text searches message content
    with match snippets (`--csv` one row per matched message, F617), `chats export <id> [-md] [-out f]` and
-   `chats export-all [-out DIR] [-md]` (bulk file export, F325),
+   `chats export-all [-out DIR] [-md] [-tag T]` (bulk file export, F325;
+   `-tag` exports only chats carrying that tag, F686),
    `chats import <file.json> [-json] [-out FILE]` re-imports an exported chat under a fresh id
    (F368; -out writes the saved chat JSON, F510),
    `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
@@ -609,7 +610,8 @@ toggle for a light theme (choice remembered). Tabs:
    be changed after creation via PATCH and the Keys page quota editor (F148), and
    each key shows when it was last used (F149). `llmctl key show` and
    `GET /api/v1/keys/{id}` also report lifetime totals (requests, errors,
-   tokens, cost) summed over the retained per-key daily rollups (F182).
+   tokens, cost) summed over the retained per-key daily rollups (F182), and
+   `key show` prints a tags line when the key is tagged (F686).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Per-model override on the

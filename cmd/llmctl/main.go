@@ -7161,6 +7161,7 @@ func cmdChats(args []string) error {
 		xfs := flag.NewFlagSet("chats export-all", flag.ExitOnError)
 		outDir := xfs.String("out", "", "target directory (default ./chats-export)")
 		mdAll := xfs.Bool("md", false, "export as Markdown instead of JSON")
+		tagAll := xfs.String("tag", "", "only export chats carrying this tag (F686)")
 		xfs.Parse(reorderFlags(args[1:]))
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -7174,11 +7175,24 @@ func cmdChats(args []string) error {
 			return fmt.Errorf("chats list: %s", out)
 		}
 		var chats []struct {
-			ID    string `json:"id"`
-			Title string `json:"title"`
+			ID    string   `json:"id"`
+			Title string   `json:"title"`
+			Tags  []string `json:"tags"`
 		}
 		if err := json.Unmarshal(out, &chats); err != nil {
 			return err
+		}
+		if *tagAll != "" { // F686: same exact-tag filter as `chats list -tag`
+			keep := chats[:0]
+			for _, c := range chats {
+				for _, t := range c.Tags {
+					if t == *tagAll {
+						keep = append(keep, c)
+						break
+					}
+				}
+			}
+			chats = keep
 		}
 		if len(chats) == 0 {
 			fmt.Println("no chats to export")
@@ -11913,6 +11927,7 @@ func cmdKey(args []string) error {
 			LifetimeComp       int64      `json:"lifetimeCompletionTokens"`
 			LifetimeCost       float64    `json:"lifetimeCost"`
 			Note               string     `json:"note"`
+			Tags               []string   `json:"tags"` // free-form labels (F686)
 			Disabled           bool       `json:"disabled"`
 		}
 		if err := json.Unmarshal(out, &kv); err != nil {
@@ -11935,6 +11950,9 @@ func cmdKey(args []string) error {
 		}
 		if len(kv.AllowedModels) > 0 {
 			fmt.Printf("models:   %s\n", strings.Join(kv.AllowedModels, ", "))
+		}
+		if len(kv.Tags) > 0 { // tags line only when present (F686)
+			fmt.Printf("tags:     %s\n", strings.Join(kv.Tags, ", "))
 		}
 		if kv.ExpiresAt != nil {
 			fmt.Printf("expires:  %s\n", kv.ExpiresAt.Local().Format("2006-01-02 15:04"))
