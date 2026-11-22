@@ -225,7 +225,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | chats show|search|export|fork|delete …
   llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
-  llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|embed|delete …
+  llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl cost [-keys] [-json]
@@ -4103,7 +4103,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "docs", "add-doc", "search", "embed", "delete":
+		case "list", "show", "create", "update", "docs", "add-doc", "search", "embed", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -4326,6 +4326,52 @@ func cmdKb(args []string) error {
 			return err
 		}
 		fmt.Printf("added %s (%d bytes) as %s\n", rec.Filename, rec.Size, rec.ID)
+		return nil
+	case "update":
+		// Read-modify-write: PUT replaces name+description wholesale, so
+		// fetch the current values and apply only the flags given (F291).
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl kb update <id> [-name N] [-desc D]")
+		}
+		ufs := flag.NewFlagSet("kb update", flag.ExitOnError)
+		name := ufs.String("name", "", "new name")
+		desc := ufs.String("desc", "", "new description")
+		ufs.Parse(reorderFlags(rest[1:]))
+		if *name == "" && *desc == "" {
+			return fmt.Errorf("nothing to change (pass -name and/or -desc)")
+		}
+		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb update: %s", out)
+		}
+		var cur struct {
+			KB struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"kb"`
+		}
+		if err := json.Unmarshal(out, &cur); err != nil {
+			return fmt.Errorf("kb update: unexpected record: %s", out)
+		}
+		newName, newDesc := cur.KB.Name, cur.KB.Description
+		if *name != "" {
+			newName = *name
+		}
+		if *desc != "" {
+			newDesc = *desc
+		}
+		code, out, err = cc.Do("PUT", "/api/v1/knowledge-bases/"+url.PathEscape(rest[0]),
+			map[string]any{"name": newName, "description": newDesc})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb update: %s", out)
+		}
+		fmt.Printf("knowledge base %s updated\n", rest[0])
 		return nil
 	case "create":
 		cfs := flag.NewFlagSet("kb create", flag.ExitOnError)
