@@ -600,7 +600,7 @@ llmctl disk [-json] [--csv] [-out FILE]            (model dir + volume disk usag
                                     exit ≠0 on errors)
 llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --csv: one-shot CSV export; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F467; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
-llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388)
+llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388; mutations print one-line confirmations, `-json` for raw, F566)
 llmctl catalog list [-json|-csv] | install <id>      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387)
 llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328; save/start -json print the raw response, F524, F525)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -out FILE writes the raw JSON, F479,
@@ -616,8 +616,8 @@ llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|nev
 llmctl models metadata <id> [-json] [-out FILE]        (GGUF header metadata, F268; -out writes the raw JSON, F500)
 llmctl models unused [--csv] [-out FILE]              (models with no instance + reclaimable size, F280; --csv exports id,size_bytes, F408; -out writes the same as JSON, F512)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]
-llmctl stop <instance> [--force]
-llmctl stop --all                          (stop every running instance, attached ones stay, F278)
+llmctl stop <instance> [--force] [--json]
+llmctl stop --all                          (stop every running instance, attached ones stay, F278; human confirmation by default, --json for raw, F566)
 llmctl restart <instance> | llmctl restart --all [--json]   (--all restarts each running instance, reporting per-instance failures, F445; --all --json prints one aggregate {"restarted":[…]} object, F533)
 llmctl maxparallel <instance> <n> [-json]  (concurrent-request cap, 0 = unlimited, F270; -json prints the raw response, F532)
 llmctl note <instance> <text> [-json]        (free-text annotation, F271; -json prints the raw response, F529)

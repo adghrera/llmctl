@@ -206,10 +206,10 @@ Usage:
   llmctl disk [-json] [--csv] [-out FILE]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE]
   llmctl backends list [-json|-csv|-out FILE]
-  llmctl backends install <id> [--asset <hint>]
-  llmctl backends uninstall <id>
-  llmctl backends add <plugin.json>
-  llmctl backends remove <id>
+  llmctl backends install <id> [--asset <hint>] [-json]
+  llmctl backends uninstall <id> [-json]
+  llmctl backends add <plugin.json> [-json]
+  llmctl backends remove <id> [-json]
   llmctl models list [--csv] [-out FILE]
   llmctl models show <id> [-json] [-out FILE]
   llmctl models probe [-json] [-out FILE]
@@ -228,7 +228,7 @@ Usage:
   llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo> [-json] [-out FILE]
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...] [-json]
-  llmctl stop <instance> [--force] | llmctl stop --all
+  llmctl stop <instance> [--force] | llmctl stop --all [--json]
   llmctl restart <instance> | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
   llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
@@ -2502,14 +2502,14 @@ func cmdBackends(args []string) error {
 		}
 		return nil
 	case "install":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backends install <id> [--asset hint]")
+		bifs := flag.NewFlagSet("backends install", flag.ExitOnError)
+		bijson := bifs.Bool("json", false, "print the raw job JSON (F566)")
+		asset := bifs.String("asset", "", "asset hint")
+		bifs.Parse(reorderFlags(rest))
+		if bifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backends install <id> [--asset hint] [-json]")
 		}
-		id := rest[0]
-		fs := flag.NewFlagSet("install", flag.ExitOnError)
-		asset := fs.String("asset", "", "asset hint")
-		fs.Parse(reorderFlags(rest[1:]))
-		path := "/api/v1/backends/" + id + "/install"
+		path := "/api/v1/backends/" + bifs.Arg(0) + "/install"
 		if *asset != "" {
 			path += "?asset=" + *asset
 		}
@@ -2517,30 +2517,43 @@ func cmdBackends(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 202 {
-			return fmt.Errorf("install returned %d", code)
+			return fmt.Errorf("install returned %d: %s", code, out)
 		}
-		fmt.Println("install started (track: llmctl status / web UI)")
+		if *bijson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("backend %s install started (track: llmctl status / web UI)\n", bifs.Arg(0))
 		return nil
 	case "uninstall":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backends uninstall <id>")
+		bufs := flag.NewFlagSet("backends uninstall", flag.ExitOnError)
+		bujson := bufs.Bool("json", false, "print the raw response JSON (F566)")
+		bufs.Parse(reorderFlags(rest))
+		if bufs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backends uninstall <id> [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/backends/"+rest[0]+"/uninstall", nil)
+		code, out, err := cc.Post("/api/v1/backends/"+url.PathEscape(bufs.Arg(0))+"/uninstall", nil)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("uninstall returned %d", code)
+			return fmt.Errorf("uninstall returned %d: %s", code, out)
 		}
+		if *bujson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("backend %s uninstalled\n", bufs.Arg(0))
 		return nil
 	case "add":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backends add <plugin.json>")
+		bafs := flag.NewFlagSet("backends add", flag.ExitOnError)
+		bajson := bafs.Bool("json", false, "print the raw created-backend JSON (F566)")
+		bafs.Parse(reorderFlags(rest))
+		if bafs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backends add <plugin.json> [-json]")
 		}
-		b, err := os.ReadFile(rest[0])
+		b, err := os.ReadFile(bafs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -2552,23 +2565,34 @@ func cmdBackends(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 201 {
-			return fmt.Errorf("add returned %d", code)
+			return fmt.Errorf("add returned %d: %s", code, out)
 		}
+		if *bajson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("backend %v added\n", m["id"])
 		return nil
 	case "remove":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backends remove <id>")
+		brfs := flag.NewFlagSet("backends remove", flag.ExitOnError)
+		brjson := brfs.Bool("json", false, "print the raw response JSON (F566)")
+		brfs.Parse(reorderFlags(rest))
+		if brfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backends remove <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/backends/" + rest[0])
+		code, out, err := cc.Delete("/api/v1/backends/" + url.PathEscape(brfs.Arg(0)))
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("remove returned %d", code)
+			return fmt.Errorf("remove returned %d: %s", code, out)
 		}
+		if *brjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("backend %s removed\n", brfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown backends subcommand: %s", sub)
@@ -3410,9 +3434,10 @@ func cmdStop(args []string) error {
 	fs := flag.NewFlagSet("stop", flag.ExitOnError)
 	force := fs.Bool("force", false, "force kill")
 	all := fs.Bool("all", false, "stop every running instance (F278)")
+	sjson := fs.Bool("json", false, "print the raw response JSON (F566)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 && !*all {
-		return fmt.Errorf("usage: llmctl stop <instance> [--force] | llmctl stop --all")
+		return fmt.Errorf("usage: llmctl stop <instance> [--force] | llmctl stop --all [--json]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -3426,7 +3451,17 @@ func cmdStop(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("stop --all returned %d: %s", code, out)
 		}
-		fmt.Println(string(out))
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var sa struct {
+			Stopped []string `json:"stopped"`
+		}
+		if err := json.Unmarshal(out, &sa); err != nil {
+			return err
+		}
+		fmt.Printf("stopped %d instance(s)\n", len(sa.Stopped))
 		return nil
 	}
 	path := "/api/v1/instances/" + fs.Arg(0)
@@ -3437,10 +3472,14 @@ func cmdStop(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(out))
 	if code != 200 {
-		return fmt.Errorf("stop returned %d", code)
+		return fmt.Errorf("stop returned %d: %s", code, out)
 	}
+	if *sjson {
+		fmt.Print(string(out))
+		return nil
+	}
+	fmt.Printf("instance %s stopped\n", fs.Arg(0))
 	return nil
 }
 
