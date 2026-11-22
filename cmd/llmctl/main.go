@@ -227,7 +227,7 @@ Usage:
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
   llmctl scheduler runs [-n 20] [--csv]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats]
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
@@ -3571,6 +3571,20 @@ func cmdRequests(args []string) error {
 				fmt.Println(string(b))
 				return nil
 			}
+			if *csvOut { // F420: one row per group, header-only when empty
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"group", "requests", "errors", "error_pct", "avg_ms", "p50_ms", "p95_ms", "max_ms", "in_tokens", "out_tokens", "cost_usd"})
+				for _, g := range names {
+					a := statsOf(groups[g])
+					_ = w.Write([]string{g, strconv.Itoa(a.Requests), strconv.Itoa(a.Errors),
+						strconv.FormatFloat(a.ErrorPct, 'f', 1, 64), strconv.FormatFloat(a.AvgMs, 'f', 0, 64),
+						strconv.FormatFloat(a.P50Ms, 'f', 0, 64), strconv.FormatFloat(a.P95Ms, 'f', 0, 64),
+						strconv.FormatFloat(a.MaxMs, 'f', 0, 64), strconv.FormatInt(a.In, 10),
+						strconv.FormatInt(a.Out, 10), strconv.FormatFloat(a.Cost, 'f', 4, 64)})
+				}
+				w.Flush()
+				return w.Error()
+			}
 			fmt.Printf("%-20s %7s %7s %8s %8s %10s %10s %9s\n", strings.ToUpper(*by), "REQS", "ERRORS", "P50 MS", "P95 MS", "IN", "OUT", "COST $")
 			for _, g := range names {
 				a := statsOf(groups[g])
@@ -3579,6 +3593,17 @@ func cmdRequests(args []string) error {
 			return nil
 		}
 		a := statsOf(entries)
+		if *csvOut { // F420: single aggregate row
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"group", "requests", "errors", "error_pct", "avg_ms", "p50_ms", "p95_ms", "max_ms", "in_tokens", "out_tokens", "cost_usd"})
+			_ = w.Write([]string{"(all)", strconv.Itoa(a.Requests), strconv.Itoa(a.Errors),
+				strconv.FormatFloat(a.ErrorPct, 'f', 1, 64), strconv.FormatFloat(a.AvgMs, 'f', 0, 64),
+				strconv.FormatFloat(a.P50Ms, 'f', 0, 64), strconv.FormatFloat(a.P95Ms, 'f', 0, 64),
+				strconv.FormatFloat(a.MaxMs, 'f', 0, 64), strconv.FormatInt(a.In, 10),
+				strconv.FormatInt(a.Out, 10), strconv.FormatFloat(a.Cost, 'f', 4, 64)})
+			w.Flush()
+			return w.Error()
+		}
 		if *jsonOut {
 			b, _ := json.Marshal(a)
 			fmt.Println(string(b))

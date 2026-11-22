@@ -233,7 +233,7 @@ toggle for a light theme (choice remembered). Tabs:
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
   key, status, latency, tokens) in an auto-refreshing table with a summary bar
   (count, errors, p50/p95 latency, tokens, cost — the UI twin of
-  `llmctl requests -stats`, F258), with one-click
+  `llmctl requests -stats`, F258) with its own Export CSV (F421), with one-click
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
   stream/plain, key prefix or id, and a since/until time range (F189). The serving replica is also echoed to clients as
@@ -596,7 +596,7 @@ llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (
 llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/runs --json for scripts; list --csv for audit export (F376);
                                     add: -name -cron -kind -model -prompt -instance -webhook -keep -kb;
                                     update: same flags, changes only what you pass, F290)
-llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]]
+llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]]   (--csv also exports -stats rows, F420)
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)

@@ -292,6 +292,29 @@ function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
       <span className="muted">{label}</span> <strong>{value}</strong>
     </span>
   );
+  const exportCsv = () => {
+    // Same columns as `llmctl requests --stats --csv` (F421).
+    const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+    const avg = lat.length ? lat.reduce((s, l) => s + l, 0) / lat.length : 0;
+    const max = lat.length ? lat[lat.length - 1] : 0;
+    // CLI percentile index: lats[floor(p*(n-1))] — match `requests --stats`.
+    const cpct = (p: number) => (lat.length ? lat[Math.floor(p * (lat.length - 1))] : 0);
+    const inTok = entries.reduce((s, e) => s + e.promptTok, 0);
+    const outTok = entries.reduce((s, e) => s + e.compTok, 0);
+    const errPct = entries.length ? (100 * errors) / entries.length : 0;
+    const rows = [
+      "group,requests,errors,error_pct,avg_ms,p50_ms,p95_ms,max_ms,in_tokens,out_tokens,cost_usd",
+      ["(all)", String(entries.length), String(errors), errPct.toFixed(1), avg.toFixed(0),
+        cpct(0.5).toFixed(0), cpct(0.95).toFixed(0), max.toFixed(0), String(inTok), String(outTok), cost.toFixed(4)]
+        .map(esc).join(","),
+    ];
+    const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-requests-stats-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   return (
     <p style={{ margin: "0 0 12px", fontSize: 13 }}>
       {item("requests", String(entries.length))}
@@ -300,6 +323,9 @@ function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
       {item("p95", `${pct(0.95)} ms`)}
       {item("tokens", tokens.toLocaleString())}
       {item("cost", cost > 0 ? `$${cost.toFixed(4)}` : "—")}
+      <button className="btn sm" style={{ marginLeft: 8 }} onClick={exportCsv}>
+        Export CSV
+      </button>
     </p>
   );
 }
