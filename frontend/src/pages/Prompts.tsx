@@ -11,6 +11,7 @@ export default function Prompts() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [filter, setFilter] = useState(params.get("q") || "");
   const [copied, setCopied] = useState<Set<string>>(new Set());
+  const [showStats, setShowStats] = useState(false); // per-category rollup (CLI `prompts -stats` parity, F636)
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -286,6 +287,15 @@ export default function Prompts() {
           <div className="row" style={{ gap: 6 }}>
           <button
             className="btn sm"
+            aria-pressed={showStats}
+            disabled={filtered.length === 0}
+            title="group templates per category — CLI: llmctl prompts -stats (F636)"
+            onClick={() => setShowStats(!showStats)}
+          >
+            {showStats ? "Show list" : "Stats"}
+          </button>
+          <button
+            className="btn sm"
             disabled={filtered.length === 0}
             onClick={() => {
               // Same columns as `llmctl prompts list --csv` (F394).
@@ -334,12 +344,41 @@ export default function Prompts() {
           />
           </div>
         </div>
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !showStats && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
             No templates in this category.
           </div>
         )}
-        {filtered.map((t) => (
+        {showStats && filtered.length > 0 && (
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Templates</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                // Same rollup as `llmctl prompts -stats` (F636): one row per
+                // category, "(none)" groups uncategorized, sorted by count.
+                const by = new Map<string, number>();
+                for (const t of filtered) {
+                  const c = t.category || "(none)";
+                  by.set(c, (by.get(c) ?? 0) + 1);
+                }
+                return [...by.entries()]
+                  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                  .map(([cat, n]) => (
+                    <tr key={cat}>
+                      <td>{cat}</td>
+                      <td>{n}</td>
+                    </tr>
+                  ));
+              })()}
+            </tbody>
+          </table>
+        )}
+        {!showStats && filtered.map((t) => (
           <div
             key={t.id}
             style={{
