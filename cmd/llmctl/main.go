@@ -60,6 +60,8 @@ func main() {
 		err = cmdJobs(args)
 	case "search":
 		err = cmdWebSearch(args)
+	case "structured":
+		err = cmdStructured(args)
 	case "note":
 		err = cmdNote(args)
 	case "autorestart":
@@ -152,6 +154,7 @@ Usage:
   llmctl gpu [-json]
   llmctl jobs [-json] [-watch N]
   llmctl search <query> [-max N] [-json]
+  llmctl structured -model ID -schema file.json <prompt>
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -974,6 +977,75 @@ func cmdWebSearch(args []string) error {
 			fmt.Printf("   %s\n", sn)
 		}
 	}
+	return nil
+}
+
+// cmdStructured runs the daemon's schema-validated JSON generation
+// (POST /api/v1/structured, F279).
+func cmdStructured(args []string) error {
+	fs := flag.NewFlagSet("structured", flag.ExitOnError)
+	model := fs.String("model", "", "model id (required)")
+	schemaF := fs.String("schema", "", "path to a JSON Schema file (required)")
+	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	retries := fs.Int("retries", 2, "validation retries")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 || *model == "" || *schemaF == "" {
+		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] <prompt>")
+	}
+	schemaBytes, err := os.ReadFile(*schemaF)
+	if err != nil {
+		return err
+	}
+	var schema map[string]any
+	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+		return fmt.Errorf("schema file: %w", err)
+	}
+	prompt := strings.Join(fs.Args(), " ")
+	if prompt == "" {
+		if b, err := io.ReadAll(os.Stdin); err == nil {
+			prompt = strings.TrimSpace(string(b))
+		}
+	}
+	if prompt == "" {
+		return fmt.Errorf("no prompt (pass it as an argument or pipe it to stdin)")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	body := map[string]any{
+		"model":    *model,
+		"messages": []map[string]string{{"role": "user", "content": prompt}},
+		"schema":   schema,
+	}
+	if *retries > 0 {
+		body["maxRetries"] = *retries
+	}
+	code, out, err := cc.DoKey("POST", "/api/v1/structured", body, *keyF)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("structured: %s", out)
+	}
+	var res struct {
+		OK       bool            `json:"ok"`
+		JSON     json.RawMessage `json:"json"`
+		Attempts int             `json:"attempts"`
+		Error    string          `json:"error"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	if !res.OK {
+		return fmt.Errorf("structured failed after retries: %s", res.Error)
+	}
+	var pretty bytes.Buffer
+	if err := json.Indent(&pretty, res.JSON, "", "  "); err != nil {
+		fmt.Println(string(res.JSON))
+		return nil
+	}
+	fmt.Println(pretty.String())
 	return nil
 }
 

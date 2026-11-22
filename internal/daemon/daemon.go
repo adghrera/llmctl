@@ -392,6 +392,16 @@ func NewControlClient() (*ControlClient, error) {
 }
 
 func (cc *ControlClient) Do(method, path string, body any) (int, []byte, error) {
+	return cc.do(method, path, body, "")
+}
+
+// DoKey is Do with an extra Authorization: Bearer <key> header (used by
+// endpoints that forward a gateway key, e.g. /api/v1/structured, F279).
+func (cc *ControlClient) DoKey(method, path string, body any, key string) (int, []byte, error) {
+	return cc.do(method, path, body, key)
+}
+
+func (cc *ControlClient) do(method, path string, body any, key string) (int, []byte, error) {
 	var rdr io.Reader
 	if body != nil {
 		b, _ := json.Marshal(body)
@@ -402,6 +412,9 @@ func (cc *ControlClient) Do(method, path string, body any) (int, []byte, error) 
 		return 0, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if key != "" {
+		req.Header.Set("Authorization", "Bearer "+key)
+	}
 	resp, err := cc.hc.Do(req)
 	if err != nil {
 		return 0, nil, err
