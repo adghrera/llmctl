@@ -533,6 +533,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F520 | P3 | 520 | cli | `models price -out FILE` | COMPLETED | `llmctl models price <id> <in> <out> -out FILE` writes the raw response JSON to the file (stdout stays clean, notice on stderr), for scripting; the plain output is unchanged (and errors now surface the response body). Verified live: -out wrote the exact payload (49 B), plain unchanged. |
 | F521 | P3 | 521 | cli | `models ctx -out FILE` | COMPLETED | `llmctl models ctx <id> <tokens|0> -out FILE` writes the raw response JSON to the file (stdout stays clean, notice on stderr), for scripting; the plain output is unchanged (errors now surface the response body). Verified live: -out wrote the exact payload (63 B incl. restartRequired), plain unchanged. |
 | F522 | P3 | 522 | cli | `models idle -out FILE` | COMPLETED | `llmctl models idle <id> <minutes|never> -out FILE` writes the raw response JSON to the file (stdout stays clean, notice on stderr), for scripting; the human line is unchanged. Verified live: -out wrote the exact payload (31 B), plain unchanged. |
+| F523 | P3 | 523 | cli | `models rename -json` | COMPLETED | `llmctl models rename <id> <new-id> -json` prints the raw response JSON (`{"id","instancesUpdated","ok"}`) for scripting; the human line is unchanged. Verified live with a temporary model: -json returned the exact payload, plain rename round-trip unchanged; model removed after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

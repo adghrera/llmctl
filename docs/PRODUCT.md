@@ -596,7 +596,7 @@ llmctl catalog list [-json|-csv] | install <id>      (curated model picker, F266
 llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -out FILE writes the raw JSON, F479,
 llmctl models add <id> <file> [-backend ID] [-out FILE] (register an existing local GGUF, F275; -out writes the raw created-model JSON, F513)
-llmctl models rename <id> <new-id>                    (change a model id; aliases follow, F284)
+llmctl models rename <id> <new-id> [-json]           (change a model id; aliases follow, F284; -json prints the raw response, F523)
                                     price and idle-unload; show also lists aliases pointing at the
                                     model (F367); list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)

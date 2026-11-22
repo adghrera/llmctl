@@ -2445,8 +2445,11 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "rename":
+		rnfs := flag.NewFlagSet("models rename", flag.ExitOnError)
+		rnjson := rnfs.Bool("json", false, "print the raw response JSON (F523)")
+		rnfs.Parse(reorderFlags(rest[2:]))
 		if len(rest) < 2 {
-			return fmt.Errorf("usage: llmctl models rename <id> <new-id>")
+			return fmt.Errorf("usage: llmctl models rename <id> <new-id> [-json]")
 		}
 		code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(rest[0])+"/rename",
 			map[string]any{"newId": rest[1]})
@@ -2455,6 +2458,10 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("models rename: %s", out)
+		}
+		if *rnjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("model %s renamed to %s\n", rest[0], rest[1])
 		return nil
