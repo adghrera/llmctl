@@ -211,7 +211,7 @@ Usage:
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
   llmctl key disable <id> / llmctl key enable <id>
   llmctl key rotate <id> [-json]
-  llmctl key list
+  llmctl key list [--csv]
   llmctl key revoke <id>
   llmctl key reset-usage <id>
   llmctl autostart list
@@ -7299,6 +7299,7 @@ func cmdKey(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("key list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw keys JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the key table as CSV (F374)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/keys")
 		if err != nil {
@@ -7328,8 +7329,34 @@ func cmdKey(args []string) error {
 			return err
 		}
 		if len(list) == 0 {
+			if *csvOut { // keep the stream parseable (F374)
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note"})
+				w.Flush()
+				return w.Error()
+			}
 			fmt.Println("no keys")
 			return nil
+		}
+		if *csvOut { // F374
+			rfc := func(t *time.Time) string {
+				if t == nil {
+					return ""
+				}
+				return t.UTC().Format(time.RFC3339)
+			}
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note"})
+			for _, k := range list {
+				_ = w.Write([]string{k.ID, k.Name, k.Prefix, strconv.FormatBool(k.Disabled),
+					rfc(k.ExpiresAt), rfc(k.LastUsed),
+					strconv.FormatInt(k.UsedTok, 10), strconv.FormatInt(k.TokenQuota, 10),
+					strconv.FormatInt(k.UsedReqs, 10), strconv.FormatInt(k.MaxRequests, 10),
+					strconv.FormatFloat(k.UsedCost, 'f', 4, 64), strconv.FormatFloat(k.TodayCost, 'f', 4, 64),
+					strconv.FormatFloat(k.DailyCostBudgetUSD, 'f', 4, 64), k.Note})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %-12s %-12s %-9s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "EXPIRES", "LAST USED", "QUOTA", "NOTE")
 		for _, k := range list {
