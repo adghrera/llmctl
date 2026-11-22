@@ -188,6 +188,45 @@ func Run(ctx context.Context, opts Options) error {
 		postEventWebhook(ctx, st, event, inst, logger)
 	})
 
+	// Start-on-demand (F100): a gateway request for a model that has an
+	// auto-start declaration cold-starts it (when the setting is on).
+	gw.SetStartHook(func(model string) bool {
+		cur, err := st.Load()
+		if err != nil || cur.Settings == nil || !cur.Settings.StartOnDemand {
+			return false
+		}
+		name := strings.ToLower(strings.TrimSpace(model))
+		if t, ok := cur.Aliases[name]; ok && strings.TrimSpace(t) != "" {
+			name = strings.ToLower(strings.TrimSpace(t))
+		}
+		var spec *store.AutoStartSpec
+		for k, s := range cur.AutoStart {
+			if strings.EqualFold(k, name) {
+				spec = s
+				break
+			}
+		}
+		if spec == nil {
+			return false
+		}
+		instName := spec.Name
+		if instName == "" {
+			instName = spec.ModelID
+		}
+		if inst, ok := cur.Instances[instName]; ok && inst.Status == store.StatusRunning {
+			return false
+		}
+		logger.Info("start-on-demand: starting instance", "instance", instName, "model", spec.ModelID)
+		sctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+		defer cancel()
+		if _, err := sv.Start(sctx, instName, spec.ModelID, spec.BackendID, spec.Port, spec.Vars); err != nil {
+			logger.Warn("start-on-demand failed", "instance", instName, "err", err)
+			return false
+		}
+		evRing.Add(events.Event{Kind: "instance.started-on-demand", Instance: instName, Model: spec.ModelID})
+		return true
+	})
+
 	// Auto-stop instances that have served no gateway request for a while.
 	go idleUnloadLoop(ctx, st, sv, gw, logger, evRing)
 

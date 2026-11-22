@@ -112,6 +112,9 @@ type Settings struct {
 	// backend to become healthy (0 = default 240 s). Raise for very large
 	// models on slow storage (F085).
 	StartupTimeoutSec int `json:"startupTimeoutSec"`
+	// StartOnDemand lets a gateway request start a stopped instance for
+	// the requested model (cold start); the request waits for health (F100).
+	StartOnDemand bool `json:"startOnDemand"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

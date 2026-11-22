@@ -1352,6 +1352,7 @@ type settingsView struct {
 	NotifyWebhook     string `json:"notifyWebhook"`
 	AllowCORS         bool   `json:"allowCORS"`
 	StartupTimeoutSec int    `json:"startupTimeoutSec"`
+	StartOnDemand     bool   `json:"startOnDemand"`
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1384,6 +1385,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		NotifyWebhook:     st.Settings.NotifyWebhook,
 		AllowCORS:         st.Settings.AllowCORS,
 		StartupTimeoutSec: st.Settings.StartupTimeoutSec,
+		StartOnDemand:     st.Settings.StartOnDemand,
 	})
 }
 
@@ -1393,6 +1395,7 @@ type updateSettingsReq struct {
 	NotifyWebhook     *string `json:"notifyWebhook"`
 	AllowCORS         *bool   `json:"allowCORS"`
 	StartupTimeoutSec *int    `json:"startupTimeoutSec"`
+	StartOnDemand     *bool   `json:"startOnDemand"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1425,6 +1428,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.StartupTimeoutSec != nil {
 			st.Settings.StartupTimeoutSec = *req.StartupTimeoutSec
 		}
+		if req.StartOnDemand != nil {
+			st.Settings.StartOnDemand = *req.StartOnDemand
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1442,6 +1448,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		NotifyWebhook:     st.Settings.NotifyWebhook,
 		AllowCORS:         st.Settings.AllowCORS,
 		StartupTimeoutSec: st.Settings.StartupTimeoutSec,
+		StartOnDemand:     st.Settings.StartOnDemand,
 	})
 }
 

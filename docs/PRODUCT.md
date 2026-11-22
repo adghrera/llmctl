@@ -67,6 +67,11 @@ GitHub release, or file list. No recompile.
 - Attached instances are health-probed every 30 s; if the external server
   stops answering, the instance is marked crashed after 3 failed probes and
   the notify webhook fires (F096).
+- Start on demand (Settings toggle, F100): with `startOnDemand` on, a gateway
+  request for a model that has an auto-start declaration (`llmctl autostart
+  add`) but no running instance cold-starts it; the request waits for the
+  backend to become healthy. Concurrent requests for the same cold model
+  start it only once.
 - Logs per instance under `~/.llmctl/logs/<instance>/`, viewable in the UI
   with one-click full-file download (F075).
 

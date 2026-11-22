@@ -26,7 +26,7 @@ export default function SettingsPage() {
     }).catch(() => {});
   }, []);
 
-  const toggle = async (key: "requireAuth" | "allowCORS") => {
+  const toggle = async (key: "requireAuth" | "allowCORS" | "startOnDemand") => {
     if (busy) return;
     setBusy(true);
     try {
@@ -230,6 +230,24 @@ export default function SettingsPage() {
               When ON, the gateway answers cross-origin preflights and sends
               Access-Control-Allow-* headers so browser apps can call /v1/*
               directly.
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Start on demand</h3>
+              <div className="spacer" />
+              <button
+                className={`btn ${settings?.startOnDemand ? "primary" : ""}`}
+                disabled={busy}
+                onClick={() => toggle("startOnDemand")}
+              >
+                {settings?.startOnDemand ? "ON" : "OFF"}
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              When ON, a gateway request for a model with an auto-start
+              declaration cold-starts it; the request waits for the backend to
+              become healthy.
             </p>
           </div>
         </div>

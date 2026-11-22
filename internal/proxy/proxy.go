@@ -42,6 +42,8 @@ type Server struct {
 	collector    *metricsCollector
 	keyMu        sync.Mutex
 	keyInflight  map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
+	startHook    func(model string) bool  // daemon-provided cold-start attempt (F100)
+	startMu      sync.Mutex               // serializes concurrent cold starts (F100)
 	handler      http.Handler
 	httpSrv      *http.Server
 }
@@ -401,6 +403,17 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	}
 
 	targets, err := s.router.ResolveList(peek.Model)
+	if err != nil && s.startHook != nil && peek.Model != "" {
+		// Start-on-demand (F100): try to cold-start a stopped instance for
+		// this model, then resolve once more. Serialized so parallel
+		// requests for a cold model start it only once.
+		s.startMu.Lock()
+		started := s.startHook(peek.Model)
+		s.startMu.Unlock()
+		if started {
+			targets, err = s.router.ResolveList(peek.Model)
+		}
+	}
 	if err != nil {
 		status, code := routeError(err)
 		writeErr(w, status, code, err.Error())
@@ -717,6 +730,13 @@ func (s *Server) cors(next http.Handler) http.Handler {
 // SetKeyCheck updates the hashed-key verifier at runtime.
 func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 	s.keyCheck = fn
+}
+
+// SetStartHook installs a cold-start attempt used when no running instance
+// serves a model: fn returns true if a start was attempted and may have
+// succeeded (F100).
+func (s *Server) SetStartHook(fn func(model string) bool) {
+	s.startHook = fn
 }
 
 // keyAcquire increments the in-flight counter for a key prefix and returns a

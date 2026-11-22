@@ -109,6 +109,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F097 | P2 | 97 | usage | Daily usage rollup | COMPLETED | Gateway usage is rolled up per UTC date and model, persisted to state (30 s ticker + synchronous shutdown flush — fixed a race where the old goroutine flush could be lost on shutdown) and re-seeded at startup. `GET /api/v1/usage/daily[?days=N]` + "Daily History" table on the Usage page. Verified live: counts, filter, persistence across restart. |
 | F098 | P3 | 98 | cli | `usage` command | COMPLETED | `llmctl usage [-n 14]` prints the daily per-model rollup (requests, errors, tokens) newest-day-first from `/api/v1/usage/daily`. Verified live against the running daemon. |
 | F099 | P2 | 99 | daemon | Events feed | COMPLETED | New `internal/events` ring (200 entries) records instance crashes, auto-restarts and idle-unloads; `GET /api/v1/events[?limit=N]` + an "Events" card on the Overview page. Verified live: crash of a killed stdio instance appeared within one reap cycle. |
+| F100 | P1 | 100 | gateway | Start on demand | COMPLETED | `settings.startOnDemand` (Settings toggle): a gateway request for a model with an auto-start declaration and no running instance cold-starts it (serialized so parallel requests start it once); the request waits for health, alias names resolve, and an `instance.started-on-demand` event is recorded. Verified live: 503 off, 200 on (direct + alias), event logged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

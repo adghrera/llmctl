@@ -405,6 +405,7 @@ export interface Settings {
   notifyWebhook?: string;
   allowCORS?: boolean;
   startupTimeoutSec?: number;
+  startOnDemand?: boolean;
 }
 
 export class ApiError extends Error {
@@ -701,7 +702,7 @@ export const api = {
     }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; allowCORS?: boolean; startupTimeoutSec?: number }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   testNotifyWebhook: () =>
     req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),
