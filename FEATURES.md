@@ -222,6 +222,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F210 | P3 | 210 | cli | `scheduler add -webhook/-keep` | COMPLETED | `llmctl scheduler add` gained `-webhook URL` (per-task result webhook) and `-keep N` (backup retention), matching the API spec. Verified live: a backup task created with both flags shows `webhook_url` and `keep` in the API. |
 | F211 | P3 | 211 | ui | Dim disabled key rows | COMPLETED | Disabled keys now render at reduced opacity in the Keys table, complementing the "off" badge (F195) and toggle (F205). Verified live: served bundle contains the opacity style. |
 | F212 | P3 | 212 | gateway | `/v1/models` probe cache | COMPLETED | Upstream `/v1/models` probes are now cached per instance for 2s, so client polling doesn't hammer every backend; results unchanged within the TTL. Verified live: repeated calls return the same model list. |
+| F213 | P3 | 213 | cli | `events -json` | COMPLETED | `llmctl events -json` prints the raw events-feed JSON (honors `-n`/`-kind`) for scripts. Verified live: output parses as JSON; table mode unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

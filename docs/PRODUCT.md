@@ -394,7 +394,7 @@ llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--js
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [--csv] [--json]
 llmctl metrics [-watch N]          (-watch N: live refresh every N seconds)
-llmctl events [-n 20] [-watch N]
+llmctl events [-n 20] [-watch N] [-json]
 llmctl webhooks [-n 20]          recent webhook delivery attempts
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
 llmctl version

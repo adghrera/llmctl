@@ -1645,6 +1645,7 @@ func cmdEvents(args []string) error {
 	n := fs.Int("n", 20, "number of events")
 	kind := fs.String("kind", "", "only this event kind, e.g. instance.crashed")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new events until Ctrl-C (0 = print once)")
+	jsonOut := fs.Bool("json", false, "print the raw events JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1653,6 +1654,17 @@ func cmdEvents(args []string) error {
 	u := "/api/v1/events?limit=" + strconv.Itoa(*n)
 	if *kind != "" {
 		u += "&kind=" + url.QueryEscape(*kind)
+	}
+	if *jsonOut {
+		code, out, err := cc.Get(u)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("events returned %d: %s", code, out)
+		}
+		fmt.Print(string(out))
+		return nil
 	}
 	fetch := func() ([]eventRow, error) {
 		code, out, err := cc.Get(u)
