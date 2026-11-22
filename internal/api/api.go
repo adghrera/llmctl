@@ -119,6 +119,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PATCH /api/v1/models/{id}/idle", s.setModelIdle)
 	m.HandleFunc("PATCH /api/v1/models/{id}/rename", s.renameModel)
 	m.HandleFunc("PATCH /api/v1/models/{id}/note", s.setModelNote)
+	m.HandleFunc("PATCH /api/v1/models/{id}/tags", s.setModelTags)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/logs/daemon", s.daemonLog)
@@ -443,6 +444,7 @@ type modelView struct {
 	IdleUnloadMin int      `json:"idleUnloadMin,omitempty"`
 	Aliases       []string `json:"aliases,omitempty"` // user aliases pointing at this model (F367)
 	Note          string   `json:"note,omitempty"`    // free-text annotation (F661)
+	Tags          []string `json:"tags,omitempty"`    // free-form labels (F662)
 }
 
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
@@ -468,7 +470,7 @@ func (s *Server) probeModels(w http.ResponseWriter, r *http.Request) {
 // modelViewFor builds the API view of one model, incl. instance membership.
 func modelViewFor(st *store.State, id string) modelView {
 	m := st.Models[id]
-	v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin, Note: m.Note}
+	v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin, Note: m.Note, Tags: m.Tags}
 	for alias, target := range st.Aliases {
 		if strings.EqualFold(target, id) {
 			v.Aliases = append(v.Aliases, alias)
@@ -1193,6 +1195,54 @@ func (s *Server) setModelNote(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// setModelTags handles PATCH /api/v1/models/{id}/tags — replace a model's
+// free-form tag list, the model twin of memory/prompt/kb tags (F662).
+// Tags are trimmed, deduped and capped (20 tags, 40 chars each).
+func (s *Server) setModelTags(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	seen := map[string]bool{}
+	tags := []string{}
+	for _, t := range req.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+		seen[t] = true
+		tags = append(tags, t)
+	}
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Models[id] == nil {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if m := st.Models[id]; m != nil {
+			if len(tags) == 0 {
+				m.Tags = nil
+			} else {
+				m.Tags = tags
+			}
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "tags": tags})
 }
 
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {

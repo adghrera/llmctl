@@ -224,6 +224,23 @@ export default function Models() {
     }
   };
 
+  // free-form tags, comma-separated in the prompt (F662); empty clears.
+  const setTags = async (m: Model) => {
+    const next = window.prompt(`Tags for "${m.id}" (comma-separated, empty clears):`, (m.tags ?? []).join(", "));
+    if (next === null) return;
+    const tags = next.split(",").map((t) => t.trim()).filter(Boolean);
+    setBusy(true);
+    try {
+      await api.setModelTags(m.id, tags);
+      ok(tags.length ? `tags on ${m.id}: ${tags.join(", ")}` : `tags cleared on ${m.id}`);
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const savePrice = async (id: string) => {
     const d = priceDraft[id] ?? { i: "", o: "" };
     const pi = d.i === "" ? 0 : Number(d.i);
@@ -471,10 +488,11 @@ export default function Models() {
                     (m) =>
                       m.id.toLowerCase().includes(low) ||
                       m.backendId.toLowerCase().includes(low) ||
-                      (m.path || "").toLowerCase().includes(low)
+                      (m.path || "").toLowerCase().includes(low) ||
+                      (m.tags ?? []).some((t) => t.toLowerCase().includes(low))
                   )
                 : models;
-              const head = ["id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note"];
+              const head = ["id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note", "tags"];
               const rows = [
                 head.join(","),
                 ...shown.map((m) =>
@@ -482,6 +500,7 @@ export default function Models() {
                     m.id, m.backendId, String(m.sizeBytes ?? 0), String(m.ctxSize ?? 0),
                     String(m.priceInPerM ?? 0), String(m.priceOutPerM ?? 0),
                     String(m.idleUnloadMin ?? 0), String(!!m.running), m.note || "",
+                    (m.tags ?? []).join(";"),
                   ]
                     .map(esc)
                     .join(",")
@@ -576,6 +595,13 @@ export default function Models() {
                 <tr key={m.id}>
                   <td className="mono">
                     {m.id}
+                    {(m.tags?.length ?? 0) > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, margin: "2px 0" }}>
+                        {m.tags!.map((t) => (
+                          <span key={t} className="badge">{t}</span>
+                        ))}
+                      </div>
+                    )}
                     {m.note && (
                       <div className="muted" style={{ fontSize: 11, maxWidth: 220 }} title={m.note}>
                         {m.note}
@@ -687,6 +713,9 @@ export default function Models() {
                     </button>{" "}
                     <button className="btn sm" disabled={busy} title="free-text annotation (CLI: llmctl models note)" onClick={() => setNote(m)}>
                       Note
+                    </button>{" "}
+                    <button className="btn sm" disabled={busy} title="comma-separated tags (CLI: llmctl models tag)" onClick={() => setTags(m)}>
+                      Tags
                     </button>{" "}
                     <button
                       className="btn sm"

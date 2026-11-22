@@ -34,6 +34,7 @@ export interface Model {
   priceInPerM?: number;
   priceOutPerM?: number;
   note?: string;
+  tags?: string[];
 }
 
 export interface Instance {
@@ -528,6 +529,8 @@ export const api = {
     req<{ ok: boolean; id: string }>(`/models/${encodeURIComponent(id)}/rename`, { method: "PATCH", body: JSON.stringify({ newId }) }),
   setModelNote: (id: string, note: string) =>
     req<{ ok: boolean }>(`/models/${encodeURIComponent(id)}/note`, { method: "PATCH", body: JSON.stringify({ note }) }),
+  setModelTags: (id: string, tags: string[]) =>
+    req<{ ok: boolean; tags: string[] }>(`/models/${encodeURIComponent(id)}/tags`, { method: "PATCH", body: JSON.stringify({ tags }) }),
   modelMetadata: (id: string) =>
     req<ModelMetadata>(`/models/${encodeURIComponent(id)}/metadata`),
   hfSearch: (q: string, limit = 15) =>

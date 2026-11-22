@@ -55,6 +55,9 @@ type ModelRecord struct {
 	// Note is a free-text annotation shown on the Models page, same idea as
 	// instance notes but on the record because models persist (F661).
 	Note string `json:"note,omitempty"`
+	// Tags are free-form labels for grouping models, the model twin of
+	// memory/prompt/kb tags (F662).
+	Tags []string `json:"tags,omitempty"`
 }
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.

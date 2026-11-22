@@ -222,6 +222,7 @@ Usage:
   llmctl models probe [-json] [-out FILE]
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json|-out FILE]
   llmctl models note <id> [text…] [-json]   (free-text annotation; empty text clears)
+  llmctl models tag <id> [a,b,c] [-json] | models retag <old> <new> | retag -rm <tag>   (free-form tags; list -tag X filters)
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv] [-out FILE]
   llmctl models stats [-json] [--csv] [-out FILE]   (per-backend roll-up: models, running, total size)
@@ -2337,7 +2338,7 @@ var llmSubCommands = map[string]string{
 	"key":       "generate duplicate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
-	"models":    "list stats show add rename note probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
+	"models":    "list stats show add rename note tag retag probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save duplicate start delete export import",
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable delete export import",
@@ -3019,7 +3020,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|stats|show|add|rename|note|probe|price|ctx|idle|metadata|install|remove|routable|unused|aliases|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|stats|show|add|rename|note|tag|retag|probe|price|ctx|idle|metadata|install|remove|routable|unused|aliases|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -3138,6 +3139,101 @@ func cmdModels(args []string) error {
 			fmt.Printf("model %s note cleared\n", mnfs.Arg(0))
 		} else {
 			fmt.Printf("model %s note set\n", mnfs.Arg(0))
+		}
+		return nil
+	case "tag":
+		// Replace a model's tags (comma-separated); empty clears (F662).
+		tgfs := flag.NewFlagSet("models tag", flag.ExitOnError)
+		tgjson := tgfs.Bool("json", false, "print the raw response JSON")
+		tgfs.Parse(reorderFlags(rest))
+		if tgfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl models tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tgfs.NArg() > 1 {
+			for _, t := range strings.Split(tgfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(tgfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("models tag: %s", out)
+		}
+		if *tgjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("model %s tags cleared\n", tgfs.Arg(0))
+		} else {
+			fmt.Printf("model %s tags: %s\n", tgfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
+	case "retag":
+		// Bulk-rename or drop a tag across all models (F662), twin of
+		// `memory retag`; the tag rules live in the tags endpoint.
+		rtfs := flag.NewFlagSet("models retag", flag.ExitOnError)
+		rtrm := rtfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rtjson := rtfs.Bool("json", false, "print the count as JSON")
+		rtfs.Parse(reorderFlags(rest))
+		if rtfs.NArg() < 1 || (!*rtrm && rtfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl models retag <old-tag> <new-tag> | models retag -rm <tag> [-json]")
+		}
+		oldTag, newTag := rtfs.Arg(0), rtfs.Arg(1)
+		code, out, err := cc.Get("/api/v1/models")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("models returned %d: %s", code, out)
+		}
+		var ms []struct {
+			ID   string   `json:"id"`
+			Tags []string `json:"tags"`
+		}
+		if err := json.Unmarshal(out, &ms); err != nil {
+			return err
+		}
+		changed := 0
+		for _, m := range ms {
+			found := false
+			var tags []string
+			for _, t := range m.Tags {
+				if t != oldTag {
+					tags = append(tags, t)
+					continue
+				}
+				found = true
+				if !*rtrm {
+					tags = append(tags, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(m.ID)+"/tags", map[string]any{"tags": tags})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("models retag %s: %s", m.ID, out)
+			}
+			changed++
+		}
+		if *rtjson {
+			fmt.Printf("{\"changed\":%d}\n", changed)
+			return nil
+		}
+		if *rtrm {
+			fmt.Printf("dropped tag %q from %d model(s)\n", oldTag, changed)
+		} else {
+			fmt.Printf("renamed tag %q to %q on %d model(s)\n", oldTag, newTag, changed)
 		}
 		return nil
 	case "add":
@@ -3349,6 +3445,7 @@ func cmdModels(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the raw models JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the model table as CSV (F372)")
 		outFile := fs.String("out", "", "write the raw models JSON to this file instead of stdout (F479)")
+		tagF := fs.String("tag", "", "only models carrying this tag (F662)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/models")
 		if err != nil {
@@ -3361,41 +3458,73 @@ func cmdModels(args []string) error {
 			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
 			return nil
 		}
-		if *jsonOut {
+		if *jsonOut && *tagF == "" {
 			fmt.Print(string(out))
 			return nil
 		}
 		var list []struct {
-			ID        string  `json:"id"`
-			BackendID string  `json:"backendId"`
-			SizeBytes int64   `json:"sizeBytes"`
-			CtxSize   int     `json:"ctxSize"`
-			Running   bool    `json:"running"`
-			PriceIn   float64 `json:"priceInPerM"`
-			PriceOut  float64 `json:"priceOutPerM"`
-			IdleMin   int     `json:"idleUnloadMin"`
-			Note      string  `json:"note"`
+			ID        string   `json:"id"`
+			BackendID string   `json:"backendId"`
+			SizeBytes int64    `json:"sizeBytes"`
+			CtxSize   int      `json:"ctxSize"`
+			Running   bool     `json:"running"`
+			PriceIn   float64  `json:"priceInPerM"`
+			PriceOut  float64  `json:"priceOutPerM"`
+			IdleMin   int      `json:"idleUnloadMin"`
+			Note      string   `json:"note"`
+			Tags      []string `json:"tags"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
 		}
+		if *tagF != "" { // F662: filter by tag; -json prints the filtered array
+			var filtered []struct {
+				ID        string   `json:"id"`
+				BackendID string   `json:"backendId"`
+				SizeBytes int64    `json:"sizeBytes"`
+				CtxSize   int      `json:"ctxSize"`
+				Running   bool     `json:"running"`
+				PriceIn   float64  `json:"priceInPerM"`
+				PriceOut  float64  `json:"priceOutPerM"`
+				IdleMin   int      `json:"idleUnloadMin"`
+				Note      string   `json:"note"`
+				Tags      []string `json:"tags"`
+			}
+			for _, m := range list {
+				for _, t := range m.Tags {
+					if t == *tagF {
+						filtered = append(filtered, m)
+						break
+					}
+				}
+			}
+			list = filtered
+			if *jsonOut {
+				b, _ := json.Marshal(list)
+				fmt.Println(string(b))
+				return nil
+			}
+		}
 		if len(list) == 0 {
 			if *csvOut { // keep the stream parseable (F372)
 				w := csv.NewWriter(os.Stdout)
-				_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note"})
+				_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note", "tags"})
 				w.Flush()
 				return w.Error()
 			}
 			fmt.Println("no models downloaded")
+			if *tagF != "" {
+				fmt.Printf("no models carry tag %q\n", *tagF)
+			}
 			return nil
 		}
 		if *csvOut { // F372
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note"})
+			_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note", "tags"})
 			for _, m := range list {
 				_ = w.Write([]string{m.ID, m.BackendID, strconv.FormatInt(m.SizeBytes, 10), strconv.Itoa(m.CtxSize),
 					strconv.FormatFloat(m.PriceIn, 'f', -1, 64), strconv.FormatFloat(m.PriceOut, 'f', -1, 64),
-					strconv.Itoa(m.IdleMin), strconv.FormatBool(m.Running), m.Note})
+					strconv.Itoa(m.IdleMin), strconv.FormatBool(m.Running), m.Note, strings.Join(m.Tags, ";")})
 			}
 			w.Flush()
 			return w.Error()
@@ -3665,6 +3794,7 @@ func cmdModels(args []string) error {
 			IdleUnloadMin int      `json:"idleUnloadMin"`
 			Aliases       []string `json:"aliases"`
 			Note          string   `json:"note"`
+			Tags          []string `json:"tags"`
 		}
 		if err := json.Unmarshal(out, &mv); err != nil {
 			return err
@@ -3691,6 +3821,9 @@ func cmdModels(args []string) error {
 		fmt.Printf("id:       %s\nbackend:  %s\npath:     %s\nsize:     %s\nctx:      %s\nprice:    %s\nidle:     %s\nstatus:   %s\n", mv.ID, mv.BackendID, mv.Path, fmtSize(mv.SizeBytes), ctxv, price, idle, status)
 		if mv.Note != "" {
 			fmt.Printf("note:     %s\n", mv.Note)
+		}
+		if len(mv.Tags) > 0 {
+			fmt.Printf("tags:     %s\n", strings.Join(mv.Tags, ", "))
 		}
 		if len(mv.Aliases) > 0 {
 			fmt.Printf("aliases:  %s\n", strings.Join(mv.Aliases, ", "))
