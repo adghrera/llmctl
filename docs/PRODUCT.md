@@ -251,7 +251,9 @@ toggle for a light theme (choice remembered). Tabs:
   to it.
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page with a
-  "Run" button per task (F141).
+  "Run" button per task (F141) and a "Recent Runs" history of the last 50
+  executions — status, duration and error/result excerpt
+  (GET /api/v1/scheduler/runs, F145).
 - **RAG knowledge bases** — create/delete/edit knowledge bases at
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove documents
   (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST

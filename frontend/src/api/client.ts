@@ -192,6 +192,16 @@ export interface ScheduleSpec {
   updated_at: string;
 }
 
+export interface ScheduleRun {
+  time: string;
+  taskId: string;
+  name: string;
+  kind: string;
+  status: string; // "ok" | "error"
+  durationMs: number;
+  detail?: string;
+}
+
 export interface FileEntry {
   id: string;
   dir: string;
@@ -722,6 +732,7 @@ export const api = {
     req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runSchedule: (id: string) => req<{ ok: boolean; started: string }>(`/scheduler/${encodeURIComponent(id)}/run`, { method: "POST" }),
+  schedulerRuns: () => req<ScheduleRun[]>("/scheduler/runs"),
   setScheduleEnabled: (id: string, enabled: boolean) =>
     req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   prompts: () => req<PromptTemplate[]>("/prompts"),

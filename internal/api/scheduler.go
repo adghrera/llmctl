@@ -129,8 +129,13 @@ func (s *Server) setScheduleEnabled(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
-// runScheduleNow handles POST /api/v1/scheduler/{id}/run — execute a task
-// immediately (async), regardless of its cron schedule (F084).
+// schedulerRuns handles GET /api/v1/scheduler/runs — recent task executions,
+// newest first (F145).
+func (s *Server) schedulerRuns(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, scheduler.Runs(50))
+}
+
+// runScheduleNow handles POST /api/v1/scheduler/{id}/run — execute a task// immediately (async), regardless of its cron schedule (F084).
 func (s *Server) runScheduleNow(w http.ResponseWriter, r *http.Request) {
 	ts, err := s.schedStore()
 	if err != nil {

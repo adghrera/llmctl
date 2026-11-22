@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, ScheduleSpec } from "../api/client";
+import { api, ScheduleSpec, ScheduleRun } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function Scheduler() {
@@ -13,6 +13,7 @@ export default function Scheduler() {
   const [prompt, setPrompt] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const [runs, setRuns] = useState<ScheduleRun[]>([]);
 
   const load = () =>
     api
@@ -22,6 +23,7 @@ export default function Scheduler() {
 
   useEffect(() => {
     load();
+    api.schedulerRuns().then(setRuns).catch(() => setRuns([]));
   }, []);
 
   const create = async () => {
@@ -102,7 +104,10 @@ export default function Scheduler() {
     try {
       await api.runSchedule(s.id);
       ok(`task "${s.name}" started`);
-      setTimeout(load, 1500);
+      setTimeout(() => {
+        load();
+        api.schedulerRuns().then(setRuns).catch(() => {});
+      }, 1500);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -273,6 +278,41 @@ export default function Scheduler() {
           </table>
         )}
       </div>
+      {runs.length > 0 && (
+        <div className="card">
+          <h2>Recent Runs</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Task</th>
+                <th>Kind</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.slice(0, 10).map((r, i) => (
+                <tr key={i}>
+                  <td className="muted" style={{ fontSize: 12 }}>{new Date(r.time).toLocaleString()}</td>
+                  <td>{r.name}</td>
+                  <td className="muted">{r.kind}</td>
+                  <td>
+                    <span className={`badge ${r.status === "ok" ? "ok" : "err"}`}>{r.status}</span>
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {r.durationMs < 1000 ? `${r.durationMs} ms` : `${(r.durationMs / 1000).toFixed(1)} s`}
+                  </td>
+                  <td className="muted" style={{ fontSize: 12, maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.detail}>
+                    {r.detail || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -567,6 +567,7 @@ func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Sup
 // start or stop an instance (F076). If the task has a webhook_url, the
 // outcome (ok/error) is POSTed there afterwards.
 func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, gw *proxy.Server, st *store.Store, logger *slog.Logger) {
+	start := time.Now()
 	content, err := doScheduledTask(ctx, sch, sv, rec, logger)
 	status := "ok"
 	errMsg := ""
@@ -577,6 +578,21 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.
 	} else {
 		logger.Info("scheduler: task executed", "task", rec.ID, "name", rec.Spec.Name)
 	}
+	// Run-history ring for the UI (F145).
+	detail := errMsg
+	if detail == "" {
+		if r := []rune(content); len(r) > 160 {
+			detail = string(r[:160]) + "…"
+		} else {
+			detail = content
+		}
+	}
+	kind := rec.Spec.Kind
+	if kind == "" {
+		kind = "chat"
+	}
+	scheduler.LogRun(scheduler.Run{Time: time.Now().UTC(), TaskID: rec.ID, Name: rec.Spec.Name,
+		Kind: kind, Status: status, DurationMs: time.Since(start).Milliseconds(), Detail: detail})
 	if rec.Spec.WebhookURL != "" {
 		secret := ""
 		if cur, err := st.Load(); err == nil && cur.Settings != nil {
