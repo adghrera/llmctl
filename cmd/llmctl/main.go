@@ -78,6 +78,8 @@ func main() {
 		err = cmdWebhooks(args)
 	case "prompts":
 		err = cmdPrompts(args)
+	case "chats":
+		err = cmdChats(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -159,6 +161,7 @@ Usage:
   llmctl events [-n 20]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
+  llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -2099,6 +2102,131 @@ func cmdWebhooks(args []string) error {
 		}
 		fmt.Printf("%-14s %-24s %-6s %-5s %s\n",
 			d.Time.Local().Format("01-02 15:04:05"), ev, status, ok, info)
+	}
+	return nil
+}
+
+// cmdChats lists saved chat conversations (F244).
+func cmdChats(args []string) error {
+	if len(args) > 0 && args[0] == "show" {
+		sfs := flag.NewFlagSet("chats show", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw chat JSON (for scripts)")
+		sfs.Parse(reorderFlags(args[1:]))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl chats show <id> [-json]")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(sfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat %s: %s", sfs.Arg(0), out)
+		}
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var ch struct {
+			ID        string `json:"id"`
+			Title     string `json:"title"`
+			Model     string `json:"model"`
+			UpdatedAt string `json:"updatedAt"`
+			Context   struct {
+				UsedTokens int `json:"usedTokens"`
+			} `json:"context"`
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.Unmarshal(out, &ch); err != nil {
+			return err
+		}
+		fmt.Printf("id:      %s\ntitle:   %s\nmodel:   %s\nupdated: %s\ntokens:  %d\n\n",
+			ch.ID, ch.Title, ch.Model, ch.UpdatedAt, ch.Context.UsedTokens)
+		for _, m := range ch.Messages {
+			c := strings.TrimSpace(m.Content)
+			if len(c) > 100 {
+				c = c[:100] + "…"
+			}
+			fmt.Printf("[%s] %s\n", m.Role, strings.ReplaceAll(c, "\n", " "))
+		}
+		return nil
+	}
+	fs := flag.NewFlagSet("chats", flag.ExitOnError)
+	n := fs.Int("n", 20, "number of conversations")
+	jsonOut := fs.Bool("json", false, "print the chat list as JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/chats")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("chats returned %d: %s", code, out)
+	}
+	filter := ""
+	if fs.NArg() > 0 {
+		filter = strings.ToLower(fs.Arg(0))
+	}
+	var list []struct {
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		Model     string `json:"model"`
+		Messages  int    `json:"messages"`
+		UpdatedAt string `json:"updatedAt"`
+	}
+	if err := json.Unmarshal(out, &list); err != nil {
+		return err
+	}
+	if filter != "" {
+		var keep []struct {
+			ID        string `json:"id"`
+			Title     string `json:"title"`
+			Model     string `json:"model"`
+			Messages  int    `json:"messages"`
+			UpdatedAt string `json:"updatedAt"`
+		}
+		for _, c := range list {
+			if strings.Contains(strings.ToLower(c.Title), filter) || strings.Contains(strings.ToLower(c.Model), filter) {
+				keep = append(keep, c)
+			}
+		}
+		list = keep
+	}
+	if len(list) > *n {
+		list = list[:*n]
+	}
+	if *jsonOut {
+		b, err := json.Marshal(list)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
+	}
+	if len(list) == 0 {
+		fmt.Println("no saved chats")
+		return nil
+	}
+	fmt.Printf("%-18s %-14s %-4s %-14s %s\n", "ID", "MODEL", "MSGS", "UPDATED", "TITLE")
+	for _, c := range list {
+		updated := c.UpdatedAt
+		if t, err := time.Parse(time.RFC3339, c.UpdatedAt); err == nil {
+			updated = t.Local().Format("01-02 15:04")
+		}
+		title := c.Title
+		if len(title) > 48 {
+			title = title[:48] + "…"
+		}
+		fmt.Printf("%-18s %-14s %-4d %-14s %s\n", c.ID, c.Model, c.Messages, updated, title)
 	}
 	return nil
 }

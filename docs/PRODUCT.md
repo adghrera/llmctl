@@ -255,6 +255,9 @@ toggle for a light theme (choice remembered). Tabs:
   page with category filtering and copy-to-clipboard. CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` (F218).
+ - **Chat CLI** — `llmctl chats [filter] [-json]` lists saved conversations
+   and `llmctl chats show <id> [-json]` prints one with a message preview
+   (over the chat-store API, F244).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).
