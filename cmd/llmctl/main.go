@@ -243,6 +243,7 @@ Usage:
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
+  llmctl key duplicate <id> [name] [-json]   (fresh key with the same restrictions)
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...> [-json]
   llmctl key update <id> [-name X] [-quota N] [-models a,b] … [-json]
@@ -2331,7 +2332,7 @@ var llmSubCommands = map[string]string{
 	"files":     "list upload cat delete",
 	"jobs":      "wait show clear",
 	"kb":        "list show create update docs doc add-doc export search embed delete",
-	"key":       "generate show note update enable disable rotate list revoke prune reset-usage",
+	"key":       "generate duplicate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
 	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
@@ -10714,7 +10715,7 @@ func cmdBatch(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|show|note|enable|disable|rotate|list|revoke|prune|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|duplicate|show|note|enable|disable|rotate|list|revoke|prune|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -10786,6 +10787,76 @@ func cmdKey(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
+		fmt.Println("key:", r["key"])
+		fmt.Println("name:", r["name"])
+		fmt.Println("NOTE: shown only once — store it now.")
+		return nil
+	case "duplicate":
+		// Create a fresh key carrying the same restrictions as an existing
+		// one (F650); the secret is shown once, like `key generate`.
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl key duplicate <id> [name] [-json]")
+		}
+		dfs := flag.NewFlagSet("key duplicate", flag.ExitOnError)
+		djson := dfs.Bool("json", false, "print the raw creation JSON, including the secret (for scripts)")
+		dfs.Parse(reorderFlags(rest[1:]))
+		code, out, err := cc.Get("/api/v1/keys/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("key duplicate: %s", out)
+		}
+		var src struct {
+			Name               string     `json:"name"`
+			TokenQuota         int64      `json:"tokenQuota"`
+			AllowedModels      []string   `json:"allowedModels"`
+			MaxConcurrent      int        `json:"maxConcurrent"`
+			MaxRequests        int64      `json:"maxRequests"`
+			RateRPS            float64    `json:"rateRPS"`
+			RateBurst          int        `json:"rateBurst"`
+			ExpiresAt          *time.Time `json:"expiresAt"`
+			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
+			Note               string     `json:"note"`
+		}
+		if err := json.Unmarshal(out, &src); err != nil {
+			return err
+		}
+		name := strings.Join(dfs.Args(), " ")
+		if strings.TrimSpace(name) == "" {
+			name = src.Name + " copy"
+		}
+		body := map[string]any{
+			"name":               name,
+			"tokenQuota":         src.TokenQuota,
+			"maxConcurrent":      src.MaxConcurrent,
+			"maxRequests":        src.MaxRequests,
+			"rateRPS":            src.RateRPS,
+			"rateBurst":          src.RateBurst,
+			"dailyCostBudgetUSD": src.DailyCostBudgetUSD,
+			"note":               src.Note,
+		}
+		if len(src.AllowedModels) > 0 {
+			body["allowedModels"] = src.AllowedModels
+		}
+		if src.ExpiresAt != nil {
+			if d := time.Until(*src.ExpiresAt); d > 0 {
+				body["expiresInDays"] = int((d + 23*time.Hour) / (24 * time.Hour)) // round up to whole days
+			}
+		}
+		code, out, err = cc.Post("/api/v1/keys", body)
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("key duplicate returned %d: %s", code, out)
+		}
+		if *djson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var r map[string]any
+		json.Unmarshal(out, &r)
 		fmt.Println("key:", r["key"])
 		fmt.Println("name:", r["name"])
 		fmt.Println("NOTE: shown only once — store it now.")
