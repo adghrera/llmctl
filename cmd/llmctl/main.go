@@ -146,7 +146,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N]
   llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
@@ -1139,6 +1139,7 @@ func cmdRequests(args []string) error {
 	until := fs.String("until", "", "only requests before this time: RFC3339 or a duration like 30m/2h (F189)")
 	id := fs.String("id", "", "show the single request with this id")
 	n := fs.Int("n", 20, "number of entries")
+	watch := fs.Int("watch", 0, "poll every N seconds and print new requests until Ctrl-C (0 = print once)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	jsonOut := fs.Bool("json", false, "print the raw requests JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
@@ -1199,7 +1200,7 @@ func cmdRequests(args []string) error {
 		fmt.Print(string(out))
 		return nil
 	}
-	var entries []struct {
+	type reqRow struct {
 		ID        string    `json:"id"`
 		Time      time.Time `json:"time"`
 		Model     string    `json:"model"`
@@ -1213,12 +1214,15 @@ func cmdRequests(args []string) error {
 		Error     string    `json:"error"`
 		Stream    bool      `json:"stream"`
 	}
+	var entries []reqRow
 	if err := json.Unmarshal(out, &entries); err != nil {
 		return err
 	}
 	if len(entries) == 0 {
 		fmt.Println("no requests yet")
-		return nil
+		if *watch <= 0 {
+			return nil
+		}
 	}
 	if *csvOut {
 		w := csv.NewWriter(os.Stdout)
@@ -1240,7 +1244,7 @@ func cmdRequests(args []string) error {
 		return w.Error()
 	}
 	fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5s %9s %7s %7s %-9s %-6s %s\n", "ID", "TIME", "MODEL", "INSTANCE", "KEY", "CODE", "MS", "IN", "OUT", "COST $", "STREAM", "ERROR")
-	for _, e := range entries {
+	printRow := func(e reqRow) {
 		stream := ""
 		if e.Stream {
 			stream = "stream"
@@ -1256,7 +1260,39 @@ func cmdRequests(args []string) error {
 		fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5d %9.0f %7d %7d %-9s %-6s %s\n",
 			e.ID, e.Time.Local().Format("2006-01-02 15:04:05"), e.Model, e.Instance, e.Key, e.Status, e.LatencyMs, e.PromptTok, e.CompTok, cost, stream, errTxt)
 	}
-	return nil
+	for _, e := range entries {
+		printRow(e)
+	}
+	if *watch <= 0 {
+		return nil
+	}
+	// Live tail: remember shown ids and print only new requests (F222).
+	seen := map[string]bool{}
+	for _, e := range entries {
+		seen[e.ID] = true
+	}
+	fmt.Printf("\nwatching for new requests every %ds (Ctrl-C to stop)…\n", *watch)
+	for {
+		time.Sleep(time.Duration(*watch) * time.Second)
+		_, cur, err := cc.Get("/api/v1/requests?" + q.Encode())
+		if err != nil {
+			return err
+		}
+		var fresh []reqRow
+		var all []reqRow
+		if json.Unmarshal(cur, &all) != nil {
+			continue
+		}
+		for _, e := range all { // newest-first; collect unseen
+			if e.ID != "" && !seen[e.ID] {
+				fresh = append(fresh, e)
+				seen[e.ID] = true
+			}
+		}
+		for i := len(fresh) - 1; i >= 0; i-- { // print oldest-first
+			printRow(fresh[i])
+		}
+	}
 }
 
 // cmdBackups lists, creates or deletes state snapshots in ~/.llmctl/backups.
