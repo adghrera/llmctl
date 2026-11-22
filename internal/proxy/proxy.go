@@ -44,6 +44,8 @@ type Server struct {
 	collector    *metricsCollector
 	keyMu        sync.Mutex
 	keyInflight  map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
+	instInflight map[string]*atomic.Int64 // per instance id, in-flight requests (F113)
+	instMu       sync.Mutex               // guards instInflight
 	startHook    func(model string) bool  // daemon-provided cold-start attempt (F100)
 	startMu      sync.Mutex               // serializes concurrent cold starts (F100)
 	handler      http.Handler
@@ -108,7 +110,8 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		logger:      cfg.Logger,
 		maxInflight: int64(cfg.MaxInflight),
 		collector:   newMetricsCollector(),
-		keyInflight: map[string]*atomic.Int64{},
+		keyInflight:    map[string]*atomic.Int64{},
+		instInflight:   map[string]*atomic.Int64{},
 	}
 	s.requireAuth.Store(requireAuth)
 	s.allowCORS.Store(cfg.AllowCORS)
@@ -467,8 +470,16 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 		return
 	}
 
+	// Least-loaded first so replicas spread work (F113); failover order is
+	// still tried in full on connection-level failures.
+	sort.SliceStable(targets, func(i, j int) bool {
+		return s.instLoad(targets[i].InstanceID) < s.instLoad(targets[j].InstanceID)
+	})
+
 	if targets[0].Transport == "stdio" {
+		s.instAdd(targets[0].InstanceID, 1)
 		s.proxyStdio(w, r, targets[0], body, path, peek.Stream)
+		s.instAdd(targets[0].InstanceID, -1)
 		return
 	}
 
@@ -477,7 +488,9 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	var lastErr error
 	for i, target := range targets {
 		t := target
+		s.instAdd(t.InstanceID, 1)
 		upErr := s.proxyHTTP(w, r, body, t, path)
+		s.instAdd(t.InstanceID, -1)
 		if upErr == nil {
 			return
 		}
@@ -784,6 +797,31 @@ func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 // succeeded (F100).
 func (s *Server) SetStartHook(fn func(model string) bool) {
 	s.startHook = fn
+}
+
+// InstInflight returns the number of gateway requests currently being served
+// by one instance (F113).
+func (s *Server) InstInflight(id string) int64 { return s.instLoad(id) }
+
+// instLoad returns the current in-flight request count for one instance (F113).
+func (s *Server) instLoad(id string) int64 {
+	s.instMu.Lock()
+	defer s.instMu.Unlock()
+	if c := s.instInflight[id]; c != nil {
+		return c.Load()
+	}
+	return 0
+}
+
+func (s *Server) instAdd(id string, delta int64) {
+	s.instMu.Lock()
+	defer s.instMu.Unlock()
+	c := s.instInflight[id]
+	if c == nil {
+		c = &atomic.Int64{}
+		s.instInflight[id] = c
+	}
+	c.Add(delta)
 }
 
 // keyAcquire increments the in-flight counter for a key prefix and returns a

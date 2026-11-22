@@ -412,6 +412,11 @@ export default function Instances() {
                     ) : (
                       <span className="badge">{i.status}</span>
                     )}
+                    {(i.inflight ?? 0) > 0 ? (
+                      <span className="badge" title="requests in flight">
+                        {i.inflight} busy
+                      </span>
+                    ) : null}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {i.lastUsed ? new Date(i.lastUsed).toLocaleTimeString() : "—"}

@@ -43,6 +43,7 @@ export interface Instance {
   pid: number;
   startedAt: string;
   lastUsed?: string;
+  inflight?: number;
   vars?: Record<string, string>;
   lastError?: string;
   autoRestart?: boolean;

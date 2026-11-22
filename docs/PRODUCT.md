@@ -111,8 +111,10 @@ GitHub release, or file list. No recompile.
 - `GET /healthz`
 - OpenAI error envelope; 401/404/429/502/503 semantics.
 - Per-client rate limit + global in-flight cap.
-- Replicas of one model are load-balanced round-robin, and a replica whose
-  connection fails is retried on the next replica automatically (F070).
+- Replicas of one model are load-balanced least-loaded-first (F113), and a
+  replica whose connection fails is retried on the next replica
+  automatically (F070). The Instances page shows each instance's in-flight
+  request count.
 
 ### Web UI
 Embedded SPA (no CDN deps — works offline). Dark by default with a header

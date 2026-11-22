@@ -666,6 +666,8 @@ type instanceView struct {
 	LastError string            `json:"lastError,omitempty"`
 	// AutoRestart: relaunch on crash (F087).
 	AutoRestart bool `json:"autoRestart,omitempty"`
+	// Inflight: gateway requests currently being served (F113).
+	Inflight int64 `json:"inflight,omitempty"`
 }
 
 func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
@@ -681,6 +683,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 		}
 		if s.gw != nil {
 			v.LastUsed = s.gw.ModelLastUsed(i.ModelID)
+			v.Inflight = s.gw.InstInflight(i.ID)
 		}
 		out = append(out, v)
 	}
