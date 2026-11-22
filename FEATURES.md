@@ -252,6 +252,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F240 | P3 | 240 | cli | `doctor -quiet` | COMPLETED | `llmctl doctor -quiet` prints only warn/error checks plus a one-line summary (`all checks passed` / `N warning(s), no errors`) — cron/monitoring friendly; exit code unchanged. Verified live: quiet run with and without active warnings. |
 | F241 | P3 | 241 | ui | Health card on Overview | COMPLETED | The Overview page now shows a Health card backed by `/api/v1/doctor`: a compact "all N checks passed" line when healthy, otherwise a table of the warn/error checks only (refreshed every 60s). Verified: tsc + vite build clean, served bundle contains the card and endpoint. |
 | F242 | P3 | 242 | backups | `backups verify` | COMPLETED | New integrity check: `backup.Verify` gunzips + reads the tar, rejects unsafe paths, and requires a valid-JSON `state.json`. Exposed as `POST /api/v1/backups/{name}/verify`, `llmctl backups verify <name>` (exit ≠0 on corruption) and a Verify button on the Settings snapshot list. Verified live: good snapshot ok, truncated copy reports "corrupt archive after 5 entries". |
+| F243 | P3 | 243 | files | `llmctl files upload` | COMPLETED | The CLI gained `files upload <path> [-name X] [-json]` (multipart to the existing API), completing file coverage in the shell. Verified live: upload, rename, `-json`, `cat` round-trip and delete all pass. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

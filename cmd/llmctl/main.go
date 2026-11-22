@@ -5,6 +5,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -12,9 +13,11 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -156,7 +159,7 @@ Usage:
   llmctl events [-n 20]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
-  llmctl files [list|cat <id>|delete <id>] [-json]
+  llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
   llmctl chat [--model ID] [--key KEY]
@@ -2187,8 +2190,7 @@ func cmdPrompts(args []string) error {
 	return nil
 }
 
-// cmdFiles lists, prints and deletes uploaded files (F219). Uploads stay a
-// web-UI thing (multipart); the CLI covers the scripting side.
+// cmdFiles uploads, lists, prints and deletes files (F219, F243).
 func cmdFiles(args []string) error {
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -2200,6 +2202,64 @@ func cmdFiles(args []string) error {
 		sub, rest = args[0], args[1:]
 	}
 	switch sub {
+	case "upload":
+		ufs := flag.NewFlagSet("files upload", flag.ExitOnError)
+		name := ufs.String("name", "", "store under this filename (default: the file's base name)")
+		ujson := ufs.Bool("json", false, "print the raw creation JSON (for scripts)")
+		ufs.Parse(reorderFlags(rest))
+		if ufs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl files upload <path> [-name X] [-json]")
+		}
+		path := ufs.Arg(0)
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		storeName := filepath.Base(path)
+		if *name != "" {
+			storeName = *name
+		}
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		part, err := mw.CreateFormFile("file", storeName)
+		if err != nil {
+			return err
+		}
+		if _, err := io.Copy(part, f); err != nil {
+			return err
+		}
+		mw.Close()
+		req, err := http.NewRequest("POST", cc.Base+"/api/v1/files", &buf)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		out, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 201 {
+			return fmt.Errorf("upload returned %d: %s", resp.StatusCode, out)
+		}
+		if *ujson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var rec struct {
+			ID    string `json:"id"`
+			Entry struct {
+				Filename string `json:"filename"`
+				Size     int64  `json:"size"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil {
+			return err
+		}
+		fmt.Printf("uploaded %s (%d bytes) as %s\n", rec.Entry.Filename, rec.Entry.Size, rec.ID)
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("files", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw files JSON (for scripts)")
