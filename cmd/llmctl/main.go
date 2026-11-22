@@ -222,7 +222,7 @@ Usage:
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0>
-  llmctl models price <model-id> <in-per-M> <out-per-M>
+  llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]
   llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo> [-json] [-out FILE]
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
@@ -2979,8 +2979,11 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "price":
+		pfs := flag.NewFlagSet("models price", flag.ExitOnError)
+		pout := pfs.String("out", "", "write the raw response JSON to this file instead of stdout (F520)")
+		pfs.Parse(reorderFlags(rest[3:]))
 		if len(rest) < 3 {
-			return fmt.Errorf("usage: llmctl models price <model-id> <in-per-M> <out-per-M>  (USD, 0 = free)")
+			return fmt.Errorf("usage: llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]  (USD, 0 = free)")
 		}
 		inP, err := strconv.ParseFloat(rest[1], 64)
 		if err != nil {
@@ -2995,10 +2998,17 @@ func cmdModels(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("price returned %d", code)
+			return fmt.Errorf("price returned %d: %s", code, out)
 		}
+		if *pout != "" { // F520: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*pout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *pout, len(out))
+			return nil
+		}
+		fmt.Println(string(out))
 		return nil
 	case "hf-search":
 		hfs := flag.NewFlagSet("models hf-search", flag.ExitOnError)

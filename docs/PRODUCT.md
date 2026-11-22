@@ -185,7 +185,7 @@ toggle for a light theme (choice remembered). Tabs:
   aliases and stored instance records (F284, F286).
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
   survive model swaps; the gateway advertises them in /v1/models. Optional
-  per-model USD pricing (`llmctl models price <id> <in> <out>`, or the
+  per-model USD pricing (`llmctl models price <id> <in> <out> [-out FILE]`, or the
    Models page "Price $/M" column, F137) drives the
   per-key cost estimates (F102). A "Today" column shows each model's request
    count and estimated cost for the current UTC day (F160).

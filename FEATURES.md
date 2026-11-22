@@ -530,6 +530,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F517 | P3 | 517 | cli | `logs -daemon -json` | COMPLETED | `llmctl logs -daemon [-tail N] -json` prints the raw `{"size":…,"logs":…}` JSON for scripts; the plain tail, -out and -f are unchanged. Verified live: -json returned size 66712 with a 300-char tail for `--tail 300`, plain unchanged. |
 | F518 | P3 | 518 | cli | `version -out FILE` | COMPLETED | `llmctl version -out FILE` writes the `{"cli","daemon"}` version JSON to the file (stdout stays clean, notice on stderr), for scripting; plain and --json are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
 | F519 | P3 | 519 | cli | `models alias/unalias -json` | COMPLETED | `llmctl models alias <name> <id> -json` prints the raw created-alias JSON and `models unalias <name> -json` prints the raw delete result, for scripting; the human lines are unchanged. Verified live: -json returned `{"alias":"f519a","model":"so"}` and `{"ok":true}`, plain alias/unalias round-trip unchanged. |
+| F520 | P3 | 520 | cli | `models price -out FILE` | COMPLETED | `llmctl models price <id> <in> <out> -out FILE` writes the raw response JSON to the file (stdout stays clean, notice on stderr), for scripting; the plain output is unchanged (and errors now surface the response body). Verified live: -out wrote the exact payload (49 B), plain unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
