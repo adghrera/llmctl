@@ -329,6 +329,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		ckey := keyPrefix(got)
 		if keyRecord != nil {
 			ckey = keyRecord.ID
+			// Which key served this request (debug aid; the id is not a
+			// secret) (F233).
+			w.Header().Set("X-LLMCtrl-Key", keyRecord.ID)
 		}
 		// Per-key token quota (F074): reject once the key has spent its budget.
 		if keyRecord != nil && keyRecord.TokenQuota > 0 &&

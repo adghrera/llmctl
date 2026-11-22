@@ -195,7 +195,8 @@ toggle for a light theme (choice remembered). Tabs:
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
   stream/plain, key prefix or id, and a since/until time range (F189). The serving replica is also echoed to clients as
-  the `X-LLMCtrl-Instance` response header (F115).
+  the `X-LLMCtrl-Instance` response header (F115). Authenticated requests also
+  echo the serving key's id as the `X-LLMCtrl-Key` response header (F233).
   Each request has an id echoed as the X-Request-Id response header (a
   client-sent X-Request-Id is reused). Keys with a token or request quota get
   X-RateLimit-Limit/-Remaining and X-LLMCtrl-Requests-Limit/-Remaining
