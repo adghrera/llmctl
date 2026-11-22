@@ -5898,18 +5898,25 @@ func cmdSkills(args []string) error {
 		fmt.Print(string(data))
 		return nil
 	case "enable", "disable":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl skills %s <id>", sub)
+		seds := flag.NewFlagSet("skills "+sub, flag.ExitOnError)
+		sejson := seds.Bool("json", false, "print the raw response JSON (F537)")
+		seds.Parse(reorderFlags(rest))
+		if seds.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills %s <id> [-json]", sub)
 		}
 		body := map[string]any{"enabled": sub == "enable"}
-		code, out, err := cc.Post("/api/v1/skills/"+url.PathEscape(rest[0])+"/enabled", body)
+		code, out, err := cc.Post("/api/v1/skills/"+url.PathEscape(seds.Arg(0))+"/enabled", body)
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("%s returned %d: %s", sub, code, out)
 		}
-		fmt.Printf("%sd skill %s\n", sub, rest[0])
+		if *sejson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("%sd skill %s\n", sub, seds.Arg(0))
 		return nil
 	case "delete":
 		sdfs := flag.NewFlagSet("skills delete", flag.ExitOnError)
@@ -6930,18 +6937,25 @@ func cmdTools(args []string) error {
 		}
 		return fmt.Errorf("no such tool: %s", rest[0])
 	case "enable", "disable":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl tools %s <id>", sub)
+		teds := flag.NewFlagSet("tools "+sub, flag.ExitOnError)
+		tejson := teds.Bool("json", false, "print the raw response JSON (F537)")
+		teds.Parse(reorderFlags(rest))
+		if teds.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl tools %s <id> [-json]", sub)
 		}
 		body := map[string]any{"enabled": sub == "enable"}
-		code, out, err := cc.Post("/api/v1/tools/"+url.PathEscape(rest[0])+"/enabled", body)
+		code, out, err := cc.Post("/api/v1/tools/"+url.PathEscape(teds.Arg(0))+"/enabled", body)
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("%s returned %d: %s", sub, code, out)
 		}
-		fmt.Printf("%sd tool %s\n", sub, rest[0])
+		if *tejson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("%sd tool %s\n", sub, teds.Arg(0))
 		return nil
 	case "run":
 		rfs := flag.NewFlagSet("tools run", flag.ExitOnError)
@@ -7242,18 +7256,25 @@ func cmdMcp(args []string) error {
 		fmt.Printf("removed MCP server %s\n", mrfs.Arg(0))
 		return nil
 	case "enable", "disable":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl mcp %s <id>", sub)
+		meds := flag.NewFlagSet("mcp "+sub, flag.ExitOnError)
+		mejson := meds.Bool("json", false, "print the raw response JSON (F537)")
+		meds.Parse(reorderFlags(rest))
+		if meds.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl mcp %s <id> [-json]", sub)
 		}
 		body := map[string]any{"enabled": sub == "enable"}
-		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(rest[0])+"/enabled", body)
+		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(meds.Arg(0))+"/enabled", body)
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("%s returned %d: %s", sub, code, out)
 		}
-		fmt.Printf("%sd MCP server %s\n", sub, rest[0])
+		if *mejson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("%sd MCP server %s\n", sub, meds.Arg(0))
 		return nil
 	case "test":
 		if len(rest) == 0 {
