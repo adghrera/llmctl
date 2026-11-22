@@ -7,6 +7,7 @@ export default function KnowledgeBases() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selectedKB, setSelectedKB] = useState<KB | null>(null);
   const [docContent, setDocContent] = useState<string | null>(null);
@@ -148,12 +149,13 @@ export default function KnowledgeBases() {
     }
   };
 
-  const uploadDoc = async () => {
-    if (!file || !selectedKB) return;
+  const uploadDoc = async (dropped?: File) => {
+    const f = dropped ?? file;
+    if (!f || !selectedKB) return;
     setBusy(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", f);
       await api.uploadKBDoc(selectedKB.id, formData);
       ok("document uploaded");
       setFile(null);
@@ -372,7 +374,22 @@ export default function KnowledgeBases() {
       </div>
 
       {selectedKB && (
-        <div className="card">
+        <div
+          className="card"
+          // Drop a file anywhere on the KB card to upload it as a document (F453).
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const f = e.dataTransfer.files?.[0];
+            if (f) void uploadDoc(f);
+          }}
+          style={dragOver ? { outline: "2px dashed var(--primary, #888)", outlineOffset: -2 } : undefined}
+        >
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>{selectedKB.kb.name}</h2>
             <div className="row" style={{ gap: 6 }}>
@@ -409,7 +426,7 @@ export default function KnowledgeBases() {
                 {file.name} ({(file.size / 1024).toFixed(1)} KB)
               </span>
             )}
-            <button className="btn primary" disabled={busy || !file} onClick={uploadDoc}>
+            <button className="btn primary" disabled={busy || !file} onClick={() => void uploadDoc()}>
               {busy ? "Uploading…" : "Upload Document"}
             </button>
           </div>

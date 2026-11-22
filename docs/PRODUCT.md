@@ -451,7 +451,8 @@ toggle for a light theme (choice remembered). Tabs:
   document content as context. Dedicated Knowledge Bases page with an
   Export CSV button on the KB list (F393) and per-KB Export/Import JSON
   (all documents as a [{filename, content}] array, the UI counterpart of
-  `llmctl kb export`, F435). Search ranks
+  `llmctl kb export`, F435); dropping a file onto the KB detail card uploads
+  it as a document (F453). Search ranks
   chunks by TF-IDF cosine similarity, or by embedding similarity when the KB
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).
