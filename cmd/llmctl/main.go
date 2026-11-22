@@ -13050,6 +13050,7 @@ func cmdChat(args []string) error {
 
 	reader := bufio.NewReader(os.Stdin)
 	history := []map[string]any{}
+	replChat := "" // id of the chat created by /save; /title and /tag act on it (F683)
 	if strings.TrimSpace(*system) != "" {
 		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 	}
@@ -13089,7 +13090,7 @@ func cmdChat(args []string) error {
 			rest := strings.TrimSpace(strings.TrimPrefix(line, cmd))
 			switch cmd {
 			case "/help":
-				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID[,ID…] /kb - /save [title] /quit")
+				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID[,ID…] /kb - /save [title] /title TEXT /tag [a,b|-] /quit")
 			case "/clear":
 				history = history[:0]
 				if strings.TrimSpace(*system) != "" {
@@ -13205,7 +13206,78 @@ func cmdChat(args []string) error {
 					ID string `json:"id"`
 				}
 				json.Unmarshal(out, &saved)
+				replChat = saved.ID // /title and /tag can act on it now (F683)
 				fmt.Printf("[saved as chat %s: %q]\n", saved.ID, title)
+			case "/title":
+				// Rename the chat saved by /save (twin of `chats rename`, F683).
+				if replChat == "" {
+					fmt.Println("[no saved chat yet — use /save first]")
+					continue
+				}
+				if rest == "" {
+					fmt.Println("[usage: /title NEW TITLE]")
+					continue
+				}
+				code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(replChat))
+				if err != nil || code != 200 {
+					fmt.Printf("[rename failed: %v %s]\n", err, out)
+					continue
+				}
+				var conv map[string]any
+				if err := json.Unmarshal(out, &conv); err != nil {
+					fmt.Printf("[rename failed: %v]\n", err)
+					continue
+				}
+				conv["title"] = rest
+				code, out, err = cc.Put("/api/v1/chats/"+url.PathEscape(replChat), conv)
+				if err != nil || code != 200 {
+					fmt.Printf("[rename failed: %v %s]\n", err, out)
+					continue
+				}
+				fmt.Printf("[chat %s renamed to %q]\n", replChat, rest)
+			case "/tag":
+				// Tag the chat saved by /save (twin of `chats tag`, F683);
+				// no argument shows the current tags, "-" clears them.
+				if replChat == "" {
+					fmt.Println("[no saved chat yet — use /save first]")
+					continue
+				}
+				if rest == "" {
+					code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(replChat))
+					if err != nil || code != 200 {
+						fmt.Printf("[tag lookup failed: %v %s]\n", err, out)
+						continue
+					}
+					var cur struct {
+						Tags []string `json:"tags"`
+					}
+					json.Unmarshal(out, &cur)
+					if len(cur.Tags) == 0 {
+						fmt.Println("[no tags — usage: /tag a,b  or  /tag - to clear]")
+					} else {
+						fmt.Printf("[tags: %s]\n", strings.Join(cur.Tags, ", "))
+					}
+					continue
+				}
+				var tags []string
+				if rest != "-" {
+					for _, t := range strings.Split(rest, ",") {
+						if t = strings.TrimSpace(t); t != "" {
+							tags = append(tags, t)
+						}
+					}
+				}
+				code, out, err := cc.Do("PATCH", "/api/v1/chats/"+url.PathEscape(replChat)+"/tags",
+					map[string]any{"tags": tags})
+				if err != nil || code != 200 {
+					fmt.Printf("[tag failed: %v %s]\n", err, out)
+					continue
+				}
+				if len(tags) == 0 {
+					fmt.Println("[tags cleared]")
+				} else {
+					fmt.Printf("[tags set: %s]\n", strings.Join(tags, ", "))
+				}
 			default:
 				fmt.Printf("[unknown command %q — try /help]\n", cmd)
 			}
