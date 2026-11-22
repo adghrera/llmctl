@@ -468,7 +468,7 @@ toggle for a light theme (choice remembered). Tabs:
   status/error) are listed under the webhook, at
   GET /api/v1/webhook/log (F144), and in `llmctl webhooks` (F191), which
   supports `-n` (server-side `?limit=`) and `-event` (server-side `?event=`)
-  filters (F357); the Settings page delivery list has a matching event
+  filters (F357) and `--csv` export (F380); the Settings page delivery list has a matching event
   dropdown (F358). Event and
   scheduler-hook deliveries retry
   up to 3 times (1s, 2s backoff) so a briefly unreachable receiver still gets
@@ -567,7 +567,7 @@ llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes +
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
-llmctl webhooks [-n 20] [-event E] [-json]    recent webhook delivery attempts
+llmctl webhooks [-n 20] [-event E] [--csv] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook

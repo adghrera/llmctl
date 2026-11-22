@@ -232,7 +232,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
-  llmctl webhooks [-n 20] [-event E] [-json]   recent webhook delivery attempts
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
@@ -4214,6 +4214,7 @@ func cmdWebhooks(args []string) error {
 	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of deliveries")
 	event := fs.String("event", "", "only deliveries for this event name, e.g. instance.crashed (F357)")
+	csvOut := fs.Bool("csv", false, "output the delivery log as CSV (F380)")
 	jsonOut := fs.Bool("json", false, "print the delivery log as JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -4251,8 +4252,28 @@ func cmdWebhooks(args []string) error {
 		return nil
 	}
 	if len(list) == 0 {
+		if *csvOut { // keep the stream parseable (F380)
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"time", "event", "url", "status", "ok", "error"})
+			w.Flush()
+			return w.Error()
+		}
 		fmt.Println("no webhook deliveries yet")
 		return nil
+	}
+	if *csvOut { // F380
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"time", "event", "url", "status", "ok", "error"})
+		for _, d := range list {
+			status := ""
+			if d.Status > 0 {
+				status = strconv.Itoa(d.Status)
+			}
+			_ = w.Write([]string{d.Time.UTC().Format(time.RFC3339), d.Event, d.URL, status,
+				strconv.FormatBool(d.OK), d.Error})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("%-14s %-24s %-6s %-5s %s\n", "TIME", "EVENT", "STATUS", "OK", "URL / ERROR")
 	for _, d := range list {
