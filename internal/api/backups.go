@@ -79,6 +79,22 @@ func (s *Server) downloadBackupFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+// verifyBackupByName handles POST /api/v1/backups/{name}/verify — check a
+// stored snapshot's integrity without restoring it (F242).
+func (s *Server) verifyBackupByName(w http.ResponseWriter, r *http.Request) {
+	path, err := backupPath(r.PathValue("name"))
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	entries, err := backup.Verify(path)
+	if err != nil {
+		writeJSON(w, 200, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "entries": entries})
+}
+
 // restoreBackupByName handles POST /api/v1/backups/{name}/restore — import a
 // stored snapshot (e.g. from a scheduled backup) back into the state dir (F175).
 func (s *Server) restoreBackupByName(w http.ResponseWriter, r *http.Request) {

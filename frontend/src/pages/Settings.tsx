@@ -607,6 +607,21 @@ export default function SettingsPage() {
                   <td style={{ textAlign: "right" }}>
                     <button
                       className="btn sm"
+                      title="check archive integrity without restoring"
+                      onClick={async () => {
+                        try {
+                          const r = await api.verifyBackup(b.name);
+                          if (r.ok) ok(`${b.name}: ok — ${r.entries} entries, state.json valid`);
+                          else err(`${b.name}: ${r.error}`);
+                        } catch (e) {
+                          err(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                    >
+                      Verify
+                    </button>{" "}
+                    <button
+                      className="btn sm"
                       title="import this snapshot into the state dir (restart the daemon to load it)"
                       onClick={async () => {
                         if (!confirm(`Restore ${b.name}? This overwrites the current state. Restart the daemon afterwards to load it.`)) return;

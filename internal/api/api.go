@@ -199,6 +199,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/backups", s.createBackupNow)
 	m.HandleFunc("GET /api/v1/backups/{name}", s.downloadBackupFile)
 	m.HandleFunc("POST /api/v1/backups/{name}/restore", s.restoreBackupByName)
+	m.HandleFunc("POST /api/v1/backups/{name}/verify", s.verifyBackupByName)
 	m.HandleFunc("DELETE /api/v1/backups/{name}", s.deleteBackupFile)
 	// MCP servers (F054)
 	m.HandleFunc("GET /api/v1/mcp", s.listMCPServers)

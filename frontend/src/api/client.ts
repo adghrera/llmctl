@@ -575,6 +575,8 @@ export const api = {
   backups: () => req<{ name: string; size: number; created: string }[]>("/backups"),
   createBackup: () => req<{ name: string; size: number; created: string }>("/backups", { method: "POST" }),
   deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  verifyBackup: (name: string) =>
+    req<{ ok: boolean; entries?: number; error?: string }>(`/backups/${encodeURIComponent(name)}/verify`, { method: "POST" }),
   restoreStoredBackup: (name: string) =>
     req<{ ok: boolean; files: number }>(`/backups/${encodeURIComponent(name)}/restore`, { method: "POST" }),
   requests: (

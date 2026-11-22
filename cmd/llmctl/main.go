@@ -150,7 +150,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
-  llmctl backups [list|create|restore <name>|delete <name>]
+  llmctl backups [list|create|restore <name>|verify <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20]
@@ -1565,8 +1565,32 @@ func cmdBackups(args []string) error {
 			return fmt.Errorf("backup delete returned %d", code)
 		}
 		return nil
+	case "verify":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl backups verify <name>")
+		}
+		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(rest[0])+"/verify", map[string]any{})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("backup verify returned %d: %s", code, out)
+		}
+		var r struct {
+			OK      bool   `json:"ok"`
+			Entries int    `json:"entries"`
+			Error   string `json:"error"`
+		}
+		if err := json.Unmarshal(out, &r); err != nil {
+			return err
+		}
+		if !r.OK {
+			return fmt.Errorf("backup %s: %s", rest[0], r.Error)
+		}
+		fmt.Printf("backup %s ok — %d entries, state.json valid\n", rest[0], r.Entries)
+		return nil
 	default:
-		return fmt.Errorf("unknown backups subcommand %q (list|create|restore|delete)", sub)
+		return fmt.Errorf("unknown backups subcommand %q (list|create|restore|verify|delete)", sub)
 	}
 }
 

@@ -7,6 +7,7 @@ package backup
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -175,6 +176,51 @@ func Restore(r io.Reader) (int, error) {
 // into dir and prunes old ones, keeping the newest keep. Returns the file name
 // and size. Shared by the scheduler backup kind (F077) and the on-demand
 // POST /api/v1/backups endpoint (F088).
+// Verify checks a snapshot file's integrity (F242): gzip + tar readable, no
+// unsafe paths, and state.json present and valid JSON. Returns entry count.
+func Verify(path string) (int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, fmt.Errorf("backup: %w", err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return 0, fmt.Errorf("backup: not a gzip archive: %w", err)
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	count := 0
+	sawState := false
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return count, fmt.Errorf("backup: corrupt archive after %d entries: %w", count, err)
+		}
+		name := filepath.Clean(filepath.FromSlash(hdr.Name))
+		if name == "." || filepath.IsAbs(name) || strings.HasPrefix(name, "..") {
+			return count, fmt.Errorf("backup: unsafe path in archive: %q", hdr.Name)
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			count++
+			if filepath.ToSlash(hdr.Name) == "state.json" {
+				sawState = true
+				var probe map[string]any
+				if err := json.NewDecoder(tr).Decode(&probe); err != nil {
+					return count, fmt.Errorf("backup: state.json is not valid JSON: %w", err)
+				}
+			}
+		}
+	}
+	if !sawState {
+		return count, fmt.Errorf("backup: no state.json in archive")
+	}
+	return count, nil
+}
+
 func CreateSnapshot(dir string, keep int) (string, int64, error) {
 	if keep <= 0 {
 		keep = 7

@@ -365,7 +365,9 @@ toggle for a light theme (choice remembered). Tabs:
   A scheduler task of kind "backup" can snapshot the state automatically on a
   cron (kept in `~/.llmctl/backups`, pruned to the newest N — per-task `keep`
    or the global `settings.backupKeep`, default 7, F181); the Settings
-  page lists those snapshots for download, restore-in-place or deletion, and
+  page lists those snapshots for download, restore-in-place, integrity
+  verification (`llmctl backups verify <name>` / Verify button, F242) or deletion,
+  and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
   `llmctl backups restore <name>` or the Restore button, F175, F176).
 
