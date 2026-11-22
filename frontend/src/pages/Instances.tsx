@@ -440,6 +440,11 @@ export default function Instances() {
                         {i.inflight} busy
                       </span>
                     ) : null}
+                    {(i.restartCount ?? 0) > 0 ? (
+                      <span className="badge warn" title={`${i.restartCount} auto-restart(s) since creation`}>
+                        ↻ {i.restartCount}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {i.status === "running" && i.startedAt ? uptime(i.startedAt) : "—"}

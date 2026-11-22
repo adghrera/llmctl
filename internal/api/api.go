@@ -744,6 +744,8 @@ type instanceView struct {
 	Note string `json:"note,omitempty"`
 	// Served: requests this instance has served since daemon start (F150).
 	Served int64 `json:"served,omitempty"`
+	// RestartCount: cumulative successful auto-restarts (F185).
+	RestartCount int `json:"restartCount,omitempty"`
 }
 
 func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
@@ -757,6 +759,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 			Attached: i.Attached, PID: i.PID, StartedAt: i.StartedAt,
 			Vars: i.Vars, LastError: i.LastError, AutoRestart: i.AutoRestart,
 			MaxParallel: i.MaxParallel, Note: st.InstanceNotes[i.ID],
+			RestartCount: i.RestartCount,
 		}
 		if s.gw != nil {
 			v.LastUsed = s.gw.ModelLastUsed(i.ModelID)

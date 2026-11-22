@@ -76,6 +76,9 @@ type InstanceRecord struct {
 	// MaxParallel caps simultaneous gateway requests served by this
 	// instance; 0 = unlimited (F114).
 	MaxParallel int `json:"maxParallel,omitempty"`
+	// RestartCount: cumulative successful auto-restarts since the instance
+	// was created (F185).
+	RestartCount int `json:"restartCount,omitempty"`
 }
 
 // BaseURL returns the HTTP base for an http-transport instance.

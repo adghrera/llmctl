@@ -39,9 +39,9 @@ type Supervisor struct {
 	logger *slog.Logger
 	httpC  *http.Client
 
-	mu       sync.Mutex
-	sessions map[string]*stdio.Session // stdio instance id -> live session
-	restarts map[string][]time.Time    // instance id -> recent auto-restart times (F087)
+	mu          sync.Mutex
+	sessions    map[string]*stdio.Session // stdio instance id -> live session
+	restarts    map[string][]time.Time    // instance id -> recent auto-restart times (F087)
 	healthFails map[string]int            // attach id -> consecutive health probe failures (F096)
 
 	notifier func(event string, inst *store.InstanceRecord) // F073
@@ -66,12 +66,12 @@ func (sv *Supervisor) notify(event string, inst *store.InstanceRecord) {
 
 func New(st *store.Store, reg *backend.Registry, logger *slog.Logger) *Supervisor {
 	return &Supervisor{
-		store:    st,
-		reg:      reg,
-		logger:   logger,
-		httpC:    &http.Client{Timeout: 5 * time.Second},
-		sessions: map[string]*stdio.Session{},
-		restarts: map[string][]time.Time{},
+		store:       st,
+		reg:         reg,
+		logger:      logger,
+		httpC:       &http.Client{Timeout: 5 * time.Second},
+		sessions:    map[string]*stdio.Session{},
+		restarts:    map[string][]time.Time{},
 		healthFails: map[string]int{},
 	}
 }
@@ -471,6 +471,12 @@ func (sv *Supervisor) maybeRestart(id string) {
 			return
 		}
 		sv.logger.Info("auto-restarted instance", "id", id)
+		sv.store.Update(func(s *store.State) error {
+			if x := s.Instances[id]; x != nil {
+				x.RestartCount++ // cumulative successful auto-restarts (F185)
+			}
+			return nil
+		})
 		sv.notify("instance.auto-restarted", r)
 	}()
 }
