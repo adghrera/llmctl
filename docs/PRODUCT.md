@@ -274,7 +274,8 @@ toggle for a light theme (choice remembered). Tabs:
    <query> [-json]`, `memory delete <id>` (F246, F267).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb show|docs|delete <id>` and
-   `kb add-doc <kb-id> <path> [-name X]` upload documents (F247, F250).
+   `kb add-doc <kb-id> <path> [-name X]` upload documents and
+   `kb search <kb-id> <query> [-limit N] [-json]` runs RAG search (F247, F250, F268).
  - **Tools CLI** — `llmctl tools [-json]` lists installed tools;
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` execute one from the shell (F248, F250).
@@ -436,6 +437,7 @@ llmctl models list|show|install|remove|hf-search|hf-files   (list shows human si
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180)
 llmctl models probe [-json]                          (what /v1/models serves now, F252)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
+llmctl models metadata <id> [-json]                     (GGUF header metadata, F268)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>

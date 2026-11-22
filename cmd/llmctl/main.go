@@ -149,6 +149,7 @@ Usage:
   llmctl models show <id>
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
+  llmctl models metadata <id> [-json]
   llmctl models aliases
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
@@ -192,7 +193,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json] | llmctl chats search <query> [-json]
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|search|delete …
-  llmctl kb [filter] [-json] | kb show|create|docs|add-doc|delete …
+  llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl cost [-keys] [-json]
@@ -994,6 +995,44 @@ func cmdModels(args []string) error {
 			fmt.Printf("%-40s %-12s %-10s %-9s %-14s %-7s %v\n", m.ID, m.BackendID, fmtSize(m.SizeBytes), ctxv, price, idle, m.Running)
 		}
 		fmt.Printf("%-40s %-12s %-10s\n", "total: "+strconv.Itoa(len(list))+" model(s)", "", fmtSize(total))
+		return nil
+	case "metadata":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl models metadata <id> [-json]")
+		}
+		mfs := flag.NewFlagSet("models metadata", flag.ExitOnError)
+		mjson := mfs.Bool("json", false, "print the raw metadata JSON (for scripts)")
+		mfs.Parse(reorderFlags(rest[1:]))
+		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(rest[0]) + "/metadata")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("metadata for %s: %s", rest[0], out)
+		}
+		if *mjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var md struct {
+			ID       string         `json:"id"`
+			Path     string         `json:"path"`
+			Version  int            `json:"version"`
+			NTensors int            `json:"nTensors"`
+			Summary  map[string]any `json:"summary"`
+		}
+		if err := json.Unmarshal(out, &md); err != nil {
+			return err
+		}
+		fmt.Printf("id:       %s\npath:     %s\ngguf:     v%d, %d tensors\n", md.ID, md.Path, md.Version, md.NTensors)
+		keys := make([]string, 0, len(md.Summary))
+		for k := range md.Summary {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Printf("%-10s %v\n", k+":", md.Summary[k])
+		}
 		return nil
 	case "probe":
 		pfs := flag.NewFlagSet("models probe", flag.ExitOnError)
@@ -3159,11 +3198,56 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "docs", "add-doc", "delete":
+		case "list", "show", "create", "docs", "add-doc", "search", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "search":
+		sfs := flag.NewFlagSet("kb search", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		limit := sfs.Int("limit", 10, "max results")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl kb search <kb-id> <query> [-limit N] [-json]")
+		}
+		kbID := sfs.Arg(0)
+		query := strings.Join(sfs.Args()[1:], " ")
+		code, out, err := cc.Post("/api/v1/knowledge-bases/"+url.PathEscape(kbID)+"/search",
+			map[string]any{"q": query, "limit": *limit})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb search: %s", out)
+		}
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var res []struct {
+			DocID      string  `json:"doc_id"`
+			Filename   string  `json:"filename"`
+			ChunkText  string  `json:"chunk_text"`
+			Score      float64 `json:"score"`
+			ChunkIndex int     `json:"chunk_index"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return err
+		}
+		if len(res) == 0 {
+			fmt.Printf("no chunks match %q in %s\n", query, kbID)
+			return nil
+		}
+		for _, r := range res {
+			sn := strings.TrimSpace(r.ChunkText)
+			sn = strings.ReplaceAll(sn, "\n", " ")
+			if len(sn) > 100 {
+				sn = sn[:100] + "…"
+			}
+			fmt.Printf("%-24s chunk %-4d %6.3f  %s\n", r.Filename, r.ChunkIndex, r.Score, sn)
+		}
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("kb", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the knowledge bases as JSON (for scripts)")
