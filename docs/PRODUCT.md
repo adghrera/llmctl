@@ -195,7 +195,9 @@ toggle for a light theme (choice remembered). Tabs:
    Models page "Price $/M" column, F137) drives the
   per-key cost estimates (F102). A "Today" column shows each model's request
    count and estimated cost for the current UTC day (F160).
-- **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop. Each
+- **Instances** — start (with ctx/ngl/parallel/threads/url vars) / stop. An
+  **Auto-refresh** checkbox polls every 5s so status and uptime update without
+  a reload — the UI twin of `llmctl ps -watch N` (F612). Each
   instance can carry a free-text note (Vars dialog) shown under its id and
   persisted across restarts (F119); running instances show their uptime (F125)
   and link to their gateway request history (F132); the Req button shows how

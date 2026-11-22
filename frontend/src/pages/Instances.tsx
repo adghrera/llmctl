@@ -48,10 +48,19 @@ export default function Instances() {
   const [varsBusy, setVarsBusy] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
+  const [autoRefresh, setAutoRefresh] = useState(false); // live-poll the instance table (CLI `ps -watch`, F612)
 
   useEffect(() => {
     api.autoStart().then(setAutoSpecs).catch(() => setAutoSpecs([]));
   }, []);
+
+  // Poll the instance list while the toggle is on (F612), so starting/
+  // stopping instances and uptime counters update without a reload.
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const t = setInterval(() => refreshOne("instances"), 5000);
+    return () => clearInterval(t);
+  }, [autoRefresh, refreshOne]);
 
   // JSON export/import, same shapes as `llmctl presets|autostart export|import`
   // (F413, F414).
@@ -599,6 +608,13 @@ export default function Instances() {
         <div className="row" style={{ alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Instances</h2>
           <div className="spacer" />
+          <label
+            style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}
+            title="poll every 5s so status and uptime update without a reload (CLI: llmctl ps -watch N, F612)"
+          >
+            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+            Auto-refresh
+          </label>
           <button
             className="btn sm"
             disabled={instances.length === 0}
