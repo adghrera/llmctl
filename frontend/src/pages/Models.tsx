@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { api, type CatalogEntry, type ModelMetadata, type ModelAlias, type Model } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
@@ -772,6 +773,11 @@ export default function Models() {
                     )}
                   </td>
                   <td style={{ textAlign: "right" }}>
+                    {m.running && (
+                      <Link to={`/chat?model=${encodeURIComponent(m.id)}`}>
+                        <button className="btn sm" title="open the Chat page with this model (twin of the Instances Chat link)">Chat</button>
+                      </Link>
+                    )}{" "}
                     <button className="btn sm" disabled={busy || !m.downloaded} onClick={() => viewMeta(m.id)}>
                       {metaFor === m.id ? "Hide meta" : "Meta"}
                     </button>{" "}

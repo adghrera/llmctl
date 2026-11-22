@@ -750,6 +750,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F737 | P3 | 737 | instances | Instances port cell copy-to-clipboard | COMPLETED | The Instances page's Port cell is now click-to-copy, putting the direct endpoint URL (http://localhost:<port>) on the clipboard — same click-to-copy pattern as the Requests id column (F161). Verified live: served bundle carries the handler. |
 | F738 | P3 | 738 | models | Models id click-to-copy | COMPLETED | The Models page's model-id cell is now click-to-copy (the id used as model=… on gateway calls) — same click-to-copy pattern as F737. Verified live: served bundle carries the handler. |
 | F739 | P3 | 739 | instances | Instances id click-to-copy | COMPLETED | The Instances page's instance-id cell is now click-to-copy (for `llmctl stop <id>` / `requests -instance`) — completes the click-to-copy id pattern (F737, F738). Verified live: served bundle carries the handler. |
+| F740 | P3 | 740 | models | Models row Chat link | COMPLETED | Running model rows on the Models page gained a Chat button opening the Chat page with that model preselected — twin of the Instances page Chat link (F362). Verified live: served bundle carries the link. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
