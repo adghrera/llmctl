@@ -186,7 +186,7 @@ toggle for a light theme (choice remembered). Tabs:
   aliases and stored instance records (F284, F286).
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
   survive model swaps; the gateway advertises them in /v1/models. Optional
-  per-model USD pricing (`llmctl models price <id> <in> <out> [-out FILE]`, or the
+  per-model USD pricing (`llmctl models price <id> <in> <out>`, or the
    Models page "Price $/M" column, F137) drives the
   per-key cost estimates (F102). A "Today" column shows each model's request
    count and estimated cost for the current UTC day (F160).
@@ -610,7 +610,7 @@ llmctl models rename <id> <new-id> [-json]           (change a model id; aliases
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180; `aliases --csv` exports alias,model, F385; `aliases -out FILE` writes the raw JSON, F498; alias/unalias accept -json, F519)
 llmctl models probe [-json] [-out FILE]              (what /v1/models serves now, F252; -out writes the raw JSON, F501)
 llmctl models routable [-key K] [-json|-csv|-out FILE]  (what /v1/models serves for one key, via the gateway — reflects the key's allowlist, F337; --csv exports id,owned_by, F407; -out writes the raw JSON, F499)
-llmctl models ctx <id> <tokens> [-out FILE] | price <id> <in/M> <out/M> | idle <id> <min|never> [-out FILE]   (model settings, F255; ctx/price/idle -out write the raw JSON, F520–F522)
+llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json] [-out FILE]   (model settings, F255; human summary by default, -json prints the raw response and -out writes it to a file, F520–F522, F560)
 llmctl models metadata <id> [-json] [-out FILE]        (GGUF header metadata, F268; -out writes the raw JSON, F500)
 llmctl models unused [--csv] [-out FILE]              (models with no instance + reclaimable size, F280; --csv exports id,size_bytes, F408; -out writes the same as JSON, F512)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]

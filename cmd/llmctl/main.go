@@ -213,7 +213,7 @@ Usage:
   llmctl models list [--csv] [-out FILE]
   llmctl models show <id> [-json] [-out FILE]
   llmctl models probe [-json] [-out FILE]
-  llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-out FILE]
+  llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json|-out FILE]
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv] [-out FILE]
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
@@ -223,8 +223,8 @@ Usage:
   llmctl models unalias <name> [-json]
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id> [--file]
-  llmctl models ctx <model-id> <tokens|0> [-out FILE]
-  llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]
+  llmctl models ctx <model-id> <tokens|0> [-json] [-out FILE]
+  llmctl models price <model-id> <in-per-M> <out-per-M> [-json] [-out FILE]
   llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo> [-json] [-out FILE]
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...] [-json]
@@ -3187,10 +3187,11 @@ func cmdModels(args []string) error {
 		return nil
 	case "ctx":
 		cfs := flag.NewFlagSet("models ctx", flag.ExitOnError)
+		cjson := cfs.Bool("json", false, "print the raw response JSON (for scripts) (F560)")
 		cout := cfs.String("out", "", "write the raw response JSON to this file instead of stdout (F521)")
 		cfs.Parse(reorderFlags(rest))
 		if cfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl models ctx <model-id> <tokens|0> [-out FILE]  (0 = backend default)")
+			return fmt.Errorf("usage: llmctl models ctx <model-id> <tokens|0> [-json] [-out FILE]  (0 = backend default)")
 		}
 		id := cfs.Arg(0)
 		n := 0
@@ -3215,14 +3216,33 @@ func cmdModels(args []string) error {
 			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *cout, len(out))
 			return nil
 		}
-		fmt.Println(string(out))
+		if *cjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var cr struct {
+			CtxSize         int  `json:"ctxSize"`
+			RestartRequired bool `json:"restartRequired"`
+		}
+		if err := json.Unmarshal(out, &cr); err != nil {
+			return err
+		}
+		if cr.CtxSize == 0 {
+			fmt.Printf("ctx override cleared for %s — backend default will be used\n", id)
+		} else {
+			fmt.Printf("ctx %d saved for %s\n", cr.CtxSize, id)
+		}
+		if cr.RestartRequired {
+			fmt.Println("note: a running instance keeps the old value until restarted")
+		}
 		return nil
 	case "price":
 		pfs := flag.NewFlagSet("models price", flag.ExitOnError)
+		pjson := pfs.Bool("json", false, "print the raw response JSON (for scripts) (F560)")
 		pout := pfs.String("out", "", "write the raw response JSON to this file instead of stdout (F520)")
 		pfs.Parse(reorderFlags(rest))
 		if pfs.NArg() < 3 {
-			return fmt.Errorf("usage: llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]  (USD, 0 = free)")
+			return fmt.Errorf("usage: llmctl models price <model-id> <in-per-M> <out-per-M> [-json] [-out FILE]  (USD, 0 = free)")
 		}
 		inP, err := strconv.ParseFloat(pfs.Arg(1), 64)
 		if err != nil {
@@ -3247,7 +3267,18 @@ func cmdModels(args []string) error {
 			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *pout, len(out))
 			return nil
 		}
-		fmt.Println(string(out))
+		if *pjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var pr struct {
+			PriceInPerM  float64 `json:"priceInPerM"`
+			PriceOutPerM float64 `json:"priceOutPerM"`
+		}
+		if err := json.Unmarshal(out, &pr); err != nil {
+			return err
+		}
+		fmt.Printf("price for %s: $%.4f/M in, $%.4f/M out\n", pfs.Arg(0), pr.PriceInPerM, pr.PriceOutPerM)
 		return nil
 	case "hf-search":
 		hfs := flag.NewFlagSet("models hf-search", flag.ExitOnError)
