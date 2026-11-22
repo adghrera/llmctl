@@ -123,6 +123,7 @@ export default function Overview() {
 
   const running = instances.filter((i) => i.status === "running");
   const activeJobs = jobs.filter((j) => j.status === "running");
+  const [jobStats, setJobStats] = useState(false); // per-kind roll-up, CLI `jobs -stats` twin (F752)
   const completedJobs = jobs
     .filter(j => j.status === "done" || j.status === "error")
     .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
@@ -643,6 +644,14 @@ export default function Overview() {
             <div className="row" style={{ gap: 6 }}>
             <button
               className="btn sm"
+              aria-pressed={jobStats}
+              title="group the job list per kind — CLI: llmctl jobs -stats (F752)"
+              onClick={() => setJobStats(!jobStats)}
+            >
+              {jobStats ? "Show list" : "Stats"}
+            </button>
+            <button
+              className="btn sm"
               title="drop finished jobs from the daemon's memory (F586)"
               onClick={async () => {
                 await api.clearJobs();
@@ -692,6 +701,48 @@ export default function Overview() {
             </button>
             </div>
           </div>
+          {jobStats ? (
+            <table className="table" style={{ marginTop: 8 }}>
+              <thead>
+                <tr>
+                  <th>Kind</th>
+                  <th>Total</th>
+                  <th>Running</th>
+                  <th>Done</th>
+                  <th>Error</th>
+                  <th>Last</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  // Per-kind roll-up, same columns as `llmctl jobs -stats` (F752).
+                  const m = new Map<string, { total: number; running: number; done: number; error: number; last: string }>();
+                  for (const j of jobs) {
+                    const r = m.get(j.kind) ?? { total: 0, running: 0, done: 0, error: 0, last: "" };
+                    r.total++;
+                    if (j.status === "running") r.running++;
+                    else if (j.status === "done") r.done++;
+                    else if (j.status === "error") r.error++;
+                    const t = j.updated || j.created || "";
+                    if (t > r.last) r.last = t;
+                    m.set(j.kind, r);
+                  }
+                  return [...m.entries()]
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .map(([kind, r]) => (
+                      <tr key={kind}>
+                        <td className="mono">{kind}</td>
+                        <td className="oc-num">{r.total}</td>
+                        <td className="oc-num">{r.running}</td>
+                        <td className="oc-num">{r.done}</td>
+                        <td className="oc-num">{r.error}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>{r.last ? ago(r.last) : "—"}</td>
+                      </tr>
+                    ));
+                })()}
+              </tbody>
+            </table>
+          ) : (
           <ul>
             {completedJobs.map((j) => (
               <li key={j.id} className="mono">
@@ -699,6 +750,7 @@ export default function Overview() {
               </li>
             ))}
           </ul>
+          )}
         </div>
       )}
       <div className="card">

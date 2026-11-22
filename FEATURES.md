@@ -762,6 +762,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F749 | P3 | 749 | webhooks | Webhook log Stats toggle | COMPLETED | The Settings webhook delivery list gained a Stats toggle rolling the log up per event (total/ok/failed/last) — UI twin of `llmctl webhooks -stats`, filter-aware. Verified live: served bundle carries the toggle. |
 | F750 | P3 | 750 | chats | Chat message Save-as-prompt | COMPLETED | Each Chat message gained a →P button that stores the message text as a reusable prompt template (id prompted) — UI twin of `llmctl prompts add`, the reverse of the Prompts page "Insert into chat" (F300). Verified live: served bundle carries the button. |
 | F751 | P3 | 751 | jobs | jobs -stats roll-up | COMPLETED | `llmctl jobs -stats` aggregates the job list per kind (total/running/done/error/last update), with -json/-out/--csv variants — completes the -stats family for every list command. Verified live: table/CSV/JSON against a real install job (running then error). |
+| F752 | P3 | 752 | jobs | Overview jobs Stats toggle | COMPLETED | The Overview Recent jobs card gained a Stats toggle rolling the job list up per kind (total/running/done/error/last) — UI twin of `llmctl jobs -stats` (F751). Verified live: served bundle carries the toggle. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

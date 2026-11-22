@@ -164,8 +164,9 @@ toggle for a light theme (choice remembered). Tabs:
   usage and Export CSV/JSON buttons (F721), disk usage
   (model bytes + free space, with Export CSV/JSON buttons, F722), running
   instances, active jobs (the Recent jobs
-  card has Export CSV / Export JSON matching `llmctl jobs --csv`/`-json`, F433, F719, and a Clear done
-  button that drops finished jobs from daemon memory, F586; running jobs show
+  card has Export CSV / Export JSON matching `llmctl jobs --csv`/`-json`, F433, F719, a Clear done
+  button that drops finished jobs from daemon memory, F586, and a Stats toggle
+  rolling the list up per kind (twin of `jobs -stats`, F752); running jobs show
   a live progress bar plus the job message, F597), and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with kind, model and key-name filters
