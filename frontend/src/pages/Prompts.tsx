@@ -132,6 +132,29 @@ export default function Prompts() {
     }
   };
 
+  const retagAll = async () => {
+    // Bulk-rename a category across custom templates — UI twin of
+    // `llmctl prompts retag` (F644). Built-ins are skipped (read-only).
+    const oldCat = window.prompt("Rename which category? (custom templates only)");
+    if (!oldCat || !oldCat.trim()) return;
+    const newCat = (window.prompt(`New category for "${oldCat.trim()}":`) ?? "").trim();
+    if (!newCat) return;
+    let changed = 0;
+    try {
+      for (const t of templates) {
+        if (!t.custom || t.category !== oldCat.trim()) continue;
+        await api.updatePrompt(t.id, {
+          name: t.name, category: newCat, description: t.description, content: t.content,
+        });
+        changed++;
+      }
+      ok(`retagged ${changed} template(s)`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const load = async () => {
     try {
       const [t, c] = await Promise.all([api.prompts(), api.promptCategories()]);
@@ -313,6 +336,14 @@ export default function Prompts() {
             onClick={() => setShowStats(!showStats)}
           >
             {showStats ? "Show list" : "Stats"}
+          </button>
+          <button
+            className="btn sm"
+            disabled={templates.filter((t) => t.custom).length === 0}
+            title="rename a category across custom templates — CLI: llmctl prompts retag (F644)"
+            onClick={() => void retagAll()}
+          >
+            Retag
           </button>
           <button
             className="btn sm"

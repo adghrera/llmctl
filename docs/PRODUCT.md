@@ -350,7 +350,8 @@ toggle for a light theme (choice remembered). Tabs:
   shot (built-ins untouched, F641);
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)
   plus a Duplicate button on every template (built-in or custom) that copies it to a
-  new custom id, mirroring `prompts duplicate` (F639), plus a live text filter with `?q=` deep links from Search (F322) and an
+  new custom id, mirroring `prompts duplicate` (F639), plus a Retag button renaming a
+  category across custom templates, mirroring `prompts retag` (F644), plus a live text filter with `?q=` deep links from Search (F322) and an
   Export CSV button on the template list (F394) and a Stats toggle rolling the
   filtered list up per category, mirroring `prompts -stats` (F636);
   `prompts export [-out F]` / `prompts import FILE` move custom templates
