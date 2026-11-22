@@ -655,6 +655,7 @@ llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json
 llmctl backup [file] [-json] | backup verify <file> [-json] | restore <file> [-json]   (print {file,bytes} / {file,entries,ok} / {restored,home} as JSON, F545)
 llmctl backups restore|download|delete … [-json] | chats delete-all -yes [-json]   (raw response / {file,bytes} / {deleted,total} with -json, F546)
 llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON | -d-file F|-] [-out FILE]   raw management-API call; body printed verbatim, non-2xx exits non-zero (F547)
+llmctl open [-print]   open the web UI in the default browser (xdg-open / open / rundll32); -print just shows the URL (F577)
 llmctl requests -stats -by day   per-UTC-day aggregate rows added to the model/key/instance groupings (F548); -by status groups per status code for error triage (F553)
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb

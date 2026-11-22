@@ -17,7 +17,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -143,6 +145,8 @@ func main() {
 		err = cmdCompletion(args)
 	case "api":
 		err = cmdApi(args)
+	case "open":
+		err = cmdOpen(args)
 	case "version", "--version", "-v":
 		versionJSON := func() string {
 			daemonVer := ""
@@ -282,6 +286,7 @@ Usage:
   llmctl version [--json] [-out FILE]
   llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
   llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON|-d-file F] [-out FILE]   raw management-API call
+  llmctl open [-print]   open the web UI in your browser (-print just shows the URL)
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
 web UI (http://127.0.0.1:8080/) on one port.
@@ -10577,6 +10582,37 @@ func cmdRestore(args []string) error {
 //	llmctl api POST /api/v1/keys -d '{"name":"ci"}'
 //
 // The response body is printed verbatim; a non-2xx status exits non-zero.
+// cmdOpen launches the system browser at the daemon's web UI (F577).
+// -print just prints the URL (handy over ssh or on headless hosts).
+func cmdOpen(args []string) error {
+	fs := flag.NewFlagSet("open", flag.ExitOnError)
+	printOnly := fs.Bool("print", false, "print the UI URL instead of launching a browser")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	ui := cc.Base
+	if *printOnly {
+		fmt.Println(ui)
+		return nil
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", ui)
+	case "darwin":
+		cmd = exec.Command("open", ui)
+	default:
+		cmd = exec.Command("xdg-open", ui)
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("no browser available (%v) — open %s yourself", err, ui)
+	}
+	fmt.Printf("opened %s in your browser\n", ui)
+	return nil
+}
+
 func cmdApi(args []string) error {
 	fs := flag.NewFlagSet("api", flag.ExitOnError)
 	data := fs.String("d", "", "request body (JSON string)")
