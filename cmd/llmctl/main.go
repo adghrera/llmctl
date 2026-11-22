@@ -288,7 +288,7 @@ Usage:
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
-  llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
+  llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
@@ -10419,6 +10419,7 @@ func cmdCost(args []string) error {
 func costOnce(args []string) error {
 	fs := flag.NewFlagSet("cost", flag.ExitOnError)
 	byKey := fs.Bool("keys", false, "show per-key costs instead of per-model")
+	tagsF := fs.Bool("tags", false, "roll per-key costs up per key tag (F705)")
 	modelF := fs.String("model", "", "show only this model id (F349)")
 	keyF := fs.String("key", "", "with -keys: show only this key id (F349)")
 	csvOut := fs.Bool("csv", false, "output the cost table as CSV (F370)")
@@ -10447,7 +10448,7 @@ func costOnce(args []string) error {
 		return err
 	}
 	groupPath := "/api/v1/cost/models"
-	if *byKey {
+	if *byKey || *tagsF { // -tags implies the per-key source
 		groupPath = "/api/v1/cost/keys"
 	}
 	code, groups, err := cc.Get(groupPath)
@@ -10456,6 +10457,100 @@ func costOnce(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("cost %s returned %d: %s", groupPath, code, groups)
+	}
+	if *tagsF {
+		// Roll the per-key costs up per key tag (F705): a key carrying
+		// several tags counts once under each; untagged keys land under
+		// "(untagged)".
+		type costRow struct {
+			InputTok  int64   `json:"input_tokens"`
+			OutputTok int64   `json:"output_tokens"`
+			TotalTok  int64   `json:"total_tokens"`
+			Requests  int64   `json:"requests"`
+			Cost      float64 `json:"cost_usd"`
+		}
+		var usage map[string]costRow
+		if err := json.Unmarshal(groups, &usage); err != nil {
+			return err
+		}
+		var keys []struct {
+			ID   string   `json:"id"`
+			Tags []string `json:"tags"`
+		}
+		if code, kout, err := cc.Get("/api/v1/keys"); err == nil && code == 200 {
+			_ = json.Unmarshal(kout, &keys)
+		}
+		keyTags := map[string][]string{}
+		for _, k := range keys {
+			keyTags[k.ID] = k.Tags
+		}
+		roll := map[string]costRow{}
+		for id, u := range usage {
+			tags := keyTags[id]
+			if len(tags) == 0 {
+				tags = []string{"(untagged)"}
+			}
+			for _, t := range tags {
+				r := roll[t]
+				r.InputTok += u.InputTok
+				r.OutputTok += u.OutputTok
+				r.TotalTok += u.TotalTok
+				r.Requests += u.Requests
+				r.Cost += u.Cost
+				roll[t] = r
+			}
+		}
+		if *jsonOut || *outFile != "" {
+			payload := struct {
+				Totals json.RawMessage    `json:"totals"`
+				Tags   map[string]costRow `json:"tags"`
+			}{json.RawMessage(sum), roll}
+			b, err := json.Marshal(payload)
+			if err != nil {
+				return err
+			}
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+			} else {
+				fmt.Println(string(b))
+			}
+			return nil
+		}
+		if !*csvOut {
+			fmt.Printf("total: $%.4f — %d tokens (in %d / out %d)\n\n",
+				totals.CostUSD, totals.TotalTokens, totals.InputTokens, totals.OutputTokens)
+		}
+		if len(roll) == 0 {
+			fmt.Println("no cost recorded yet")
+			return nil
+		}
+		tags := make([]string, 0, len(roll))
+		for t := range roll {
+			tags = append(tags, t)
+		}
+		sort.Slice(tags, func(i, j int) bool { return roll[tags[i]].Cost > roll[tags[j]].Cost })
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"tag", "requests", "input_tokens", "output_tokens", "total_tokens", "cost_usd"})
+			for _, t := range tags {
+				r := roll[t]
+				_ = w.Write([]string{t, strconv.FormatInt(r.Requests, 10),
+					strconv.FormatInt(r.InputTok, 10), strconv.FormatInt(r.OutputTok, 10),
+					strconv.FormatInt(r.TotalTok, 10), strconv.FormatFloat(r.Cost, 'f', 4, 64)})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		fmt.Printf("%-24s %-8s %-10s %-9s %s\n", "TAG", "REQS", "TOKENS", "IN/OUT", "COST USD")
+		for _, t := range tags {
+			r := roll[t]
+			fmt.Printf("%-24s %-8d %-10d %d/%-8d %.4f\n", t, r.Requests, r.TotalTok,
+				r.InputTok, r.OutputTok, r.Cost)
+		}
+		return nil
 	}
 	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F470)
 		var payload struct {

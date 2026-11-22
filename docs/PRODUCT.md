@@ -491,7 +491,8 @@ toggle for a light theme (choice remembered). Tabs:
    Export JSON / Import JSON buttons (F411) and an Export CSV on the tested
    server's Tools card with the same columns (F437).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
-   per-model table; `-keys` shows per-key costs with names, `-model M` /
+   per-model table; `-keys` shows per-key costs with names, `-tags` rolls
+   them up per key tag (untagged keys under "(untagged)", F705), `-model M` /
    `-key K` filter the table to one id, `--csv` exports the table, `-json` emits
    `{totals, groups}`, `-out FILE` writes that JSON to a file, `-watch N`
    reprints the view every N seconds (F251, F349, F370, F470, F588).
@@ -517,6 +518,8 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
   tables showing token counts and estimated USD costs, each with a text
   filter on the id (F353) and a filter-aware Export CSV button (F417).
+  A By tag toggle rolls the key table up per key tag — the UI twin of
+  `llmctl cost -tags`, with untagged keys under "(untagged)" (F705).
 - **Scheduled tasks** — cron-scheduled tasks of three kinds: `chat` (send a
   prompt to a model, result saved as a conversation), `instance.start` and
   `instance.stop` (start/stop an instance on schedule — e.g. load a model
