@@ -12,6 +12,7 @@ export default function Memory() {
   const [searchResults, setSearchResults] = useState<MemoryEntry[]>([]);
   const [searching, setSearching] = useState(false);
   const [copied, setCopied] = useState<Set<string>>(new Set());
+  const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `memory -tag` twin (F707)
   const [showStats, setShowStats] = useState(false); // per-tag rollup (CLI `memory -stats` parity, F632)
 
   // Copy one entry's content to the clipboard (F441).
@@ -29,6 +30,11 @@ export default function Memory() {
       err("clipboard unavailable");
     }
   };
+
+  const entryTags = Array.from(new Set(entries.flatMap((e) => e.entry.tags ?? []))).sort();
+  const shownEntries = tagFilter
+    ? entries.filter((e) => (e.entry.tags ?? []).includes(tagFilter))
+    : entries;
 
   const load = () =>
     api
@@ -357,6 +363,22 @@ export default function Memory() {
                   e.target.value = "";
                 }}
               />
+              {entryTags.length > 0 && (
+                <select
+                  className="oc-input"
+                  style={{ width: "auto", fontSize: 12 }}
+                  title="filter by tag — CLI: llmctl memory -tag (F707)"
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                >
+                  <option value="">all tags</option>
+                  {entryTags.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              )}
               </div>
             </div>
             {entries.length === 0 && (
@@ -405,7 +427,7 @@ export default function Memory() {
             {entries.length > 0 && !showStats && (
               <table>
                 <tbody>
-                  {entries.map((e) => (
+                  {shownEntries.map((e) => (
                     <tr key={e.id}>
                       <td style={{ width: "70%" }}>
                         <div style={{ fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>

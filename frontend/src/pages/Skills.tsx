@@ -6,6 +6,7 @@ export default function Skills() {
   const inputTmpl = "{{input}}";
   const convTmpl = "{{conversation}}";
   const [skills, setSkills] = useState<SkillRecord[]>([]);
+  const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `skills -tag` twin (F707)
   const [editing, setEditing] = useState<string | null>(null);
   const [newSkill, setNewSkill] = useState({
     short_name: "",
@@ -22,6 +23,11 @@ export default function Skills() {
     tags: "",
   });
   const [busy, setBusy] = useState(false);
+
+  const skillTags = Array.from(new Set(skills.flatMap((s) => s.manifest.tags ?? []))).sort();
+  const shownSkills = tagFilter
+    ? skills.filter((s) => (s.manifest.tags ?? []).includes(tagFilter))
+    : skills;
 
   const load = () =>
     api
@@ -243,10 +249,26 @@ export default function Skills() {
               e.target.value = "";
             }}
           />
+          {skillTags.length > 0 && (
+            <select
+              className="oc-input"
+              style={{ width: "auto", fontSize: 12 }}
+              title="filter by tag — CLI: llmctl skills -tag (F707)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {skillTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          )}
           </div>
         </div>
         {skills.length === 0 && <p style={{ opacity: 0.7 }}>No skills created yet.</p>}
-        {skills.map((s) => {
+        {shownSkills.map((s) => {
           const m = s.manifest;
           const isEditing = editing === s.id;
           return (

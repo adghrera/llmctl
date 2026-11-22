@@ -16,6 +16,7 @@ export default function Scheduler() {
   const [kbs, setKbs] = useState<KB[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [newTags, setNewTags] = useState(""); // tags at creation (F702)
+  const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `scheduler list -tag` twin (F707)
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
   const [runTask, setRunTask] = useState(""); // Recent Runs task filter (F688)
@@ -195,6 +196,11 @@ export default function Scheduler() {
   };
 
   // Duplicate a task under a new name — UI twin of `llmctl scheduler duplicate` (F647).
+  const taskTags = Array.from(new Set(schedules.flatMap((s) => s.tags ?? []))).sort();
+  const shownTasks = tagFilter
+    ? schedules.filter((s) => (s.tags ?? []).includes(tagFilter))
+    : schedules;
+
   const dupTask = async (s: ScheduleSpec) => {
     const name = window.prompt("Name for the copy:", `${s.name} copy`);
     if (name === null) return;
@@ -421,6 +427,22 @@ export default function Scheduler() {
               e.target.value = "";
             }}
           />
+          {taskTags.length > 0 && (
+            <select
+              className="oc-input"
+              style={{ width: "auto", fontSize: 12 }}
+              title="filter by tag — CLI: llmctl scheduler list -tag (F707)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {taskTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          )}
           </div>
         </div>
         {schedules.length === 0 && (
@@ -444,7 +466,7 @@ export default function Scheduler() {
               </tr>
             </thead>
             <tbody>
-              {schedules.map((s) => (
+              {shownTasks.map((s) => (
                 <tr key={s.id}>
                   <td>
                     {s.name}

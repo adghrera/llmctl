@@ -7,6 +7,7 @@ export default function KnowledgeBases() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [newTags, setNewTags] = useState(""); // tags at creation (F702)
+  const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `kb list -tag` twin (F707)
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -23,6 +24,11 @@ export default function KnowledgeBases() {
   const [allResults, setAllResults] = useState<KBAllSearchResult[]>([]);
   const [allSearching, setAllSearching] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+
+  const kbTags = Array.from(new Set(kbs.flatMap((k) => k.kb.tags ?? []))).sort();
+  const shownKBs = tagFilter
+    ? kbs.filter((k) => (k.kb.tags ?? []).includes(tagFilter))
+    : kbs;
 
   const load = () =>
     api
@@ -332,6 +338,23 @@ export default function KnowledgeBases() {
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Knowledge Bases ({kbs.length})</h2>
+          <div className="row" style={{ gap: 6 }}>
+          {kbTags.length > 0 && (
+            <select
+              className="oc-input"
+              style={{ width: "auto", fontSize: 12 }}
+              title="filter by tag — CLI: llmctl kb list -tag (F707)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {kbTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             className="btn sm"
             disabled={kbs.length === 0}
@@ -356,6 +379,7 @@ export default function KnowledgeBases() {
           >
             Export CSV
           </button>
+          </div>
         </div>
         {kbs.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
@@ -398,7 +422,7 @@ export default function KnowledgeBases() {
             )}
           </div>
         )}
-        {kbs.map((kb) => (
+        {shownKBs.map((kb) => (
           <div
             key={kb.id}
             style={{
