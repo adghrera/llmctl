@@ -2086,9 +2086,16 @@ func cmdAutoStart(args []string) error {
 	}
 	switch sub {
 	case "list":
+		fs := flag.NewFlagSet("autostart list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw autostart JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/autostart")
 		if err != nil {
 			return err
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var list []map[string]any
 		json.Unmarshal(out, &list)
