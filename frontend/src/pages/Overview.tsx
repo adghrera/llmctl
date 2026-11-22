@@ -10,6 +10,36 @@ export default function Overview() {
   const [events, setEvents] = useState<Awaited<ReturnType<typeof api.events>>>([]);
   const [eventKind, setEventKind] = useState("");
   const [eventKinds, setEventKinds] = useState<string[]>([]);
+  const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () => {
+      const day = new Date().toISOString().slice(0, 10);
+      api
+        .dailyUsage(2)
+        .then((d) => {
+          if (!alive) return;
+          const models = d[day];
+          if (!models) return setToday(null);
+          let requests = 0, errors = 0, tokens = 0, cost = 0;
+          for (const u of Object.values(models)) {
+            requests += u.requests;
+            errors += u.errors;
+            tokens += u.prompt + u.comp;
+            cost += u.cost ?? 0;
+          }
+          setToday({ requests, errors, tokens, cost });
+        })
+        .catch(() => {});
+    };
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -71,6 +101,17 @@ export default function Overview() {
           <div className="empty">connecting to daemon…</div>
         )}
       </div>
+      {today && (
+        <div className="card">
+          <h2>Today (UTC)</h2>
+          <div className="row" style={{ gap: 24, flexWrap: "wrap" }}>
+            <Stat label="requests" value={today.requests} />
+            <Stat label="errors" value={today.errors} />
+            <Stat label="tokens" value={today.tokens.toLocaleString()} />
+            <Stat label="est. cost" value={today.cost > 0 ? `$${today.cost.toFixed(4)}` : "—"} />
+          </div>
+        </div>
+      )}
       <div className="card">
         <h2>GPU</h2>
         {gpus === null ? (

@@ -120,7 +120,9 @@ GitHub release, or file list. No recompile.
 ### Web UI
 Embedded SPA (no CDN deps — works offline). Dark by default with a header
 toggle for a light theme (choice remembered). Tabs:
-- **Overview** — status counts, detected GPUs with VRAM usage, disk usage
+- **Overview** — status counts, a "Today (UTC)" usage card (requests, errors,
+  tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
+  usage, disk usage
   (model bytes + free space), running instances, active jobs, and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with a kind filter (`?kind=`, F116; also
