@@ -175,7 +175,7 @@ Usage:
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
   llmctl disk [-json]
-  llmctl ps [-watch N] [-json]
+  llmctl ps [-watch N] [--csv] [-json]
   llmctl backends list [-json]
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
@@ -1824,6 +1824,7 @@ func cmdCount(args []string) error {
 func cmdPS(args []string) error {
 	fs := flag.NewFlagSet("ps", flag.ExitOnError)
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	csvOut := fs.Bool("csv", false, "output the instance table as CSV (F373; ignores -watch)")
 	jsonOut := fs.Bool("json", false, "print the raw instances JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -1839,9 +1840,9 @@ func cmdPS(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		return printPS(out)
+		return printPS(out, *csvOut)
 	}
-	if *watch <= 0 {
+	if *watch <= 0 || *csvOut { // CSV is a one-shot export (F373)
 		return printOnce()
 	}
 	// Live view: clear + reprint every interval until interrupted (F194).
@@ -1852,14 +1853,14 @@ func cmdPS(args []string) error {
 		}
 		fmt.Print("\x1b[2J\x1b[H") // clear screen
 		fmt.Printf("live instances — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
-		if err := printPS(out); err != nil {
+		if err := printPS(out, false); err != nil {
 			return err
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
 	}
 }
 
-func printPS(out []byte) error {
+func printPS(out []byte, csvOut bool) error {
 	var list []struct {
 		ID           string    `json:"id"`
 		ModelID      string    `json:"modelId"`
@@ -1876,8 +1877,28 @@ func printPS(out []byte) error {
 		return err
 	}
 	if len(list) == 0 {
+		if csvOut { // keep the stream parseable (F373)
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "model", "backend", "transport", "port", "status", "uptime_s", "served", "restarts", "note"})
+			w.Flush()
+			return w.Error()
+		}
 		fmt.Println("no instances (start one: llmctl start <model-id>)")
 		return nil
+	}
+	if csvOut { // F373
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"id", "model", "backend", "transport", "port", "status", "uptime_s", "served", "restarts", "note"})
+		for _, i := range list {
+			up := int64(0)
+			if i.Status == "running" && !i.StartedAt.IsZero() {
+				up = int64(time.Since(i.StartedAt).Seconds())
+			}
+			_ = w.Write([]string{i.ID, i.ModelID, i.BackendID, i.Transport, strconv.Itoa(i.Port), i.Status,
+				strconv.FormatInt(up, 10), strconv.FormatInt(i.Served, 10), strconv.Itoa(i.RestartCount), i.Note})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %-9s %-8s %6s %8s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS", "UPTIME", "SERVED", "RESTARTS", "NOTE")
 	for _, i := range list {
