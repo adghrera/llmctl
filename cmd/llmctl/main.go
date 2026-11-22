@@ -230,7 +230,7 @@ Usage:
   llmctl key list [--csv] [-out FILE]
   llmctl key revoke <id>
   llmctl key reset-usage <id>
-  llmctl autostart list [--csv]
+  llmctl autostart list [--csv] [-out FILE]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
@@ -8487,10 +8487,18 @@ func cmdAutoStart(args []string) error {
 		fs := flag.NewFlagSet("autostart list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw autostart JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the autostart list as CSV (F390)")
+		outFile := fs.String("out", "", "write the raw autostart JSON to this file instead of stdout (F494)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/autostart")
 		if err != nil {
 			return err
+		}
+		if *outFile != "" { // F494: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
