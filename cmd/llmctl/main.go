@@ -1960,6 +1960,35 @@ var llmSubCommands = map[string]string{
 	"tools":     "list show install enable disable run delete",
 }
 
+// llmIDSources maps a top-level command to a shell pipeline that prints its
+// entity ids (one per line) from the running daemon; used for dynamic id
+// completion (F550). Keys must match llmTopCommands.
+var llmIDSources = map[string]string{
+	"start":       "llmctl models list --csv 2>/dev/null | tail -n +2 | cut -d, -f1; llmctl models aliases --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"stop":        "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"restart":     "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"logs":        "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"note":        "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"autorestart": "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"setvars":     "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"maxparallel": "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"backups":     "llmctl backups list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"chats":       "llmctl chats list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"key":         "llmctl key list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"kb":          "llmctl kb list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"mcp":         "llmctl mcp list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"memory":      "llmctl memory list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"models":      "llmctl models list --csv 2>/dev/null | tail -n +2 | cut -d, -f1; llmctl models aliases --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"prompts":     "llmctl prompts list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"scheduler":   "llmctl scheduler list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"skills":      "llmctl skills list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"tools":       "llmctl tools list --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+}
+
+// llmIDCommands lists the top-level commands that take an entity id directly
+// (no subcommand), so the id is completed at word position 2.
+const llmIDCommands = "start|stop|restart|logs|note|autorestart|setvars|maxparallel"
+
 // cmdCompletion prints a shell completion script (bash or zsh) for the
 // top-level llmctl commands and their subcommands (F341, F350, F354).
 func cmdCompletion(args []string) error {
@@ -1980,11 +2009,39 @@ func cmdCompletion(args []string) error {
 		for _, n := range names {
 			fmt.Fprintf(&sb, "    %s) subs=\"%s\" ;;\n", n, llmSubCommands[n])
 		}
-		fmt.Printf(`_llmctl_completions() {
+		var ids strings.Builder
+		idNames := make([]string, 0, len(llmIDSources))
+		for k := range llmIDSources {
+			idNames = append(idNames, k)
+		}
+		sort.Strings(idNames)
+		for _, n := range idNames {
+			fmt.Fprintf(&ids, "    %s) %s ;;\n", n, llmIDSources[n])
+		}
+		fmt.Printf(`_llmctl_ids() {
+  case "$1" in
+%s  esac
+}
+_llmctl_completions() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   if [ "$COMP_CWORD" -eq 1 ]; then
     COMPREPLY=( $(compgen -W "%s" -- "$cur") )
     return
+  fi
+  case "${COMP_WORDS[1]}" in
+    %s)
+      if [ "$COMP_CWORD" -eq 2 ]; then
+        COMPREPLY=( $(compgen -W "$(_llmctl_ids "${COMP_WORDS[1]}")" -- "$cur") )
+      fi
+      return ;;
+  esac
+  if [ "$COMP_CWORD" -eq 3 ]; then
+    local ids
+    ids=$(_llmctl_ids "${COMP_WORDS[1]}")
+    if [ -n "$ids" ]; then
+      COMPREPLY=( $(compgen -W "$ids" -- "$cur") )
+      return
+    fi
   fi
   local subs=""
   case "${COMP_WORDS[1]}" in
@@ -1992,7 +2049,7 @@ func cmdCompletion(args []string) error {
   COMPREPLY=( $(compgen -W "$subs" -- "$cur") )
 }
 complete -F _llmctl_completions llmctl
-`, cmds, sb.String())
+`, ids.String(), cmds, llmIDCommands, sb.String())
 	case "zsh":
 		quoted := ""
 		for _, c := range llmTopCommands {
@@ -2007,7 +2064,20 @@ complete -F _llmctl_completions llmctl
 			}
 			fmt.Fprintf(&sb, "      %s) subs=(%s) ;;\n", n, strings.Join(q, " "))
 		}
+		var ids strings.Builder
+		idNames := make([]string, 0, len(llmIDSources))
+		for k := range llmIDSources {
+			idNames = append(idNames, k)
+		}
+		sort.Strings(idNames)
+		for _, n := range idNames {
+			fmt.Fprintf(&ids, "      %s) %s ;;\n", n, llmIDSources[n])
+		}
 		fmt.Printf(`#compdef llmctl
+_llmctl_ids() {
+  case "$1" in
+%s  esac
+}
 _llmctl() {
   local -a cmds
   cmds=(
@@ -2016,23 +2086,40 @@ _llmctl() {
     _describe 'command' cmds
     return
   fi
+  case "${words[2]}" in
+    %s)
+      if (( CURRENT == 3 )); then
+        local -a ids; ids=(${(f)"$(_llmctl_ids ${words[2]})"})
+        (( ${#ids} > 0 )) && _describe 'id' ids
+      fi
+      return ;;
+  esac
+  if (( CURRENT == 4 )); then
+    local -a ids; ids=(${(f)"$(_llmctl_ids ${words[2]})"})
+    (( ${#ids} > 0 )) && { _describe 'id' ids; return; }
+  fi
   local -a subs
   case "${words[2]}" in
 %s  esac
   (( ${#subs} > 0 )) && _describe 'subcommand' subs
 }
 compdef _llmctl llmctl
-`, quoted, sb.String())
+`, ids.String(), quoted, llmIDCommands, sb.String())
 	case "fish":
 		// Fish: one `complete` line per command (level 1) and per command's
-		// subcommand set (level 2) (F354).
+		// subcommand set (level 2) (F354). Direct-id commands also get a
+		// dynamic id list from the running daemon (F550).
 		var sb strings.Builder
 		for _, n := range names {
 			fmt.Fprintf(&sb, "complete -c llmctl -n \"__fish_seen_subcommand_from %s\" -a \"%s\"\n", n, llmSubCommands[n])
 		}
+		var idf strings.Builder
+		for _, c := range strings.Split(llmIDCommands, "|") {
+			fmt.Fprintf(&idf, "complete -c llmctl -n \"__fish_seen_subcommand_from %s\" -a \"(%s)\"\n", c, llmIDSources[c])
+		}
 		fmt.Printf(`complete -c llmctl -f
 complete -c llmctl -n __fish_use_subcommand -a "%s"
-%s`, cmds, sb.String())
+%s%s`, cmds, sb.String(), idf.String())
 	case "powershell", "pwsh":
 		// PowerShell: Register-ArgumentCompleter over the same command and
 		// subcommand tables (F425). Add to $PROFILE to activate.
