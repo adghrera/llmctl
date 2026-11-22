@@ -175,6 +175,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F163 | P2 | 163 | webhooks | Delivery retries | COMPLETED | Event and scheduler-hook webhook POSTs now retry up to 3 times (1s, 2s backoff, context-aware) via `webhook.PostWithRetries`; event posts are also dispatched asynchronously so a flaky receiver can't block the supervisor. Each attempt lands in the delivery ring. Verified live: dead sink → 3 failed attempts recorded; live sink → delivered. |
 | F164 | P3 | 164 | cli | `requests --csv` | COMPLETED | `llmctl requests --csv` prints the (filtered) request log as CSV with the same columns as the UI export plus `error`; the UI CSV gained the error column too. Verified live: quoting/escaping of embedded quotes correct, `--status 404` filter honored. |
 | F165 | P3 | 165 | keys | Single-key lookup | COMPLETED | `GET /api/v1/keys/{id}` returns one key's full view (usage, quota, expiry, today cost) and `llmctl key show <id>` pretty-prints it — scripts no longer need to scan the whole list. Verified live: CLI show displayed quota usage, expiry, last-used and today's cost for a freshly used key; unknown id → 404. |
+| F166 | P3 | 166 | models | Single-model lookup | COMPLETED | `GET /api/v1/models/{id}` returns one model's view (backend, path, ctx, price, idle-unload, instances, running) and `llmctl models show <id>` pretty-prints it. Verified live: show for the running `so` model, unknown id → 404, `/models/{id}/metadata` route unaffected. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

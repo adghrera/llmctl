@@ -109,6 +109,7 @@ Usage:
   llmctl backends add <plugin.json>
   llmctl backends remove <id>
   llmctl models list
+  llmctl models show <id>
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0>
@@ -435,7 +436,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|install|remove|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|show|install|remove|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -483,6 +484,56 @@ func cmdModels(args []string) error {
 				idle = fmt.Sprintf("%dm", m.IdleMin)
 			}
 			fmt.Printf("%-40s %-12s %-10v %-9s %-14s %-7s %v\n", m.ID, m.BackendID, m.SizeBytes, ctxv, price, idle, m.Running)
+		}
+		return nil
+	case "show":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl models show <id>")
+		}
+		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("models show returned %d: %s", code, out)
+		}
+		var mv struct {
+			ID            string   `json:"id"`
+			BackendID     string   `json:"backendId"`
+			Path          string   `json:"path"`
+			SizeBytes     int64    `json:"sizeBytes"`
+			Running       bool     `json:"running"`
+			Instances     []string `json:"instances"`
+			CtxSize       int      `json:"ctxSize"`
+			PriceIn       float64  `json:"priceInPerM"`
+			PriceOut      float64  `json:"priceOutPerM"`
+			IdleUnloadMin int      `json:"idleUnloadMin"`
+		}
+		if err := json.Unmarshal(out, &mv); err != nil {
+			return err
+		}
+		idle := "global"
+		switch {
+		case mv.IdleUnloadMin < 0:
+			idle = "pinned"
+		case mv.IdleUnloadMin > 0:
+			idle = fmt.Sprintf("%dm", mv.IdleUnloadMin)
+		}
+		price := "free"
+		if mv.PriceIn > 0 || mv.PriceOut > 0 {
+			price = fmt.Sprintf("$%.2f/$%.2f per M", mv.PriceIn, mv.PriceOut)
+		}
+		ctxv := "backend default"
+		if mv.CtxSize > 0 {
+			ctxv = strconv.Itoa(mv.CtxSize)
+		}
+		status := "ready"
+		if mv.Running {
+			status = "running"
+		}
+		fmt.Printf("id:       %s\nbackend:  %s\npath:     %s\nsize:     %d bytes\nctx:      %s\nprice:    %s\nidle:     %s\nstatus:   %s\n", mv.ID, mv.BackendID, mv.Path, mv.SizeBytes, ctxv, price, idle, status)
+		if len(mv.Instances) > 0 {
+			fmt.Printf("instances: %s\n", strings.Join(mv.Instances, ", "))
 		}
 		return nil
 	case "install":

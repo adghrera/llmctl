@@ -94,6 +94,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/backends/{id}", s.removePlugin)
 	// Models
 	m.HandleFunc("GET /api/v1/models", s.listModels)
+	m.HandleFunc("GET /api/v1/models/{id}", s.getModel)
 	m.HandleFunc("POST /api/v1/models", s.registerModel)
 	m.HandleFunc("POST /api/v1/models/install", s.installModel)
 	m.HandleFunc("GET /api/v1/catalog", s.listCatalog)
@@ -420,19 +421,36 @@ type modelView struct {
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []modelView{}
-	for id, m := range st.Models {
-		v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin}
-		for _, inst := range st.Instances {
-			if inst.ModelID == id {
-				v.Instances = append(v.Instances, inst.ID)
-				if inst.Status == store.StatusRunning {
-					v.Running = true
-				}
-			}
-		}
-		out = append(out, v)
+	for id := range st.Models {
+		out = append(out, modelViewFor(st, id))
 	}
 	writeJSON(w, 200, out)
+}
+
+// modelViewFor builds the API view of one model, incl. instance membership.
+func modelViewFor(st *store.State, id string) modelView {
+	m := st.Models[id]
+	v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin}
+	for _, inst := range st.Instances {
+		if inst.ModelID == id {
+			v.Instances = append(v.Instances, inst.ID)
+			if inst.Status == store.StatusRunning {
+				v.Running = true
+			}
+		}
+	}
+	return v
+}
+
+// getModel handles GET /api/v1/models/{id} — one model's view for scripts (F166).
+func (s *Server) getModel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	if _, ok := st.Models[id]; !ok {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	writeJSON(w, 200, modelViewFor(st, id))
 }
 
 type registerModelReq struct {
