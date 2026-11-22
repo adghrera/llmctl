@@ -1611,6 +1611,23 @@ func cmdUsage(args []string) error {
 			fmt.Println()
 		}
 	}
+	// Window totals (F209).
+	var tReq, tErr, tIn, tOut int64
+	var tCost float64
+	for _, models := range daily {
+		for _, u := range models {
+			tReq += u.Requests
+			tErr += u.Errors
+			tIn += u.Prompt
+			tOut += u.Comp
+			tCost += u.Cost
+		}
+	}
+	fmt.Printf("%s  %6d reqs %4d err %10d in %10d out", "total", tReq, tErr, tIn, tOut)
+	if tCost > 0 {
+		fmt.Printf("  $%.4f", tCost)
+	}
+	fmt.Println()
 	return nil
 }
 

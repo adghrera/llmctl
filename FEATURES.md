@@ -218,6 +218,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F206 | P3 | 206 | doctor | Orphaned model-file check | COMPLETED | `llmctl doctor` gained a "disk" check: warns when files under the models dir are not referenced by any model record (count + size + names), ok otherwise. Verified live: an orphan file triggers warn, removing it returns ok. |
 | F207 | P3 | 207 | doctor | Stale-backup warning | COMPLETED | The doctor backups check now warns when the newest snapshot is older than 7 days (shows the age). Verified live: fresh snapshot → ok, backdated mtime → warn "(10 days old)". |
 | F208 | P3 | 208 | ui | Relative idle time on Instances | COMPLETED | The Instances page "last used" column now shows `idle 5m`-style relative time (absolute timestamp in the tooltip) instead of a clock time. Verified live: served bundle contains the `idle ${…}` template. |
+| F209 | P3 | 209 | cli | `usage` totals row | COMPLETED | `llmctl usage` (per-model table mode) now ends with a `total` line summing requests/errors/tokens/cost across the window. Verified live: totals match the per-day rows. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
