@@ -279,7 +279,7 @@ Usage:
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
-  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
+  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
   llmctl backup [file.tar.gz] [-json]     export state (config/chats/KBs/memory/…)
@@ -9612,6 +9612,7 @@ func cmdBatch(args []string) error {
 	key := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (needed when auth is on; default $LLMCTL_API_KEY)")
 	file := fs.String("file", "", "read prompts from this file, one per line")
 	jsonOut := fs.Bool("json", false, "print the raw batch JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the batch results as CSV — prompt,ok,content,error (F605)")
 	outFile := fs.String("out", "", "write the raw batch JSON to this file instead of stdout (implies -json, F449)")
 	fs.Parse(reorderFlags(args))
 
@@ -9697,6 +9698,15 @@ func cmdBatch(args []string) error {
 	}
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
+	}
+	if *csvOut { // F605: one row per prompt, full (untruncated) text
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"prompt", "ok", "content", "error"})
+		for _, r := range res.Results {
+			_ = w.Write([]string{r.Prompt, strconv.FormatBool(r.Error == ""), r.Content, r.Error})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	for _, r := range res.Results {
 		p := r.Prompt
