@@ -13,6 +13,7 @@ export default function Keys() {
   const [maxReq, setMaxReq] = useState(0);
   const [rps, setRps] = useState(0);
   const [burst, setBurst] = useState(0);
+  const [expiresDays, setExpiresDays] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
@@ -38,7 +39,7 @@ export default function Keys() {
     setBusy(true);
     try {
       const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst);
+      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst, expiresDays);
       setCreated(r.key);
       setName("");
       setQuota(0);
@@ -47,6 +48,7 @@ export default function Keys() {
       setMaxReq(0);
       setRps(0);
       setBurst(0);
+      setExpiresDays(0);
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -166,6 +168,15 @@ export default function Keys() {
             value={burst || ""}
             onChange={(e) => setBurst(Math.max(0, Number(e.target.value) || 0))}
           />
+          <input
+            type="number"
+            min={0}
+            style={{ width: 100 }}
+            placeholder="days"
+            title="Key expires after this many days (0 = never)"
+            value={expiresDays || ""}
+            onChange={(e) => setExpiresDays(Math.max(0, Number(e.target.value) || 0))}
+          />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create
           </button>
@@ -208,7 +219,15 @@ export default function Keys() {
                 <tr key={k.id}>
                   <td>{k.name}</td>
                   <td className="mono">{k.prefix}…</td>
-                  <td>{new Date(k.createdAt).toLocaleString()}</td>
+                  <td>
+                    {new Date(k.createdAt).toLocaleString()}
+                    {k.expiresAt &&
+                      (new Date(k.expiresAt).getTime() < Date.now() ? (
+                        <div className="danger" style={{ fontSize: 11 }}>expired {new Date(k.expiresAt).toLocaleString()}</div>
+                      ) : (
+                        <div className="muted" style={{ fontSize: 11 }}>expires {new Date(k.expiresAt).toLocaleDateString()}</div>
+                      ))}
+                  </td>
                   <td className="mono">
                     {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
                     {k.usedCost ? <span className="muted"> · ${k.usedCost.toFixed(4)}</span> : null}

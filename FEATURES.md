@@ -144,6 +144,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F132 | P3 | 132 | instances | "Req" drill-down link | COMPLETED | Each instance row has a "Req" button opening the Requests page pre-filtered to that instance (`/requests?instance=ID`, builds on F131). Verified: builds clean, filter path exercised live in F131. |
 | F133 | P3 | 133 | cli | `llmctl ps` uptime + note | COMPLETED | `ps` now shows each running instance's uptime (`2h05m` style) and its free-text note (F119, truncated to 40 chars). Verified live against the running daemon. |
 | F134 | P3 | 134 | usage | Overview "Today" card | COMPLETED | The Overview page shows today's (UTC) requests, errors, tokens and estimated cost, summed from the daily rollup and refreshed every 30 s. Verified: rollup endpoint returns today's totals, build clean. |
+| F135 | P2 | 135 | keys | Key expiry | COMPLETED | Keys can carry an expiry (`expiresInDays` at create or PATCH; 0 = never). The gateway rejects expired keys with 403 `key_expired` even though the secret still matches; the Keys page shows a "days" input and an expires/expired line per key. Verified live: 7-day key works, backdated key → 403, PATCH expiresInDays 0 clears and works again. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

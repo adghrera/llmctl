@@ -1402,26 +1402,27 @@ func (s *Server) jobEvents(w http.ResponseWriter, r *http.Request) {
 // ---- keys ----
 
 type keyView struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Prefix        string    `json:"prefix"`
-	CreatedAt     time.Time `json:"createdAt"`
-	TokenQuota    int64     `json:"tokenQuota,omitempty"`
-	UsedTok       int64     `json:"usedTokens"`              // tokens spent since daemon start (F074)
-	UsedCost      float64   `json:"usedCost"`                // estimated USD spent (F102)
-	AllowedModels []string  `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
-	MaxConcurrent int       `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
-	MaxRequests   int64     `json:"maxRequests,omitempty"`   // total request cap, 0 = unlimited (F105)
-	UsedReqs      int64     `json:"usedRequests"`            // requests made since daemon start (F105)
-	RateRPS       float64   `json:"rateRPS,omitempty"`       // sustained req/s, 0 = default (F130)
-	RateBurst     int       `json:"rateBurst,omitempty"`     // burst size, 0 = default (F130)
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	Prefix        string     `json:"prefix"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	TokenQuota    int64      `json:"tokenQuota,omitempty"`
+	UsedTok       int64      `json:"usedTokens"`              // tokens spent since daemon start (F074)
+	UsedCost      float64    `json:"usedCost"`                // estimated USD spent (F102)
+	AllowedModels []string   `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
+	MaxConcurrent int        `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
+	MaxRequests   int64      `json:"maxRequests,omitempty"`   // total request cap, 0 = unlimited (F105)
+	UsedReqs      int64      `json:"usedRequests"`            // requests made since daemon start (F105)
+	RateRPS       float64    `json:"rateRPS,omitempty"`       // sustained req/s, 0 = default (F130)
+	RateBurst     int        `json:"rateBurst,omitempty"`     // burst size, 0 = default (F130)
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`     // nil = never (F135)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst}
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt}
 		if s.gw != nil {
 			if ku, ok := s.gw.KeyUsage()[k.ID]; ok { // counters key on the key id (F109)
 				v.UsedTok = ku.TotalTok
@@ -1442,6 +1443,7 @@ type createKeyReq struct {
 	MaxRequests   int64    `json:"maxRequests"`   // 0 = unlimited (F105)
 	RateRPS       float64  `json:"rateRPS"`       // sustained req/s, 0 = gateway default (F130)
 	RateBurst     int      `json:"rateBurst"`     // burst size, 0 = gateway default (F130)
+	ExpiresInDays int      `json:"expiresInDays"` // key dies after N days, 0 = never (F135)
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -1451,8 +1453,9 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AllowedModels []string `json:"allowedModels"`
 		MaxConcurrent *int     `json:"maxConcurrent"`
-		RateRPS       *float64 `json:"rateRPS"`   // 0 = gateway default (F130)
-		RateBurst     *int     `json:"rateBurst"` // 0 = gateway default (F130)
+		RateRPS       *float64 `json:"rateRPS"`       // 0 = gateway default (F130)
+		RateBurst     *int     `json:"rateBurst"`     // 0 = gateway default (F130)
+		ExpiresInDays *int     `json:"expiresInDays"` // 0 = never expires (F135)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")
@@ -1465,6 +1468,15 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	if req.RateRPS != nil && *req.RateRPS < 0 || req.RateBurst != nil && *req.RateBurst < 0 {
 		writeErr(w, 400, "rateRPS and rateBurst must be >= 0")
 		return
+	}
+	if req.ExpiresInDays != nil && *req.ExpiresInDays < 0 {
+		writeErr(w, 400, "expiresInDays must be >= 0")
+		return
+	}
+	var expiresAt *time.Time
+	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {
+		t := time.Now().AddDate(0, 0, *req.ExpiresInDays)
+		expiresAt = &t
 	}
 	st, _ := s.store.Load()
 	if st.APIKeys[id] == nil {
@@ -1483,6 +1495,9 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 			}
 			if req.RateBurst != nil {
 				k.RateBurst = *req.RateBurst
+			}
+			if req.ExpiresInDays != nil {
+				k.ExpiresAt = expiresAt // nil when 0 (F135)
 			}
 		}
 		return nil
@@ -1522,6 +1537,15 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "rateRPS and rateBurst must be >= 0")
 		return
 	}
+	if req.ExpiresInDays < 0 {
+		writeErr(w, 400, "expiresInDays must be >= 0")
+		return
+	}
+	var expiresAt *time.Time
+	if req.ExpiresInDays > 0 {
+		t := time.Now().AddDate(0, 0, req.ExpiresInDays)
+		expiresAt = &t
+	}
 	plaintext := generateKey()
 	sum := sha256.Sum256([]byte(plaintext))
 	id := newID()
@@ -1542,6 +1566,7 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 			AllowedModels: normalizeModelList(req.AllowedModels),
 			MaxConcurrent: req.MaxConcurrent,
 			MaxRequests:   req.MaxRequests,
+			ExpiresAt:     expiresAt, // nil = never (F135)
 		}
 		return nil
 	})

@@ -13,6 +13,7 @@ import (
 
 	"llmctl/internal/paths"
 )
+
 // Status values shared across record types.
 const (
 	StatusInstalled = "installed"
@@ -23,17 +24,17 @@ const (
 )
 
 type BackendRecord struct {
-	ID         string    `json:"id"`         // manifest backend id
-	Version    string    `json:"version"`    // release tag or "external"
-	BinaryPath string    `json:"binaryPath"` // absolute path, "" if on PATH
+	ID          string    `json:"id"`         // manifest backend id
+	Version     string    `json:"version"`    // release tag or "external"
+	BinaryPath  string    `json:"binaryPath"` // absolute path, "" if on PATH
 	InstalledAt time.Time `json:"installedAt"`
 }
 
 type ModelRecord struct {
-	ID          string    `json:"id"`
-	BackendID   string    `json:"backendId"`
-	Path        string    `json:"path"` // .gguf file or model dir
-	SizeBytes   int64     `json:"sizeBytes"`
+	ID           string    `json:"id"`
+	BackendID    string    `json:"backendId"`
+	Path         string    `json:"path"` // .gguf file or model dir
+	SizeBytes    int64     `json:"sizeBytes"`
 	DownloadedAt time.Time `json:"downloadedAt"`
 	// CtxSize is the default context window (tokens) used when starting
 	// instances of this model; 0 = backend default. Overridable per start
@@ -47,16 +48,16 @@ type ModelRecord struct {
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.
 type InstanceRecord struct {
-	ID        string            `json:"id"`
-	ModelID   string            `json:"modelId"`
-	BackendID string            `json:"backendId"`
-	Port      int               `json:"port"`
+	ID        string `json:"id"`
+	ModelID   string `json:"modelId"`
+	BackendID string `json:"backendId"`
+	Port      int    `json:"port"`
 	// Transport: "http" (reverse-proxied) or "stdio" (IPC session).
-	Transport   string          `json:"transport,omitempty"`
+	Transport string `json:"transport,omitempty"`
 	// APIBasePath is the upstream OpenAI-compatible root, e.g. "/v1".
-	APIBasePath string          `json:"apiBasePath"`
-	Status    string            `json:"status"`
-	Attached  bool              `json:"attached"` // process not owned by us
+	APIBasePath string `json:"apiBasePath"`
+	Status      string `json:"status"`
+	Attached    bool   `json:"attached"` // process not owned by us
 	// HealthURL is the probed endpoint for attached instances; empty for
 	// owned ones (their process is reaped directly) (F096).
 	HealthURL string            `json:"healthUrl,omitempty"`
@@ -83,10 +84,10 @@ func (i *InstanceRecord) BaseURL() string {
 type APIKeyRecord struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
-	Hash      string    `json:"hash"` // sha256 hex of the plaintext key
+	Hash      string    `json:"hash"`   // sha256 hex of the plaintext key
 	Prefix    string    `json:"prefix"` // first 12 chars, for display
 	CreatedAt time.Time `json:"createdAt"`
-	RateRPS   float64   `json:"rateRPS"` // sustained requests/sec per key (0 means use default)
+	RateRPS   float64   `json:"rateRPS"`   // sustained requests/sec per key (0 means use default)
 	RateBurst int       `json:"rateBurst"` // max burst per key (0 means use default)
 	// TokenQuota caps total tokens (prompt+completion) this key may spend
 	// since daemon start; 0 = unlimited (F074).
@@ -100,6 +101,8 @@ type APIKeyRecord struct {
 	// MaxRequests caps the total number of requests this key may make;
 	// 0 = unlimited (F105).
 	MaxRequests int64 `json:"maxRequests,omitempty"`
+	// ExpiresAt is when the key stops working; nil = never (F135).
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.
@@ -135,7 +138,7 @@ type Settings struct {
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.
 // Instance records are forgotten on stop, so the spec lives separately.
 type AutoStartSpec struct {
-	Name      string            `json:"name"`      // desired instance id ("" = derive from model)
+	Name      string            `json:"name"` // desired instance id ("" = derive from model)
 	ModelID   string            `json:"modelId"`
 	BackendID string            `json:"backendId,omitempty"`
 	Port      int               `json:"port,omitempty"` // 0 = auto-assign
@@ -155,14 +158,14 @@ type PresetSpec struct {
 }
 
 type State struct {
-	Backends  map[string]*BackendRecord    `json:"backends"`
-	Models    map[string]*ModelRecord      `json:"models"`
-	Instances map[string]*InstanceRecord   `json:"instances"`
-	APIKeys   map[string]*APIKeyRecord     `json:"apiKeys"`
-	Settings  *Settings                    `json:"settings"`
-	AutoStart map[string]*AutoStartSpec    `json:"autoStart,omitempty"` // keyed by model id
-	Presets   map[string]*PresetSpec       `json:"presets,omitempty"`   // keyed by preset name
-	Aliases   map[string]string            `json:"aliases,omitempty"`   // gateway alias -> model id (F065)
+	Backends  map[string]*BackendRecord  `json:"backends"`
+	Models    map[string]*ModelRecord    `json:"models"`
+	Instances map[string]*InstanceRecord `json:"instances"`
+	APIKeys   map[string]*APIKeyRecord   `json:"apiKeys"`
+	Settings  *Settings                  `json:"settings"`
+	AutoStart map[string]*AutoStartSpec  `json:"autoStart,omitempty"` // keyed by model id
+	Presets   map[string]*PresetSpec     `json:"presets,omitempty"`   // keyed by preset name
+	Aliases   map[string]string          `json:"aliases,omitempty"`   // gateway alias -> model id (F065)
 	KeyUsage  map[string]*KeyUsageRecord `json:"keyUsage,omitempty"`  // per key prefix, flushed periodically (F080)
 	// DailyUsage is UTC date ("2006-01-02") -> model id -> counters,
 	// flushed with the key-usage loop so usage history survives restarts (F097).
