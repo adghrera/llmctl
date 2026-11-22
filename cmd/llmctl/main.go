@@ -240,7 +240,7 @@ Usage:
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
-  llmctl cost [-keys] [-json]
+  llmctl cost [-keys] [-model M] [-key K] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json]
@@ -5938,6 +5938,8 @@ func cmdMcp(args []string) error {
 func cmdCost(args []string) error {
 	fs := flag.NewFlagSet("cost", flag.ExitOnError)
 	byKey := fs.Bool("keys", false, "show per-key costs instead of per-model")
+	modelF := fs.String("model", "", "show only this model id (F349)")
+	keyF := fs.String("key", "", "with -keys: show only this key id (F349)")
 	jsonOut := fs.Bool("json", false, "print the raw cost JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -6028,9 +6030,19 @@ func cmdCost(args []string) error {
 	}
 	rows := []row{}
 	for id, u := range usage {
+		if *modelF != "" && !strings.EqualFold(id, *modelF) {
+			continue
+		}
+		if *byKey && *keyF != "" && !strings.EqualFold(id, *keyF) {
+			continue
+		}
 		r := row{id: id}
 		r.u = u
 		rows = append(rows, r)
+	}
+	if len(rows) == 0 && (*modelF != "" || (*byKey && *keyF != "")) {
+		fmt.Println("no cost recorded for that id")
+		return nil
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].u.Cost > rows[j].u.Cost })
 	label := "MODEL"

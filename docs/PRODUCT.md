@@ -335,8 +335,9 @@ toggle for a light theme (choice remembered). Tabs:
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
    enabled state preserved, F330) (F249).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
-   per-model table; `-keys` shows per-key costs with names, `-json` emits
-   `{totals, groups}` (F251).
+   per-model table; `-keys` shows per-key costs with names, `-model M` /
+   `-key K` filter the table to one id, `-json` emits
+   `{totals, groups}` (F251, F349).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).
