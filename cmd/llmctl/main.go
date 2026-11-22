@@ -230,7 +230,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
-  llmctl metrics [-watch N] [-model M] [-json]
+  llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
@@ -240,7 +240,7 @@ Usage:
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
-  llmctl cost [-keys] [-model M] [-key K] [-json]
+  llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json]
@@ -3644,6 +3644,7 @@ func cmdMetrics(args []string) error {
 	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	modelF := fs.String("model", "", "show only this model id in the table (F348)")
+	csvOut := fs.Bool("csv", false, "output the per-model table as CSV (F370; ignores -watch)")
 	jsonOut := fs.Bool("json", false, "print the raw metrics JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -3662,9 +3663,9 @@ func cmdMetrics(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		return printMetrics(out, *modelF)
+		return printMetrics(out, *modelF, *csvOut)
 	}
-	if *watch <= 0 {
+	if *watch <= 0 || *csvOut { // CSV is a one-shot export (F370)
 		return printOnce()
 	}
 	// Live view: clear + reprint every interval until interrupted (F179).
@@ -3678,14 +3679,14 @@ func cmdMetrics(args []string) error {
 		}
 		fmt.Print("\x1b[2J\x1b[H") // clear screen
 		fmt.Printf("live metrics — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
-		if err := printMetrics(out, *modelF); err != nil {
+		if err := printMetrics(out, *modelF, false); err != nil {
 			return err
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
 	}
 }
 
-func printMetrics(out []byte, modelFilter string) error {
+func printMetrics(out []byte, modelFilter string, csvOut bool) error {
 	var m struct {
 		RequestsTotal int64 `json:"requests_total"`
 		Tokens        struct {
@@ -3708,14 +3709,22 @@ func printMetrics(out []byte, modelFilter string) error {
 	if err := json.Unmarshal(out, &m); err != nil {
 		return err
 	}
-	fmt.Printf("requests: %d   tokens: %d (in %d / out %d)\n", m.RequestsTotal, m.Tokens.Total, m.Tokens.Prompt, m.Tokens.Completion)
-	classes := make([]string, 0, len(m.Status))
-	for k, v := range m.Status {
-		classes = append(classes, fmt.Sprintf("%s=%d", k, v))
+	if !csvOut { // CSV output is header + rows only (F370)
+		fmt.Printf("requests: %d   tokens: %d (in %d / out %d)\n", m.RequestsTotal, m.Tokens.Total, m.Tokens.Prompt, m.Tokens.Completion)
+		classes := make([]string, 0, len(m.Status))
+		for k, v := range m.Status {
+			classes = append(classes, fmt.Sprintf("%s=%d", k, v))
+		}
+		sort.Strings(classes)
+		fmt.Printf("status: %s\n", strings.Join(classes, " "))
 	}
-	sort.Strings(classes)
-	fmt.Printf("status: %s\n", strings.Join(classes, " "))
 	if len(m.Models) == 0 {
+		if csvOut { // F370: keep the stream parseable even when empty
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"model", "requests", "errors", "prompt_tokens", "completion_tokens", "p50_ms", "p95_ms", "tokens_per_sec"})
+			w.Flush()
+			return w.Error()
+		}
 		fmt.Println("no model traffic yet")
 		return nil
 	}
@@ -3736,6 +3745,19 @@ func printMetrics(out []byte, modelFilter string) error {
 			return nil
 		}
 		names = kept
+	}
+	if csvOut { // F370
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"model", "requests", "errors", "prompt_tokens", "completion_tokens", "p50_ms", "p95_ms", "tokens_per_sec"})
+		for _, n := range names {
+			v := m.Models[n]
+			_ = w.Write([]string{n, strconv.FormatInt(v.Requests, 10), strconv.FormatInt(v.Errors, 10),
+				strconv.FormatInt(v.Prompt, 10), strconv.FormatInt(v.Comp, 10),
+				strconv.FormatFloat(v.P50, 'f', 0, 64), strconv.FormatFloat(v.P95, 'f', 0, 64),
+				strconv.FormatFloat(v.Tps, 'f', 1, 64)})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("\n%-16s %8s %6s %9s %9s %8s %8s %8s\n", "MODEL", "REQS", "ERRS", "IN", "OUT", "P50 MS", "P95 MS", "TOK/S")
 	for _, n := range names {
@@ -6146,6 +6168,7 @@ func cmdCost(args []string) error {
 	byKey := fs.Bool("keys", false, "show per-key costs instead of per-model")
 	modelF := fs.String("model", "", "show only this model id (F349)")
 	keyF := fs.String("key", "", "with -keys: show only this key id (F349)")
+	csvOut := fs.Bool("csv", false, "output the cost table as CSV (F370)")
 	jsonOut := fs.Bool("json", false, "print the raw cost JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -6193,8 +6216,10 @@ func cmdCost(args []string) error {
 		fmt.Println(string(b))
 		return nil
 	}
-	fmt.Printf("total: $%.4f — %d tokens (in %d / out %d)\n\n",
-		totals.CostUSD, totals.TotalTokens, totals.InputTokens, totals.OutputTokens)
+	if !*csvOut {
+		fmt.Printf("total: $%.4f — %d tokens (in %d / out %d)\n\n",
+			totals.CostUSD, totals.TotalTokens, totals.InputTokens, totals.OutputTokens)
+	}
 	var usage map[string]struct {
 		InputTok  int64   `json:"input_tokens"`
 		OutputTok int64   `json:"output_tokens"`
@@ -6254,6 +6279,17 @@ func cmdCost(args []string) error {
 	label := "MODEL"
 	if *byKey {
 		label = "KEY"
+	}
+	if *csvOut { // F370
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{strings.ToLower(label), "name", "requests", "input_tokens", "output_tokens", "total_tokens", "cost_usd"})
+		for _, r := range rows {
+			_ = w.Write([]string{r.id, names[r.id], strconv.FormatInt(r.u.Requests, 10),
+				strconv.FormatInt(r.u.InputTok, 10), strconv.FormatInt(r.u.OutputTok, 10),
+				strconv.FormatInt(r.u.TotalTok, 10), strconv.FormatFloat(r.u.Cost, 'f', 4, 64)})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("%-20s %-28s %-8s %-10s %-9s %s\n", label, "NAME", "REQS", "TOKENS", "IN/OUT", "COST USD")
 	for _, r := range rows {

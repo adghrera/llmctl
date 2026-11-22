@@ -352,8 +352,8 @@ toggle for a light theme (choice remembered). Tabs:
    enabled state preserved, F330) (F249).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
    per-model table; `-keys` shows per-key costs with names, `-model M` /
-   `-key K` filter the table to one id, `-json` emits
-   `{totals, groups}` (F251, F349).
+   `-key K` filter the table to one id, `--csv` exports the table, `-json` emits
+   `{totals, groups}` (F251, F349, F370).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).
@@ -559,7 +559,7 @@ llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/run
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]]
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
-llmctl metrics [-watch N] [-model M] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table)
+llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
 llmctl webhooks [-n 20] [-event E] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…]
