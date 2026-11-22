@@ -250,7 +250,7 @@ Usage:
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
-  llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
+  llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
@@ -5347,6 +5347,7 @@ func cmdChats(args []string) error {
 	n := fs.Int("n", 20, "number of conversations")
 	jsonOut := fs.Bool("json", false, "print the chat list as JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the chat list as CSV (F378)")
+	outFile := fs.String("out", "", "write the chat list JSON to this file instead of stdout (F492)")
 	// Accept "list" as an explicit subcommand: llmctl chats list [filter].
 	if len(args) > 0 && args[0] == "list" {
 		args = args[1:]
@@ -5395,10 +5396,18 @@ func cmdChats(args []string) error {
 	if len(list) > *n {
 		list = list[:*n]
 	}
-	if *jsonOut {
+	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F492)
 		b, err := json.Marshal(list)
 		if err != nil {
 			return err
+		}
+		if *outFile != "" {
+			b = append(b, '\n')
+			if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+			return nil
 		}
 		fmt.Println(string(b))
 		return nil

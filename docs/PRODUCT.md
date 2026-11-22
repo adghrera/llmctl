@@ -345,7 +345,7 @@ toggle for a light theme (choice remembered). Tabs:
    {{k}} placeholders filled, for scripts; -out writes the rendered text to a file, F442)
    and `llmctl prompts categories` (lists categories, one per line)
    (F218, F298, F304).
- - **Chat CLI** — `llmctl chats [filter] [-json]` (or `chats list [filter]`)
+ - **Chat CLI** — `llmctl chats [filter] [-json] [-out FILE]` (or `chats list [filter]`)
    lists saved conversations (`--csv` exports the list, F378),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]` prints one
    with a message preview,
