@@ -261,7 +261,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
-  llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
+  llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
@@ -4435,6 +4435,7 @@ func cmdScheduler(args []string) error {
 		csvOut := fs.Bool("csv", false, "output the run log as CSV (F418)")
 		outFile := fs.String("out", "", "write the run log JSON to this file instead of stdout (F476)")
 		watch := fs.Int("watch", 0, "poll every N seconds and print new runs until Ctrl-C (0 = print once) (F555)")
+		stats := fs.Bool("stats", false, "aggregate the runs per task instead of listing them (F601)")
 		fs.Parse(reorderFlags(rest))
 		type runRow struct {
 			Time       time.Time `json:"time"`
@@ -4461,6 +4462,81 @@ func cmdScheduler(args []string) error {
 		runs, err := fetch()
 		if err != nil {
 			return err
+		}
+		if *stats { // F601: one row per task (count, ok/error, avg ms, last run)
+			type rstat struct {
+				Name     string    `json:"name"`
+				Kind     string    `json:"kind"`
+				Count    int       `json:"count"`
+				OK       int       `json:"ok"`
+				Errors   int       `json:"errors"`
+				AvgMs    int64     `json:"avgMs"`
+				Last     time.Time `json:"last"`
+				LastStat string    `json:"lastStatus"`
+			}
+			byName := map[string]*rstat{}
+			sums := map[string]int64{}
+			for _, r := range runs {
+				g := byName[r.Name]
+				if g == nil {
+					g = &rstat{Name: r.Name, Kind: r.Kind}
+					byName[r.Name] = g
+				}
+				g.Count++
+				sums[r.Name] += r.DurationMs
+				if r.Status == "ok" {
+					g.OK++
+				} else {
+					g.Errors++
+				}
+				if r.Time.After(g.Last) {
+					g.Last, g.LastStat = r.Time, r.Status
+				}
+			}
+			names := make([]string, 0, len(byName))
+			for k := range byName {
+				names = append(names, k)
+			}
+			sort.Slice(names, func(i, j int) bool { return byName[names[i]].Last.After(byName[names[j]].Last) })
+			rows := make([]rstat, 0, len(names))
+			for _, k := range names {
+				g := byName[k]
+				g.AvgMs = sums[k] / int64(g.Count)
+				rows = append(rows, *g)
+			}
+			if *jsonOut || *outFile != "" {
+				b, _ := json.Marshal(rows)
+				if *outFile != "" {
+					if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+						return err
+					}
+					fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+					return nil
+				}
+				fmt.Println(string(b))
+				return nil
+			}
+			if *csvOut {
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"name", "kind", "count", "ok", "errors", "avg_ms", "last", "last_status"})
+				for _, r := range rows {
+					_ = w.Write([]string{r.Name, r.Kind, strconv.Itoa(r.Count), strconv.Itoa(r.OK),
+						strconv.Itoa(r.Errors), strconv.FormatInt(r.AvgMs, 10),
+						r.Last.UTC().Format(time.RFC3339), r.LastStat})
+				}
+				w.Flush()
+				return w.Error()
+			}
+			if len(rows) == 0 {
+				fmt.Println("no scheduler runs yet (ring is in-memory, cleared on daemon restart)")
+				return nil
+			}
+			fmt.Printf("%-20s %-14s %6s %4s %6s %8s %-20s %s\n", "TASK", "KIND", "COUNT", "OK", "ERRORS", "AVG MS", "LAST (UTC)", "LAST STATUS")
+			for _, r := range rows {
+				fmt.Printf("%-20s %-14s %6d %4d %6d %8d %-20s %s\n", r.Name, r.Kind, r.Count, r.OK, r.Errors,
+					r.AvgMs, r.Last.UTC().Format("2006-01-02 15:04:05"), r.LastStat)
+			}
+			return nil
 		}
 		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F476)
 			if len(runs) > *n {
