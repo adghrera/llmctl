@@ -144,8 +144,9 @@ toggle for a light theme (choice remembered). Tabs:
    the feed, printing new events every N seconds (F187).
 - **Search** — one box across local resources (F283): fan-out over the
   existing endpoints to find models (id/backend/path), saved chats (full-text
-  with snippets), memory entries and knowledge bases, each result linking to
-  its page. `llmctl chats search` / `memory search` cover the CLI side (F267).
+  with snippets), memory entries, knowledge bases and prompt templates
+  (F318), each result linking to its page. `llmctl chats search` /
+  `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
   A Rename button (and `llmctl models rename`) changes a model id, updating

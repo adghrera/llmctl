@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api, KB, MemoryEntry, Model, SearchChatResult } from "../api/client";
+import { api, KB, MemoryEntry, Model, PromptTemplate, SearchChatResult } from "../api/client";
 
-// Global search across local resources (F283): models, chats, memory and
-// knowledge bases. Pure client-side fan-out over the existing endpoints.
+// Global search across local resources (F283): models, chats, memory,
+// knowledge bases and prompt templates. Pure client-side fan-out over the
+// existing endpoints.
 
 export default function Search() {
   const [params] = useSearchParams();
@@ -13,6 +14,7 @@ export default function Search() {
   const [chats, setChats] = useState<SearchChatResult[]>([]);
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
   const [kbs, setKbs] = useState<KB[]>([]);
+  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [searched, setSearched] = useState(false);
 
   const run = async (query: string) => {
@@ -21,7 +23,7 @@ export default function Search() {
     setRunning(true);
     setSearched(true);
     const low = t.toLowerCase();
-    const [m, c, mem, kb] = await Promise.allSettled([
+    const [m, c, mem, kb, pr] = await Promise.allSettled([
       api.models().then((all) =>
         all.filter(
           (x) =>
@@ -39,11 +41,22 @@ export default function Search() {
             (k.kb.description || "").toLowerCase().includes(low)
         )
       ),
+      api.prompts().then((all) =>
+        all.filter(
+          (p) =>
+            p.id.toLowerCase().includes(low) ||
+            p.name.toLowerCase().includes(low) ||
+            (p.description || "").toLowerCase().includes(low) ||
+            (p.category || "").toLowerCase().includes(low) ||
+            p.content.toLowerCase().includes(low)
+        )
+      ),
     ]);
     setModels(m.status === "fulfilled" ? m.value : []);
     setChats(c.status === "fulfilled" ? c.value : []);
     setMemories(mem.status === "fulfilled" ? mem.value : []);
     setKbs(kb.status === "fulfilled" ? kb.value : []);
+    setPrompts(pr.status === "fulfilled" ? pr.value : []);
     setRunning(false);
   };
 
@@ -52,7 +65,7 @@ export default function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const total = models.length + chats.length + memories.length + kbs.length;
+  const total = models.length + chats.length + memories.length + kbs.length + prompts.length;
 
   return (
     <>
@@ -61,7 +74,7 @@ export default function Search() {
         <div className="row" style={{ gap: 8 }}>
           <input
             style={{ flex: 1 }}
-            placeholder="Search models, chats, memory and knowledge bases…"
+            placeholder="Search models, chats, memory, knowledge bases and prompts…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && run(q)}
@@ -120,6 +133,22 @@ export default function Search() {
               {m.entry.tags && m.entry.tags.length > 0 && (
                 <span className="muted small">[{m.entry.tags.join(", ")}]</span>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {prompts.length > 0 && (
+        <div className="card">
+          <h2>Prompts ({prompts.length})</h2>
+          {prompts.map((p) => (
+            <div className="row" key={p.id} style={{ gap: 8, marginBottom: 4 }}>
+              <Link to={`/prompts`}>{p.name}</Link>
+              <span className="muted small">
+                {p.category}
+                {p.custom ? " · custom" : ""}
+                {p.description ? ` · ${p.description.slice(0, 60)}` : ""}
+              </span>
             </div>
           ))}
         </div>
