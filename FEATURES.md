@@ -129,6 +129,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F117 | P3 | 117 | usage | Daily-usage CSV export | COMPLETED | The Usage page's Daily History card has an "Export CSV" button producing a per-day, per-model CSV (date, model, requests, errors, prompt/completion tokens, cost). Verified: generator output checked against sample data (sorting, cost formatting, quoting). |
 | F118 | P3 | 118 | usage | p99 latency column | COMPLETED | The Usage per-model table now shows the p99 latency alongside p50/p95 (the metrics API already exposed `latency_p99_ms`). Verified live: stub request → p50/p95/p99 all reported. |
 | F119 | P3 | 119 | instances | Per-instance notes | COMPLETED | Free-text note per instance (`PATCH /api/v1/instances/{id}/note`, editable in the Vars dialog, shown under the instance id). Stored in a persistent `instanceNotes` map so it survives instance stops and daemon restarts (records themselves are forgotten on stop). Verified live: set → shown → survived restart → cleared; 200-char limit enforced. |
+| F120 | P3 | 120 | usage | Key drill-down in request log | COMPLETED | Request ring entries now carry the unique key id (`keyId`); `GET /api/v1/requests?key=` matches the id exactly (or falls back to prefix match), and the Keys page has a "Log" link opening the Requests page pre-filtered to that key. Verified live: two keys' requests separated by id filter; prefix filter unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

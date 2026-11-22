@@ -167,7 +167,7 @@ toggle for a light theme (choice remembered). Tabs:
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
   key, status, latency, tokens) in an auto-refreshing table, with one-click
   CSV export and combinable filters (model, status class, min latency,
-  stream/plain, key prefix). The serving replica is also echoed to clients as
+  stream/plain, key prefix or id). The serving replica is also echoed to clients as
   the `X-LLMCtrl-Instance` response header (F115).
   Each request has an id echoed as the X-Request-Id response header (a
   client-sent X-Request-Id is reused). Keys with a token or request quota get
@@ -253,7 +253,8 @@ toggle for a light theme (choice remembered). Tabs:
   (total prompt+completion tokens); once spent, the gateway returns 429
   until the quota is raised. Usage counters persist across restarts and are
   tracked per key id, so keys that share a visible prefix never share usage
-  (F109). Keys page shows usage and estimated cost. Optional per-key model
+  (F109). Keys page shows usage and estimated cost and links each key to its
+  recent requests (request log filtered by key id, F120). Optional per-key model
   allowlist
   (403 for other models; aliases resolved before checking) and concurrency
   cap (429 while more than N requests are in flight). Optional per-key total

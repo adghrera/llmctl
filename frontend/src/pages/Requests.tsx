@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, type RequestLogEntry } from "../api/client";
 import { ok } from "../ui/toast";
 
@@ -34,13 +35,14 @@ function toCsv(entries: RequestLogEntry[]): string {
 }
 
 export default function Requests() {
+  const [params] = useSearchParams();
   const [entries, setEntries] = useState<RequestLogEntry[]>([]);
   const [auto, setAuto] = useState(true);
   const [fModel, setFModel] = useState("");
   const [fStatus, setFStatus] = useState("");
   const [fMinMs, setFMinMs] = useState("");
   const [fStream, setFStream] = useState("");
-  const [fKey, setFKey] = useState("");
+  const [fKey, setFKey] = useState(params.get("key") || "");
 
   useEffect(() => {
     let alive = true;

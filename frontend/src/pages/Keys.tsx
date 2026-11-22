@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
@@ -177,6 +178,14 @@ export default function Keys() {
                     {k.allowedModels?.length ? k.allowedModels.join(", ") : "all"}
                   </td>
                   <td style={{ textAlign: "right" }}>
+                    <Link
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      to={`/requests?key=${encodeURIComponent(k.id)}`}
+                      title="recent requests by this key"
+                    >
+                      Log
+                    </Link>
                     <button className="btn sm" style={{ marginRight: 6 }} disabled={busy} onClick={() => editModels(k.id, k.allowedModels)}>
                       Models
                     </button>

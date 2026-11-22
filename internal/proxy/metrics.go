@@ -191,6 +191,7 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 		Time:      time.Now(),
 		Model:     model,
 		Key:       keyLabel,
+		KeyID:     key,
 		Instance:  instance,
 		Status:    status,
 		LatencyMs: latencyMs,
