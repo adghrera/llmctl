@@ -284,6 +284,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F272 | P3 | 272 | cli | `kb embed` | COMPLETED | `llmctl kb embed <kb-id> -url U -model M [-key K]` configures embedding-based semantic search for a knowledge base (PUT embed endpoint), `kb embed <kb-id> -clear` falls back to TF-IDF. Verified live: config stored with the url normalized to the full /embeddings endpoint (visible via GET), clear removes it, missing-flag usage error. |
 | F273 | P3 | 273 | cli | `llmctl jobs` | COMPLETED | `llmctl jobs [-json] [-watch N]` lists the daemon's background jobs (model/backend installs) with kind, target, status, progress % and message/error — the endpoint previously had no CLI. Verified live: two completed install jobs rendered, `-json` parses, `-watch` reuses the proven status/metrics loop. |
 | F274 | P3 | 274 | cli | `llmctl search` | COMPLETED | `llmctl search <query> [-max N] [-json]` exposes the daemon's keyless web search (the agent's web_search backend) on the CLI: numbered title/url/snippet results. Verified live against the real search backend (2 results, snippets, `-json` parses). |
+| F275 | P3 | 275 | cli | `models add` | COMPLETED | `llmctl models add <id> <file> [-backend ID]` registers an existing local GGUF file as a model (POST /api/v1/models) — previously UI-only. Verified live: registered a real file and `models show` confirmed backend/path, duplicate id, invalid id pattern and unreadable file all rejected with clean errors. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

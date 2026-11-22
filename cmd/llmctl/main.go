@@ -164,6 +164,7 @@ Usage:
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json]
+  llmctl models add <id> <file> [-backend ID]
   llmctl models aliases
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
@@ -1174,7 +1175,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|show|probe|price|ctx|idle|install|remove|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|show|add|probe|price|ctx|idle|metadata|install|remove|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1182,6 +1183,26 @@ func cmdModels(args []string) error {
 		return err
 	}
 	switch sub {
+	case "add":
+		afs := flag.NewFlagSet("models add", flag.ExitOnError)
+		backendID := afs.String("backend", "", "backend id (default: llama.cpp)")
+		afs.Parse(reorderFlags(rest))
+		if afs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl models add <id> <file> [-backend ID]")
+		}
+		body := map[string]any{"id": afs.Arg(0), "path": afs.Arg(1)}
+		if *backendID != "" {
+			body["backend"] = *backendID
+		}
+		code, out, err := cc.Post("/api/v1/models", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 && code != 201 {
+			return fmt.Errorf("models add: %s", out)
+		}
+		fmt.Printf("model %s registered from %s\n", afs.Arg(0), afs.Arg(1))
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("models list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw models JSON (for scripts)")
