@@ -88,6 +88,8 @@ func main() {
 		err = cmdKb(args)
 	case "tools":
 		err = cmdTools(args)
+	case "mcp":
+		err = cmdMcp(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -174,6 +176,7 @@ Usage:
   llmctl memory [filter] [-n 30] [-json] | memory show|add|delete …
   llmctl kb [filter] [-json] | kb show|create|docs|delete …
   llmctl tools [-json] | tools show|enable|disable|run|delete <id>
+  llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -2840,6 +2843,147 @@ func cmdTools(args []string) error {
 		return nil
 	default:
 		return fmt.Errorf("unknown tools subcommand %q (list|show|enable|disable|run|delete)", sub)
+	}
+}
+
+// cmdMcp lists and manages MCP servers (F249).
+func cmdMcp(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub, rest := "list", args
+	if len(args) > 0 {
+		switch args[0] {
+		case "list", "add", "remove", "enable", "disable", "test":
+			sub, rest = args[0], args[1:]
+		}
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("mcp", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the servers as JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/mcp")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("mcp returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			ID      string   `json:"id"`
+			Name    string   `json:"name"`
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+			Enabled bool     `json:"enabled"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no MCP servers configured")
+			return nil
+		}
+		fmt.Printf("%-18s %-20s %-6s %s\n", "ID", "NAME", "ON", "COMMAND")
+		for _, s := range list {
+			on := "off"
+			if s.Enabled {
+				on = "on "
+			}
+			cmd := s.Command
+			if len(s.Args) > 0 {
+				cmd += " " + strings.Join(s.Args, " ")
+			}
+			fmt.Printf("%-18s %-20s %-6s %s\n", s.ID, s.Name, on, cmd)
+		}
+		return nil
+	case "add":
+		afs := flag.NewFlagSet("mcp add", flag.ExitOnError)
+		sargs := afs.String("args", "", "space-separated server arguments")
+		afs.Parse(reorderFlags(rest))
+		if afs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl mcp add <name> <command> [-args 'a b']")
+		}
+		body := map[string]any{"name": afs.Arg(0), "command": afs.Arg(1)}
+		if *sargs != "" {
+			var list []string
+			for _, a := range strings.Fields(*sargs) {
+				list = append(list, a)
+			}
+			body["args"] = list
+		}
+		code, out, err := cc.Post("/api/v1/mcp", body)
+		if err != nil {
+			return err
+		}
+		if code != 201 && code != 200 {
+			return fmt.Errorf("mcp add returned %d: %s", code, out)
+		}
+		var rec struct {
+			ID string `json:"id"`
+		}
+		json.Unmarshal(out, &rec)
+		fmt.Printf("added MCP server %s\n", rec.ID)
+		return nil
+	case "remove":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl mcp remove <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/mcp/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("remove returned %d: %s", code, out)
+		}
+		fmt.Printf("removed MCP server %s\n", rest[0])
+		return nil
+	case "enable", "disable":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl mcp %s <id>", sub)
+		}
+		body := map[string]any{"enabled": sub == "enable"}
+		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(rest[0])+"/enabled", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("%s returned %d: %s", sub, code, out)
+		}
+		fmt.Printf("%sd MCP server %s\n", sub, rest[0])
+		return nil
+	case "test":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl mcp test <id>")
+		}
+		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(rest[0])+"/test", map[string]any{})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("server unreachable: %s", strings.TrimSpace(string(out)))
+		}
+		var res struct {
+			Tools []struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"tools"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return err
+		}
+		fmt.Printf("ok — %d tool(s)\n", len(res.Tools))
+		for _, t := range res.Tools {
+			fmt.Printf("  %-20s %s\n", t.Name, t.Description)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown mcp subcommand %q (list|add|remove|enable|disable|test)", sub)
 	}
 }
 
