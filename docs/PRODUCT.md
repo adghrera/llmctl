@@ -387,8 +387,9 @@ toggle for a light theme (choice remembered). Tabs:
    when empty, F384); `skills show <id> [-out FILE]|enable|disable|delete <id>`
    manages them, `skills add <manifest.json>` creates one from a JSON
    manifest and `skills export <id> [-out f]` dumps one back out (F245, F288, F305).
- - **Memory CLI** — `llmctl memory [filter] [-json] [-csv]` lists memory entries
-   (`--csv` exports id,created_at,tags (`;`-joined),content, F401);
+ - **Memory CLI** — `llmctl memory [filter] [-json] [-csv] [-out FILE] [-stats]` lists memory entries
+   (`--csv` exports id,created_at,tags (`;`-joined),content, F401; `-stats` rolls entries
+   up per tag — entries, last created, with `(none)` for untagged, F626);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
    [-tags a,b]`, `memory show <id> [-out FILE]`, `memory search <query> [-json] [-csv] [-out FILE]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`

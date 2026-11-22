@@ -272,7 +272,7 @@ Usage:
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
-  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
+  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
@@ -7449,6 +7449,7 @@ func cmdMemory(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the entries as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the memory entries as CSV (F401)")
 		outFile := fs.String("out", "", "write the memory entries JSON to this file instead of stdout (F490)")
+		stats := fs.Bool("stats", false, "aggregate the entries per tag instead of listing them (F626)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/memory")
 		if err != nil {
@@ -7488,6 +7489,80 @@ func cmdMemory(args []string) error {
 				}
 			}
 			list = keep
+		}
+		if *stats { // F626: one row per tag (entries, last created); "(none)" groups untagged
+			type mst struct {
+				Tag     string `json:"tag"`
+				Entries int    `json:"entries"`
+				Last    string `json:"last"`
+			}
+			byTag := map[string]*mst{}
+			lastT := map[string]time.Time{}
+			for _, m := range list {
+				keys := m.Entry.Tags
+				if len(keys) == 0 {
+					keys = []string{"(none)"}
+				}
+				t, _ := time.Parse(time.RFC3339, m.Entry.CreatedAt)
+				for _, tag := range keys {
+					g := byTag[tag]
+					if g == nil {
+						g = &mst{Tag: tag}
+						byTag[tag] = g
+					}
+					g.Entries++
+					if t.After(lastT[tag]) {
+						lastT[tag] = t
+					}
+				}
+			}
+			names := make([]string, 0, len(byTag))
+			for k := range byTag {
+				names = append(names, k)
+			}
+			sort.Slice(names, func(i, j int) bool { return byTag[names[i]].Entries > byTag[names[j]].Entries })
+			rows := make([]mst, 0, len(names))
+			for _, k := range names {
+				g := byTag[k]
+				if !lastT[k].IsZero() {
+					g.Last = lastT[k].UTC().Format(time.RFC3339)
+				}
+				rows = append(rows, *g)
+			}
+			if *jsonOut || *outFile != "" {
+				b, _ := json.Marshal(rows)
+				if *outFile != "" {
+					if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+						return err
+					}
+					fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+					return nil
+				}
+				fmt.Println(string(b))
+				return nil
+			}
+			if *csvOut {
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"tag", "entries", "last"})
+				for _, r := range rows {
+					_ = w.Write([]string{r.Tag, strconv.Itoa(r.Entries), r.Last})
+				}
+				w.Flush()
+				return w.Error()
+			}
+			if len(rows) == 0 {
+				fmt.Println("no memory entries")
+				return nil
+			}
+			fmt.Printf("%-20s %8s %-20s\n", "TAG", "ENTRIES", "LAST (UTC)")
+			for _, r := range rows {
+				last := r.Last
+				if t, err := time.Parse(time.RFC3339, r.Last); err == nil {
+					last = t.Format("2006-01-02 15:04:05")
+				}
+				fmt.Printf("%-20s %8d %-20s\n", r.Tag, r.Entries, last)
+			}
+			return nil
 		}
 		if len(list) > *n {
 			list = list[:*n]
