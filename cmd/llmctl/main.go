@@ -176,7 +176,7 @@ Usage:
   llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
   llmctl disk [-json]
   llmctl ps [-watch N] [--csv] [-json]
-  llmctl backends list [-json]
+  llmctl backends list [-json|-csv]
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
   llmctl backends add <plugin.json>
@@ -219,7 +219,7 @@ Usage:
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
   llmctl presets list [-json|-csv]|save -name N -model ID [...]|start <name>|delete <name>|export|import
-  llmctl catalog list [-json] | install <id>
+  llmctl catalog list [-json|-csv] | install <id>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
@@ -811,6 +811,7 @@ func cmdCatalog(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("catalog list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw catalog JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the catalog as CSV (F387)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/catalog")
 		if err != nil {
@@ -833,6 +834,15 @@ func cmdCatalog(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *csvOut { // F387: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "name", "backend", "size_gb", "quant", "tags"})
+			for _, e := range list {
+				_ = w.Write([]string{e.ID, e.Name, e.Backend, e.SizeGB, e.Quant, strings.Join(e.Tags, ";")})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("%-28s %-28s %-10s %-8s %-10s %s\n", "ID", "NAME", "SIZE", "QUANT", "BACKEND", "TAGS")
 		for _, e := range list {
@@ -1959,6 +1969,7 @@ func cmdBackends(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("backends list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw backends JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the backends list as CSV (F388)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/backends")
 		if err != nil {
@@ -1970,6 +1981,24 @@ func cmdBackends(args []string) error {
 		}
 		var list []map[string]any
 		json.Unmarshal(out, &list)
+		if *csvOut { // F388: raw fields; header-only when empty
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "transport", "kind", "installed", "version", "description"})
+			for _, b := range list {
+				installed := "false"
+				if b["installed"] == true {
+					installed = "true"
+				}
+				ver := ""
+				if b["version"] != nil {
+					ver = fmt.Sprint(b["version"])
+				}
+				_ = w.Write([]string{fmt.Sprint(b["id"]), fmt.Sprint(b["transport"]), fmt.Sprint(b["kind"]),
+					installed, ver, fmt.Sprint(b["description"])})
+			}
+			w.Flush()
+			return w.Error()
+		}
 		fmt.Printf("%-14s %-8s %-8s %-10s %s\n", "ID", "TRANS", "KIND", "STATUS", "DESCRIPTION")
 		for _, b := range list {
 			status := "not installed"

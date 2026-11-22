@@ -535,8 +535,8 @@ llmctl disk [-json]                                (model dir + volume disk usag
                                     exit ≠0 on errors)
 llmctl ps [-watch N] [--csv] [-json]      (-watch N: live refresh; --csv: one-shot CSV export; -json: raw; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
-llmctl backends list|install|uninstall|add|remove
-llmctl catalog list [-json] | install <id>      (curated model picker, F266)
+llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388)
+llmctl catalog list [-json|-csv] | install <id>      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387)
 llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export,
 llmctl models add <id> <file> [-backend ID]              (register an existing local GGUF, F275)
