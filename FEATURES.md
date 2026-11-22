@@ -285,6 +285,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F273 | P3 | 273 | cli | `llmctl jobs` | COMPLETED | `llmctl jobs [-json] [-watch N]` lists the daemon's background jobs (model/backend installs) with kind, target, status, progress % and message/error — the endpoint previously had no CLI. Verified live: two completed install jobs rendered, `-json` parses, `-watch` reuses the proven status/metrics loop. |
 | F274 | P3 | 274 | cli | `llmctl search` | COMPLETED | `llmctl search <query> [-max N] [-json]` exposes the daemon's keyless web search (the agent's web_search backend) on the CLI: numbered title/url/snippet results. Verified live against the real search backend (2 results, snippets, `-json` parses). |
 | F275 | P3 | 275 | cli | `models add` | COMPLETED | `llmctl models add <id> <file> [-backend ID]` registers an existing local GGUF file as a model (POST /api/v1/models) — previously UI-only. Verified live: registered a real file and `models show` confirmed backend/path, duplicate id, invalid id pattern and unreadable file all rejected with clean errors. |
+| F276 | P3 | 276 | cli | `backups download` | COMPLETED | `llmctl backups download <name> [-out file]` pulls a stored snapshot archive to a local file (GET /api/v1/backups/{name}) — the last backup endpoint without a CLI. Verified live: downloaded a real snapshot, `tar tzf` listed its contents, a second download was byte-identical, invalid name rejected. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

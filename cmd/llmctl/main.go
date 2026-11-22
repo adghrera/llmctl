@@ -201,7 +201,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
-  llmctl backups [list|create|restore <name>|verify <name>|delete <name>]
+  llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20] [-csv] [-json]
@@ -2376,10 +2376,31 @@ func cmdBackups(args []string) error {
 		}
 		fmt.Println("NOTE: restart the daemon (llmctl down && llmctl up) to load the restored state")
 		return nil
-	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backups delete <name>")
+	case "download":
+		dfs := flag.NewFlagSet("backups download", flag.ExitOnError)
+		outFile := dfs.String("out", "", "write to this file (default: the backup name)")
+		dfs.Parse(reorderFlags(rest))
+		if dfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backups download <name> [-out file]")
 		}
+		name := dfs.Arg(0)
+		dest := *outFile
+		if dest == "" {
+			dest = name
+		}
+		code, body, err := cc.Get("/api/v1/backups/" + url.PathEscape(name))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("backup download: %s", body)
+		}
+		if err := os.WriteFile(dest, body, 0o644); err != nil {
+			return err
+		}
+		fmt.Printf("downloaded %s to %s (%s)\n", name, dest, fmtSize(int64(len(body))))
+		return nil
+	case "delete":
 		code, out, err := cc.Delete("/api/v1/backups/" + url.PathEscape(rest[0]))
 		if err != nil {
 			return err
