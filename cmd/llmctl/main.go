@@ -213,6 +213,7 @@ Usage:
   llmctl scheduler show <id> [-json]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
+  llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false]
   llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
@@ -2166,7 +2167,7 @@ func untilStr(t time.Time) string {
 
 func cmdScheduler(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl scheduler <list|show|add|run|enable|disable|delete> [id] [flags]")
+		return fmt.Errorf("usage: llmctl scheduler <list|show|add|update|run|enable|disable|delete> [id] [flags]")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -2338,6 +2339,80 @@ func cmdScheduler(args []string) error {
 		if !sp.NextRun.IsZero() {
 			fmt.Printf("next:    %s (%s)\n", sp.NextRun.Local().Format("2006-01-02 15:04:05"), untilStr(sp.NextRun))
 		}
+		return nil
+	case "update":
+		// Read-modify-write: fetch the current spec, apply the flags given,
+		// PUT the whole spec back (F290).
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-instance I] [-webhook U] [-keep N] [-enabled true|false]")
+		}
+		id := rest[0]
+		ufs := flag.NewFlagSet("scheduler update", flag.ExitOnError)
+		name := ufs.String("name", "", "task name")
+		cron := ufs.String("cron", "", "cron expression")
+		model := ufs.String("model", "", "model id")
+		prompt := ufs.String("prompt", "", "prompt (chat kind)")
+		instance := ufs.String("instance", "", "instance id (instance.stop)")
+		webhook := ufs.String("webhook", "", "webhook URL (empty string clears)")
+		keep := ufs.Int("keep", -1, "snapshots to retain (backup kind)")
+		enabled := ufs.String("enabled", "", "true | false")
+		ufs.Parse(reorderFlags(rest[1:]))
+		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(id))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler update: %s", out)
+		}
+		var rec struct {
+			Spec map[string]any `json:"spec"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil || rec.Spec == nil {
+			return fmt.Errorf("scheduler update: unexpected record: %s", out)
+		}
+		if *name != "" {
+			rec.Spec["name"] = *name
+		}
+		if *cron != "" {
+			rec.Spec["cron_expr"] = *cron
+		}
+		if *model != "" {
+			rec.Spec["model"] = *model
+		}
+		if *prompt != "" {
+			rec.Spec["prompt"] = *prompt
+		}
+		if *instance != "" {
+			rec.Spec["instance"] = *instance
+		}
+		if *webhook != "" {
+			rec.Spec["webhook_url"] = *webhook
+		}
+		if *keep >= 0 {
+			rec.Spec["keep"] = *keep
+		}
+		switch *enabled {
+		case "":
+		case "true":
+			rec.Spec["enabled"] = true
+		case "false":
+			rec.Spec["enabled"] = false
+		default:
+			return fmt.Errorf("-enabled must be true or false")
+		}
+		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" {
+			return fmt.Errorf("nothing to change (pass at least one flag)")
+		}
+		delete(rec.Spec, "id")
+		delete(rec.Spec, "dir")
+		code, out, err = cc.Do("PUT", "/api/v1/scheduler/"+url.PathEscape(id), rec.Spec)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler update: %s", out)
+		}
+		fmt.Printf("scheduler task %s updated\n", id)
 		return nil
 	case "runs":
 		fs := flag.NewFlagSet("scheduler runs", flag.ExitOnError)
