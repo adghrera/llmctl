@@ -204,7 +204,7 @@ Usage:
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
-  llmctl logs -daemon [--tail N]
+  llmctl logs -daemon [--tail N] [-f]
   llmctl key generate [name] [-json]
   llmctl key show <id> [-json]
   llmctl key note <id> <text...>
@@ -2659,24 +2659,55 @@ func cmdLogs(args []string) error {
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Get(fmt.Sprintf("/api/v1/logs/daemon?bytes=%d", *tail))
+		fetch := func() (int64, string, error) {
+			code, out, err := cc.Get(fmt.Sprintf("/api/v1/logs/daemon?bytes=%d", *tail))
+			if err != nil {
+				return 0, "", err
+			}
+			if code != 200 {
+				return 0, "", fmt.Errorf("daemon log returned %d: %s", code, out)
+			}
+			var v struct {
+				Size int64  `json:"size"`
+				Logs string `json:"logs"`
+			}
+			if err := json.Unmarshal(out, &v); err != nil {
+				return 0, "", err
+			}
+			return v.Size, v.Logs, nil
+		}
+		size, logs, err := fetch()
 		if err != nil {
 			return err
 		}
-		if code != 200 {
-			return fmt.Errorf("daemon log returned %d: %s", code, out)
+		fmt.Print(logs)
+		if !*follow {
+			return nil
 		}
-		var v struct {
-			Logs string `json:"logs"`
+		// Follow: poll and print only bytes appended since the last read;
+		// a shrinking size means the log was rotated/truncated (F355).
+		seen := size
+		for {
+			time.Sleep(time.Duration(*interval) * time.Second)
+			size, logs, err := fetch()
+			if err != nil {
+				continue
+			}
+			if size < seen {
+				seen = 0
+			}
+			if size > seen {
+				off := seen - (size - int64(len(logs)))
+				if off < 0 {
+					off = 0
+				}
+				fmt.Print(logs[off:])
+				seen = size
+			}
 		}
-		if err := json.Unmarshal(out, &v); err != nil {
-			return err
-		}
-		fmt.Print(v.Logs)
-		return nil
 	}
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f] | llmctl logs -daemon [--tail N]")
+		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f] | llmctl logs -daemon [--tail N] [-f]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
