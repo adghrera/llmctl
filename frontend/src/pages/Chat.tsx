@@ -194,6 +194,34 @@ export default function Chat() {
     }
   };
 
+  // Bulk-delete old unpinned chats — UI twin of `llmctl chats prune` (F660).
+  const pruneOldChats = async () => {
+    const input = window.prompt("Delete chats last updated more than N days ago (pinned kept):", "30");
+    if (input === null) return;
+    const days = parseInt(input, 10);
+    if (!days || days < 1) {
+      err("enter a positive number of days");
+      return;
+    }
+    const cutoff = Date.now() - days * 86400000;
+    const doomed = chats.filter((c) => !c.pinned && c.updatedAt && new Date(c.updatedAt).getTime() < cutoff);
+    if (doomed.length === 0) {
+      ok(`no chats older than ${days} days`);
+      return;
+    }
+    if (!window.confirm(`Delete ${doomed.length} chat(s) older than ${days} days?`)) return;
+    let deleted = 0;
+    for (const c of doomed) {
+      try {
+        await api.deleteChat(c.id);
+        deleted++;
+      } catch { /* best-effort, like the CLI */ }
+    }
+    if (convId && doomed.some((c) => c.id === convId)) newChat();
+    ok(`pruned ${deleted} chat(s)`);
+    await loadChats();
+  };
+
   const renameChat = async (id: string, current: string) => {
     const t = window.prompt("New title", current);
     if (t == null || !t.trim()) return;
@@ -494,6 +522,14 @@ export default function Chat() {
               onClick={() => importFileRef.current?.click()}
             >
               Import
+            </button>
+            <button
+              className="btn sm"
+              disabled={streaming || chats.length === 0}
+              title="delete chats older than N days, pinned kept (CLI: llmctl chats prune)"
+              onClick={pruneOldChats}
+            >
+              Prune
             </button>
             <input
               ref={importFileRef}
