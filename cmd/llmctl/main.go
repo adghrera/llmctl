@@ -239,7 +239,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -6452,6 +6452,8 @@ func cmdChat(args []string) error {
 	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
 	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI)")
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
+	temp := fs.Float64("temperature", -1, "with -prompt: sampling temperature (-1 = model default, F319)")
+	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -6673,7 +6675,14 @@ func cmdChat(args []string) error {
 			}
 		}
 		hist = append(hist, map[string]any{"role": "user", "content": oneShot})
-		b, _ := json.Marshal(map[string]any{"model": model, "messages": hist, "stream": true})
+		reqBody := map[string]any{"model": model, "messages": hist, "stream": true}
+		if *temp >= 0 {
+			reqBody["temperature"] = *temp
+		}
+		if *maxTok > 0 {
+			reqBody["max_tokens"] = *maxTok
+		}
+		b, _ := json.Marshal(reqBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
 		if err != nil {
 			return err
