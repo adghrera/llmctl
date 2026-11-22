@@ -354,10 +354,11 @@ toggle for a light theme (choice remembered). Tabs:
   live (F361), with a model picker + Run button that sends the rendered
   template through the gateway and streams the reply inline (UI counterpart
   of `llmctl prompts run`, F596). CLI:
-   `llmctl prompts [list] [filter] [-category X] [-json] [-csv]` (the `list`
+   `llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-stats]` (the `list`
    word is accepted as an explicit subcommand, and `--csv` exports the
-   filtered list as id,category,name,description, header-only when empty, F382)
-   and
+   filtered list as id,category,name,description, header-only when empty, F382;
+   `-stats` rolls the filtered list up per category — template count, `(none)`
+   for uncategorized, F630) and
    `llmctl prompts show <id> [-out file]` and `llmctl prompts render <id> [-input TEXT |
    piped stdin] [-var k=v …] [-out file]` (renders the template with {{input}} and any
    {{k}} placeholders filled, for scripts; -out writes the rendered text to a file, F442)
@@ -676,7 +677,7 @@ llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE] 
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -json printed each -watch tick; -out writes the raw JSON to a file, refreshed each -watch tick, F469, F620)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE] [-stats]   (-out writes the raw JSON to a file, F468; -stats aggregates one row per kind — count, last seen, instances/models — with --csv and -json/-out of the rollup, F599)
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]    recent delivery attempts / send a test event (F447; -out writes the delivery-log JSON, F478; -watch N live-tails new deliveries, F556; -stats rolls the log up per event — total/ok/failed/last, F624; test prints a delivery confirmation, -json for raw, F573; test -event/-message send a custom payload, F591)
-llmctl prompts [filter] [-category X] [-json] [-out FILE] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE]   (run renders the template and sends it to the gateway, F579; -save keeps the exchange as a saved chat, F583; -chat continues one, F584; -out writes the reply text — or the raw JSON with -json — to a file, F614)
+llmctl prompts [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE]   (run renders the template and sends it to the gateway, F579; -save keeps the exchange as a saved chat, F583; -chat continues one, F584; -out writes the reply text — or the raw JSON with -json — to a file, F614; -stats counts templates per category, F630)
 llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list, F485; cat -out writes the stored bytes to a file, F613]
 llmctl skills|memory|kb|tools delete <id> [-json] | mcp remove <id> [-json]   (delete/remove print the raw response with -json, F536)
 llmctl skills|tools|mcp enable|disable <id> [-json]   (toggles print the raw response with -json, F537)

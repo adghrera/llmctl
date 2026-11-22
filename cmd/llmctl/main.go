@@ -270,7 +270,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] | memory -stats (per-tag roll-up) …
@@ -9736,6 +9736,7 @@ func cmdPrompts(args []string) error {
 	csvOut := fs.Bool("csv", false, "output the prompt list as CSV (F382)")
 	jsonOut := fs.Bool("json", false, "print the prompts as JSON (for scripts)")
 	outFile := fs.String("out", "", "write the prompts JSON to this file instead of stdout (F488)")
+	stats := fs.Bool("stats", false, "aggregate the templates per category instead of listing them (F630)")
 	fs.Parse(reorderFlags(args))
 	filter := strings.ToLower(fs.Arg(0))
 	cc, err := daemon.NewControlClient()
@@ -9768,6 +9769,69 @@ func cmdPrompts(args []string) error {
 			continue
 		}
 		shown = append(shown, p)
+	}
+	if *stats { // F630: one row per category (template count); "(none)" groups uncategorized
+		type pst struct {
+			Category string `json:"category"`
+			Prompts  int    `json:"prompts"`
+		}
+		byCat := map[string]*pst{}
+		for _, p := range shown {
+			cat := p.Category
+			if cat == "" {
+				cat = "(none)"
+			}
+			g := byCat[cat]
+			if g == nil {
+				g = &pst{Category: cat}
+				byCat[cat] = g
+			}
+			g.Prompts++
+		}
+		names := make([]string, 0, len(byCat))
+		for k := range byCat {
+			names = append(names, k)
+		}
+		sort.Slice(names, func(i, j int) bool {
+			if byCat[names[i]].Prompts != byCat[names[j]].Prompts {
+				return byCat[names[i]].Prompts > byCat[names[j]].Prompts
+			}
+			return names[i] < names[j]
+		})
+		rows := make([]pst, 0, len(names))
+		for _, k := range names {
+			rows = append(rows, *byCat[k])
+		}
+		if *jsonOut || *outFile != "" {
+			b, _ := json.Marshal(rows)
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"category", "prompts"})
+			for _, r := range rows {
+				_ = w.Write([]string{r.Category, strconv.Itoa(r.Prompts)})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		if len(rows) == 0 {
+			fmt.Println("no prompt templates")
+			return nil
+		}
+		fmt.Printf("%-24s %8s\n", "CATEGORY", "PROMPTS")
+		for _, r := range rows {
+			fmt.Printf("%-24s %8d\n", r.Category, r.Prompts)
+		}
+		return nil
 	}
 	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F488)
 		payload := out
