@@ -115,6 +115,7 @@ Usage:
   llmctl key generate [name]
   llmctl key list
   llmctl key revoke <id>
+  llmctl key reset-usage <id>
   llmctl autostart list
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
@@ -932,7 +933,7 @@ func cmdEvents(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|list|revoke>")
+		return fmt.Errorf("usage: llmctl key <generate|list|revoke|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -984,6 +985,19 @@ func cmdKey(args []string) error {
 		fmt.Println(string(out))
 		if code != 200 {
 			return fmt.Errorf("revoke returned %d", code)
+		}
+		return nil
+	case "reset-usage":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl key reset-usage <id>")
+		}
+		code, out, err := cc.Post("/api/v1/keys/"+rest[0]+"/reset-usage", map[string]any{})
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("reset-usage returned %d", code)
 		}
 		return nil
 	default:

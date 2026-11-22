@@ -278,6 +278,13 @@ func (m *metricsCollector) dailyUsage() map[string]map[string]*store.DailyModelU
 	return out
 }
 
+// resetKeyUsage drops the per-key usage counters (F107).
+func (m *metricsCollector) resetKeyUsage(prefix string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.keyCounters, prefix)
+}
+
 func (m *metricsCollector) seedKeyUsage(usage map[string]KeyUsage) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

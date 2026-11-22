@@ -705,6 +705,8 @@ export const api = {
       body: JSON.stringify({ allowedModels }),
     }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  resetKeyUsage: (id: string) =>
+    req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}/reset-usage`, { method: "POST" }),
   settings: () => req<Settings>("/settings"),
   updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),

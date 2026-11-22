@@ -116,6 +116,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F104 | P3 | 104 | requests | Lookup by request id | COMPLETED | `GET /api/v1/requests/{id}` returns one logged request by its X-Request-Id (404 when outside the ring); `llmctl requests --id <id>`; the Requests page id cells copy to clipboard on click. Verified live: found by id, 404 for unknown, CLI round-trip. |
 | F105 | P3 | 105 | gateway | Per-key request-count quota | COMPLETED | `maxRequests` on API keys (create flag + Keys page input/display): the gateway returns 429 `request_quota_exceeded` once the key has served that many requests; only served (non-4xx/5xx) requests count. Verified live: 200, 200, 429 with cap 2. |
 | F106 | P3 | 106 | requests | Filter by API key | COMPLETED | `GET /api/v1/requests?key=<prefix>` filters the ring by key prefix (case-insensitive), `llmctl requests --key <prefix>`, and the Requests page has a "key prefix" filter box. Verified live: filtered result contained only the keyed request. |
+| F107 | P2 | 107 | keys | Reset usage counters | COMPLETED | `POST /api/v1/keys/{id}/reset-usage` (Keys page "Reset" button, `llmctl key reset-usage <id>`) zeroes a key's token/request/cost counters in the gateway and in persisted state, so quotas start fresh and the zero survives restarts. Verified live: 56 tokens → 0, stayed 0 after restart, CLI round-trip. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

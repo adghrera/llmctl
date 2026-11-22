@@ -244,7 +244,9 @@ toggle for a light theme (choice remembered). Tabs:
   (403 for other models; aliases resolved before checking) and concurrency
   cap (429 while more than N requests are in flight). Optional per-key total
   request cap (429 `request_quota_exceeded` once reached; only served
-  requests count; F105).
+  requests count; F105). Per-key usage counters (tokens, requests, cost) can
+  be zeroed with a "Reset" button, `llmctl key reset-usage <id>` or
+  `POST /api/v1/keys/{id}/reset-usage` (F107).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each

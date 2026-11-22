@@ -218,6 +218,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
 	m.HandleFunc("PATCH /api/v1/keys/{id}", s.updateKey)
+	m.HandleFunc("POST /api/v1/keys/{id}/reset-usage", s.resetKeyUsage)
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
 	// Settings
 	m.HandleFunc("GET /api/v1/settings", s.getSettings)
@@ -1359,6 +1360,31 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true, "allowedModels": list})
+}
+
+// resetKeyUsage handles POST /api/v1/keys/{id}/reset-usage — zero the
+// gateway's per-key usage counters (tokens, requests, cost) in memory and in
+// persisted state (F107).
+func (s *Server) resetKeyUsage(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	k := st.APIKeys[id]
+	if k == nil {
+		writeErr(w, 404, "unknown key: "+id)
+		return
+	}
+	p := k.Prefix
+	if len(p) > 8 {
+		p = p[:8] // gateway counters key on the first 8 chars
+	}
+	if s.gw != nil {
+		s.gw.ResetKeyUsage(p)
+	}
+	s.store.Update(func(st *store.State) error {
+		delete(st.KeyUsage, p)
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {

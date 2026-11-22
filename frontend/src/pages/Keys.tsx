@@ -64,6 +64,19 @@ export default function Keys() {
     }
   };
 
+  const resetUsage = async (id: string) => {
+    setBusy(true);
+    try {
+      await api.resetKeyUsage(id);
+      ok("usage counters reset");
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="card">
@@ -166,6 +179,15 @@ export default function Keys() {
                   <td style={{ textAlign: "right" }}>
                     <button className="btn sm" style={{ marginRight: 6 }} disabled={busy} onClick={() => editModels(k.id, k.allowedModels)}>
                       Models
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      disabled={busy || k.usedTokens === 0}
+                      title="reset usage counters (tokens, requests, cost)"
+                      onClick={() => resetUsage(k.id)}
+                    >
+                      Reset
                     </button>
                     <button className="btn sm danger" disabled={busy} onClick={() => revoke(k.id)}>
                       Revoke

@@ -814,6 +814,11 @@ func (s *Server) KeyRequests(prefix string) int64 {
 	return 0
 }
 
+// ResetKeyUsage zeroes the usage counters for one key prefix (F107).
+func (s *Server) ResetKeyUsage(prefix string) {
+	s.collector.resetKeyUsage(prefix)
+}
+
 // SeedKeyUsage restores per-key counters from persisted state at startup (F080).
 func (s *Server) SeedKeyUsage(usage map[string]KeyUsage) { s.collector.seedKeyUsage(usage) }
 
