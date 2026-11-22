@@ -135,7 +135,8 @@ toggle for a light theme (choice remembered). Tabs:
   (model bytes + free space), running instances, active jobs, and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with a kind filter (`?kind=`, F116; also
-  `llmctl events -kind …`).
+  `llmctl events -kind …`). A "Daemon log" card shows the tail of the
+   daemon's own log on demand (F173).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients

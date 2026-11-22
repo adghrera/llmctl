@@ -11,6 +11,7 @@ export default function Overview() {
   const [eventKind, setEventKind] = useState("");
   const [eventKinds, setEventKinds] = useState<string[]>([]);
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
+  const [daemonLog, setDaemonLog] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -283,6 +284,40 @@ export default function Overview() {
           </ul>
         </div>
       )}
+      <div className="card">
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Daemon log</h2>
+          <button
+            className="btn sm"
+            onClick={async () => {
+              try {
+                if (daemonLog !== null) return setDaemonLog(null);
+                const r = await api.daemonLog();
+                setDaemonLog(r.logs);
+              } catch (e) {
+                setDaemonLog(`error: ${e instanceof Error ? e.message : e}`);
+              }
+            }}
+          >
+            {daemonLog === null ? "Show" : "Hide"}
+          </button>
+        </div>
+        {daemonLog !== null && (
+          <pre
+            style={{
+              margin: "10px 0 0",
+              fontSize: 11,
+              maxHeight: 300,
+              overflow: "auto",
+              background: "var(--code-background, rgba(127,127,127,0.08))",
+              padding: 8,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {daemonLog}
+          </pre>
+        )}
+      </div>
     </>
   );
 }

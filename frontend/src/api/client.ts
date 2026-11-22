@@ -774,6 +774,8 @@ export const api = {
   resetKeyUsage: (id: string) =>
     req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}/reset-usage`, { method: "POST" }),
   pruneKeys: () => req<{ ok: boolean; removed: string[] }>("/keys/prune", { method: "POST" }),
+  daemonLog: (bytes = 8000) =>
+    req<{ size: number; logs: string }>(`/logs/daemon?bytes=${bytes}`),
   settings: () => req<Settings>("/settings"),
   updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number; logLevel?: string }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
