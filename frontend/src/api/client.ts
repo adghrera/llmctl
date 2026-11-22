@@ -502,13 +502,14 @@ export const api = {
   deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
   requests: (
     limit = 100,
-    filters: { model?: string; status?: string; minMs?: number; stream?: string } = {}
+    filters: { model?: string; status?: string; minMs?: number; stream?: string; key?: string } = {}
   ) => {
     const q = new URLSearchParams({ limit: String(limit) });
     if (filters.model) q.set("model", filters.model);
     if (filters.status) q.set("status", filters.status);
     if (filters.minMs) q.set("minMs", String(filters.minMs));
     if (filters.stream) q.set("stream", filters.stream);
+    if (filters.key) q.set("key", filters.key);
     return req<RequestLogEntry[]>(`/requests?${q.toString()}`);
   },
   aliases: () => req<ModelAlias[]>("/aliases"),

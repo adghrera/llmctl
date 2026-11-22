@@ -39,6 +39,7 @@ export default function Requests() {
   const [fStatus, setFStatus] = useState("");
   const [fMinMs, setFMinMs] = useState("");
   const [fStream, setFStream] = useState("");
+  const [fKey, setFKey] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -49,6 +50,7 @@ export default function Requests() {
           status: fStatus || undefined,
           minMs: Number(fMinMs) > 0 ? Number(fMinMs) : undefined,
           stream: fStream || undefined,
+          key: fKey.trim() || undefined,
         })
         .then((d) => alive && setEntries(d))
         .catch(() => {});
@@ -59,7 +61,7 @@ export default function Requests() {
       alive = false;
       clearInterval(t);
     };
-  }, [auto, fModel, fStatus, fMinMs, fStream]);
+  }, [auto, fModel, fStatus, fMinMs, fStream, fKey]);
 
   return (
     <div className="card">
@@ -107,12 +109,19 @@ export default function Requests() {
           value={fMinMs}
           onChange={(e) => setFMinMs(e.target.value)}
         />
+        <input
+          style={{ width: 120 }}
+          placeholder="key prefix"
+          title="filter by API key prefix"
+          value={fKey}
+          onChange={(e) => setFKey(e.target.value)}
+        />
         <select value={fStream} onChange={(e) => setFStream(e.target.value)} style={{ width: 120 }}>
           <option value="">stream + plain</option>
           <option value="1">streaming</option>
           <option value="0">plain</option>
         </select>
-        {(fModel || fStatus || fMinMs || fStream) && (
+        {(fModel || fStatus || fMinMs || fStream || fKey) && (
           <button
             className="btn sm"
             onClick={() => {
@@ -120,6 +129,7 @@ export default function Requests() {
               setFStatus("");
               setFMinMs("");
               setFStream("");
+              setFKey("");
             }}
           >
             Clear
