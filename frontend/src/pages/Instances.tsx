@@ -237,8 +237,32 @@ export default function Instances() {
     }
   };
 
-  const stopAll = async () => {
-    setBusy("stop-all");
+  // Restart every non-attached running instance (UI twin of `llmctl restart --all`, F446).
+  const restartAll = async () => {
+    setBusy("restart-all");
+    try {
+      const list = await api.instances();
+      const targets = list.filter((i) => i.status === "running" && !i.attached);
+      let okCount = 0;
+      let failed = 0;
+      for (const i of targets) {
+        try {
+          await api.restartInstance(i.id);
+          okCount++;
+        } catch {
+          failed++;
+        }
+      }
+      ok(failed ? `restarted ${okCount}, failed ${failed}` : `restarted ${okCount} instance(s)`);
+      await refreshOne("instances");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const stopAll = async () => {    setBusy("stop-all");
     try {
       const r = await api.stopAll();
       ok(r.stopped.length ? `stopped ${r.stopped.length} instance(s)` : "nothing to stop");
@@ -603,9 +627,14 @@ export default function Instances() {
             Export CSV
           </button>
           {instances.some((i) => i.status === "running" && !i.attached) && (
-            <button className="btn sm danger" disabled={busy === "stop-all"} onClick={stopAll}>
-              {busy === "stop-all" ? "Stopping…" : "Stop all"}
-            </button>
+            <>
+              <button className="btn sm" disabled={busy === "restart-all"} onClick={restartAll}>
+                {busy === "restart-all" ? "Restarting…" : "Restart all"}
+              </button>
+              <button className="btn sm danger" disabled={busy === "stop-all"} onClick={stopAll}>
+                {busy === "stop-all" ? "Stopping…" : "Stop all"}
+              </button>
+            </>
           )}
         </div>
         {instances.length ? (

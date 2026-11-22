@@ -72,7 +72,9 @@ GitHub release, or file list. No recompile.
 - One-click restart (UI or `POST /api/v1/instances/{id}/restart`) relaunches a
   managed instance with the same id, port and vars; attached instances are
   rejected (restart the external server instead). A "Stop all" action
-  (`POST /api/v1/instances/stop-all`) stops every managed instance (F072).
+  (`POST /api/v1/instances/stop-all`) stops every managed instance (F072),
+  and a "Restart all" action restarts every managed instance, the UI twin of
+  `llmctl restart --all` (F446).
 - Attached instances are health-probed every 30 s; if the external server
   stops answering, the instance is marked crashed after 3 failed probes and
   the notify webhook fires (F096).
