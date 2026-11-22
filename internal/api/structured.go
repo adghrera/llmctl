@@ -60,11 +60,13 @@ func extractJSON(s string) (string, bool) {
 
 // structuredRequest is the POST /api/v1/structured body.
 type structuredRequest struct {
-	Model      string         `json:"model"`
-	Messages   []chatMsg      `json:"messages"`
-	Schema     map[string]any `json:"schema"`
-	MaxRetries int            `json:"maxRetries"` // default 2
-	APIKey     string         `json:"-"`
+	Model       string         `json:"model"`
+	Messages    []chatMsg      `json:"messages"`
+	Schema      map[string]any `json:"schema"`
+	MaxRetries  int            `json:"maxRetries"` // default 2
+	MaxTokens   int            `json:"maxTokens,omitempty"`
+	Temperature *float64       `json:"temperature,omitempty"` // nil = model default (F344)
+	APIKey      string         `json:"-"`
 }
 
 type chatMsg struct {
@@ -105,7 +107,7 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	var lastErr string
 	var lastRaw string
 	for attempt := 1; attempt <= req.MaxRetries+1; attempt++ {
-		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, 0, nil)
+		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, req.MaxTokens, req.Temperature)
 		if err != nil {
 			writeErr(w, 502, err.Error())
 			return

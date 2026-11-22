@@ -470,7 +470,7 @@ llmctl doctor [-json] [-quiet] [-check NAME]...    (-quiet prints only warn/erro
 llmctl gpu [-json]                                 (GPU inventory: vendor, name, used/total)
 llmctl jobs [-json] [-watch N]                     (background install jobs, F273)
 llmctl search <query> [-max N] [-json]             (keyless web search, F274)
-llmctl structured -model ID -schema f.json [-key K] <prompt>   (schema-validated JSON, F279)
+llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] <prompt>   (schema-validated JSON, F279, F344)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
 llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt> (CLI twin of Compare page, F301, F314, F343)

@@ -167,7 +167,7 @@ Usage:
   llmctl gpu [-json]
   llmctl jobs [-json] [-watch N]
   llmctl search <query> [-max N] [-json]
-  llmctl structured -model ID -schema file.json <prompt>
+  llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt>
@@ -1073,9 +1073,11 @@ func cmdStructured(args []string) error {
 	schemaF := fs.String("schema", "", "path to a JSON Schema file (required)")
 	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	retries := fs.Int("retries", 2, "validation retries")
+	maxTok := fs.Int("max-tokens", 0, "max tokens per attempt (0 = model default, F344)")
+	temp := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F344)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 || *model == "" || *schemaF == "" {
-		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] <prompt>")
+		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] [-max-tokens N] [-temperature T] <prompt>")
 	}
 	schemaBytes, err := os.ReadFile(*schemaF)
 	if err != nil {
@@ -1105,6 +1107,12 @@ func cmdStructured(args []string) error {
 	}
 	if *retries > 0 {
 		body["maxRetries"] = *retries
+	}
+	if *maxTok > 0 {
+		body["maxTokens"] = *maxTok
+	}
+	if *temp >= 0 {
+		body["temperature"] = *temp
 	}
 	code, out, err := cc.DoKey("POST", "/api/v1/structured", body, *keyF)
 	if err != nil {
