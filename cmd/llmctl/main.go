@@ -273,7 +273,7 @@ Usage:
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
-  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json] | memory -stats (per-tag roll-up) …
+  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
@@ -2274,7 +2274,7 @@ var llmSubCommands = map[string]string{
 	"kb":        "list show create update docs doc add-doc export search embed delete",
 	"key":       "generate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
-	"memory":    "list show add update search delete export import",
+	"memory":    "list show add update search delete export import retag",
 	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save start delete export import",
 	"prompts":   "list show render run categories add duplicate update delete export import",
@@ -7405,11 +7405,80 @@ func cmdMemory(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "update", "delete", "search", "export", "import":
+		case "list", "show", "add", "update", "delete", "search", "export", "import", "retag":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "retag":
+		// Bulk-rename or drop a tag across all entries (F640).
+		rfs := flag.NewFlagSet("memory retag", flag.ExitOnError)
+		rm := rfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rjson := rfs.Bool("json", false, "print the count as JSON")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() < 1 || (!*rm && rfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl memory retag <old-tag> <new-tag> | memory retag -rm <tag> [-json]")
+		}
+		oldTag := rfs.Arg(0)
+		newTag := rfs.Arg(1)
+		code, out, err := cc.Get("/api/v1/memory")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory returned %d: %s", code, out)
+		}
+		var mems []struct {
+			ID    string `json:"id"`
+			Entry struct {
+				Content string   `json:"content"`
+				Tags    []string `json:"tags"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &mems); err != nil {
+			return err
+		}
+		changed := 0
+		for _, m := range mems {
+			found := false
+			var tags []string
+			for _, t := range m.Entry.Tags {
+				if t != oldTag {
+					tags = append(tags, t)
+					continue
+				}
+				found = true
+				if !*rm {
+					tags = append(tags, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			body := map[string]any{"tags": tags, "content": m.Entry.Content}
+			code, out, err := cc.Do("PUT", "/api/v1/memory/"+url.PathEscape(m.ID), body)
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("memory retag on %s: %s", m.ID, out)
+			}
+			changed++
+		}
+		if *rjson {
+			fmt.Printf("{\"changed\":%d}\n", changed)
+			return nil
+		}
+		word := "ies"
+		if changed == 1 {
+			word = "y"
+		}
+		if *rm {
+			fmt.Printf("removed tag %q from %d entr%s\n", oldTag, changed, word)
+			return nil
+		}
+		fmt.Printf("renamed tag %q -> %q on %d entr%s\n", oldTag, newTag, changed, word)
+		return nil
 	case "export":
 		// Dump all memory entries as a JSON array (feed to `memory import`, F321).
 		efs := flag.NewFlagSet("memory export", flag.ExitOnError)

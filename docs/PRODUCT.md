@@ -401,7 +401,9 @@ toggle for a light theme (choice remembered). Tabs:
    up per tag — entries, last created, with `(none)` for untagged, F626);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
    [-tags a,b]`, `memory show <id> [-out FILE]`, `memory search <query> [-json] [-csv] [-out FILE]`,
-   `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
+   `memory delete <id>`; `memory retag OLD NEW` / `memory retag -rm TAG`
+   rename or drop a tag across every entry in one shot (F640);
+   `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321); the Memory page
    has matching Export JSON / Import JSON buttons (F410) and a Stats toggle
    that rolls the list up per tag, mirroring `memory -stats` (F632).
