@@ -619,6 +619,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F606 | P3 | 606 | cli | `llmctl compare --csv` | COMPLETED | `compare` gained `--csv` (implies the collected-results shape): one row per model — model,ok,reply,error — with full reply text. Verified live: a streaming stub produced the reply row and a missing model produced the error row, temp model/instance/keys cleaned up after. |
 | F607 | P3 | 607 | ui | Compare page Export CSV | COMPLETED | The Compare page's Results card gained an **Export CSV** button next to Export JSON — one row per model (model,ok,reply,error), the UI twin of `llmctl compare --csv` (F606). Verified live: tsc + vite clean, served bundle contains the button. |
 | F608 | P3 | 608 | ui | Scheduler auto-refresh toggle | COMPLETED | The Scheduler page's Recent Runs card gained an **Auto-refresh** checkbox (polls `/api/v1/scheduler/runs` every 5s while on, same pattern as the Requests page) so runs appear as tasks fire without a manual reload. Verified live: tsc + vite clean, served bundle contains the toggle. |
+| F609 | P3 | 609 | cli | `llmctl backups -watch N` | COMPLETED | The snapshot list reprints every N seconds until Ctrl-C — handy while scheduled backups fire; `-json`, `--csv`, `-out` all work under watch (list body extracted into a shared `backupsList` helper). Verified live: `-watch 2` and `-watch=2` each refreshed 3× in 5s, `--csv` under watch emitted 2 headers, plain mode unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

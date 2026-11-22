@@ -264,7 +264,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
+  llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
@@ -5003,8 +5003,65 @@ func cmdRequests(args []string) error {
 }
 
 // cmdBackups lists, creates or deletes state snapshots in ~/.llmctl/backups.
+// backupsList prints the snapshot list; shared by the plain call and
+// `backups -watch N` (F609).
+func backupsList(cc *daemon.ControlClient, args []string) error {
+	fs := flag.NewFlagSet("backups list", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw backups JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the backup list as CSV (F383)")
+	outFile := fs.String("out", "", "write the raw backups JSON to this file instead of stdout (F475)")
+	fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once) (F609)")
+	fs.Parse(reorderFlags(args))
+	code, out, err := cc.Get("/api/v1/backups")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("backups list returned %d: %s", code, out)
+	}
+	if *outFile != "" { // F475: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var bs []struct {
+		Name    string `json:"name"`
+		Size    int64  `json:"size"`
+		Created string `json:"created"`
+	}
+	if err := json.Unmarshal(out, &bs); err != nil {
+		return err
+	}
+	if *csvOut { // F383: header-only when empty keeps the stream parseable
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"name", "size_bytes", "created"})
+		for _, b := range bs {
+			_ = w.Write([]string{b.Name, strconv.FormatInt(b.Size, 10), b.Created})
+		}
+		w.Flush()
+		return w.Error()
+	}
+	if len(bs) == 0 {
+		fmt.Println("no snapshots (create one: llmctl backups create)")
+		return nil
+	}
+	fmt.Printf("%-34s %10s  %s\n", "NAME", "SIZE", "CREATED")
+	var total int64
+	for _, b := range bs {
+		total += b.Size
+		fmt.Printf("%-34s %10s  %s\n", b.Name, fmtSize(b.Size), b.Created)
+	}
+	fmt.Printf("%-34s %10s\n", "total: "+strconv.Itoa(len(bs))+" snapshot(s)", fmtSize(total))
+	return nil
+}
+
 func cmdBackups(args []string) error {
-	fs := flag.NewFlagSet("backups", flag.ExitOnError)
 	sub := "list"
 	rest := args
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -5016,57 +5073,27 @@ func cmdBackups(args []string) error {
 	}
 	switch sub {
 	case "list":
-		jsonOut := fs.Bool("json", false, "print the raw backups JSON (for scripts)")
-		csvOut := fs.Bool("csv", false, "output the backup list as CSV (F383)")
-		outFile := fs.String("out", "", "write the raw backups JSON to this file instead of stdout (F475)")
-		fs.Parse(reorderFlags(rest))
-		code, out, err := cc.Get("/api/v1/backups")
-		if err != nil {
-			return err
-		}
-		if code != 200 {
-			return fmt.Errorf("backups list returned %d: %s", code, out)
-		}
-		if *outFile != "" { // F475: raw JSON to a file, stdout stays clean
-			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
-				return err
+		// -watch N reprints the snapshot list every N seconds until Ctrl-C
+		// (F609), handy while scheduled backups fire.
+		watch := 0
+		for i, a := range rest {
+			if a == "-watch" && i+1 < len(rest) {
+				watch, _ = strconv.Atoi(rest[i+1])
+			} else if strings.HasPrefix(a, "-watch=") {
+				watch, _ = strconv.Atoi(strings.TrimPrefix(a, "-watch="))
 			}
-			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
-			return nil
 		}
-		if *jsonOut {
-			fmt.Print(string(out))
-			return nil
-		}
-		var bs []struct {
-			Name    string `json:"name"`
-			Size    int64  `json:"size"`
-			Created string `json:"created"`
-		}
-		if err := json.Unmarshal(out, &bs); err != nil {
-			return err
-		}
-		if *csvOut { // F383: header-only when empty keeps the stream parseable
-			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"name", "size_bytes", "created"})
-			for _, b := range bs {
-				_ = w.Write([]string{b.Name, strconv.FormatInt(b.Size, 10), b.Created})
+		if watch > 0 {
+			for {
+				fmt.Print("\x1b[2J\x1b[H") // clear screen
+				fmt.Printf("live snapshots — refreshing every %ds (Ctrl-C to stop)\n\n", watch)
+				if err := backupsList(cc, rest); err != nil {
+					return err
+				}
+				time.Sleep(time.Duration(watch) * time.Second)
 			}
-			w.Flush()
-			return w.Error()
 		}
-		if len(bs) == 0 {
-			fmt.Println("no snapshots (create one: llmctl backups create)")
-			return nil
-		}
-		fmt.Printf("%-34s %10s  %s\n", "NAME", "SIZE", "CREATED")
-		var total int64
-		for _, b := range bs {
-			total += b.Size
-			fmt.Printf("%-34s %10s  %s\n", b.Name, fmtSize(b.Size), b.Created)
-		}
-		fmt.Printf("%-34s %10s\n", "total: "+strconv.Itoa(len(bs))+" snapshot(s)", fmtSize(total))
-		return nil
+		return backupsList(cc, rest)
 	case "create":
 		cfs := flag.NewFlagSet("backups create", flag.ExitOnError)
 		label := cfs.String("name", "", "label embedded in the backup file name (F443)")

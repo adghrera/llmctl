@@ -576,7 +576,9 @@ toggle for a light theme (choice remembered). Tabs:
   in the file name, llmctl-<label>-<ts>.tar.gz, F443, F444), next to an
   Export CSV button matching `backups list --csv` (F398).
   `llmctl backups list --csv` exports the snapshot inventory
-  (name,size_bytes,created), header-only when empty (F383).
+  (name,size_bytes,created), header-only when empty (F383), and
+  `llmctl backups -watch N` reprints the list every N seconds — handy while
+  scheduled backups fire (F609).
 - **API console** — a Settings page card that sends any METHOD + /path (with an
   optional JSON body for POST/PUT/PATCH) straight to the management API and
   pretty-prints the status and response, the browser counterpart of
