@@ -760,6 +760,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F747 | P3 | 747 | requests | Requests since/until deep links | COMPLETED | The Requests page now reads since/until from the URL (ISO → datetime-local), and the Overview "Today (UTC)" requests stat links to the Requests page filtered to today's UTC window — completes the deep-link param family (key/instance/model already read params). Verified live: served bundle carries the link and converter. |
 | F748 | P3 | 748 | webhooks | Webhook log Export JSON | COMPLETED | The Settings webhook delivery log gained an Export JSON button beside Export CSV (filter-aware, follows the failed-only and event filters) — UI twin of `llmctl webhooks -json`. Verified live: served bundle carries the button. |
 | F749 | P3 | 749 | webhooks | Webhook log Stats toggle | COMPLETED | The Settings webhook delivery list gained a Stats toggle rolling the log up per event (total/ok/failed/last) — UI twin of `llmctl webhooks -stats`, filter-aware. Verified live: served bundle carries the toggle. |
+| F750 | P3 | 750 | chats | Chat message Save-as-prompt | COMPLETED | Each Chat message gained a →P button that stores the message text as a reusable prompt template (id prompted) — UI twin of `llmctl prompts add`, the reverse of the Prompts page "Insert into chat" (F300). Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

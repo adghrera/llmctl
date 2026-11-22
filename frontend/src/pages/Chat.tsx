@@ -1003,6 +1003,24 @@ export default function Chat() {
                     ⧉
                   </button>
                 )}
+                {m.content && (
+                  <button
+                    className="btn xs copy"
+                    title="save this message as a prompt template (CLI: llmctl prompts add)"
+                    onClick={async () => {
+                      const id = window.prompt("Prompt template id:", `chat-${Date.now().toString(36)}`);
+                      if (!id || !id.trim()) return;
+                      try {
+                        await api.createPrompt({ id: id.trim(), name: id.trim(), content: m.content });
+                        ok(`prompt ${id.trim()} created`);
+                      } catch (e) {
+                        err(e instanceof Error ? e.message : String(e));
+                      }
+                    }}
+                  >
+                    →P
+                  </button>
+                )}
               </div>
               {m.tools && m.tools.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
