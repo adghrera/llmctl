@@ -535,6 +535,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F522 | P3 | 522 | cli | `models idle -out FILE` | COMPLETED | `llmctl models idle <id> <minutes|never> -out FILE` writes the raw response JSON to the file (stdout stays clean, notice on stderr), for scripting; the human line is unchanged. Verified live: -out wrote the exact payload (31 B), plain unchanged. |
 | F523 | P3 | 523 | cli | `models rename -json` | COMPLETED | `llmctl models rename <id> <new-id> -json` prints the raw response JSON (`{"id","instancesUpdated","ok"}`) for scripting; the human line is unchanged. Verified live with a temporary model: -json returned the exact payload, plain rename round-trip unchanged; model removed after. |
 | F524 | P3 | 524 | cli | `presets save -json` | COMPLETED | `llmctl presets save -name N -model ID … -json` prints the raw saved-preset JSON for scripting; the human line is unchanged. Verified live with temporary presets: -json returned `{"name":"f524p","modelId":"so"}`, plain unchanged; presets deleted after. |
+| F525 | P3 | 525 | cli | `presets start -json` | COMPLETED | `llmctl presets start <name> [-port P] [-var k=v …] -json` prints the raw started-instance JSON for scripting; the human line is unchanged. Verified live with a temporary preset (distinct instance name): -json returned the full instance record, plain unchanged; instance stopped and preset deleted after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

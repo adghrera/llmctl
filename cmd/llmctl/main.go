@@ -245,7 +245,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
-  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name>|delete <name>|export|import
+  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name>|export|import
   llmctl catalog list [-json|-csv|-out FILE] | install <id>
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
@@ -869,11 +869,12 @@ func cmdPresets(args []string) error {
 	case "start":
 		fs := flag.NewFlagSet("presets start", flag.ExitOnError)
 		port := fs.Int("port", 0, "override the preset port")
+		jsonOut := fs.Bool("json", false, "print the raw started-instance JSON (F525)")
 		var vars stringList
 		fs.Var(&vars, "var", "parameter k=v override (repeatable)")
 		fs.Parse(reorderFlags(rest))
 		if fs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl presets start <name> [-port P] [-var k=v ...]")
+			return fmt.Errorf("usage: llmctl presets start <name> [-port P] [-var k=v ...] [-json]")
 		}
 		name := fs.Arg(0)
 		body := map[string]any{}
@@ -893,6 +894,10 @@ func cmdPresets(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("preset start failed: %s", out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var inst struct {
 			ID    string `json:"id"`
