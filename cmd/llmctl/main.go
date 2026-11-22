@@ -222,7 +222,7 @@ Usage:
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl chats [filter] [-n 20] [-json] | chats show|search|export|fork|delete …
-  llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
+  llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|search|delete …
   llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
@@ -3648,11 +3648,40 @@ func cmdSkills(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "enable", "disable", "delete":
+		case "list", "show", "add", "enable", "disable", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "add":
+		// Create a skill from a JSON manifest file (F288).
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl skills add <manifest.json>")
+		}
+		data, err := os.ReadFile(rest[0])
+		if err != nil {
+			return err
+		}
+		var manifest map[string]any
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return fmt.Errorf("manifest: %w", err)
+		}
+		code, out, err := cc.Post("/api/v1/skills", manifest)
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("skills add: %s", out)
+		}
+		var rec struct {
+			Manifest struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"manifest"`
+		}
+		json.Unmarshal(out, &rec)
+		fmt.Printf("skill created: %s (%s)\n", rec.Manifest.Name, rec.Manifest.ID)
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("skills", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the skills as JSON (for scripts)")

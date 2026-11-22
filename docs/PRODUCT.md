@@ -276,7 +276,8 @@ toggle for a light theme (choice remembered). Tabs:
    (over the chat-store API, F244, F267, F269).
  - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs
    (filter matches id/name/description/tags); `skills show|enable|disable|delete <id>`
-   manages them (F245).
+   manages them and `skills add <manifest.json>` creates one from a JSON
+   manifest (F245, F288).
  - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
    `memory add "<text>" [-tags a,b]`, `memory show <id>`, `memory search
    <query> [-json]`, `memory delete <id>` (F246, F267).
