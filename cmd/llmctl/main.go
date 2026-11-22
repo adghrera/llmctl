@@ -181,7 +181,7 @@ Usage:
   llmctl status [-json] [-watch N] [-out FILE]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE]
-  llmctl jobs [-json] [--csv] [-watch N]
+  llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
@@ -1081,6 +1081,7 @@ func cmdJobs(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the job list as CSV (F427)")
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	outFile := fs.String("out", "", "write the raw jobs JSON to this file instead of stdout (F477)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1093,6 +1094,15 @@ func cmdJobs(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("jobs returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F477: latest snapshot to a file (each -watch refresh overwrites)
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			if *watch <= 0 {
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			}
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
