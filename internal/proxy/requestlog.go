@@ -12,6 +12,7 @@ import (
 
 // RequestLogEntry is one entry of the recent-requests ring (F061).
 type RequestLogEntry struct {
+	ID        string    `json:"id,omitempty"` // request id, echoed as X-Request-Id (F092)
 	Time      time.Time `json:"time"`
 	Model     string    `json:"model,omitempty"`
 	Key       string    `json:"key,omitempty"` // API key prefix (first 8 chars)

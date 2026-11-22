@@ -12,9 +12,10 @@ function csvField(s: string): string {
 }
 
 function toCsv(entries: RequestLogEntry[]): string {
-  const head = ["time", "model", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens"];
+  const head = ["id", "time", "model", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens"];
   const rows = entries.map((e) =>
     [
+      e.id || "",
       new Date(e.time).toISOString(),
       e.model || "",
       e.key || "",
@@ -133,6 +134,7 @@ export default function Requests() {
         <table>
           <thead>
             <tr>
+              <th>Id</th>
               <th>Time</th>
               <th>Model</th>
               <th>Key</th>
@@ -144,6 +146,9 @@ export default function Requests() {
           <tbody>
             {entries.map((e, i) => (
               <tr key={i}>
+                <td className="mono muted" style={{ fontSize: 11 }}>
+                  {e.id || "—"}
+                </td>
                 <td className="muted" style={{ fontSize: 12 }}>
                   {new Date(e.time).toLocaleTimeString()}
                 </td>

@@ -72,6 +72,7 @@ func (w *recordingResponseWriter) Unwrap() http.ResponseWriter { return w.Respon
 // model/stream flags, so the metrics middleware (which wraps the mux from
 // the outside) can attribute the request without re-parsing the body.
 type modelRef struct {
+	ID     string // request id echoed as X-Request-Id (F092)
 	Model  string
 	Stream bool
 	Key    string // API key prefix (first 8 chars) for per-key cost tracking

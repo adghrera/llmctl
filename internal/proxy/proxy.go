@@ -190,6 +190,13 @@ func (s *Server) recoverer(next http.Handler) http.Handler {
 func (s *Server) metrics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.requestCount.Add(1)
+		// Per-request id (F092): reuse the client's X-Request-Id or mint one,
+		// echo it back and attach it to the request log entry.
+		rid := r.Header.Get("X-Request-Id")
+		if rid == "" {
+			rid = newRequestID()
+		}
+		w.Header().Set("X-Request-Id", rid)
 		if !s.tryAcquire() {
 			writeErr(w, http.StatusTooManyRequests, "server_overloaded",
 				fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
@@ -197,13 +204,22 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		}
 		defer s.inflight.Add(-1)
 		// Record latency + status + tokens for /api/v1/metrics.
-		holder := &modelRef{}
+		holder := &modelRef{ID: rid}
 		r = r.WithContext(withModelRef(r.Context(), holder))
 		start := time.Now()
 		rec := newRecordingResponseWriter(w)
 		next.ServeHTTP(rec, r)
-		s.collector.record(holder.Model, holder.Key, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes())
+		s.collector.record(holder.Model, holder.Key, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes(), rid)
 	})
+}
+
+// newRequestID mints a short random request id (F092).
+func newRequestID() string {
+	var b [6]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "req-unknown"
+	}
+	return hex.EncodeToString(b[:])
 }
 
 // auth enforces Authorization: Bearer *** when keys are configured and

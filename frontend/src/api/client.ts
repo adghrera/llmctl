@@ -366,6 +366,7 @@ export interface BatchResult {
 }
 
 export interface RequestLogEntry {
+  id?: string;
   time: string;
   model?: string;
   key?: string;

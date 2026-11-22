@@ -145,6 +145,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Requests** — the last 256 gateway requests (time, model, key, status,
   latency, tokens) in an auto-refreshing table, with one-click CSV export and
   combinable filters (model, status class, min latency, stream/plain).
+  Each request has an id echoed as the X-Request-Id response header (a
+  client-sent X-Request-Id is reused).
   History persists across daemon restarts (`~/.llmctl/requests.jsonl`,
   trimmed to the newest 1000 lines at startup).
   REST: GET /api/v1/requests?model=&status=&minMs=&stream=.
