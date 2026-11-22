@@ -371,8 +371,14 @@ export default function Overview() {
           <h2>Active jobs</h2>
           <ul>
             {activeJobs.map((j) => (
-              <li key={j.id} className="mono">
-                {j.kind} {j.target} — {Math.round(j.progress * 100)}%
+              <li key={j.id} className="mono" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ minWidth: 220 }}>
+                  {j.kind} {j.target} — {Math.round(j.progress * 100)}%
+                </span>
+                <div className="progress" style={{ flex: 1 }}>
+                  <div style={{ width: `${Math.round(j.progress * 100)}%` }} />
+                </div>
+                {j.message && <span className="muted small">{j.message}</span>}
               </li>
             ))}
           </ul>
