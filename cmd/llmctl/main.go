@@ -128,7 +128,7 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status [-json] [-watch N]
-  llmctl doctor [-json] [-quiet]
+  llmctl doctor [-json] [-quiet] [-check NAME]...
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
   llmctl backends install <id> [--asset <hint>]
@@ -327,6 +327,8 @@ func cmdDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw doctor JSON (for scripts)")
 	quiet := fs.Bool("quiet", false, "print only warn/error checks (for cron/monitoring)")
+	var only stringList
+	fs.Var(&only, "check", "only checks whose name contains this (repeatable, F259)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -350,8 +352,43 @@ func cmdDoctor(args []string) error {
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
 	}
+	// -check filter (F259): keep only checks whose name contains one of the
+	// given substrings; the exit status then reflects just those.
+	if len(only) > 0 {
+		var keep []struct {
+			Name   string `json:"name"`
+			Status string `json:"status"`
+			Detail string `json:"detail"`
+		}
+		for _, c := range res.Checks {
+			for _, o := range only {
+				if strings.Contains(c.Name, o) {
+					keep = append(keep, c)
+					break
+				}
+			}
+		}
+		if len(keep) == 0 {
+			return fmt.Errorf("no checks match: %s", strings.Join(only, ", "))
+		}
+		res.Checks = keep
+		res.OK = true
+		for _, c := range keep {
+			if c.Status == "error" {
+				res.OK = false
+			}
+		}
+	}
 	if *jsonOut {
-		fmt.Print(string(out))
+		if len(only) > 0 {
+			b, err := json.Marshal(res)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+		} else {
+			fmt.Print(string(out))
+		}
 		if !res.OK {
 			return fmt.Errorf("doctor: some checks failed")
 		}
