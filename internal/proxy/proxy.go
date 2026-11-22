@@ -108,10 +108,10 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
 		router:      router,
 		logger:      cfg.Logger,
-		maxInflight: int64(cfg.MaxInflight),
-		collector:   newMetricsCollector(),
-		keyInflight:    map[string]*atomic.Int64{},
-		instInflight:   map[string]*atomic.Int64{},
+		maxInflight:  int64(cfg.MaxInflight),
+		collector:    newMetricsCollector(),
+		keyInflight:  map[string]*atomic.Int64{},
+		instInflight: map[string]*atomic.Int64{},
 	}
 	s.requireAuth.Store(requireAuth)
 	s.allowCORS.Store(cfg.AllowCORS)
