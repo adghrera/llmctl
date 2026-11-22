@@ -268,7 +268,9 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering and copy-to-clipboard. CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
-   `llmctl prompts show <id>` (F218).
+   `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
+   piped stdin]` (renders the template with {{input}} filled, for scripts)
+   (F218, F298).
  - **Chat CLI** — `llmctl chats [filter] [-json]` (or `chats list [filter]`)
    lists saved conversations,
    `llmctl chats show <id> [-json]` prints one with a message preview,
@@ -490,7 +492,7 @@ llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-json]  (-watch N: live refresh every N seconds)
 llmctl events [-n 20] [-watch N] [-json]
 llmctl webhooks [-n 20] [-json]    recent webhook delivery attempts
-llmctl prompts [filter] [-category X] [-json] | prompts show <id>
+llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
