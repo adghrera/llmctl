@@ -514,6 +514,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F501 | P3 | 501 | cli | `models probe -out FILE` | COMPLETED | `llmctl models probe -out FILE` writes the probe JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human table are unchanged. Verified live: -out wrote the exact payload (72 B), plain and -json unchanged. |
 | F502 | P3 | 502 | cli | `models hf-search -out FILE` | COMPLETED | `llmctl models hf-search <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human list are unchanged. Verified live against the real HF API: -out wrote the exact payload (11280 B), plain and -json unchanged. |
 | F503 | P3 | 503 | cli | `models hf-files -out FILE` | COMPLETED | `llmctl models hf-files <repo> -out FILE` writes the raw files JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human list are unchanged. Verified live against the real HF API: -out wrote the exact payload (2411 B), plain and -json unchanged. |
+| F504 | P3 | 504 | cli | `scheduler show -out FILE` | COMPLETED | `llmctl scheduler show <id> -out FILE` writes the raw task JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human view are unchanged. Verified live with a temporary task: -out wrote the exact payload (371 B), plain and -json unchanged; task deleted after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

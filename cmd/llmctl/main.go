@@ -237,7 +237,7 @@ Usage:
   llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...]|start <name>|delete <name>|export|import
   llmctl catalog list [-json|-csv|-out FILE] | install <id>
   llmctl scheduler list [-json|-csv|-out FILE]
-  llmctl scheduler show <id> [-json]
+  llmctl scheduler show <id> [-json] [-out FILE]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
@@ -3523,9 +3523,10 @@ func cmdScheduler(args []string) error {
 	case "show":
 		sfs := flag.NewFlagSet("scheduler show", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw task JSON (for scripts)")
+		sout := sfs.String("out", "", "write the raw task JSON to this file instead of stdout (F504)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl scheduler show <id> [-json]")
+			return fmt.Errorf("usage: llmctl scheduler show <id> [-json] [-out FILE]")
 		}
 		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
@@ -3533,6 +3534,13 @@ func cmdScheduler(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("scheduler %s: %s", sfs.Arg(0), out)
+		}
+		if *sout != "" { // F504: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		if *sjson {
 			fmt.Print(string(out))
