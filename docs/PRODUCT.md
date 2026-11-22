@@ -168,7 +168,8 @@ toggle for a light theme (choice remembered). Tabs:
   per-conversation context percentage. A "Daily History" table shows the
   per-day, per-model rollup (requests, errors, tokens, estimated cost) which
   persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103)
-  and can be exported as CSV (F117). A parallel per-key rollup
+  and can be exported as CSV (F117); a "Trend" card charts the last 14 days
+  of requests and cost as bar charts (F147). A parallel per-key rollup
   (`GET /api/v1/usage/keys[?days=N][&key=ID]`) attributes daily requests,
   tokens and cost to each API key (F126); the Usage page shows it as a
   "Daily by Key" table with its own CSV export (F129).

@@ -6,6 +6,84 @@ function csvField(s: string): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+type DailyUsage = NonNullable<Awaited<ReturnType<typeof api.dailyUsage>>>;
+
+// trendDays sums per-day totals from the daily rollup, oldest first, capped
+// at the newest 14 days (F147).
+export function trendDays(daily: DailyUsage) {
+  return Object.entries(daily)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-14)
+    .map(([date, models]) => {
+      let requests = 0;
+      let cost = 0;
+      for (const u of Object.values(models)) {
+        requests += u.requests;
+        cost += u.cost ?? 0;
+      }
+      return { date, requests, cost };
+    });
+}
+
+// TrendChart draws the last 14 UTC days as two small bar charts (requests and
+// estimated cost) from the daily rollup (F147).
+function TrendChart({ daily }: { daily: DailyUsage }) {
+  const days = trendDays(daily);
+  if (days.length < 2) return null;
+  const W = 300;
+  const H = 90;
+  const bw = W / days.length;
+  const bars = (values: number[], color: string, fmt: (v: number) => string) => {
+    const max = Math.max(...values, 1);
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxWidth: 420, height: "auto" }}>
+        {values.map((v, i) => {
+          const h = Math.max(1, (v / max) * (H - 16));
+          return (
+            <rect
+              key={i}
+              x={i * bw + bw * 0.15}
+              y={H - 14 - h}
+              width={bw * 0.7}
+              height={h}
+              fill={color}
+              rx={1}
+            >
+              <title>{`${days[i].date}: ${fmt(v)}`}</title>
+            </rect>
+          );
+        })}
+        {days.map((d, i) =>
+          i % Math.ceil(days.length / 7) === 0 ? (
+            <text key={i} x={i * bw + bw / 2} y={H - 3} fontSize={7} fill="var(--muted)" textAnchor="middle">
+              {d.date.slice(5)}
+            </text>
+          ) : null,
+        )}
+      </svg>
+    );
+  };
+  return (
+    <div className="card">
+      <h2>Trend (last {days.length} days, UTC)</h2>
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 260px" }}>
+          <div className="muted small" style={{ marginBottom: 4 }}>
+            requests/day — peak {Math.max(...days.map((d) => d.requests))}
+          </div>
+          {bars(days.map((d) => d.requests), "var(--accent)", (v) => `${v} requests`)}
+        </div>
+        <div style={{ flex: "1 1 260px" }}>
+          <div className="muted small" style={{ marginBottom: 4 }}>
+            cost/day — peak ${Math.max(...days.map((d) => d.cost)).toFixed(4)}
+          </div>
+          {bars(days.map((d) => d.cost), "var(--accent2)", (v) => `$${v.toFixed(4)}`)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function dailyToCsv(daily: NonNullable<Awaited<ReturnType<typeof api.dailyUsage>>>): string {
   const head = ["date", "model", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"];
   const rows: string[] = [];
@@ -211,6 +289,8 @@ export default function Usage() {
           </table>
         </div>
       )}
+
+      {daily && Object.keys(daily).length >= 2 && <TrendChart daily={daily} />}
 
       {daily && Object.keys(daily).length > 0 && (
         <div className="card">
