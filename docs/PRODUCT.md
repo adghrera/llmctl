@@ -379,7 +379,8 @@ llmctl doctor [-json]              (health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is
                                     bound to a public address with auth off, F183), disk (warns on
                                     orphaned files in the models dir, F206), backup age (warns when the
-                                    newest snapshot is >7 days old, F207); exit ≠0 on errors)
+                                    newest snapshot is >7 days old, F207); security also warns when auth
+                                    is on but no usable key exists (F223); exit ≠0 on errors)
 llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove

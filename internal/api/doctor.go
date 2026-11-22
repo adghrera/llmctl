@@ -177,7 +177,21 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		loopbackOnly := host == "127.0.0.1" || host == "::1" || host == "localhost"
 		switch {
 		case st.Settings.RequireAuth:
-			add("security", "ok", "gateway requires API keys")
+			// Auth on but nothing usable is a dead end for clients (F223).
+			live := 0
+			for _, k := range st.APIKeys {
+				if !k.Disabled && (k.ExpiresAt == nil || time.Now().Before(*k.ExpiresAt)) {
+					live++
+				}
+			}
+			switch {
+			case len(st.APIKeys) == 0:
+				add("security", "warn", "auth required but no API keys exist — create one: llmctl key generate")
+			case live == 0:
+				add("security", "warn", fmt.Sprintf("auth required but all %d key(s) are disabled or expired", len(st.APIKeys)))
+			default:
+				add("security", "ok", fmt.Sprintf("gateway requires API keys (%d usable)", live))
+			}
 		case loopbackOnly:
 			add("security", "ok", "no auth, but bound to loopback only ("+s.gw.Addr()+")")
 		default:

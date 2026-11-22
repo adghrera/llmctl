@@ -232,6 +232,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F220 | P3 | 220 | cli | `llmctl settings` | COMPLETED | New CLI over the settings API: `settings [-json]` prints all settings sorted, `settings set <flags>` PATCHes only the flags given (fs.Visit detection, -1/-2 sentinels to skip numeric flags). Verified live: show, json, set backupKeep 9→7, empty-set error. |
 | F221 | P3 | 221 | cli | `settings test-webhook` | COMPLETED | `llmctl settings test-webhook` POSTs a test event to the configured notify webhook (existing `/settings/notify-test` endpoint). Verified live: the sink received the test payload. |
 | F222 | P3 | 222 | cli | `requests -watch N` | COMPLETED | `llmctl requests -watch N` live-tails the request log: prints new matching entries as they arrive (id-based dedupe, same pattern as `events -watch`). Verified live: a gateway call made during the watch printed within 1s. |
+| F223 | P3 | 223 | doctor | No-usable-key security check | COMPLETED | The doctor security check now warns when auth is required but no API key exists or all keys are disabled/expired, and reports the usable-key count when ok. Verified live: all three paths (ok / no keys / all disabled). |
 
 ## Shipped (v0.2 architecture, this iteration)
 
