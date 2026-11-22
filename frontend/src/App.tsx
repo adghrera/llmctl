@@ -54,14 +54,27 @@ export default function App() {
   const { status } = useStore();
   const navigate = useNavigate();
   const [light, setLight] = useState(() => document.documentElement.dataset.theme === "light");
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Ctrl+K / Cmd+K jumps to the Search page from anywhere (F439).
+  // ? opens the keyboard-shortcut help overlay (F514); Esc closes it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         navigate("/search");
+        return;
       }
+      if (e.key === "Escape") {
+        setHelpOpen(false);
+        return;
+      }
+      if (e.key !== "?" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName ?? "";
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t?.isContentEditable) return;
+      e.preventDefault();
+      setHelpOpen((v) => !v);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -126,7 +139,48 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
+      {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}
       <Toasts />
     </>
+  );
+}
+
+// ShortcutHelp lists the global keyboard shortcuts (F514).
+const SHORTCUTS: { keys: string; what: string }[] = [
+  { keys: "Ctrl/⌘ + K", what: "Jump to Search" },
+  { keys: "?", what: "Toggle this help" },
+  { keys: "Esc", what: "Close dialogs and this help" },
+  { keys: "Enter", what: "Send the message (Chat); run the current action in input fields" },
+  { keys: "Shift + Enter", what: "New line in the Chat input" },
+];
+
+function ShortcutHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="confirm-backdrop" onClick={onClose}>
+      <div className="confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-header">
+          <h3>Keyboard shortcuts</h3>
+        </div>
+        <div className="confirm-body">
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <tbody>
+              {SHORTCUTS.map((s) => (
+                <tr key={s.keys}>
+                  <td style={{ padding: "4px 12px 4px 0", whiteSpace: "nowrap", fontFamily: "var(--mono, monospace)" }}>
+                    <code>{s.keys}</code>
+                  </td>
+                  <td style={{ padding: "4px 0" }}>{s.what}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="confirm-actions">
+          <button className="btn sm" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
