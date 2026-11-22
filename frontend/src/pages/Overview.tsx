@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, type GatewayMetrics, type GPUInfo } from "../api/client";
 import { ago } from "../lib/time";
 import { useStore } from "../state/store";
@@ -214,7 +215,7 @@ export default function Overview() {
         <div className="card">
           <h2>Today (UTC)</h2>
           <div className="row" style={{ gap: 24, flexWrap: "wrap" }}>
-            <Stat label="requests" value={today.requests} />
+            <Stat label="requests" value={today.requests} to={`/requests?since=${encodeURIComponent(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)}`} />
             <Stat label="errors" value={today.errors} />
             <Stat label="tokens" value={today.tokens.toLocaleString()} />
             <Stat label="est. cost" value={today.cost > 0 ? `$${today.cost.toFixed(4)}` : "—"} />
@@ -784,14 +785,20 @@ export default function Overview() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value, to }: { label: string; value: string | number; to?: string }) {
   return (
     <div>
       <div className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
         {label}
       </div>
       <div className="mono" style={{ fontSize: 18 }}>
-        {value}
+        {to ? (
+          <Link to={to} title="open the Requests page filtered to this time window (F747)">
+            {value}
+          </Link>
+        ) : (
+          value
+        )}
       </div>
     </div>
   );

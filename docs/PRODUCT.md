@@ -159,7 +159,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Overview** — status counts, a Health card showing only failing doctor
   checks (or "all N checks passed", F241; the full list with a re-run button
   lives on the Settings page, F253, and both lists export as CSV/JSON, F723, F724), a "Today (UTC)" usage card (requests, errors,
-  tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
+  tokens, estimated cost from the daily rollup, F134; the requests stat
+  deep-links to the Requests page for today's window, F747), detected GPUs with VRAM
   usage and Export CSV/JSON buttons (F721), disk usage
   (model bytes + free space, with Export CSV/JSON buttons, F722), running
   instances, active jobs (the Recent jobs

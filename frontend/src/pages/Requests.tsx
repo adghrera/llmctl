@@ -14,6 +14,15 @@ function csvField(s: string): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// Convert an ISO time URL param to the datetime-local input format (F747).
+function fromTimeParam(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function toCsv(entries: RequestLogEntry[]): string {
   const head = ["id", "time", "model", "instance", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens", "cost_usd", "error"];
   const rows = entries.map((e) =>
@@ -38,8 +47,7 @@ function toCsv(entries: RequestLogEntry[]): string {
 }
 
 export default function Requests() {
-  const [params] = useSearchParams();
-  const [entries, setEntries] = useState<RequestLogEntry[]>([]);
+  const [params] = useSearchParams();  const [entries, setEntries] = useState<RequestLogEntry[]>([]);
   const [auto, setAuto] = useState(true);
   const [fModel, setFModel] = useState(params.get("model") || "");
   const [fStatus, setFStatus] = useState("");
@@ -50,8 +58,8 @@ export default function Requests() {
   const [modelIds, setModelIds] = useState<string[]>([]); // for the model dropdown (F736)
   const [instanceIds, setInstanceIds] = useState<string[]>([]); // for the instance dropdown (F736)
   const [fInstance, setFInstance] = useState(params.get("instance") || "");
-  const [fSince, setFSince] = useState("");
-  const [fUntil, setFUntil] = useState("");
+  const [fSince, setFSince] = useState(fromTimeParam(params.get("since")));
+  const [fUntil, setFUntil] = useState(fromTimeParam(params.get("until")));
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [groupBy, setGroupBy] = useState("");
 
