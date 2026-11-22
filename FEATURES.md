@@ -427,6 +427,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F414 | P3 | 414 | ui | Instances auto-start Export/Import JSON | COMPLETED | The Auto-start entries header has Export JSON (full spec list) and Import JSON (POST upserts by model, same as `autostart import`). Verified live: exported and re-imported the existing entry, count unchanged after upsert. |
 | F415 | P3 | 415 | ui | Skills page Export/Import JSON | COMPLETED | Each installed skill has an Export button (downloads the manifest JSON, same as `skills export <id>`) and the Installed skills header has Import JSON (manifest → createSkill). Verified live: exported the installed skill's manifest via the CLI, replayed the import (201, fresh id), copy deleted after. |
 | F416 | P3 | 416 | ui | Settings webhook log Export CSV | COMPLETED | The recent-deliveries list has a filter-aware Export CSV button with the same columns as `llmctl webhooks --csv` (time,event,url,status,ok,error). Verified live: test delivery produced a log entry, UI replay matched the CLI export row. |
+| F417 | P3 | 417 | ui | Cost page Export CSV (keys + models) | COMPLETED | Both Cost cards have filter-aware Export CSV buttons (key/model,requests,input_tokens,output_tokens,total_tokens,cost_usd — the CLI columns without the key-name column the UI does not load). Verified live: a gateway request produced cost rows, UI replay exported them correctly. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

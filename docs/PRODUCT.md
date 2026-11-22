@@ -398,7 +398,7 @@ toggle for a light theme (choice remembered). Tabs:
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
   GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
   tables showing token counts and estimated USD costs, each with a text
-  filter on the id (F353).
+  filter on the id (F353) and a filter-aware Export CSV button (F417).
 - **Scheduled tasks** — cron-scheduled tasks of three kinds: `chat` (send a
   prompt to a model, result saved as a conversation), `instance.start` and
   `instance.stop` (start/stop an instance on schedule — e.g. load a model

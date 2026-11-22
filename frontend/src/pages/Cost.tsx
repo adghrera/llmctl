@@ -85,6 +85,7 @@ export default function Cost() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Cost by API Key</h2>
+            <div className="row" style={{ gap: 6 }}>
             <input
               className="oc-input"
               style={{ width: 160 }}
@@ -92,6 +93,33 @@ export default function Cost() {
               value={keyFilter}
               onChange={(e) => setKeyFilter(e.target.value)}
             />
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl cost --csv -by key` (F417); filter-aware.
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "key,requests,input_tokens,output_tokens,total_tokens,cost_usd",
+                  ...Object.entries(keyCosts)
+                    .filter(([key]) => match(key, keyFilter))
+                    .map(([key, c]) =>
+                      [key, String(c.requests), String(c.input_tokens), String(c.output_tokens),
+                        String(c.total_tokens), c.cost_usd.toFixed(4)]
+                        .map(esc)
+                        .join(",")
+                    ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-cost-keys-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+            </div>
           </div>
           <table>
             <thead>
@@ -126,6 +154,7 @@ export default function Cost() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Cost by Model</h2>
+            <div className="row" style={{ gap: 6 }}>
             <input
               className="oc-input"
               style={{ width: 160 }}
@@ -133,6 +162,33 @@ export default function Cost() {
               value={modelFilter}
               onChange={(e) => setModelFilter(e.target.value)}
             />
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl cost --csv` (F417); filter-aware.
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "model,requests,input_tokens,output_tokens,total_tokens,cost_usd",
+                  ...Object.entries(modelCosts)
+                    .filter(([model]) => match(model, modelFilter))
+                    .map(([model, c]) =>
+                      [model, String(c.requests), String(c.input_tokens), String(c.output_tokens),
+                        String(c.total_tokens), c.cost_usd.toFixed(4)]
+                        .map(esc)
+                        .join(",")
+                    ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-cost-models-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+            </div>
           </div>
           <table>
             <thead>
