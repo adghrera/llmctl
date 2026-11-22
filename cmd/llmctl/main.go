@@ -251,7 +251,7 @@ Usage:
   llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json]
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
-  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
+  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
@@ -3900,6 +3900,7 @@ func cmdScheduler(args []string) error {
 		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
 		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
 		kb := fs.String("kb", "", "knowledge base id: top matching chunks are injected as context (chat kind)")
+		ajson := fs.Bool("json", false, "print the raw created-task JSON (F563)")
 		fs.Parse(reorderFlags(rest))
 		body := map[string]any{
 			"name": *name, "cron_expr": *cron, "kind": *kind,
@@ -3919,7 +3920,21 @@ func cmdScheduler(args []string) error {
 		if err != nil {
 			return err
 		}
-		return printOut(code, out, 201)
+		if code != 201 {
+			return fmt.Errorf("scheduler add returned %d: %s", code, out)
+		}
+		if *ajson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var rec struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil {
+			return err
+		}
+		fmt.Printf("task %s (%s) added — cron %q\n", *name, rec.ID, *cron)
+		return nil
 	case "show":
 		sfs := flag.NewFlagSet("scheduler show", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw task JSON (for scripts)")

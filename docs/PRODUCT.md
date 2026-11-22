@@ -435,6 +435,8 @@ toggle for a light theme (choice remembered). Tabs:
   (F365). Scheduled chats reach the gateway with a memory-only internal
   token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
+  `llmctl scheduler add` prints a one-line confirmation with the new task id
+  (`-json` for the raw record, F563).
   `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
   specs between instances (fresh ids on import, F326); the Scheduler page has
   matching Export JSON / Import JSON buttons (F412).
