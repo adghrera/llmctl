@@ -243,7 +243,7 @@ Usage:
   llmctl key reset-usage <id>
   llmctl autostart list [--csv] [-out FILE]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
-  llmctl autostart remove <model>
+  llmctl autostart remove <model> [-json]
   llmctl autostart export [-out FILE] | autostart import <file.json>
   llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name>|export|import
   llmctl catalog list [-json|-csv|-out FILE] | install <id>
@@ -8822,8 +8822,11 @@ func cmdAutoStart(args []string) error {
 		fmt.Printf("auto-start enabled for %q (relaunches when the daemon starts)\n", fs.Arg(0))
 		return nil
 	case "remove":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl autostart remove <model>")
+		rmfs := flag.NewFlagSet("autostart remove", flag.ExitOnError)
+		rmjson := rmfs.Bool("json", false, "print the raw response JSON (F527)")
+		rmfs.Parse(reorderFlags(rest[1:]))
+		if rmfs.NArg()+1 == 0 {
+			return fmt.Errorf("usage: llmctl autostart remove <model> [-json]")
 		}
 		code, out, err := cc.Delete("/api/v1/autostart/" + urlEscape(rest[0]))
 		if err != nil {
@@ -8831,6 +8834,10 @@ func cmdAutoStart(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("remove failed: %s", string(out))
+		}
+		if *rmjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("auto-start removed for %q\n", rest[0])
 		return nil

@@ -85,8 +85,8 @@ GitHub release, or file list. No recompile.
   start it only once. `llmctl autostart export [-out F]` / `autostart import
   FILE` move these declarations between instances (F329);
   `autostart list --csv` exports name,model,backend,port,vars (`;`-joined k=v) (F390),
-  with `-out FILE` writing the raw JSON (F494) and `autostart add -json`
-  printing the raw response (F526),
+  with `-out FILE` writing the raw JSON (F494) and `autostart add|remove -json`
+  printing the raw response (F526, F527),
   and the Instances page auto-start card has matching Export CSV /
   Export JSON / Import JSON buttons (F400, F414).
   and the Instances page auto-start card has a matching Export CSV button (F400).
