@@ -114,12 +114,48 @@ export function dailyKeyToCsv(daily: NonNullable<Awaited<ReturnType<typeof api.d
   return [head.join(","), ...rows].join("\n") + "\n";
 }
 
+// Same roll-up as `llmctl usage -tag` (F706): per date, sum the per-key
+// usage under each of the key's tags; untagged keys land under "(untagged)".
+export function dailyKeyTagToCsv(
+  daily: NonNullable<Awaited<ReturnType<typeof api.dailyKeyUsage>>>,
+  keys: ApiKey[],
+): string {
+  const head = ["date", "tag", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"];
+  const rows: string[] = [];
+  const tagsOf: Record<string, string[]> = {};
+  for (const k of keys) tagsOf[k.id] = k.tags ?? [];
+  for (const [date, keysOnDay] of Object.entries(daily).sort((a, b) => b[0].localeCompare(a[0]))) {
+    const roll: Record<string, { requests: number; errors: number; prompt: number; comp: number; cost: number }> = {};
+    for (const [keyId, u] of Object.entries(keysOnDay)) {
+      const tags = tagsOf[keyId]?.length ? tagsOf[keyId] : ["(untagged)"];
+      for (const t of tags) {
+        const r = roll[t] ?? { requests: 0, errors: 0, prompt: 0, comp: 0, cost: 0 };
+        r.requests += u.requests;
+        r.errors += u.errors;
+        r.prompt += u.prompt;
+        r.comp += u.comp;
+        r.cost += u.cost ?? 0;
+        roll[t] = r;
+      }
+    }
+    for (const [tag, r] of Object.entries(roll).sort((a, b) => a[0].localeCompare(b[0]))) {
+      rows.push(
+        [date, tag, String(r.requests), String(r.errors), String(r.prompt), String(r.comp), r.cost.toFixed(6)]
+          .map(csvField)
+          .join(","),
+      );
+    }
+  }
+  return [head.join(","), ...rows].join("\n") + "\n";
+}
+
 export default function Usage() {
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [chats, setChats] = useState<any[]>([]);
   const [daily, setDaily] = useState<Awaited<ReturnType<typeof api.dailyUsage>> | null>(null);
   const [dailyKeys, setDailyKeys] = useState<Awaited<ReturnType<typeof api.dailyKeyUsage>> | null>(null);
   const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [keyByTag, setKeyByTag] = useState(false); // roll Daily by Key up per tag (CLI `usage -tag` twin, F706)
   const [dailyFilter, setDailyFilter] = useState("");
 
   const load = async () => {
@@ -382,30 +418,43 @@ export default function Usage() {
       {dailyKeys && Object.keys(dailyKeys).length > 0 && (
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <h2 style={{ margin: 0 }}>Daily by Key</h2>
+            <h2 style={{ margin: 0 }}>{keyByTag ? "Daily by Key Tag" : "Daily by Key"}</h2>
+            <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              title="roll the daily key usage up per key tag (CLI: llmctl usage -tag)"
+              aria-pressed={keyByTag}
+              onClick={() => setKeyByTag((v) => !v)}
+            >
+              {keyByTag ? "By key" : "By tag"}
+            </button>
             <button
               className="btn sm"
               onClick={() => {
-                const blob = new Blob([dailyKeyToCsv(dailyKeys)], { type: "text/csv" });
+                const csv = keyByTag ? dailyKeyTagToCsv(dailyKeys, keys) : dailyKeyToCsv(dailyKeys);
+                const blob = new Blob([csv], { type: "text/csv" });
                 const a = document.createElement("a");
                 a.href = URL.createObjectURL(blob);
-                a.download = `llmctl-daily-key-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.download = `llmctl-daily-${keyByTag ? "key-tag" : "key"}-usage-${new Date().toISOString().slice(0, 10)}.csv`;
                 a.click();
                 URL.revokeObjectURL(a.href);
               }}
             >
               Export CSV
             </button>
+            </div>
           </div>
           <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-            Gateway usage per UTC day attributed to each API key.
+            {keyByTag
+              ? "Gateway usage per UTC day rolled up per key tag; untagged keys under (untagged)."
+              : "Gateway usage per UTC day attributed to each API key."}
           </p>
           <div className="oc-table">
             <table>
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Key</th>
+                  <th>{keyByTag ? "Tag" : "Key"}</th>
                   <th>Requests</th>
                   <th>Errors</th>
                   <th>Prompt</th>
@@ -414,7 +463,39 @@ export default function Usage() {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(dailyKeys)
+                {keyByTag
+                  ? Object.entries(dailyKeys)
+                      .sort((a, b) => b[0].localeCompare(a[0]))
+                      .flatMap(([date, keysOnDay]) => {
+                        const roll: Record<string, { requests: number; errors: number; prompt: number; comp: number; cost: number }> = {};
+                        for (const [keyId, u] of Object.entries(keysOnDay)) {
+                          const k = keys.find((x) => x.id === keyId);
+                          const tags = k?.tags?.length ? k.tags : ["(untagged)"];
+                          for (const t of tags) {
+                            const r = roll[t] ?? { requests: 0, errors: 0, prompt: 0, comp: 0, cost: 0 };
+                            r.requests += u.requests;
+                            r.errors += u.errors;
+                            r.prompt += u.prompt;
+                            r.comp += u.comp;
+                            r.cost += u.cost ?? 0;
+                            roll[t] = r;
+                          }
+                        }
+                        return Object.entries(roll)
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([tag, r]) => (
+                            <tr key={date + tag}>
+                              <td style={{ fontFamily: "monospace", fontSize: 12 }}>{date}</td>
+                              <td>{tag}</td>
+                              <td className="oc-num">{r.requests.toLocaleString()}</td>
+                              <td className="oc-num">{r.errors}</td>
+                              <td className="oc-num">{r.prompt.toLocaleString()}</td>
+                              <td className="oc-num">{r.comp.toLocaleString()}</td>
+                              <td className="oc-num">{r.cost ? `$${r.cost.toFixed(4)}` : "—"}</td>
+                            </tr>
+                          ));
+                      })
+                  : Object.entries(dailyKeys)
                   .sort((a, b) => b[0].localeCompare(a[0]))
                   .flatMap(([date, keysOnDay]) =>
                     Object.entries(keysOnDay)
@@ -436,7 +517,7 @@ export default function Usage() {
                           </tr>
                         );
                       }),
-                  )}
+                )}
               </tbody>
             </table>
           </div>

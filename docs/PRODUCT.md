@@ -275,7 +275,9 @@ toggle for a light theme (choice remembered). Tabs:
   of requests and cost as bar charts (F147). A parallel per-key rollup
   (`GET /api/v1/usage/keys[?days=N][&key=ID]`) attributes daily requests,
   tokens and cost to each API key (F126); the Usage page shows it as a
-  "Daily by Key" table with its own CSV export (F129). Rollups are pruned to
+  "Daily by Key" table with its own CSV export (F129), and a By tag toggle
+  rolls the days up per key tag — the UI twin of `llmctl usage -tag` (F706).
+  Rollups are pruned to
    the last `usageRetentionDays` UTC days (Settings → "Usage retention";
    default 90, -1 = keep forever) (F168).
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
