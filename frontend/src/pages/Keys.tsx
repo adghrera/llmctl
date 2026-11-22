@@ -8,6 +8,7 @@ export default function Keys() {
   const [name, setName] = useState("");
   const [quota, setQuota] = useState(0);
   const [models, setModels] = useState("");
+  const [conc, setConc] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -15,11 +16,12 @@ export default function Keys() {
     setBusy(true);
     try {
       const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await api.createKey(name, quota, allowed);
+      const r = await api.createKey(name, quota, allowed, conc);
       setCreated(r.key);
       setName("");
       setQuota(0);
       setModels("");
+      setConc(0);
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -88,6 +90,15 @@ export default function Keys() {
             title="Comma-separated model ids this key may call; empty = all"
             value={models}
             onChange={(e) => setModels(e.target.value)}
+          />
+          <input
+            type="number"
+            min={0}
+            style={{ width: 110 }}
+            placeholder="max conc."
+            title="Max simultaneous in-flight requests (0 = unlimited)"
+            value={conc || ""}
+            onChange={(e) => setConc(Math.max(0, Number(e.target.value) || 0))}
           />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create

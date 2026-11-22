@@ -104,6 +104,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F092 | P2 | 92 | gateway | Request IDs | COMPLETED | Every gateway request carries an `X-Request-Id` (client-provided or minted), logged on each request-log entry and shown in the Requests page, CSV export and `llmctl requests`. Verified live: generated, reused, persisted, displayed. |
 | F093 | P3 | 93 | daemon | Daemon log rotation | COMPLETED | `llmctl.log` is rotated to `llmctl.log.1` at daemon start when it exceeds 5 MiB (one generation kept), so the slog file cannot grow unbounded. Verified live: 5 MiB file rotated, small file untouched. |
 | F094 | P3 | 94 | settings | Webhook test button | COMPLETED | `POST /api/v1/settings/notify-test` posts a `{"event":"test"}` payload to the configured notify webhook; Settings page gained a "Test" button showing delivery result or error. Verified live: delivered to a local hook, error surfaced for unreachable URL, 400 when unset. |
+| F095 | P3 | 95 | gateway | Per-key concurrency cap | COMPLETED | `maxConcurrent` on API keys (create flag, PATCH-editable, Keys page input): the gateway rejects with 429 `concurrency_exceeded` while the key has that many requests in flight; the counter releases when requests finish. Verified live with a slow stub: 2 parallel on cap-1 → one 429, next request after completion 200. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

@@ -19,6 +19,7 @@ import (
 	"net/http/httputil"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -39,6 +40,8 @@ type Server struct {
 	inflight     atomic.Int64
 	requestCount atomic.Int64
 	collector    *metricsCollector
+	keyMu        sync.Mutex
+	keyInflight  map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
 	handler      http.Handler
 	httpSrv      *http.Server
 }
@@ -101,6 +104,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		logger:      cfg.Logger,
 		maxInflight: int64(cfg.MaxInflight),
 		collector:   newMetricsCollector(),
+		keyInflight: map[string]*atomic.Int64{},
 	}
 	s.requireAuth.Store(requireAuth)
 	s.allowCORS.Store(cfg.AllowCORS)
@@ -270,6 +274,17 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, http.StatusTooManyRequests, "quota_exceeded",
 				fmt.Sprintf("API key %q has used its token quota (%d tokens)", keyRecord.Name, keyRecord.TokenQuota))
 			return
+		}
+		// Per-key concurrency cap (F095): reject when the key already has
+		// MaxConcurrent requests in flight.
+		if keyRecord != nil && keyRecord.MaxConcurrent > 0 {
+			release, ok := s.keyAcquire(keyPrefix(got), keyRecord.MaxConcurrent)
+			if !ok {
+				writeErr(w, http.StatusTooManyRequests, "concurrency_exceeded",
+					fmt.Sprintf("API key %q already has %d requests in flight", keyRecord.Name, keyRecord.MaxConcurrent))
+				return
+			}
+			defer release()
 		}
 		// Per-client rate limit keyed on token (or IP when auth is off).
 		key := got
@@ -702,6 +717,24 @@ func (s *Server) cors(next http.Handler) http.Handler {
 // SetKeyCheck updates the hashed-key verifier at runtime.
 func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 	s.keyCheck = fn
+}
+
+// keyAcquire increments the in-flight counter for a key prefix and returns a
+// release func, or ok=false when the key is at its concurrency cap (F095).
+func (s *Server) keyAcquire(prefix string, max int) (func(), bool) {
+	s.keyMu.Lock()
+	c := s.keyInflight[prefix]
+	if c == nil {
+		c = &atomic.Int64{}
+		s.keyInflight[prefix] = c
+	}
+	s.keyMu.Unlock()
+	if int(c.Add(1)) > max {
+		c.Add(-1)
+		return nil, false
+	}
+	var once sync.Once
+	return func() { once.Do(func() { c.Add(-1) }) }, true
 }
 
 // keyPrefix returns the first 8 chars of a key for per-key cost tracking,

@@ -1185,13 +1185,14 @@ type keyView struct {
 	TokenQuota    int64    `json:"tokenQuota,omitempty"`
 	UsedTok       int64    `json:"usedTokens"` // tokens spent since daemon start (F074)
 	AllowedModels []string  `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
+	MaxConcurrent int       `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels}
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent}
 		if s.gw != nil && len(k.Prefix) > 0 {
 			p := k.Prefix
 			if len(p) > 8 {
@@ -1206,8 +1207,9 @@ func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 
 type createKeyReq struct {
 	Name          string   `json:"name"`
-	TokenQuota    int64    `json:"tokenQuota"` // 0 = unlimited (F074)
+	TokenQuota    int64    `json:"tokenQuota"`    // 0 = unlimited (F074)
 	AllowedModels []string `json:"allowedModels"` // empty = all models (F089)
+	MaxConcurrent int      `json:"maxConcurrent"` // 0 = unlimited (F095)
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -1216,9 +1218,14 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var req struct {
 		AllowedModels []string `json:"allowedModels"`
+		MaxConcurrent *int     `json:"maxConcurrent"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	if req.MaxConcurrent != nil && *req.MaxConcurrent < 0 {
+		writeErr(w, 400, "maxConcurrent must be >= 0")
 		return
 	}
 	st, _ := s.store.Load()
@@ -1230,6 +1237,9 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	s.store.Update(func(st *store.State) error {
 		if k := st.APIKeys[id]; k != nil {
 			k.AllowedModels = list
+			if req.MaxConcurrent != nil {
+				k.MaxConcurrent = *req.MaxConcurrent
+			}
 		}
 		return nil
 	})
@@ -1261,6 +1271,7 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 			RateBurst:     0, // use default
 			TokenQuota:    req.TokenQuota,
 			AllowedModels: normalizeModelList(req.AllowedModels),
+			MaxConcurrent: req.MaxConcurrent,
 		}
 		return nil
 	})

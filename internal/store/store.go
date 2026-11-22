@@ -84,6 +84,9 @@ type APIKeyRecord struct {
 	// AllowedModels restricts which gateway models this key may call;
 	// empty = all models (F089).
 	AllowedModels []string `json:"allowedModels,omitempty"`
+	// MaxConcurrent caps simultaneous in-flight requests for this key;
+	// 0 = unlimited (F095).
+	MaxConcurrent int `json:"maxConcurrent,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

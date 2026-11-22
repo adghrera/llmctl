@@ -226,7 +226,8 @@ toggle for a light theme (choice remembered). Tabs:
   (total prompt+completion tokens); once spent, the gateway returns 429
   until the quota is raised. Usage counters persist across restarts. Keys
   page shows usage. Optional per-key model allowlist (403 for other
-  models; aliases resolved before checking).
+  models; aliases resolved before checking) and concurrency cap
+  (429 while more than N requests are in flight).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each
