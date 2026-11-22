@@ -205,7 +205,7 @@ Usage:
   llmctl models unused [--csv]
   llmctl models routable [-key K] [-json|-csv]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
-  llmctl models aliases [--csv]
+  llmctl models aliases [--csv] [-out FILE]
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
@@ -2698,6 +2698,7 @@ func cmdModels(args []string) error {
 		fs := flag.NewFlagSet("aliases", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw aliases JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the alias list as CSV (F385)")
+		outFile := fs.String("out", "", "write the raw aliases JSON to this file instead of stdout (F498)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/aliases")
 		if err != nil {
@@ -2705,6 +2706,13 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("aliases returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F498: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
