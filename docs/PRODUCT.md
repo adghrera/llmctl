@@ -263,7 +263,8 @@ toggle for a light theme (choice remembered). Tabs:
   tracked per key id, so keys that share a visible prefix never share usage
   (F109). Keys page shows usage and estimated cost, today's per-key usage
   (F127), and links each key to its
-  recent requests (request log filtered by key id, F120). Optional per-key model
+  recent requests (request log filtered by key id, F120); keys can be renamed
+  inline (F140). Optional per-key model
   allowlist
   (403 for other models; aliases resolved before checking) and concurrency
   cap (429 while more than N requests are in flight). Optional per-key total

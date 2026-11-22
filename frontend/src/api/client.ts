@@ -736,10 +736,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0, allowedModels: allowedModels ?? [], maxConcurrent: maxConcurrent ?? 0, maxRequests: maxRequests ?? 0, rateRPS: rateRPS ?? 0, rateBurst: rateBurst ?? 0, expiresInDays: expiresInDays ?? 0, dailyCostBudgetUSD: dailyCostBudgetUSD ?? 0 }),
     }),
-  updateKey: (id: string, allowedModels: string[], rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number) =>
+  updateKey: (id: string, allowedModels: string[], rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number, name?: string) =>
     req<{ ok: boolean; allowedModels: string[] }>(`/keys/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ allowedModels, rateRPS, rateBurst, expiresInDays, dailyCostBudgetUSD }),
+      body: JSON.stringify({ allowedModels, rateRPS, rateBurst, expiresInDays, dailyCostBudgetUSD, name }),
     }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   resetKeyUsage: (id: string) =>

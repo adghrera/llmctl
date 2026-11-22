@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api/client";
+import { api, type ApiKey } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -15,6 +15,8 @@ export default function Keys() {
   const [burst, setBurst] = useState(0);
   const [expiresDays, setExpiresDays] = useState(0);
   const [budget, setBudget] = useState(0);
+  const [renameFor, setRenameFor] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
@@ -96,6 +98,22 @@ export default function Keys() {
     try {
       await api.resetKeyUsage(id);
       ok("usage counters reset");
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renameKey = async (k: ApiKey) => {
+    const name = renameDraft.trim();
+    if (!name || busy) return;
+    setBusy(true);
+    try {
+      await api.updateKey(k.id, k.allowedModels ?? [], undefined, undefined, undefined, undefined, name);
+      ok("key renamed");
+      setRenameFor(null);
       await refreshOne("keys");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -229,7 +247,43 @@ export default function Keys() {
             <tbody>
               {keys.map((k) => (
                 <tr key={k.id}>
-                  <td>{k.name}</td>
+                  <td>
+                    {renameFor === k.id ? (
+                      <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                        <input
+                          autoFocus
+                          style={{ width: 130 }}
+                          value={renameDraft}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameKey(k);
+                            if (e.key === "Escape") setRenameFor(null);
+                          }}
+                        />
+                        <button className="btn sm primary" disabled={busy} onClick={() => renameKey(k)}>
+                          Save
+                        </button>
+                        <button className="btn sm" onClick={() => setRenameFor(null)}>
+                          ✕
+                        </button>
+                      </span>
+                    ) : (
+                      <span>
+                        {k.name}{" "}
+                        <button
+                          className="btn sm"
+                          title="rename key"
+                          style={{ opacity: 0.6 }}
+                          onClick={() => {
+                            setRenameFor(k.id);
+                            setRenameDraft(k.name);
+                          }}
+                        >
+                          ✎
+                        </button>
+                      </span>
+                    )}
+                  </td>
                   <td className="mono">{k.prefix}…</td>
                   <td>
                     {new Date(k.createdAt).toLocaleString()}

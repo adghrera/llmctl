@@ -1499,6 +1499,7 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 		RateBurst          *int     `json:"rateBurst"`          // 0 = gateway default (F130)
 		ExpiresInDays      *int     `json:"expiresInDays"`      // 0 = never expires (F135)
 		DailyCostBudgetUSD *float64 `json:"dailyCostBudgetUSD"` // 0 = unlimited (F138)
+		Name               *string  `json:"name"`               // rename key (F140)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")
@@ -1548,6 +1549,9 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 			}
 			if req.DailyCostBudgetUSD != nil {
 				k.DailyCostBudgetUSD = *req.DailyCostBudgetUSD
+			}
+			if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+				k.Name = strings.TrimSpace(*req.Name) // rename (F140)
 			}
 		}
 		return nil
