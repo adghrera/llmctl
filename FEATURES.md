@@ -198,6 +198,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F186 | P3 | 186 | keys | Per-key notes | COMPLETED | Keys now have a free-text `note` (mirrors instance notes): set at `key generate -note`, edited with `llmctl key note <id> <text>` (empty clears) or an inline editor on the Keys page, shown in `key show` and the key list API. Verified live: create-with-note, CLI set, and clear all round-trip. |
 | F187 | P3 | 187 | events | `events -watch` live tail | COMPLETED | `llmctl events -watch N` prints the current feed then polls every N seconds and prints only new events (deduped by time+kind+instance+model) until Ctrl-C. Verified live: killed a stdio instance's process while watching → `instance.crashed` line appeared within one poll interval. |
 | F188 | P3 | 188 | chat | `chat --system` prompt | COMPLETED | `llmctl chat --system TEXT` prepends a system message to the conversation. Verified live against an echo stub: with the flag the backend received `[{system},{user}]`, without it only `[{user}]`. |
+| F189 | P3 | 189 | requests | Time-range filter | COMPLETED | `GET /api/v1/requests` accepts `since`/`until` (RFC3339); `llmctl requests -since/-until` also take durations (`30m`, `2h` = "that long ago"), and the Requests page gained two datetime pickers. Verified live: since-future → 0 rows, since-1h → subset, CLI duration flags match. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

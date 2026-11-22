@@ -576,7 +576,7 @@ export const api = {
     req<{ ok: boolean; files: number }>(`/backups/${encodeURIComponent(name)}/restore`, { method: "POST" }),
   requests: (
     limit = 100,
-    filters: { model?: string; status?: string; minMs?: number; stream?: string; key?: string; instance?: string } = {}
+    filters: { model?: string; status?: string; minMs?: number; stream?: string; key?: string; instance?: string; since?: string; until?: string } = {}
   ) => {
     const q = new URLSearchParams({ limit: String(limit) });
     if (filters.model) q.set("model", filters.model);
@@ -585,6 +585,8 @@ export const api = {
     if (filters.stream) q.set("stream", filters.stream);
     if (filters.key) q.set("key", filters.key);
     if (filters.instance) q.set("instance", filters.instance);
+    if (filters.since) q.set("since", filters.since);
+    if (filters.until) q.set("until", filters.until);
     return req<RequestLogEntry[]>(`/requests?${q.toString()}`);
   },
   aliases: () => req<ModelAlias[]>("/aliases"),

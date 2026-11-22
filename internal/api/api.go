@@ -1309,6 +1309,18 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 	model := q.Get("model")
 	keyF := q.Get("key")       // match key id (exact) or key prefix (case-insensitive) (F120)
 	instF := q.Get("instance") // serving replica id (F131)
+	// Time-range filter (F189): since/until as RFC3339 timestamps.
+	var sinceT, untilT time.Time
+	if v := q.Get("since"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			sinceT = t
+		}
+	}
+	if v := q.Get("until"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			untilT = t
+		}
+	}
 	all := s.gw.RecentRequests(0)
 	out := make([]proxy.RequestLogEntry, 0, len(all))
 	for _, e := range all {
@@ -1334,6 +1346,12 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if streamF == "0" && e.Stream {
+			continue
+		}
+		if !sinceT.IsZero() && e.Time.Before(sinceT) {
+			continue
+		}
+		if !untilT.IsZero() && e.Time.After(untilT) {
 			continue
 		}
 		out = append(out, e)

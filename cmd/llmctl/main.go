@@ -1021,6 +1021,19 @@ func cmdScheduler(args []string) error {
 }
 
 // cmdRequests prints recent gateway requests (newest first).
+// parseTimeArg parses a time filter value: a Go duration ("30m", "2h") means
+// that long ago; anything else must be RFC3339. Returns an RFC3339 UTC string.
+func parseTimeArg(v string) (string, error) {
+	if d, err := time.ParseDuration(v); err == nil {
+		return time.Now().Add(-d).UTC().Format(time.RFC3339), nil
+	}
+	t, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return "", fmt.Errorf("want a duration (30m, 2h) or RFC3339 time")
+	}
+	return t.UTC().Format(time.RFC3339), nil
+}
+
 func cmdRequests(args []string) error {
 	fs := flag.NewFlagSet("requests", flag.ExitOnError)
 	model := fs.String("model", "", "filter by model id")
@@ -1028,6 +1041,8 @@ func cmdRequests(args []string) error {
 	minMs := fs.Int("min-ms", 0, "minimum latency in ms")
 	key := fs.String("key", "", "filter by API key prefix")
 	instance := fs.String("instance", "", "filter by serving instance id")
+	since := fs.String("since", "", "only requests after this time: RFC3339 or a duration like 30m/2h (F189)")
+	until := fs.String("until", "", "only requests before this time: RFC3339 or a duration like 30m/2h (F189)")
 	id := fs.String("id", "", "show the single request with this id")
 	n := fs.Int("n", 20, "number of entries")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
@@ -1063,6 +1078,20 @@ func cmdRequests(args []string) error {
 	}
 	if *instance != "" {
 		q.Set("instance", *instance)
+	}
+	if *since != "" {
+		if t, err := parseTimeArg(*since); err != nil {
+			return fmt.Errorf("invalid -since %q: %v", *since, err)
+		} else {
+			q.Set("since", t)
+		}
+	}
+	if *until != "" {
+		if t, err := parseTimeArg(*until); err != nil {
+			return fmt.Errorf("invalid -until %q: %v", *until, err)
+		} else {
+			q.Set("until", t)
+		}
 	}
 	code, out, err := cc.Get("/api/v1/requests?" + q.Encode())
 	if err != nil {

@@ -192,7 +192,7 @@ toggle for a light theme (choice remembered). Tabs:
   key, status, latency, tokens) in an auto-refreshing table, with one-click
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
-  stream/plain, key prefix or id). The serving replica is also echoed to clients as
+  stream/plain, key prefix or id, and a since/until time range (F189). The serving replica is also echoed to clients as
   the `X-LLMCtrl-Instance` response header (F115).
   Each request has an id echoed as the X-Request-Id response header (a
   client-sent X-Request-Id is reused). Keys with a token or request quota get
@@ -382,7 +382,7 @@ llmctl key generate|show|note|list|revoke|prune   (generate: -quota -maxreq -mod
                                         list shows usage, cost,
                                         quota, expiry, daily budget; prune deletes expired keys)
 llmctl scheduler list|add|run|runs|enable|disable|delete
-llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
+llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [-since 30m|RFC3339] [-until …]
 llmctl backups [list|create|restore <name>|delete <name]]
 llmctl usage [-n 14] [-key ID | -keys] [--csv]
 llmctl metrics [-watch N]          (-watch N: live refresh every N seconds)

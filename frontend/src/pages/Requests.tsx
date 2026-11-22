@@ -46,6 +46,8 @@ export default function Requests() {
   const [fStream, setFStream] = useState("");
   const [fKey, setFKey] = useState(params.get("key") || "");
   const [fInstance, setFInstance] = useState(params.get("instance") || "");
+  const [fSince, setFSince] = useState("");
+  const [fUntil, setFUntil] = useState("");
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export default function Requests() {
           stream: fStream || undefined,
           key: fKey.trim() || undefined,
           instance: fInstance.trim() || undefined,
+          since: fSince ? new Date(fSince).toISOString() : undefined,
+          until: fUntil ? new Date(fUntil).toISOString() : undefined,
         })
         .then((d) => alive && setEntries(d))
         .catch(() => {});
@@ -69,7 +73,7 @@ export default function Requests() {
       alive = false;
       clearInterval(t);
     };
-  }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance]);
+  }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance, fSince, fUntil]);
 
   return (
     <div className="card">
@@ -139,12 +143,26 @@ export default function Requests() {
           value={fInstance}
           onChange={(e) => setFInstance(e.target.value)}
         />
+        <input
+          type="datetime-local"
+          title="only requests after this time (F189)"
+          style={{ width: 180 }}
+          value={fSince}
+          onChange={(e) => setFSince(e.target.value)}
+        />
+        <input
+          type="datetime-local"
+          title="only requests before this time (F189)"
+          style={{ width: 180 }}
+          value={fUntil}
+          onChange={(e) => setFUntil(e.target.value)}
+        />
         <select value={fStream} onChange={(e) => setFStream(e.target.value)} style={{ width: 120 }}>
           <option value="">stream + plain</option>
           <option value="1">streaming</option>
           <option value="0">plain</option>
         </select>
-        {(fModel || fStatus || fMinMs || fStream || fKey || fInstance) && (
+        {(fModel || fStatus || fMinMs || fStream || fKey || fInstance || fSince || fUntil) && (
           <button
             className="btn sm"
             onClick={() => {
@@ -154,6 +172,8 @@ export default function Requests() {
               setFStream("");
               setFKey("");
               setFInstance("");
+              setFSince("");
+              setFUntil("");
             }}
           >
             Clear
