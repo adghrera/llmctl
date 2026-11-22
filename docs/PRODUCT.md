@@ -668,9 +668,10 @@ toggle for a light theme (choice remembered). Tabs:
   status/error) are listed under the webhook, at
   GET /api/v1/webhook/log (F144), and in `llmctl webhooks` (F191), which
   supports `-n` (server-side `?limit=`) and `-event` (server-side `?event=`)
-  filters (F357), `--csv` export (F380) and a `-stats` per-event roll-up —
+  filters (F357), `--csv` export (F380), a `-failed` failed-only view (F709)
+  and a `-stats` per-event roll-up —
   total/ok/failed/last attempt (F624); the Settings page delivery list has a matching event
-  dropdown (F358), a filter-aware Export CSV button (F416), and an
+  dropdown (F358), a "Failed only" checkbox (F709), a filter-aware Export CSV button (F416), and an
   Auto-refresh checkbox that polls every 5s while testing a receiver
   (F615). Event and
   scheduler-hook deliveries retry

@@ -21,6 +21,9 @@ export default function SettingsPage() {
   const [testEvent, setTestEvent] = useState(""); // custom test-event name (F592)
   const [testMsg, setTestMsg] = useState(""); // custom test message text (F697)
   const loadWhLog = () => api.webhookLog().then(setWhLog).catch(() => setWhLog([]));
+  const shownWh = whLog
+    .filter((d) => !whEvent || d.event === whEvent)
+    .filter((d) => !whFailed || !d.ok); // failed-only view (F709)
   // Re-send a failed delivery's stored payload (F679), twin of `webhooks retry`.
   const retryDelivery = async (id: string) => {
     try {
@@ -40,6 +43,7 @@ export default function SettingsPage() {
   const [snapBusy, setSnapBusy] = useState(false);
   const [autoSnap, setAutoSnap] = useState(false); // live-refresh the snapshot list (CLI `backups -watch`, F610)
   const [autoWh, setAutoWh] = useState(false); // live-refresh the webhook log (CLI `webhooks -watch`, F615)
+  const [whFailed, setWhFailed] = useState(false); // failed-only view, CLI `webhooks -failed` twin (F709)
   // API console state (F589, UI counterpart of `llmctl api`).
   const [apiMethod, setApiMethod] = useState("GET");
   const [apiPath, setApiPath] = useState("/api/v1/status");
@@ -568,6 +572,13 @@ export default function SettingsPage() {
                     <input type="checkbox" checked={autoWh} onChange={(e) => setAutoWh(e.target.checked)} />
                     Auto-refresh
                   </label>
+                  <label
+                    style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}
+                    title="show only failed deliveries (CLI: llmctl webhooks -failed, F709)"
+                  >
+                    <input type="checkbox" checked={whFailed} onChange={(e) => setWhFailed(e.target.checked)} />
+                    Failed only
+                  </label>
                   <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     event
                     <select
@@ -588,7 +599,7 @@ export default function SettingsPage() {
                       const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
                       const rows = [
                         "id,time,event,url,status,ok,error",
-                        ...(whEvent ? whLog.filter((d) => d.event === whEvent) : whLog).map((d) =>
+                        ...shownWh.map((d) =>
                           [d.id || "", d.time, d.event || "", d.url, String(d.status ?? ""), String(d.ok), d.error || ""]
                             .map(esc)
                             .join(",")
@@ -614,7 +625,7 @@ export default function SettingsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(whEvent ? whLog.filter((d) => d.event === whEvent) : whLog)
+                    {shownWh
                       .slice(0, 20)
                       .map((d, i) => (
                       <tr key={i}>

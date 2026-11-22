@@ -280,7 +280,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-tag T] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-key K] [-csv] [-json] [-out FILE] [-stats]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
+  llmctl webhooks [-n 20] [-event E] [-failed] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-tag T] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-tags a,b] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts tag <id> [a,b] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-tags a,b] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
@@ -6978,6 +6978,7 @@ func cmdWebhooks(args []string) error {
 	outFile := fs.String("out", "", "write the delivery log JSON to this file instead of stdout (F478)")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new deliveries until Ctrl-C (0 = print once) (F556)")
 	stats := fs.Bool("stats", false, "aggregate the deliveries per event name instead of listing them (F624)")
+	failed := fs.Bool("failed", false, "only failed deliveries (F709)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -7007,6 +7008,15 @@ func cmdWebhooks(args []string) error {
 		var list []hookRow
 		if err := json.Unmarshal(out, &list); err != nil {
 			return nil, err
+		}
+		if *failed { // F709: failed-only view, applied before every output mode
+			keep := list[:0]
+			for _, d := range list {
+				if !d.OK {
+					keep = append(keep, d)
+				}
+			}
+			list = keep
 		}
 		return list, nil
 	}
