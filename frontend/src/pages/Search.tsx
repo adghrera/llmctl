@@ -89,6 +89,25 @@ export default function Search() {
     models.length + chats.length + memories.length + kbs.length + prompts.length +
     instances.length + keys.length;
 
+  // One CSV across every matched section (kind,name,detail), F611.
+  const exportCsv = () => {
+    const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+    const rows = ["kind,name,detail"];
+    models.forEach((m) => rows.push(["model", m.id, `${m.backendId}${m.running ? " running" : ""}`].map(esc).join(",")));
+    chats.forEach((c) => rows.push(["chat", c.title, c.model || "no model"].map(esc).join(",")));
+    memories.forEach((m) => rows.push(["memory", m.entry.content.replace(/\s+/g, " "), (m.entry.tags || []).join(" ")].map(esc).join(",")));
+    prompts.forEach((p) => rows.push(["prompt", p.name, `${p.category}${p.custom ? " custom" : ""}`].map(esc).join(",")));
+    kbs.forEach((k) => rows.push(["kb", k.kb.name, `${k.kb.doc_count} doc(s)`].map(esc).join(",")));
+    instances.forEach((i) => rows.push(["instance", i.id, `${i.modelId} ${i.backendId} ${i.status}`].map(esc).join(",")));
+    keys.forEach((k) => rows.push(["key", k.name || k.prefix, `${k.prefix}${k.disabled ? " disabled" : ""}`].map(esc).join(",")));
+    const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-search-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <>
       <div className="card">
@@ -104,6 +123,11 @@ export default function Search() {
           <button className="btn primary" disabled={running || !q.trim()} onClick={() => run(q)}>
             {running ? "Searching…" : "Search"}
           </button>
+          {searched && total > 0 && (
+            <button className="btn" title="download every match as one CSV (kind,name,detail)" onClick={exportCsv}>
+              Export CSV
+            </button>
+          )}
         </div>
         {searched && !running && total === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
