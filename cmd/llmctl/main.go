@@ -120,6 +120,7 @@ Usage:
   llmctl stop <instance> [--force]
   llmctl restart <instance>
   llmctl logs <instance> [--stream stderr|stdout] [--tail N]
+  llmctl logs -daemon [--tail N]
   llmctl key generate [name]
   llmctl key list
   llmctl key revoke <id>
@@ -748,9 +749,31 @@ func cmdLogs(args []string) error {
 	fs := flag.NewFlagSet("logs", flag.ExitOnError)
 	stream := fs.String("stream", "stderr", "log stream: stderr|stdout")
 	tail := fs.Int("tail", 4000, "bytes to show from the end")
+	daemonFlag := fs.Bool("daemon", false, "show the daemon's own log instead of an instance")
 	fs.Parse(reorderFlags(args))
+	if *daemonFlag {
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get(fmt.Sprintf("/api/v1/logs/daemon?bytes=%d", *tail))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("daemon log returned %d: %s", code, out)
+		}
+		var v struct {
+			Logs string `json:"logs"`
+		}
+		if err := json.Unmarshal(out, &v); err != nil {
+			return err
+		}
+		fmt.Print(v.Logs)
+		return nil
+	}
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N]")
+		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] | llmctl logs -daemon [--tail N]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {

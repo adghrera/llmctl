@@ -362,6 +362,7 @@ llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
+llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
 llmctl key generate|show|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps;
                                         show: one key's full view; list shows usage, cost,
                                         quota, expiry, daily budget; prune deletes expired keys)

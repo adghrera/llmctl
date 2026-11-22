@@ -181,6 +181,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F169 | P2 | 169 | gateway | Rate-limit headers + bucket fix | COMPLETED | 429 rate-limit responses now send `X-RateLimit-Limit`/`-Remaining` (bucket burst/remaining) and `Retry-After` (seconds until a token frees). Also fixed a data race: token buckets were mutated without synchronization; each bucket now has its own mutex. Unit-tested (state transitions, refill, 50-goroutine hammer under `-race`) and verified live (1 rps/burst 2 → headers on 429). |
 | F170 | P3 | 170 | cli | Scripting output | COMPLETED | `llmctl status -json` prints the raw status JSON; `llmctl usage --csv` exports the daily per-model rollup (and `-keys --csv` the per-key rollup with key id + name) as CSV. Verified live: JSON parses, both CSV variants emit proper headers/rows. |
 | F171 | P3 | 171 | daemon | Runtime log level | COMPLETED | `settings.logLevel` (debug/info/warn/error) changes daemon log verbosity at runtime via `PATCH /settings` or the Settings page, persists across restarts, and is applied at startup. Added a debug-level gateway request trace line (id, model, instance, status, ms) so debug mode is useful. Verified live: debug lines appear when set, stop at error, invalid level → 400, value survives restart. |
+| F172 | P3 | 172 | cli | Daemon log tail | COMPLETED | `GET /api/v1/logs/daemon?bytes=N` tails the daemon's own log; `llmctl logs -daemon [-tail N]` prints it. Verified live: CLI shows recent daemon lines, API reports size + tail. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

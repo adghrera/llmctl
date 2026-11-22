@@ -118,6 +118,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PATCH /api/v1/models/{id}/idle", s.setModelIdle)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
+	m.HandleFunc("GET /api/v1/logs/daemon", s.daemonLog)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs/download", s.instanceLogsDownload)
 	// Auto-start specs
 	m.HandleFunc("GET /api/v1/autostart", s.listAutoStart)
@@ -1386,6 +1387,27 @@ func (s *Server) instanceLogs(w http.ResponseWriter, r *http.Request) {
 
 // instanceLogsDownload handles GET /api/v1/instances/{id}/logs/download —
 // serves the full log file as an attachment (F075).
+// daemonLog handles GET /api/v1/logs/daemon — tail of the daemon's own log
+// file (~/.llmctl/llmctl.log) for `llmctl logs -daemon` (F172).
+func (s *Server) daemonLog(w http.ResponseWriter, r *http.Request) {
+	maxBytes := 64 << 10
+	if v := r.URL.Query().Get("bytes"); v != "" {
+		var n int
+		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {
+			if n > 1<<20 {
+				n = 1 << 20
+			}
+			maxBytes = n
+		}
+	}
+	tail, size, err := tailFile(paths.DaemonLog(), maxBytes)
+	if err != nil {
+		writeErr(w, 500, "read log: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"size": size, "logs": string(tail)})
+}
+
 func (s *Server) instanceLogsDownload(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	st, _ := s.store.Load()
