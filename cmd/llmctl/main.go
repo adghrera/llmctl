@@ -2381,6 +2381,7 @@ func cmdModels(args []string) error {
 			PriceIn       float64  `json:"priceInPerM"`
 			PriceOut      float64  `json:"priceOutPerM"`
 			IdleUnloadMin int      `json:"idleUnloadMin"`
+			Aliases       []string `json:"aliases"`
 		}
 		if err := json.Unmarshal(out, &mv); err != nil {
 			return err
@@ -2405,6 +2406,9 @@ func cmdModels(args []string) error {
 			status = "running"
 		}
 		fmt.Printf("id:       %s\nbackend:  %s\npath:     %s\nsize:     %s\nctx:      %s\nprice:    %s\nidle:     %s\nstatus:   %s\n", mv.ID, mv.BackendID, mv.Path, fmtSize(mv.SizeBytes), ctxv, price, idle, status)
+		if len(mv.Aliases) > 0 {
+			fmt.Printf("aliases:  %s\n", strings.Join(mv.Aliases, ", "))
+		}
 		if len(mv.Instances) > 0 {
 			fmt.Printf("instances: %s\n", strings.Join(mv.Instances, ", "))
 		}

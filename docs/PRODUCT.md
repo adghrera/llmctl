@@ -524,7 +524,8 @@ llmctl presets list|save|start|delete|export|import  (named start recipes, F265,
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total,
 llmctl models add <id> <file> [-backend ID]              (register an existing local GGUF, F275)
 llmctl models rename <id> <new-id>                    (change a model id; aliases follow, F284)
-                                    price and idle-unload; list/show/aliases/hf-search/hf-files --json for scripts;
+                                    price and idle-unload; show also lists aliases pointing at the
+                                    model (F367); list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180)
 llmctl models probe [-json]                          (what /v1/models serves now, F252)

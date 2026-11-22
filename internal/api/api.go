@@ -436,7 +436,8 @@ type modelView struct {
 	PriceIn    float64  `json:"priceInPerM,omitempty"`  // USD / 1M input tokens (F102)
 	PriceOut   float64  `json:"priceOutPerM,omitempty"` // USD / 1M output tokens (F102)
 	// IdleUnloadMin: 0 = global, -1 = pinned, >0 = custom minutes (F136).
-	IdleUnloadMin int `json:"idleUnloadMin,omitempty"`
+	IdleUnloadMin int      `json:"idleUnloadMin,omitempty"`
+	Aliases       []string `json:"aliases,omitempty"` // user aliases pointing at this model (F367)
 }
 
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
@@ -463,6 +464,12 @@ func (s *Server) probeModels(w http.ResponseWriter, r *http.Request) {
 func modelViewFor(st *store.State, id string) modelView {
 	m := st.Models[id]
 	v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin}
+	for alias, target := range st.Aliases {
+		if strings.EqualFold(target, id) {
+			v.Aliases = append(v.Aliases, alias)
+		}
+	}
+	sort.Strings(v.Aliases)
 	for _, inst := range st.Instances {
 		if inst.ModelID == id {
 			v.Instances = append(v.Instances, inst.ID)
