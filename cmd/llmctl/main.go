@@ -260,7 +260,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
@@ -8226,6 +8226,7 @@ func cmdChat(args []string) error {
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
 	temp := fs.Float64("temperature", -1, "with -prompt: sampling temperature (-1 = model default, F319)")
 	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")
+	outFile := fs.String("out", "", "with -prompt: write the reply text to this file instead of stdout (F448)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -8477,14 +8478,20 @@ func cmdChat(args []string) error {
 				} `json:"choices"`
 			}
 			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
-				if !*jsonOut {
+				if !*jsonOut && *outFile == "" {
 					fmt.Print(chunk.Choices[0].Delta.Content)
 				}
 				reply.WriteString(chunk.Choices[0].Delta.Content)
 			}
 		}
-		if !*jsonOut {
+		if !*jsonOut && *outFile == "" {
 			fmt.Println()
+		}
+		if *outFile != "" { // F448: reply text only, for scripts
+			if err := os.WriteFile(*outFile, []byte(reply.String()+"\n"), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, reply.Len()+1)
 		}
 		savedID := *contChat
 		if *contChat != "" {

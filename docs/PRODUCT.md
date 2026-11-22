@@ -636,7 +636,8 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -continue to append to the most recently updated saved chat, F312;
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
-                                     add -kb ID to prepend the top knowledge-base matches as context, F302)
+                                     add -kb ID to prepend the top knowledge-base matches as context, F302;
+                                     add -out FILE to write the reply text to a file instead of stdout, F448)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)
                                     (interactive REPL: /help /clear /system TEXT /model ID
