@@ -322,6 +322,7 @@ export interface ChatSummary {
   agentMode?: boolean;
   pinned?: boolean;
   messages: number;
+  tokens?: number; // total token usage (F603, F604)
   createdAt: string;
   updatedAt: string;
   context?: {

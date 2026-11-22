@@ -460,9 +460,9 @@ export default function Chat() {
                 // Same columns as `llmctl chats list --csv` (F392).
                 const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
                 const rows = [
-                  "id,title,model,messages,updated_at",
+                  "id,title,model,messages,tokens,updated_at",
                   ...chats.map((c) =>
-                    [c.id, c.title, c.model || "", String(c.messages ?? 0), c.updatedAt || ""]
+                    [c.id, c.title, c.model || "", String(c.messages ?? 0), String(c.tokens ?? 0), c.updatedAt || ""]
                       .map(esc)
                       .join(",")
                   ),
@@ -584,7 +584,7 @@ export default function Chat() {
                     {c.pinned && <span title="pinned">📌</span>}
                     {c.agentMode && <span className="badge">agent</span>}
                     <div className="muted" style={{ fontSize: 12 }}>
-                      {c.model} · {c.messages} msgs · <span title={new Date(c.updatedAt).toLocaleString()}>{ago(c.updatedAt)}</span>
+                      {c.model} · {c.messages} msgs · {c.tokens ?? 0} tok · <span title={new Date(c.updatedAt).toLocaleString()}>{ago(c.updatedAt)}</span>
                     </div>
                   </td>
                   <td style={{ textAlign: "right", verticalAlign: "middle" }}>
