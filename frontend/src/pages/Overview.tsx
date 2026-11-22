@@ -13,6 +13,7 @@ export default function Overview() {
   const [eventStats, setEventStats] = useState(false); // per-kind rollup (CLI `events -stats` parity, F600)
   const [eventKinds, setEventKinds] = useState<string[]>([]);
   const [eventModel, setEventModel] = useState("");
+  const [eventKey, setEventKey] = useState(""); // key.* filter by key name (F696)
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
   const [daemonLog, setDaemonLog] = useState<string | null>(null);
   const [daemonFollow, setDaemonFollow] = useState(false);
@@ -84,7 +85,7 @@ export default function Overview() {
     let alive = true;
     const tick = () =>
       api
-        .events(50, eventKind, eventModel)
+        .events(50, eventKind, eventModel, eventKey)
         .then((e) => {
           if (!alive) return;
           setEvents(e);
@@ -97,7 +98,7 @@ export default function Overview() {
       alive = false;
       clearInterval(t);
     };
-  }, [eventKind, eventModel]);
+  }, [eventKind, eventModel, eventKey]);
 
   useEffect(() => {
     let alive = true;
@@ -283,7 +284,7 @@ export default function Overview() {
           <div className="empty">no instances running</div>
         )}
       </div>
-      {(events.length > 0 || eventKind || eventModel) && (
+      {(events.length > 0 || eventKind || eventModel || eventKey) && (
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Events</h2>
@@ -344,6 +345,16 @@ export default function Overview() {
                   <option key={k} value={k}>{k}</option>
                 ))}
               </select>
+            </label>
+            <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              key
+              <input
+                style={{ width: 120 }}
+                placeholder="key name"
+                title="only key.* alerts for this key name — CLI: llmctl events -key (F696)"
+                value={eventKey}
+                onChange={(e) => setEventKey(e.target.value)}
+              />
             </label>
           </div>
           {events.length === 0 && <p className="muted small">No events of this kind.</p>}

@@ -594,9 +594,9 @@ export const api = {
     req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number; cost?: number }>>>(
       `/usage/keys?days=${days}`
     ),
-  events: (limit = 50, kind = "", model = "") =>
+  events: (limit = 50, kind = "", model = "", key = "") =>
     req<{ time: string; kind: string; instance?: string; model?: string; key?: string }[]>(
-      `/events?limit=${limit}${kind ? "&kind=" + encodeURIComponent(kind) : ""}${model ? "&model=" + encodeURIComponent(model) : ""}`
+      `/events?limit=${limit}${kind ? "&kind=" + encodeURIComponent(kind) : ""}${model ? "&model=" + encodeURIComponent(model) : ""}${key ? "&key=" + encodeURIComponent(key) : ""}`
     ),
   doctor: () =>
     req<{ ok: boolean; checks: { name: string; status: string; detail: string }[] }>("/doctor"),

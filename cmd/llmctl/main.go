@@ -279,7 +279,7 @@ Usage:
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
-  llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
+  llmctl events [-n 20] [-kind K] [-model M] [-key K] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-tag T] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-tags a,b] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts tag <id> [a,b] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-tags a,b] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
@@ -6533,6 +6533,7 @@ func cmdEvents(args []string) error {
 	n := fs.Int("n", 20, "number of events")
 	kind := fs.String("kind", "", "only this event kind, e.g. instance.crashed")
 	model := fs.String("model", "", "only events for this model id (F345)")
+	keyF := fs.String("key", "", "only key.* alerts for this key name (F696)")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new events until Ctrl-C (0 = print once)")
 	jsonOut := fs.Bool("json", false, "print the raw events JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
@@ -6549,6 +6550,9 @@ func cmdEvents(args []string) error {
 	}
 	if *model != "" {
 		u += "&model=" + url.QueryEscape(*model)
+	}
+	if *keyF != "" {
+		u += "&key=" + url.QueryEscape(*keyF)
 	}
 	if (*jsonOut || *outFile != "") && !*stats { // -out writes the same payload to a file (F468)
 		code, out, err := cc.Get(u)

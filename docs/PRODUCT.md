@@ -165,8 +165,9 @@ toggle for a light theme (choice remembered). Tabs:
   button that drops finished jobs from daemon memory, F586; running jobs show
   a live progress bar plus the job message, F597), and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
-  `GET /api/v1/events`, F099) with kind and model filters (`?kind=`, `?model=`,
-  F116, F351; also `llmctl events -kind … -model …`) and an Export CSV button
+  `GET /api/v1/events`, F099) with kind, model and key-name filters
+  (`?kind=`, `?model=`, `?key=`, F116, F351, F696; also
+  `llmctl events -kind … -model … -key …`) and an Export CSV button
   matching `llmctl events --csv` columns (F371). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173) with a Follow toggle that keeps tailing it
   every 2s (UI counterpart of `llmctl logs -daemon -f`, F423) and a filter box
@@ -778,7 +779,7 @@ llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--js
 llmctl backups [list|create [-name LABEL]|restore <name>|prune [-keep N]|verify <name|-all>|delete <name]]   (list: human sizes + total, --json, -out FILE writes the list JSON, F475; prune deletes all but the newest N snapshots, F558; verify -all checks every snapshot, F561; create/restore/delete print one-line confirmations, `-json` for raw, F564)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]   (-out writes the usage JSON — raw, or the -model-filtered one — to a file, F474; -watch N reprints the view every N seconds, F587)
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -json printed each -watch tick; -out writes the raw JSON to a file, refreshed each -watch tick, F469, F620)
-llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE] [-stats]   (-out writes the raw JSON to a file, F468; -stats aggregates one row per kind — count, last seen, instances/models — with --csv and -json/-out of the rollup, F599)
+llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-key K] [-json] [-out FILE] [-stats]   (-out writes the raw JSON to a file, F468; -stats aggregates one row per kind — count, last seen, instances/models — with --csv and -json/-out of the rollup, F599; -key keeps only key.* alerts for that key name, F696)
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json] | webhooks retry <id> [-json]    recent delivery attempts / send a test event / re-send a logged delivery by id (F447; -out writes the delivery-log JSON, F478; -watch N live-tails new deliveries, F556; -stats rolls the log up per event — total/ok/failed/last, F624; test prints a delivery confirmation, -json for raw, F573; test -event/-message send a custom payload, F591; retry re-posts the stored payload of a delivery, F679)
 llmctl prompts [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE]   (run renders the template and sends it to the gateway, F579; -save keeps the exchange as a saved chat, F583; -chat continues one, F584; -out writes the reply text — or the raw JSON with -json — to a file, F614; -stats counts templates per category, F630)
 llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list, F485; cat -out writes the stored bytes to a file, F613; -stats on list rolls up per content type, F631]

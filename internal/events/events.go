@@ -41,7 +41,8 @@ func (r *Ring) Add(e Event) {
 
 // List returns events newest-first, at most limit (0 = all). When kind is
 // non-empty only events of that kind are returned (exact match, F116).
-func (r *Ring) List(limit int, kind, model string) []Event {
+// key keeps only key.* events whose key name matches (F696).
+func (r *Ring) List(limit int, kind, model, key string) []Event {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]Event, 0, len(r.evs))
@@ -50,6 +51,9 @@ func (r *Ring) List(limit int, kind, model string) []Event {
 			continue
 		}
 		if model != "" && !strings.EqualFold(r.evs[i].Model, model) {
+			continue
+		}
+		if key != "" && !strings.EqualFold(r.evs[i].Key, key) {
 			continue
 		}
 		out = append(out, r.evs[i])
