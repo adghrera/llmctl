@@ -540,6 +540,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F527 | P3 | 527 | cli | `autostart remove -json` | COMPLETED | `llmctl autostart remove <model> -json` prints the raw response JSON (`{"ok":true}`) for scripting; the human line is unchanged. Verified live with temporary entries: -json returned the exact payload, plain unchanged. |
 | F528 | P3 | 528 | cli | `key note -json` | COMPLETED | `llmctl key note <id> <text…> -json` prints the raw response JSON for scripting; the human line (set/cleared) is unchanged. Verified live with a temporary key: -json returned the exact payload, plain set and clear unchanged; key revoked after. |
 | F529 | P3 | 529 | cli | `note -json` | COMPLETED | `llmctl note <instance> <text…> -json` prints the raw response JSON for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned `{"ok":true}`, plain unchanged (note visible in `ps`). |
+| F530 | P3 | 530 | cli | `autorestart -json` | COMPLETED | `llmctl autorestart <instance> <on|off> -json` prints the raw response JSON (`{"autoRestart":…,"ok":true}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

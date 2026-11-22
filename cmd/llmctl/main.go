@@ -229,7 +229,7 @@ Usage:
   llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance> | llmctl restart --all
   llmctl maxparallel <instance> <n>   (0 = unlimited)
-  llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
+  llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
@@ -1066,18 +1066,21 @@ func cmdNote(args []string) error {
 
 // cmdAutoRestartToggle toggles crash auto-restart on an instance (F087).
 func cmdAutoRestartToggle(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: llmctl autorestart <instance-id> <on|off>")
+	fs := flag.NewFlagSet("autorestart", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw response JSON (F530)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: llmctl autorestart <instance-id> <on|off> [-json]")
 	}
-	on := strings.ToLower(args[1]) == "on"
-	if s := strings.ToLower(args[1]); s != "on" && s != "off" {
-		return fmt.Errorf("expected on or off, got %q", args[1])
+	on := strings.ToLower(fs.Arg(1)) == "on"
+	if s := strings.ToLower(fs.Arg(1)); s != "on" && s != "off" {
+		return fmt.Errorf("expected on or off, got %q", fs.Arg(1))
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Post("/api/v1/instances/"+url.PathEscape(args[0])+"/autorestart",
+	code, out, err := cc.Post("/api/v1/instances/"+url.PathEscape(fs.Arg(0))+"/autorestart",
 		map[string]any{"enabled": on})
 	if err != nil {
 		return err
@@ -1085,11 +1088,15 @@ func cmdAutoRestartToggle(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("autorestart: %s", out)
 	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
 	state := "off"
 	if on {
 		state = "on"
 	}
-	fmt.Printf("instance %s auto-restart %s\n", args[0], state)
+	fmt.Printf("instance %s auto-restart %s\n", fs.Arg(0), state)
 	return nil
 }
 
