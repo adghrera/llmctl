@@ -632,11 +632,23 @@ func (s *Server) removeModel(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// Delete the model file only when llmctl owns it (inside its models
+	// dir); registered local files outside it are the user's and stay put
+	// unless ?file=true is passed explicitly (F162).
+	fileDeleted := false
 	if m.Path != "" {
-		os.Remove(m.Path)
+		inside := false
+		if rel, err := filepath.Rel(paths.ModelsDir(), m.Path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			inside = true
+		}
+		if inside || r.URL.Query().Get("file") == "true" {
+			if os.Remove(m.Path) == nil {
+				fileDeleted = true
+			}
+		}
 	}
 	s.store.Update(func(st *store.State) error { delete(st.Models, id); return nil })
-	writeJSON(w, 200, map[string]any{"ok": true})
+	writeJSON(w, 200, map[string]any{"ok": true, "fileDeleted": fileDeleted})
 }
 
 // hfSearch proxies the HuggingFace model search API (so the browser never

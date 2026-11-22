@@ -108,7 +108,7 @@ Usage:
   llmctl backends remove <id>
   llmctl models list
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
-  llmctl models remove <id>
+  llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0>
   llmctl models price <model-id> <in-per-M> <out-per-M>
   llmctl models hf-search <query>
@@ -507,9 +507,15 @@ func cmdModels(args []string) error {
 		return nil
 	case "remove":
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models remove <id>")
+			return fmt.Errorf("usage: llmctl models remove <id> [--file]")
 		}
-		code, out, err := cc.Delete("/api/v1/models/" + rest[0])
+		path := "/api/v1/models/" + rest[0]
+		for _, a := range rest[1:] {
+			if a == "--file" {
+				path += "?file=true" // also delete a registered file outside the models dir (F162)
+			}
+		}
+		code, out, err := cc.Delete(path)
 		if err != nil {
 			return err
 		}

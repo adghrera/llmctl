@@ -45,7 +45,9 @@ GitHub release, or file list. No recompile.
 - Register a model file already on disk (Models → "Register local model", or
   `POST /api/v1/models` with id + path + backend) — no download needed. A
   "Dup" button pre-fills that form from any existing model to register a
-  variant under a new id (F158).
+  variant under a new id (F158). Removing a model deletes its file only when
+  llmctl downloaded it; registered local files stay on disk unless removal is
+  explicitly forced (`--file` / `?file=true`) (F162).
 - Resumable downloads (HTTP Range), progress shown live in the UI (SSE).
 - Multiple models can be installed and run at the same time.
 - GGUF metadata viewer: per-model "Meta" shows quant, architecture, trained
@@ -343,7 +345,8 @@ llmctl doctor                      (health sweep: state dir, backends, models,
                                     instances, gateway, backups; exit ≠0 on errors)
 llmctl ps                          (shows uptime and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
-llmctl models list|install|remove|hf-search|hf-files   (list shows price and idle-unload)
+llmctl models list|install|remove|hf-search|hf-files   (list shows price and idle-unload;
+                                    remove --file also deletes a registered external file)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
