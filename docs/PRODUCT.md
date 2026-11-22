@@ -251,8 +251,9 @@ toggle for a light theme (choice remembered). Tabs:
   with the validation error appended until it matches (or gives up with the
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
   optional max-tokens/temperature inputs (F359), a validation-retries input
-  (1–5, CLI twin `-retries`, F692) and a Result Export JSON
-  button (F432).
+  (1–5, CLI twin `-retries`, F692), a "Load schema" button that fills the
+  schema box from a .json file (UI twin of `-schema`, F713) and a Result
+  Export JSON button (F432).
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional

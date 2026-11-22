@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useStore } from "../state/store";
-import { err } from "../ui/toast";
+import { err, ok } from "../ui/toast";
 
 const EXAMPLE_SCHEMA = `{
   "type": "object",
@@ -26,6 +26,7 @@ export default function Structured() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
   const [meta, setMeta] = useState<string>("");
+  const schemaFileRef = useRef<HTMLInputElement>(null); // load schema from file (CLI `structured -schema`, F713)
 
   useEffect(() => {
     if (!model && running.length) setModel(running[0].modelId);
@@ -142,6 +143,32 @@ export default function Structured() {
         <button className="btn primary" disabled={busy || !model} onClick={run}>
           {busy ? "Running…" : "Generate"}
         </button>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 8 }}
+          title="load the JSON Schema from a .json file (CLI: llmctl structured -schema)"
+          onClick={() => schemaFileRef.current?.click()}
+        >
+          Load schema
+        </button>
+        <input
+          ref={schemaFileRef}
+          type="file"
+          accept=".json,application/json"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            const text = await f.text();
+            try {
+              setSchema(JSON.stringify(JSON.parse(text), null, 2));
+              ok(`loaded schema from ${f.name}`);
+            } catch {
+              err(`${f.name} is not valid JSON`);
+            }
+          }}
+        />
         {!running.length && <span className="muted small" style={{ marginLeft: 10 }}>start an instance first</span>}
       </div>
       {(result || meta) && (

@@ -723,6 +723,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F710 | P3 | 710 | keys | prune idle keys | COMPLETED | `llmctl key prune -idle N` now also removes keys unused for N+ days (never-used keys count once created N+ days ago) — `POST /api/v1/keys/prune?idle=N`, `-dry-run` compatible. Verified live: backdated a test key's createdAt, dry-run listed it, prune removed it (show → 404), expired-only prune unaffected. |
 | F711 | P3 | 711 | keys | Keys page Prune-idle button | COMPLETED | The Keys page shows a "Prune idle" button (with count) whenever keys sit unused for 30+ days, twin of `key prune -idle 30` (F710); it POSTs `/keys/prune?idle=30` after a confirm. Verified live: endpoint accepts the param, served bundle carries the button. |
 | F712 | P3 | 712 | batch | Batch page load-prompts-from-file | COMPLETED | The Batch page gained a "Load file" button beside Run batch that fills the prompts textarea from a .txt/.md file (one prompt per line) — UI twin of `llmctl batch -file`. Verified live: served bundle carries the button; CLI twin re-checked reading a two-prompt file. |
+| F713 | P3 | 713 | structured | Structured page load-schema file | COMPLETED | The Structured page gained a "Load schema" button beside Generate that fills the schema box from a .json file (pretty-printed, invalid JSON rejected with a toast) — UI twin of `llmctl structured -schema`. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
