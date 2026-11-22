@@ -206,7 +206,7 @@ Usage:
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
   llmctl complete -model ID [-json] [-out FILE] <prompt>
-  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
+  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [--csv] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
@@ -2098,10 +2098,11 @@ func cmdCompare(args []string) error {
 	maxTok := fs.Int("max-tokens", 0, "max tokens per response (0 = model default)")
 	temp := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F343)")
 	jsonOut := fs.Bool("json", false, "print [{model, reply} | {model, error}] as one JSON array instead of streamed text (F314)")
+	csvOut := fs.Bool("csv", false, "output one CSV row per model — model,ok,reply,error (implies -json, F606)")
 	outFile := fs.String("out", "", "write the JSON array to this file instead of stdout (implies -json, F454)")
 	fs.Parse(reorderFlags(args))
-	if *outFile != "" {
-		*jsonOut = true // -out implies the JSON shape
+	if *outFile != "" || *csvOut {
+		*jsonOut = true // -out and --csv both work off the collected results
 	}
 	if *modelsFlag == "" {
 		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] [-temperature T] <prompt>  (or pipe stdin)")
@@ -2213,6 +2214,15 @@ func cmdCompare(args []string) error {
 		}
 	}
 	if *jsonOut {
+		if *csvOut { // F606: one row per model, full reply text
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"model", "ok", "reply", "error"})
+			for _, r := range results {
+				_ = w.Write([]string{r.Model, strconv.FormatBool(r.Error == ""), r.Reply, r.Error})
+			}
+			w.Flush()
+			return w.Error()
+		}
 		b, _ := json.Marshal(results)
 		if *outFile != "" { // F454: JSON array to a file, stdout stays clean
 			if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
