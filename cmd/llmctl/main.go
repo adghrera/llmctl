@@ -6279,9 +6279,10 @@ func cmdKb(args []string) error {
 	case "show":
 		sfs := flag.NewFlagSet("kb show", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw KB JSON (for scripts)")
+		sout := sfs.String("out", "", "write the raw KB JSON to this file instead of stdout (F505)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl kb show <id> [-json]")
+			return fmt.Errorf("usage: llmctl kb show <id> [-json] [-out FILE]")
 		}
 		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
@@ -6289,6 +6290,13 @@ func cmdKb(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("kb %s: %s", sfs.Arg(0), out)
+		}
+		if *sout != "" { // F505: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		if *sjson {
 			fmt.Print(string(out))
