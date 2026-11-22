@@ -63,6 +63,8 @@ func main() {
 		err = cmdBackups(args)
 	case "usage":
 		err = cmdUsage(args)
+	case "metrics":
+		err = cmdMetrics(args)
 	case "events":
 		err = cmdEvents(args)
 	case "scheduler":
@@ -125,6 +127,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--id ID] [-n 20]
   llmctl backups [list|create|delete <name>]
   llmctl usage [-n 14]
+  llmctl metrics
   llmctl events [-n 20]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
@@ -834,6 +837,68 @@ func cmdBackups(args []string) error {
 	default:
 		return fmt.Errorf("unknown backups subcommand %q (list|create|delete)", sub)
 	}
+}
+
+// cmdMetrics prints the live gateway metrics snapshot: totals plus a
+// per-model table (requests, errors, tokens, latency p50/p95, tok/s).
+func cmdMetrics(args []string) error {
+	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/metrics")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("metrics returned %d: %s", code, out)
+	}
+	var m struct {
+		RequestsTotal int64 `json:"requests_total"`
+		Tokens        struct {
+			Prompt     int64 `json:"prompt"`
+			Completion int64 `json:"completion"`
+			Total      int64 `json:"total"`
+		} `json:"tokens"`
+		Latency map[string]float64 `json:"latency"`
+		Status  map[string]int64   `json:"status_classes"`
+		Models  map[string]struct {
+			Requests int64   `json:"requests"`
+			Errors   int64   `json:"errors"`
+			Prompt   int64   `json:"prompt_tokens"`
+			Comp     int64   `json:"completion_tokens"`
+			P50      float64 `json:"latency_p50_ms"`
+			P95      float64 `json:"latency_p95_ms"`
+			Tps      float64 `json:"tokens_per_sec"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(out, &m); err != nil {
+		return err
+	}
+	fmt.Printf("requests: %d   tokens: %d (in %d / out %d)\n", m.RequestsTotal, m.Tokens.Total, m.Tokens.Prompt, m.Tokens.Completion)
+	classes := make([]string, 0, len(m.Status))
+	for k, v := range m.Status {
+		classes = append(classes, fmt.Sprintf("%s=%d", k, v))
+	}
+	sort.Strings(classes)
+	fmt.Printf("status: %s\n", strings.Join(classes, " "))
+	if len(m.Models) == 0 {
+		fmt.Println("no model traffic yet")
+		return nil
+	}
+	names := make([]string, 0, len(m.Models))
+	for k := range m.Models {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	fmt.Printf("\n%-16s %8s %6s %9s %9s %8s %8s %8s\n", "MODEL", "REQS", "ERRS", "IN", "OUT", "P50 MS", "P95 MS", "TOK/S")
+	for _, n := range names {
+		v := m.Models[n]
+		fmt.Printf("%-16s %8d %6d %9d %9d %8.0f %8.0f %8.1f\n", n, v.Requests, v.Errors, v.Prompt, v.Comp, v.P50, v.P95, v.Tps)
+	}
+	return nil
 }
 
 // cmdUsage prints the daily per-model usage rollup (newest day first).

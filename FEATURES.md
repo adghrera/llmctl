@@ -132,6 +132,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F120 | P3 | 120 | usage | Key drill-down in request log | COMPLETED | Request ring entries now carry the unique key id (`keyId`); `GET /api/v1/requests?key=` matches the id exactly (or falls back to prefix match), and the Keys page has a "Log" link opening the Requests page pre-filtered to that key. Verified live: two keys' requests separated by id filter; prefix filter unchanged. |
 | F121 | P2 | 121 | gateway | Configurable request body cap | COMPLETED | `settings.maxBodyMB` (Settings page, 0 = 64 MiB default) caps gateway request bodies; oversized requests get 413 `invalid_request_error` (checked on Content-Length and actual bytes read). Applied at runtime on PATCH and at daemon start. Verified live: cap 1 MiB → 200 small / 413 big, persisted across restart, default restored. |
 | F122 | P3 | 122 | usage | Per-model error breakdown | COMPLETED | Per-model metrics now split errors into `errors_4xx` and `errors_5xx` in `/api/v1/metrics`; the Usage page shows the split next to the error count (e.g. `3 (2c/1s)`). Verified live: unknown-model request counted as 4xx. |
+| F123 | P3 | 123 | cli | `llmctl metrics` | COMPLETED | New CLI command printing the live gateway metrics snapshot: request/token totals, status-class counts, and a per-model table (requests, errors, tokens, p50/p95, tok/s). Verified live against the running daemon. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
