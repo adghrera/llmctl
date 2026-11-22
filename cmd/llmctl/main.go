@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sort"
 	"strings"
 	"time"
 
@@ -60,6 +61,8 @@ func main() {
 		err = cmdRequests(args)
 	case "backups":
 		err = cmdBackups(args)
+	case "usage":
+		err = cmdUsage(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -117,6 +120,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
   llmctl backups [list|create|delete <name>]
+  llmctl usage [-n 14]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -786,6 +790,61 @@ func cmdBackups(args []string) error {
 	default:
 		return fmt.Errorf("unknown backups subcommand %q (list|create|delete)", sub)
 	}
+}
+
+// cmdUsage prints the daily per-model usage rollup (newest day first).
+func cmdUsage(args []string) error {
+	fs := flag.NewFlagSet("usage", flag.ExitOnError)
+	n := fs.Int("n", 14, "number of days")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/usage/daily?days=" + strconv.Itoa(*n))
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("usage returned %d: %s", code, out)
+	}
+	var daily map[string]map[string]struct {
+		Requests int64 `json:"requests"`
+		Errors   int64 `json:"errors"`
+		Prompt   int64 `json:"prompt"`
+		Comp     int64 `json:"comp"`
+	}
+	if err := json.Unmarshal(out, &daily); err != nil {
+		return err
+	}
+	if len(daily) == 0 {
+		fmt.Println("no usage recorded yet")
+		return nil
+	}
+	days := make([]string, 0, len(daily))
+	for d := range daily {
+		days = append(days, d)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(days)))
+	for _, day := range days {
+		fmt.Printf("%s\n", day)
+		models := daily[day]
+		names := make([]string, 0, len(models))
+		for m := range models {
+			names = append(names, m)
+		}
+		sort.Strings(names)
+		for _, m := range names {
+			u := models[m]
+			name := m
+			if name == "" {
+				name = "(unknown)"
+			}
+			fmt.Printf("  %-20s %6d reqs %4d err %10d in %10d out\n",
+				name, u.Requests, u.Errors, u.Prompt, u.Comp)
+		}
+	}
+	return nil
 }
 
 func cmdKey(args []string) error {
