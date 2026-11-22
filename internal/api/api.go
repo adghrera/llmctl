@@ -1520,6 +1520,7 @@ type settingsView struct {
 	AllowCORS           bool   `json:"allowCORS"`
 	StartupTimeoutSec   int    `json:"startupTimeoutSec"`
 	StartOnDemand       bool   `json:"startOnDemand"`
+	MaxBodyMB           int    `json:"maxBodyMB"`
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1554,6 +1555,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		AllowCORS:           st.Settings.AllowCORS,
 		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
 		StartOnDemand:       st.Settings.StartOnDemand,
+		MaxBodyMB:           st.Settings.MaxBodyMB,
 	})
 }
 
@@ -1565,6 +1567,7 @@ type updateSettingsReq struct {
 	AllowCORS           *bool   `json:"allowCORS"`
 	StartupTimeoutSec   *int    `json:"startupTimeoutSec"`
 	StartOnDemand       *bool   `json:"startOnDemand"`
+	MaxBodyMB           *int    `json:"maxBodyMB"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1579,6 +1582,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.StartupTimeoutSec != nil && (*req.StartupTimeoutSec < 0 || *req.StartupTimeoutSec > 86400) {
 		writeErr(w, 400, "startupTimeoutSec must be 0–86400 (0 = default 240)")
+		return
+	}
+	if req.MaxBodyMB != nil && (*req.MaxBodyMB < 0 || *req.MaxBodyMB > 4096) {
+		writeErr(w, 400, "maxBodyMB must be 0–4096 (0 = default 64)")
 		return
 	}
 	s.store.Update(func(st *store.State) error {
@@ -1603,6 +1610,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.StartOnDemand != nil {
 			st.Settings.StartOnDemand = *req.StartOnDemand
 		}
+		if req.MaxBodyMB != nil {
+			st.Settings.MaxBodyMB = *req.MaxBodyMB
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1611,6 +1621,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.AllowCORS != nil && s.gw != nil {
 		s.gw.SetAllowCORS(*req.AllowCORS)
+	}
+	if req.MaxBodyMB != nil && s.gw != nil {
+		s.gw.SetMaxBodyMB(*req.MaxBodyMB)
 	}
 	// Return updated settings.
 	st, _ := s.store.Load()
@@ -1622,6 +1635,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		AllowCORS:           st.Settings.AllowCORS,
 		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
 		StartOnDemand:       st.Settings.StartOnDemand,
+		MaxBodyMB:           st.Settings.MaxBodyMB,
 	})
 }
 

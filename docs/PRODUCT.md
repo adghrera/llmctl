@@ -269,6 +269,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Startup timeout** — Settings → "Startup timeout" (seconds, 0 = default
   240): how long an instance start waits for the backend to become healthy.
   Raise for very large models on slow storage.
+- **Max request body** — Settings → "Max request body" (MiB, 0 = default 64):
+  gateway requests with a larger body are rejected with 413 (F121).
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
   silent). A "Test" button sends a test event to verify the endpoint. An

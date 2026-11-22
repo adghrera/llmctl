@@ -128,6 +128,8 @@ type Settings struct {
 	// StartOnDemand lets a gateway request start a stopped instance for
 	// the requested model (cold start); the request waits for health (F100).
 	StartOnDemand bool `json:"startOnDemand"`
+	// MaxBodyMB caps gateway request body size in MiB; 0 = 64 default (F121).
+	MaxBodyMB int `json:"maxBodyMB,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

@@ -6,6 +6,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [idleMin, setIdleMin] = useState(0);
   const [startupSec, setStartupSec] = useState(0);
+  const [maxBodyMB, setMaxBodyMB] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [whSecret, setWhSecret] = useState("");
   const [busy, setBusy] = useState(false);
@@ -23,6 +24,7 @@ export default function SettingsPage() {
       setSettings(s);
       setIdleMin(s.idleUnloadMin || 0);
       setStartupSec(s.startupTimeoutSec || 0);
+      setMaxBodyMB(s.maxBodyMB || 0);
       setWebhook(s.notifyWebhook || "");
       setWhSecret(s.notifyWebhookSecret || "");
     }).catch(() => {});
@@ -64,6 +66,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ startupTimeoutSec: startupSec });
       setSettings(r);
       ok((r.startupTimeoutSec ?? 0) > 0 ? `instance startup timeout: ${r.startupTimeoutSec}s` : "startup timeout back to default (240s)");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveMaxBody = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ maxBodyMB });
+      setSettings(r);
+      ok((r.maxBodyMB ?? 0) > 0 ? `max request body: ${r.maxBodyMB} MiB` : "max request body back to default (64 MiB)");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -206,6 +222,28 @@ export default function SettingsPage() {
               How long an instance start waits for the backend to become
               healthy. Raise for very large models on slow storage.
               0 uses the default (240 s).
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Max request body</h3>
+              <div className="spacer" />
+              <input
+                type="number"
+                min={0}
+                max={4096}
+                style={{ width: 90 }}
+                value={maxBodyMB}
+                onChange={(e) => setMaxBodyMB(Math.max(0, Math.min(4096, Number(e.target.value) || 0)))}
+              />
+              <span className="muted small">MiB</span>
+              <button className="btn primary" disabled={busy} onClick={saveMaxBody}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Gateway requests with a larger body are rejected with 413.
+              0 uses the default (64 MiB).
             </p>
           </div>
           <div>

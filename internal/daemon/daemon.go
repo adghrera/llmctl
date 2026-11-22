@@ -126,12 +126,14 @@ func Run(ctx context.Context, opts Options) error {
 	// ON in Settings (or via --api-key) to require Authorization on /v1/*.
 	requireAuth := false
 	allowCORS := false
+	maxBodyMB := 0
 	s, err := store.Open()
 	if err == nil {
 		state, loadErr := s.Load()
 		if loadErr == nil && state.Settings != nil {
 			requireAuth = state.Settings.RequireAuth
 			allowCORS = state.Settings.AllowCORS
+			maxBodyMB = state.Settings.MaxBodyMB
 		}
 	}
 
@@ -151,6 +153,7 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
+	gw.SetMaxBodyMB(maxBodyMB) // gateway body cap from settings (F121)
 
 	mgmt := api.New(st, reg, sv, jm, logger, gwPort, gw, cancel)
 	// Wire the key checker after mgmt is created (circular ref).

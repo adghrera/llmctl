@@ -46,6 +46,7 @@ type Server struct {
 	keyInflight  map[string]*atomic.Int64 // per key prefix, in-flight requests (F095)
 	instInflight map[string]*atomic.Int64 // per instance id, in-flight requests (F113)
 	instMu       sync.Mutex               // guards instInflight
+	maxBodyBytes atomic.Int64             // gateway request body cap in bytes (F121)
 	startHook    func(model string) bool  // daemon-provided cold-start attempt (F100)
 	startMu      sync.Mutex               // serializes concurrent cold starts (F100)
 	handler      http.Handler
@@ -115,6 +116,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	}
 	s.requireAuth.Store(requireAuth)
 	s.allowCORS.Store(cfg.AllowCORS)
+	s.maxBodyBytes.Store(64 << 20) // default 64 MiB (F121)
 	if cfg.RequestLogPath != "" {
 		s.collector.reqLog.useFile(cfg.RequestLogPath)
 	}
@@ -416,9 +418,16 @@ func (s *Server) proxyEmbeddings(w http.ResponseWriter, r *http.Request) { s.pro
 // request through. HTTP instances are reverse-proxied (SSE framing preserved
 // exactly); stdio instances are translated over the llmctl-stdio/1 pipe.
 func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
-	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<20)) // 64 MiB request cap
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid_request_error", "cannot read body")
+	maxBody := s.maxBodyBytes.Load()
+	if r.ContentLength > maxBody {
+		writeErr(w, http.StatusRequestEntityTooLarge, "invalid_request_error",
+			fmt.Sprintf("request body exceeds %d MiB limit", maxBody>>20))
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, maxBody+1))
+	if err != nil || int64(len(body)) > maxBody {
+		writeErr(w, http.StatusRequestEntityTooLarge, "invalid_request_error",
+			fmt.Sprintf("request body exceeds %d MiB limit", maxBody>>20))
 		return
 	}
 	var peek struct {
@@ -784,6 +793,15 @@ func GenerateKey() string {
 // SetRequireAuth updates the gateway's auth requirement at runtime.
 func (s *Server) SetRequireAuth(on bool) {
 	s.requireAuth.Store(on)
+}
+
+// SetMaxBodyMB sets the gateway request body cap in megabytes (MiB); 0
+// restores the 64 MiB default (F121).
+func (s *Server) SetMaxBodyMB(mb int) {
+	if mb <= 0 {
+		mb = 64
+	}
+	s.maxBodyBytes.Store(int64(mb) << 20)
 }
 
 // SetAllowCORS toggles CORS headers + OPTIONS preflight at runtime (F082).
