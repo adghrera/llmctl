@@ -262,7 +262,38 @@ export default function Scheduler() {
       </div>
 
       <div className="card">
-        <h2>Scheduled Tasks ({schedules.length})</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Scheduled Tasks ({schedules.length})</h2>
+          <button
+            className="btn sm"
+            disabled={schedules.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl scheduler list --csv` (F391).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "id,name,kind,cron,model,enabled,next_run,last_run_time,last_run_status",
+                ...schedules.map((s) =>
+                  [
+                    s.id, s.name, s.kind || "chat", s.cron_expr, s.model,
+                    String(!!s.enabled), s.next_run || "",
+                    s.lastRun?.time || (s.last_run?.startsWith("0001") ? "" : s.last_run) || "",
+                    s.lastRun?.status || "",
+                  ]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-scheduler-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
+        </div>
         {schedules.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
             No scheduled tasks yet.

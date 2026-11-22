@@ -288,6 +288,8 @@ toggle for a light theme (choice remembered). Tabs:
   conversation, a Rename button (F296) that edits the title in place, and an
   Import button in the Conversations header that uploads an export file
   verbatim (tools/system included) under a fresh id and opens it (F369,
+  plus an "Export CSV" button there downloading the conversation list —
+  id,title,model,messages,updated_at, same columns as `chats list --csv`, F392).
   replacing the earlier field-picking section); CLI twin `chats import` (F368).
 - **Prompt templates** — curated built-in prompt templates (code review,
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
@@ -403,7 +405,8 @@ toggle for a light theme (choice remembered). Tabs:
   executions — status, duration and error/result excerpt
   (GET /api/v1/scheduler/runs, F145). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
-   and `llmctl scheduler list` (F184).
+   and `llmctl scheduler list` (F184), plus an "Export CSV" button on the
+   task list with the same columns as `scheduler list --csv` (F391).
 - **RAG knowledge bases** — create/delete/edit knowledge bases at
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove documents
   (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST

@@ -454,6 +454,31 @@ export default function Chat() {
           <div className="row" style={{ gap: 6 }}>
             <button
               className="btn sm"
+              disabled={streaming || chats.length === 0}
+              title="download the conversation list as CSV (CLI: llmctl chats list --csv)"
+              onClick={() => {
+                // Same columns as `llmctl chats list --csv` (F392).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "id,title,model,messages,updated_at",
+                  ...chats.map((c) =>
+                    [c.id, c.title, c.model || "", String(c.messages ?? 0), c.updatedAt || ""]
+                      .map(esc)
+                      .join(",")
+                  ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-chats-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+            <button
+              className="btn sm"
               disabled={streaming}
               title="import a chat exported as JSON (CLI: llmctl chats import)"
               onClick={() => importFileRef.current?.click()}
