@@ -367,6 +367,21 @@ export default function Usage() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              disabled={!dailyShown}
+              title="download the daily usage roll-up as JSON (CLI: llmctl usage -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(dailyShown, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-daily-usage-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
             </div>
           </div>
           <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
@@ -441,6 +456,21 @@ export default function Usage() {
               }}
             >
               Export CSV
+            </button>
+            <button
+              className="btn sm"
+              disabled={!dailyKeys}
+              title="download the daily per-key usage as JSON (CLI: llmctl usage -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(dailyKeys, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-daily-key-usage-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
             </button>
             </div>
           </div>

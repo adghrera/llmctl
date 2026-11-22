@@ -96,6 +96,21 @@ export default function Requests() {
         >
           Export CSV
         </button>
+        <button
+          className="btn sm"
+          disabled={entries.length === 0}
+          title="download the request log as JSON (CLI: llmctl requests -json)"
+          onClick={() => {
+            const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `llmctl-requests-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }}
+        >
+          Export JSON
+        </button>
         <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
           Auto-refresh

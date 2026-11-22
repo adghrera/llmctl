@@ -536,6 +536,21 @@ export default function Models() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={models.length === 0}
+            title="download the model list as JSON (CLI: llmctl models list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(models, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-models-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
           </div>
         </div>
         <input

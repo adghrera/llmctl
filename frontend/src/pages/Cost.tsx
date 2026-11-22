@@ -166,6 +166,21 @@ export default function Cost() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              disabled={Object.keys(keyCosts).length === 0}
+              title="download the per-key cost counters as JSON (CLI: llmctl cost -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(keyCosts, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-cost-keys-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
             </div>
           </div>
           {byTag ? (
@@ -263,6 +278,21 @@ export default function Cost() {
               }}
             >
               Export CSV
+            </button>
+            <button
+              className="btn sm"
+              disabled={Object.keys(modelCosts).length === 0}
+              title="download the per-model cost counters as JSON (CLI: llmctl cost -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(modelCosts, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-cost-models-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
             </button>
             </div>
           </div>

@@ -181,8 +181,9 @@ toggle for a light theme (choice remembered). Tabs:
   with snippets), memory entries, knowledge bases, prompt templates
   (F318) and instances + API keys (F364), plus skills and scheduler tasks
   (F698), each result linking to its page.
-  An Export CSV button downloads every match as one kind,name,detail file
-  (F611). Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439).
+  An Export CSV or Export JSON button downloads every match as one
+  kind,name,detail file
+  (F611, F718). Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439).
   Pressing `?` anywhere outside a text field opens a keyboard-shortcut
   cheat-sheet overlay; Esc or a backdrop click closes it (F514). A `?`
   button in the header opens the same overlay (F515).
@@ -195,8 +196,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Models** — HuggingFace search + file picker, download with live progress.
   The installed-models table has a live text filter (id/backend/path, F332)
   and a tag dropdown filtering by exact tag (UI twin of `models list -tag`,
-  F682), and an Export CSV button for the filtered list (same columns as
-  `llmctl models list --csv`, F377) plus a Stats toggle rolling the filtered
+  F682), and Export CSV / Export JSON buttons for the filtered list (same columns as
+  `llmctl models list --csv`, F377, F718) plus a Stats toggle rolling the filtered
   list up per backend — models, running, size — mirroring `models stats` (F634).
   A Rename button (and `llmctl models rename`) changes a model id, updating
   aliases and stored instance records (F284, F286). A Note button (and
@@ -279,7 +280,7 @@ toggle for a light theme (choice remembered). Tabs:
   of requests and cost as bar charts (F147). A parallel per-key rollup
   (`GET /api/v1/usage/keys[?days=N][&key=ID]`) attributes daily requests,
   tokens and cost to each API key (F126); the Usage page shows it as a
-  "Daily by Key" table with its own CSV export (F129), and a By tag toggle
+  "Daily by Key" table with its own CSV/JSON export (F129, F718), and a By tag toggle
   rolls the days up per key tag — the UI twin of `llmctl usage -tag` (F706).
   Rollups are pruned to
    the last `usageRetentionDays` UTC days (Settings → "Usage retention";
@@ -287,7 +288,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
   key, status, latency, tokens) in an auto-refreshing table with a summary bar
   (count, errors, p50/p95 latency, tokens, cost — the UI twin of
-  `llmctl requests -stats`, F258) with its own Export CSV (F421), a groupable
+  `llmctl requests -stats`, F258) with its own Export CSV (F421) and Export
+  JSON (F718), a groupable
   stats table (by hour/day/status/model/key/instance — the UI twin of
   `llmctl requests -stats -by …`, F549, F554, F594), with one-click
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
@@ -526,7 +528,8 @@ toggle for a light theme (choice remembered). Tabs:
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
   GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
   tables showing token counts and estimated USD costs, each with a text
-  filter on the id (F353) and a filter-aware Export CSV button (F417).
+  filter on the id (F353) and filter-aware Export CSV / Export JSON buttons
+  (F417, F718).
   A By tag toggle rolls the key table up per key tag — the UI twin of
   `llmctl cost -tags`, with untagged keys under "(untagged)" (F705).
 - **Scheduled tasks** — cron-scheduled tasks of three kinds: `chat` (send a

@@ -109,6 +109,27 @@ export default function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Same rows as the CSV, as a JSON array of {kind,name,detail} (F718).
+  const exportJson = () => {
+    const rows = [
+      ...models.map((m) => ({ kind: "model", name: m.id, detail: `${m.backendId}${m.running ? " running" : ""}` })),
+      ...chats.map((c) => ({ kind: "chat", name: c.title, detail: c.model || "no model" })),
+      ...memories.map((m) => ({ kind: "memory", name: m.entry.content.replace(/\s+/g, " "), detail: (m.entry.tags || []).join(" ") })),
+      ...prompts.map((p) => ({ kind: "prompt", name: p.name, detail: `${p.category}${p.custom ? " custom" : ""}` })),
+      ...kbs.map((k) => ({ kind: "kb", name: k.kb.name, detail: `${k.kb.doc_count} doc(s)` })),
+      ...instances.map((i) => ({ kind: "instance", name: i.id, detail: `${i.modelId} ${i.backendId} ${i.status}` })),
+      ...keys.map((k) => ({ kind: "key", name: k.name || k.prefix, detail: `${k.prefix}${k.disabled ? " disabled" : ""}` })),
+      ...skills.map((s) => ({ kind: "skill", name: s.manifest.name || s.id, detail: `${s.id}${s.manifest.enabled ? "" : " disabled"}` })),
+      ...tasks.map((t) => ({ kind: "task", name: t.name, detail: `${t.cron_expr} ${t.model || ""}${t.enabled ? "" : " disabled"}` })),
+    ];
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-search-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   const total =
     models.length + chats.length + memories.length + kbs.length + prompts.length +
     instances.length + keys.length + skills.length + tasks.length;
@@ -152,6 +173,11 @@ export default function Search() {
           {searched && total > 0 && (
             <button className="btn" title="download every match as one CSV (kind,name,detail)" onClick={exportCsv}>
               Export CSV
+            </button>
+          )}
+          {searched && total > 0 && (
+            <button className="btn" title="download every match as a JSON array (kind,name,detail)" onClick={exportJson}>
+              Export JSON
             </button>
           )}
         </div>
