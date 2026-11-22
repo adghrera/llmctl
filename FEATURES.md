@@ -105,6 +105,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F093 | P3 | 93 | daemon | Daemon log rotation | COMPLETED | `llmctl.log` is rotated to `llmctl.log.1` at daemon start when it exceeds 5 MiB (one generation kept), so the slog file cannot grow unbounded. Verified live: 5 MiB file rotated, small file untouched. |
 | F094 | P3 | 94 | settings | Webhook test button | COMPLETED | `POST /api/v1/settings/notify-test` posts a `{"event":"test"}` payload to the configured notify webhook; Settings page gained a "Test" button showing delivery result or error. Verified live: delivered to a local hook, error surfaced for unreachable URL, 400 when unset. |
 | F095 | P3 | 95 | gateway | Per-key concurrency cap | COMPLETED | `maxConcurrent` on API keys (create flag, PATCH-editable, Keys page input): the gateway rejects with 429 `concurrency_exceeded` while the key has that many requests in flight; the counter releases when requests finish. Verified live with a slow stub: 2 parallel on cap-1 → one 429, next request after completion 200. |
+| F096 | P2 | 96 | instances | Attach health probing | COMPLETED | Attached instances are health-probed every 30 s; 3 consecutive failures mark the instance stopped (`health probe failed…`), fire the notify webhook and clear it from the router. Owned processes keep using PID reaping. Verified live: killed the attached stub, instance marked crashed after ~80 s with webhook delivered. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

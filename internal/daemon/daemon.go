@@ -96,6 +96,7 @@ func Run(ctx context.Context, opts Options) error {
 	jm := jobs.NewManager()
 	sv := supervisor.New(st, reg, logger)
 	go sv.ReapLoop(ctx)
+	go sv.HealthLoop(ctx)
 	go sv.AutoStartAll(ctx)
 
 	loadState := func() (*store.State, int64, error) {

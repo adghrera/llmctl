@@ -64,6 +64,9 @@ GitHub release, or file list. No recompile.
   managed instance with the same id, port and vars; attached instances are
   rejected (restart the external server instead). A "Stop all" action
   (`POST /api/v1/instances/stop-all`) stops every managed instance (F072).
+- Attached instances are health-probed every 30 s; if the external server
+  stops answering, the instance is marked crashed after 3 failed probes and
+  the notify webhook fires (F096).
 - Logs per instance under `~/.llmctl/logs/<instance>/`, viewable in the UI
   with one-click full-file download (F075).
 

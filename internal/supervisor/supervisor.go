@@ -42,6 +42,7 @@ type Supervisor struct {
 	mu       sync.Mutex
 	sessions map[string]*stdio.Session // stdio instance id -> live session
 	restarts map[string][]time.Time    // instance id -> recent auto-restart times (F087)
+	healthFails map[string]int            // attach id -> consecutive health probe failures (F096)
 
 	notifier func(event string, inst *store.InstanceRecord) // F073
 }
@@ -71,6 +72,7 @@ func New(st *store.Store, reg *backend.Registry, logger *slog.Logger) *Superviso
 		httpC:    &http.Client{Timeout: 5 * time.Second},
 		sessions: map[string]*stdio.Session{},
 		restarts: map[string][]time.Time{},
+		healthFails: map[string]int{},
 	}
 }
 
@@ -171,7 +173,9 @@ func (sv *Supervisor) startAttach(ctx context.Context, inst *store.InstanceRecor
 	if hp == "" {
 		hp = "/health"
 	}
-	if err := sv.waitHealthy(ctx, strings.TrimSuffix(base, "/")+hp); err != nil {
+	healthURL := strings.TrimSuffix(base, "/") + hp
+	inst.HealthURL = healthURL
+	if err := sv.waitHealthy(ctx, healthURL); err != nil {
 		return nil, fmt.Errorf("attach failed (is the server running at %s?): %w", base, err)
 	}
 	inst.Status = store.StatusRunning
@@ -481,6 +485,76 @@ func (sv *Supervisor) ReapLoop(ctx context.Context) {
 		case <-t.C:
 			sv.reap()
 		}
+	}
+}
+
+// HealthLoop probes attached instances until ctx is done (F096). Attached
+// backends have no child process to watch, so a server the user stopped
+// externally would otherwise stay "running" forever.
+func (sv *Supervisor) HealthLoop(ctx context.Context) {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			sv.probeAttached()
+		}
+	}
+}
+
+// healthFailLimit is how many consecutive probe failures mark an attached
+// instance as crashed (F096).
+const healthFailLimit = 3
+
+func (sv *Supervisor) probeAttached() {
+	st, err := sv.store.Load()
+	if err != nil {
+		return
+	}
+	for _, inst := range st.Instances {
+		if !inst.Attached || inst.Status != store.StatusRunning || inst.HealthURL == "" {
+			continue
+		}
+		cctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		req, err := http.NewRequestWithContext(cctx, http.MethodGet, inst.HealthURL, nil)
+		healthy := false
+		if err == nil {
+			resp, err := sv.httpC.Do(req)
+			if err == nil {
+				healthy = resp.StatusCode < 500
+				resp.Body.Close()
+			}
+		}
+		cancel()
+
+		sv.mu.Lock()
+		if healthy {
+			delete(sv.healthFails, inst.ID)
+			sv.mu.Unlock()
+			continue
+		}
+		sv.healthFails[inst.ID]++
+		fails := sv.healthFails[inst.ID]
+		sv.mu.Unlock()
+		if fails < healthFailLimit {
+			sv.logger.Warn("attach health probe failed", "id", inst.ID, "fails", fails)
+			continue
+		}
+		sv.mu.Lock()
+		delete(sv.healthFails, inst.ID)
+		sv.mu.Unlock()
+		sv.logger.Warn("attach instance unreachable, marking crashed", "id", inst.ID, "url", inst.HealthURL)
+		sv.store.Update(func(s *store.State) error {
+			if r := s.Instances[inst.ID]; r != nil && r.Attached {
+				r.Status = store.StatusStopped
+				r.LastError = fmt.Sprintf("health probe failed %d times (%s)", healthFailLimit, inst.HealthURL)
+			}
+			return nil
+		})
+		sv.notify("instance.crashed", inst)
+		sv.maybeRestart(inst.ID)
 	}
 }
 

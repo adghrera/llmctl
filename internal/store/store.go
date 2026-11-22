@@ -53,6 +53,9 @@ type InstanceRecord struct {
 	APIBasePath string          `json:"apiBasePath"`
 	Status    string            `json:"status"`
 	Attached  bool              `json:"attached"` // process not owned by us
+	// HealthURL is the probed endpoint for attached instances; empty for
+	// owned ones (their process is reaped directly) (F096).
+	HealthURL string            `json:"healthUrl,omitempty"`
 	PID       int               `json:"pid"`
 	StartedAt time.Time         `json:"startedAt"`
 	Vars      map[string]string `json:"vars,omitempty"`
