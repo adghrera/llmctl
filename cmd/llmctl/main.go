@@ -1608,6 +1608,11 @@ func cmdKey(args []string) error {
 			LastUsed           *time.Time `json:"lastUsed"`
 			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
 			TodayCost          float64    `json:"todayCost"`
+			LifetimeReqs       int64      `json:"lifetimeRequests"`
+			LifetimeErrors     int64      `json:"lifetimeErrors"`
+			LifetimePrompt     int64      `json:"lifetimePromptTokens"`
+			LifetimeComp       int64      `json:"lifetimeCompletionTokens"`
+			LifetimeCost       float64    `json:"lifetimeCost"`
 		}
 		if err := json.Unmarshal(out, &kv); err != nil {
 			return err
@@ -1638,6 +1643,8 @@ func cmdKey(args []string) error {
 			fmt.Printf(" / $%.2f budget", kv.DailyCostBudgetUSD)
 		}
 		fmt.Println()
+		fmt.Printf("lifetime: %d reqs · %d err · %d in · %d out · $%.4f\n",
+			kv.LifetimeReqs, kv.LifetimeErrors, kv.LifetimePrompt, kv.LifetimeComp, kv.LifetimeCost)
 		return nil
 	case "list":
 		_, out, err := cc.Get("/api/v1/keys")

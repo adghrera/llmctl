@@ -1541,6 +1541,12 @@ type keyView struct {
 	DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD,omitempty"`
 	TodayCost          float64    `json:"todayCost"`          // estimated USD spent today (F138)
 	LastUsed           *time.Time `json:"lastUsed,omitempty"` // last billed request (F149)
+	// Lifetime totals summed over the retained daily rollups (F182).
+	LifetimeReqs   int64   `json:"lifetimeRequests"`
+	LifetimeErrors int64   `json:"lifetimeErrors"`
+	LifetimePrompt int64   `json:"lifetimePromptTokens"`
+	LifetimeComp   int64   `json:"lifetimeCompletionTokens"`
+	LifetimeCost   float64 `json:"lifetimeCost"`
 }
 
 // keyViewFor builds the API view of one key, merging live gateway counters
@@ -1549,6 +1555,12 @@ func (s *Server) keyViewFor(st *store.State, k *store.APIKeyRecord, live map[str
 	v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD}
 	if s.gw != nil {
 		v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
+		life := s.gw.KeyLifetime(k.ID)        // retained-history totals (F182)
+		v.LifetimeReqs = life.Requests
+		v.LifetimeErrors = life.Errors
+		v.LifetimePrompt = life.Prompt
+		v.LifetimeComp = life.Comp
+		v.LifetimeCost = life.Cost
 	}
 	if ku, ok := live[k.ID]; ok { // counters key on the key id (F109)
 		v.UsedTok = ku.TotalTok

@@ -191,6 +191,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F179 | P3 | 179 | cli | `metrics -watch` | COMPLETED | `llmctl metrics -watch N` clears the screen and reprints the metrics snapshot every N seconds until Ctrl-C. Verified live: 4 refreshes in 4 s at `-watch 1`, fresh counters each pass. |
 | F180 | P3 | 180 | cli | Model alias management | COMPLETED | `llmctl models aliases` lists gateway aliases; `models alias <name> <id>` and `models unalias <name>` create/remove them (backed by the existing `/api/v1/aliases` endpoints). Verified live: added `chat -> so`, gateway advertised it on /v1/models, removed it again. |
 | F181 | P3 | 181 | backups | Configurable snapshot retention | COMPLETED | `settings.backupKeep` (0 = default 7) sets how many snapshots are kept in `~/.llmctl/backups`; on-demand and scheduled (keep unset) snapshots prune to it, editable on the Settings page. Verified live: -1/1001 → 400, set 2 → creating 4 pruned to 2, value persists across restart. |
+| F182 | P3 | 182 | keys | Lifetime totals in `key show` | COMPLETED | `GET /api/v1/keys/{id}` now reports lifetime totals (requests, errors, prompt/completion tokens, cost) summed over the retained per-key daily rollups, and `llmctl key show` prints a `lifetime:` line. Verified live: 3 streaming requests → `3 reqs · 63 in · 21 out · $0.0105`. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

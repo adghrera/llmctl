@@ -305,7 +305,9 @@ toggle for a light theme (choice remembered). Tabs:
   be zeroed with a "Reset" button, `llmctl key reset-usage <id>` or
   `POST /api/v1/keys/{id}/reset-usage` (F107). Token and request quotas can
    be changed after creation via PATCH and the Keys page quota editor (F148), and
-   each key shows when it was last used (F149).
+   each key shows when it was last used (F149). `llmctl key show` and
+   `GET /api/v1/keys/{id}` also report lifetime totals (requests, errors,
+   tokens, cost) summed over the retained per-key daily rollups (F182).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Per-model override on the

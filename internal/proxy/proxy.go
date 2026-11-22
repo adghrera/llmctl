@@ -1011,6 +1011,12 @@ func (s *Server) KeyDailyCost(keyID string) float64 {
 	return s.collector.keyDailyCost(keyID)
 }
 
+// KeyLifetime sums a key's counters across the retained daily rollups
+// (requests, errors, tokens, cost) (F182).
+func (s *Server) KeyLifetime(keyID string) store.DailyModelUsage {
+	return s.collector.keyLifetime(keyID)
+}
+
 // InstanceRequests returns requests served by one instance since daemon
 // start (F150).
 func (s *Server) InstanceRequests(instance string) int64 {

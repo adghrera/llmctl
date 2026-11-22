@@ -428,6 +428,11 @@ export interface ApiKey {
   dailyCostBudgetUSD?: number;
   todayCost?: number;
   lastUsed?: string;
+  lifetimeRequests?: number;
+  lifetimeErrors?: number;
+  lifetimePromptTokens?: number;
+  lifetimeCompletionTokens?: number;
+  lifetimeCost?: number;
 }
 
 export interface WebhookDelivery {

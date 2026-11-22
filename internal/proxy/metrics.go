@@ -408,6 +408,25 @@ func (m *metricsCollector) keyDailyCost(keyID string) float64 {
 	return 0
 }
 
+// keyLifetime sums a key's counters across all retained daily rollups
+// (requests, errors, prompt/comp tokens, cost). Subject to usage retention
+// (F168), so it reflects the retained history rather than all time (F182).
+func (m *metricsCollector) keyLifetime(keyID string) store.DailyModelUsage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var sum store.DailyModelUsage
+	for _, byKey := range m.dailyKeys {
+		if u := byKey[keyID]; u != nil {
+			sum.Requests += u.Requests
+			sum.Errors += u.Errors
+			sum.Prompt += u.Prompt
+			sum.Comp += u.Comp
+			sum.Cost += u.Cost
+		}
+	}
+	return sum
+}
+
 // instRequests returns how many requests an instance has served since daemon
 // start (F150).
 func (m *metricsCollector) instRequests(instance string) int64 {
