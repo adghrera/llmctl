@@ -131,6 +131,7 @@ Usage:
   llmctl scheduler list
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
+  llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20]
   llmctl backups [list|create|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv]
@@ -873,6 +874,44 @@ func cmdScheduler(args []string) error {
 			return err
 		}
 		return printOut(code, out, 201)
+	case "runs":
+		fs := flag.NewFlagSet("scheduler runs", flag.ExitOnError)
+		n := fs.Int("n", 20, "number of recent runs")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/scheduler/runs")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler runs returned %d: %s", code, out)
+		}
+		var runs []struct {
+			Time       time.Time `json:"time"`
+			Name       string    `json:"name"`
+			Kind       string    `json:"kind"`
+			Status     string    `json:"status"`
+			DurationMs int64     `json:"durationMs"`
+			Detail     string    `json:"detail"`
+		}
+		if err := json.Unmarshal(out, &runs); err != nil {
+			return err
+		}
+		if len(runs) == 0 {
+			fmt.Println("no scheduler runs yet (ring is in-memory, cleared on daemon restart)")
+			return nil
+		}
+		if *n > 0 && *n < len(runs) {
+			runs = runs[:*n]
+		}
+		fmt.Printf("%-19s %-20s %-14s %-6s %8s %s\n", "TIME", "TASK", "KIND", "STATUS", "MS", "DETAIL")
+		for _, r := range runs {
+			detail := r.Detail
+			if len(detail) > 60 {
+				detail = detail[:60] + "…"
+			}
+			fmt.Printf("%-19s %-20s %-14s %-6s %8d %s\n", r.Time.Local().Format("2006-01-02 15:04:05"), r.Name, r.Kind, r.Status, r.DurationMs, detail)
+		}
+		return nil
 	case "run":
 		if len(rest) == 0 {
 			return fmt.Errorf("usage: llmctl scheduler run <id>")

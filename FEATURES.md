@@ -183,6 +183,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F171 | P3 | 171 | daemon | Runtime log level | COMPLETED | `settings.logLevel` (debug/info/warn/error) changes daemon log verbosity at runtime via `PATCH /settings` or the Settings page, persists across restarts, and is applied at startup. Added a debug-level gateway request trace line (id, model, instance, status, ms) so debug mode is useful. Verified live: debug lines appear when set, stop at error, invalid level → 400, value survives restart. |
 | F172 | P3 | 172 | cli | Daemon log tail | COMPLETED | `GET /api/v1/logs/daemon?bytes=N` tails the daemon's own log; `llmctl logs -daemon [-tail N]` prints it. Verified live: CLI shows recent daemon lines, API reports size + tail. |
 | F173 | P3 | 173 | ui | Daemon log viewer | COMPLETED | The Overview page has a "Daemon log" card: Show fetches the last ~8 KB of the daemon log into a scrollable panel, Hide collapses it (backed by the F172 endpoint). Verified: build clean, served bundle contains the card, endpoint returns the tail. |
+| F174 | P3 | 174 | cli | `scheduler runs` | COMPLETED | `llmctl scheduler runs [-n 20]` prints the recent scheduler run ring (time, task, kind, status, duration, detail excerpt) — CLI parity with the Scheduler page's Recent Runs table. Verified live: a backup run showed ok + detail. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
