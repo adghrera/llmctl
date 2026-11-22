@@ -509,6 +509,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F496 | P3 | 496 | cli | `backends list -out FILE` | COMPLETED | `llmctl backends list -out FILE` writes the raw backends JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (1635 B), plain and -json unchanged. |
 | F497 | P3 | 497 | cli | `catalog list -out FILE` | COMPLETED | `llmctl catalog list -out FILE` writes the raw catalog JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (2279 B), plain and -json unchanged. |
 | F498 | P3 | 498 | cli | `models aliases -out FILE` | COMPLETED | `llmctl models aliases -out FILE` writes the raw aliases JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human list are unchanged. Verified live: -out wrote the exact payload (32 B), plain and -json unchanged. |
+| F499 | P3 | 499 | cli | `models routable -out FILE` | COMPLETED | `llmctl models routable -out FILE` writes the raw gateway /v1/models JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human list are unchanged. Verified live with a fresh gateway key: -out wrote the exact payload (133 B), plain and -json unchanged; key revoked after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

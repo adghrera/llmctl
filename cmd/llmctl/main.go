@@ -203,7 +203,7 @@ Usage:
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json]
   llmctl models unused [--csv]
-  llmctl models routable [-key K] [-json|-csv]   (what the gateway advertises on /v1/models)
+  llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
   llmctl models aliases [--csv] [-out FILE]
   llmctl models alias <name> <model-id>
@@ -2377,6 +2377,7 @@ func cmdModels(args []string) error {
 		keyF := rfs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled)")
 		rjson := rfs.Bool("json", false, "print the raw /v1/models JSON")
 		rcsv := rfs.Bool("csv", false, "output the advertised models as CSV (F407)")
+		rout := rfs.String("out", "", "write the raw /v1/models JSON to this file instead of stdout (F499)")
 		rfs.Parse(reorderFlags(rest))
 		req, err := http.NewRequest(http.MethodGet, cc.Base+"/v1/models", nil)
 		if err != nil {
@@ -2393,6 +2394,13 @@ func cmdModels(args []string) error {
 		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("gateway /v1/models returned %d: %s", resp.StatusCode, string(body))
+		}
+		if *rout != "" { // F499: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*rout, body, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *rout, len(body))
+			return nil
 		}
 		if *rjson {
 			fmt.Print(string(body))
