@@ -694,7 +694,7 @@ func runScheduledBackup(keep int) (string, error) {
 	if keep <= 0 {
 		keep = defaultBackupKeep()
 	}
-	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), keep)
+	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), keep, "")
 	if err != nil {
 		return "", err
 	}

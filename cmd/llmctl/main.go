@@ -244,7 +244,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats]
-  llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
+  llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
@@ -3861,7 +3861,14 @@ func cmdBackups(args []string) error {
 		fmt.Printf("%-34s %10s\n", "total: "+strconv.Itoa(len(bs))+" snapshot(s)", fmtSize(total))
 		return nil
 	case "create":
-		code, out, err := cc.Post("/api/v1/backups", nil)
+		cfs := flag.NewFlagSet("backups create", flag.ExitOnError)
+		label := cfs.String("name", "", "label embedded in the backup file name (F443)")
+		cfs.Parse(reorderFlags(rest))
+		var body any
+		if *label != "" {
+			body = map[string]string{"label": *label}
+		}
+		code, out, err := cc.Post("/api/v1/backups", body)
 		if err != nil {
 			return err
 		}

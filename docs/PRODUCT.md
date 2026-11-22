@@ -535,7 +535,9 @@ toggle for a light theme (choice remembered). Tabs:
   (`llmctl backups download <name> [-out f]`, F276) or deletion,
   and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
-  `llmctl backups restore <name>` or the Restore button, F175, F176), next to an
+  `llmctl backups restore <name>` or the Restore button, F175, F176; CLI
+  `backups create [-name LABEL]` embeds a sanitized label in the file name,
+  llmctl-<label>-<ts>.tar.gz, F443), next to an
   Export CSV button matching `backups list --csv` (F398).
   `llmctl backups list --csv` exports the snapshot inventory
   (name,size_bytes,created), header-only when empty (F383).
@@ -612,7 +614,7 @@ llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/run
                                     add: -name -cron -kind -model -prompt -instance -webhook -keep -kb;
                                     update: same flags, changes only what you pass, F290)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]]   (--csv also exports -stats rows, F420)
-llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
+llmctl backups [list|create [-name LABEL]|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]

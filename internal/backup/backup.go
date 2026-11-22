@@ -172,8 +172,9 @@ func Restore(r io.Reader) (int, error) {
 	return count, nil
 }
 
-// CreateSnapshot writes a timestamped snapshot (llmctl-YYYYMMDD-HHMMSS.tar.gz)
-// into dir and prunes old ones, keeping the newest keep. Returns the file name
+// CreateSnapshot writes a timestamped snapshot (llmctl-[label-]YYYYMMDD-HHMMSS.tar.gz)
+// into dir and prunes old ones, keeping the newest keep. An optional label
+// (F443) is sanitized and embedded before the timestamp. Returns the file name
 // and size. Shared by the scheduler backup kind (F077) and the on-demand
 // POST /api/v1/backups endpoint (F088).
 // Verify checks a snapshot file's integrity (F242): gzip + tar readable, no
@@ -221,14 +222,36 @@ func Verify(path string) (int, error) {
 	return count, nil
 }
 
-func CreateSnapshot(dir string, keep int) (string, int64, error) {
+// sanitizeLabel keeps a backup label file-safe: only letters, digits, dot,
+// dash and underscore, max 40 chars (F443).
+func sanitizeLabel(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '-' || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('-')
+		}
+	}
+	out := strings.Trim(b.String(), "-._")
+	if len(out) > 40 {
+		out = out[:40]
+	}
+	return strings.Trim(out, "-._")
+}
+
+func CreateSnapshot(dir string, keep int, label string) (string, int64, error) {
 	if keep <= 0 {
 		keep = 7
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", 0, fmt.Errorf("backups dir: %w", err)
 	}
-	name := "llmctl-" + time.Now().UTC().Format("20060102-150405") + ".tar.gz"
+	name := "llmctl-"
+	if l := sanitizeLabel(label); l != "" { // F443: optional label in the file name
+		name += l + "-"
+	}
+	name += time.Now().UTC().Format("20060102-150405") + ".tar.gz"
 	path := filepath.Join(dir, name)
 	f, err := os.Create(path)
 	if err != nil {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,7 +16,7 @@ import (
 
 // Scheduled-backup snapshots (created by the "backup" scheduler kind, F077).
 
-var backupNameRe = regexp.MustCompile(`^llmctl-[0-9]{8}-[0-9]{6}\.tar\.gz$`)
+var backupNameRe = regexp.MustCompile(`^llmctl-(?:[A-Za-z0-9._-]+-)?[0-9]{8}-[0-9]{6}\.tar\.gz$`)
 
 type backupView struct {
 	Name    string `json:"name"`
@@ -45,7 +46,13 @@ func (s *Server) createBackupNow(w http.ResponseWriter, r *http.Request) {
 	if st, err := s.store.Load(); err == nil && st.Settings != nil {
 		keep = st.Settings.BackupKeep
 	}
-	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), keep)
+	var body struct {
+		Label string `json:"label"` // optional name label, F443
+	}
+	if r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), keep, body.Label)
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
