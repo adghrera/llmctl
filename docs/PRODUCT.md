@@ -387,7 +387,7 @@ llmctl backups [list|create|restore <name>|delete <name]]
 llmctl usage [-n 14] [-key ID | -keys] [--csv]
 llmctl metrics [-watch N]          (-watch N: live refresh every N seconds)
 llmctl events [-n 20] [-watch N]
-llmctl chat [--model ID] [--key KEY]
+llmctl chat [--model ID] [--key KEY] [--system TEXT]
 llmctl version
 ```
 

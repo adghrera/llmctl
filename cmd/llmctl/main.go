@@ -1936,6 +1936,7 @@ func cmdChat(args []string) error {
 	fs := flag.NewFlagSet("chat", flag.ExitOnError)
 	modelFlag := fs.String("model", "", "model id to chat with")
 	keyFlag := fs.String("key", "", "API key (if auth is enabled)")
+	system := fs.String("system", "", "system prompt prepended to the conversation (F188)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -2003,6 +2004,9 @@ func cmdChat(args []string) error {
 
 	reader := bufio.NewReader(os.Stdin)
 	history := []map[string]any{}
+	if strings.TrimSpace(*system) != "" {
+		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+	}
 	outW := bufio.NewWriter(os.Stdout)
 
 	for {
