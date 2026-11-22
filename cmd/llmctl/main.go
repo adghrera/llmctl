@@ -221,7 +221,7 @@ Usage:
   llmctl models unalias <name> [-json]
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id> [--file]
-  llmctl models ctx <model-id> <tokens|0>
+  llmctl models ctx <model-id> <tokens|0> [-out FILE]
   llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]
   llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo> [-json] [-out FILE]
@@ -2957,8 +2957,11 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "ctx":
+		cfs := flag.NewFlagSet("models ctx", flag.ExitOnError)
+		cout := cfs.String("out", "", "write the raw response JSON to this file instead of stdout (F521)")
+		cfs.Parse(reorderFlags(rest[2:]))
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models ctx <model-id> <tokens|0>  (0 = backend default)")
+			return fmt.Errorf("usage: llmctl models ctx <model-id> <tokens|0> [-out FILE]  (0 = backend default)")
 		}
 		id := rest[0]
 		n := 0
@@ -2973,10 +2976,17 @@ func cmdModels(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("ctx returned %d", code)
+			return fmt.Errorf("ctx returned %d: %s", code, out)
 		}
+		if *cout != "" { // F521: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*cout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *cout, len(out))
+			return nil
+		}
+		fmt.Println(string(out))
 		return nil
 	case "price":
 		pfs := flag.NewFlagSet("models price", flag.ExitOnError)
