@@ -771,6 +771,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F758 | P3 | 758 | requests | Requests ?id= deep link | COMPLETED | `/requests?id=<X-Request-Id>` now shows the single logged request (auto-expanded), twin of `llmctl requests -id`; Clear removes the id param. Verified live: endpoint replay + served bundle carries the param read. |
 | F759 | P3 | 759 | usage | Usage days dropdown | COMPLETED | The Usage page Daily History header gained a days dropdown (7/14/30/90) that refetches the daily roll-ups — UI twin of `llmctl usage -n N`; the trend chart follows the fetched window. Verified live: served bundle carries the dropdown, API accepts days=30. |
 | F760 | P3 | 760 | logs | Log viewers Copy button | COMPLETED | The Overview daemon log card and the Instances log viewer each gained a Copy button saving the displayed (filter-aware) tail to the clipboard — companion to their Download buttons. Verified live: served bundle carries both buttons. |
+| F761 | P3 | 761 | files | File content Copy button | COMPLETED | The Files "File content" preview modal gained a Copy button copying the full text to the clipboard — companion to the View preview (F355) and per-row Download (F745). Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

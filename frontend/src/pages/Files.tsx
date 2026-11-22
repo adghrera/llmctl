@@ -355,9 +355,22 @@ export default function Files() {
           <button
             className="btn sm"
             onClick={() => setContentView(null)}
-            style={{ marginBottom: 8 }}
+            style={{ marginBottom: 8, marginRight: 6 }}
           >
             Close
+          </button>
+          <button
+            className="btn sm"
+            style={{ marginBottom: 8 }}
+            title="copy the file content to the clipboard (F761)"
+            onClick={() => {
+              navigator.clipboard
+                ?.writeText(contentView)
+                .then(() => ok("copied"))
+                .catch(() => {});
+            }}
+          >
+            Copy
           </button>
           <pre
             style={{
