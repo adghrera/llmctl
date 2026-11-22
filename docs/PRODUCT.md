@@ -164,6 +164,7 @@ toggle for a light theme (choice remembered). Tabs:
   existing endpoints to find models (id/backend/path), saved chats (full-text
   with snippets), memory entries, knowledge bases, prompt templates
   (F318) and instances + API keys (F364), each result linking to its page.
+  Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439).
   `llmctl chats search` /
   `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON),

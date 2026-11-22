@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { useStore } from "./state/store";
 import Overview from "./pages/Overview";
 import Search from "./pages/Search";
@@ -25,9 +25,9 @@ import Keys from "./pages/Keys";
 import SettingsPage from "./pages/Settings";
 import { Toasts } from "./ui/toast";
 
-const NAV = [
+const NAV: { to: string; label: string; end?: boolean; title?: string }[] = [
   { to: "/", label: "Overview", end: true },
-  { to: "/search", label: "Search" },
+  { to: "/search", label: "Search", title: "Ctrl+K" },
   { to: "/backends", label: "Backends" },
   { to: "/models", label: "Models" },
   { to: "/instances", label: "Instances" },
@@ -52,7 +52,20 @@ const NAV = [
 
 export default function App() {
   const { status } = useStore();
+  const navigate = useNavigate();
   const [light, setLight] = useState(() => document.documentElement.dataset.theme === "light");
+
+  // Ctrl+K / Cmd+K jumps to the Search page from anywhere (F439).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        navigate("/search");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navigate]);
 
   const toggleTheme = () => {
     const next = !light;
@@ -82,7 +95,7 @@ export default function App() {
       </header>
       <nav>
         {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? "active" : "")}>
+          <NavLink key={n.to} to={n.to} end={n.end} title={n.title} className={({ isActive }) => (isActive ? "active" : "")}>
             {n.label}
           </NavLink>
         ))}
