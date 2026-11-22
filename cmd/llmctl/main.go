@@ -995,17 +995,24 @@ func cmdCatalog(args []string) error {
 		fmt.Printf("\ninstall one: llmctl catalog install <id>\n")
 		return nil
 	case "install":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl catalog install <id>  (see: llmctl catalog list)")
+		cifs := flag.NewFlagSet("catalog install", flag.ExitOnError)
+		cijson := cifs.Bool("json", false, "print the raw response JSON (F541)")
+		cifs.Parse(reorderFlags(rest))
+		if cifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl catalog install <id> [-json]  (see: llmctl catalog list)")
 		}
-		code, out, err := cc.Post("/api/v1/catalog/install", map[string]any{"id": rest[0]})
+		code, out, err := cc.Post("/api/v1/catalog/install", map[string]any{"id": cifs.Arg(0)})
 		if err != nil {
 			return err
 		}
 		if code != 200 && code != 202 {
 			return fmt.Errorf("catalog install returned %d: %s", code, out)
 		}
-		fmt.Printf("catalog install %s started — track with: llmctl models show %s\n", rest[0], rest[0])
+		if *cijson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("catalog install %s started — track with: llmctl models show %s\n", cifs.Arg(0), cifs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown catalog subcommand: %s (list|install)", sub)
@@ -6350,9 +6357,10 @@ func cmdKb(args []string) error {
 		modelF := efs.String("model", "", "embedding model name")
 		keyF := efs.String("key", "", "bearer key for the endpoint")
 		clearF := efs.Bool("clear", false, "remove the embedding config (fall back to TF-IDF)")
+		ejson := efs.Bool("json", false, "print the raw response JSON (F541)")
 		efs.Parse(reorderFlags(rest))
 		if efs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl kb embed <kb-id> [-url U -model M [-key K]] | -clear")
+			return fmt.Errorf("usage: llmctl kb embed <kb-id> [-url U -model M [-key K]] | -clear [-json]")
 		}
 		kbID := efs.Arg(0)
 		body := map[string]any{}
@@ -6374,6 +6382,10 @@ func cmdKb(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("kb embed: %s", out)
+		}
+		if *ejson {
+			fmt.Print(string(out))
+			return nil
 		}
 		if *clearF {
 			fmt.Printf("knowledge base %s embedding config cleared (TF-IDF search)\n", kbID)
