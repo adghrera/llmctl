@@ -245,7 +245,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
-  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...]|start <name>|delete <name>|export|import
+  llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name>|delete <name>|export|import
   llmctl catalog list [-json|-csv|-out FILE] | install <id>
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
@@ -833,11 +833,12 @@ func cmdPresets(args []string) error {
 		instance := fs.String("instance", "", "instance name (default: model id)")
 		backendID := fs.String("backend", "", "backend id (default: model's)")
 		port := fs.Int("port", 0, "fixed port (0 = auto-assign)")
+		jsonOut := fs.Bool("json", false, "print the raw response JSON (F524)")
 		var vars stringList
 		fs.Var(&vars, "var", "parameter k=v (repeatable)")
 		fs.Parse(reorderFlags(rest))
 		if *name == "" || *model == "" {
-			return fmt.Errorf("usage: llmctl presets save -name N -model ID [-instance I] [-backend B] [-port P] [-var k=v ...]")
+			return fmt.Errorf("usage: llmctl presets save -name N -model ID [-instance I] [-backend B] [-port P] [-var k=v ...] [-json]")
 		}
 		body := map[string]any{"name": *name, "modelId": *model}
 		if *instance != "" {
@@ -858,6 +859,10 @@ func cmdPresets(args []string) error {
 		}
 		if code != 200 && code != 201 {
 			return fmt.Errorf("presets save returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("preset %s saved\n", *name)
 		return nil
