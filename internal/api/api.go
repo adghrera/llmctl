@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,6 +88,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/backends/{id}", s.removePlugin)
 	// Models
 	m.HandleFunc("GET /api/v1/models", s.listModels)
+	m.HandleFunc("POST /api/v1/models", s.registerModel)
 	m.HandleFunc("POST /api/v1/models/install", s.installModel)
 	m.HandleFunc("GET /api/v1/catalog", s.listCatalog)
 	m.HandleFunc("POST /api/v1/catalog/install", s.installCatalogModel)
@@ -387,6 +389,62 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 		out = append(out, v)
 	}
 	writeJSON(w, 200, out)
+}
+
+type registerModelReq struct {
+	ID      string `json:"id"`
+	Backend string `json:"backend"` // default llama.cpp
+	Path    string `json:"path"`    // existing local .gguf file
+	CtxSize int    `json:"ctxSize"` // optional default context window
+}
+
+var modelIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,79}$`)
+
+// registerModel handles POST /api/v1/models — register an existing local
+// model file (no download) so it can be started like an installed one (F083).
+func (s *Server) registerModel(w http.ResponseWriter, r *http.Request) {
+	var req registerModelReq
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON")
+		return
+	}
+	if !modelIDRe.MatchString(req.ID) {
+		writeErr(w, 400, "id must match ^[a-z0-9][a-z0-9_-]{0,79}$")
+		return
+	}
+	backendID := req.Backend
+	if backendID == "" {
+		backendID = "llama.cpp"
+	}
+	if _, ok := s.reg.Get(backendID); !ok {
+		writeErr(w, 400, "unknown backend: "+backendID)
+		return
+	}
+	fi, err := os.Stat(req.Path)
+	if err != nil || fi.IsDir() {
+		writeErr(w, 400, "model file not readable: "+req.Path)
+		return
+	}
+	st, _ := s.store.Load()
+	if _, exists := st.Models[req.ID]; exists {
+		writeErr(w, 409, "model already registered: "+req.ID)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		st.Models[req.ID] = &store.ModelRecord{
+			ID:           req.ID,
+			BackendID:    backendID,
+			Path:         req.Path,
+			SizeBytes:    fi.Size(),
+			DownloadedAt: time.Now(),
+			CtxSize:      req.CtxSize,
+		}
+		return nil
+	})
+	writeJSON(w, 201, modelView{
+		ID: req.ID, BackendID: backendID, Path: req.Path,
+		SizeBytes: fi.Size(), Downloaded: true, CtxSize: req.CtxSize,
+	})
 }
 
 type installModelReq struct {

@@ -42,6 +42,8 @@ GitHub release, or file list. No recompile.
 - Download from any HuggingFace repo (search + file picker in the UI, or
   `llmctl models install <repo> --file <f.gguf>`).
 - Direct URLs work too.
+- Register a model file already on disk (Models → "Register local model", or
+  `POST /api/v1/models` with id + path + backend) — no download needed.
 - Resumable downloads (HTTP Range), progress shown live in the UI (SSE).
 - Multiple models can be installed and run at the same time.
 - GGUF metadata viewer: per-model "Meta" shows quant, architecture, trained

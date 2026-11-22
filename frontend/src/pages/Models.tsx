@@ -32,6 +32,26 @@ export default function Models() {
     }
   };
 
+  // Register an existing local model file (F083).
+  const [regId, setRegId] = useState("");
+  const [regPath, setRegPath] = useState("");
+  const [regBackend, setRegBackend] = useState("llama.cpp");
+  const [regBusy, setRegBusy] = useState(false);
+  const registerLocal = async () => {
+    setRegBusy(true);
+    try {
+      await api.registerModel({ id: regId.trim(), path: regPath.trim(), backend: regBackend });
+      ok(`registered ${regId}`);
+      setRegId("");
+      setRegPath("");
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRegBusy(false);
+    }
+  };
+
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Array<{ modelId?: string; id?: string; downloads?: number }>>([]);
   const [searched, setSearched] = useState(false);
@@ -276,6 +296,50 @@ export default function Models() {
             </div>
           </div>
         )}
+      </div>
+      <div className="card">
+        <h2>Register local model</h2>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <label className="oc-field" style={{ fontSize: 12 }}>
+            id
+            <input
+              className="oc-input"
+              style={{ width: 150 }}
+              placeholder="my-model"
+              value={regId}
+              onChange={(e) => setRegId(e.target.value)}
+            />
+          </label>
+          <label className="oc-field" style={{ fontSize: 12, flex: 1, minWidth: 220 }}>
+            path to .gguf file
+            <input
+              className="oc-input"
+              placeholder="/path/to/model.gguf"
+              value={regPath}
+              onChange={(e) => setRegPath(e.target.value)}
+            />
+          </label>
+          <label className="oc-field" style={{ fontSize: 12 }}>
+            backend
+            <select className="oc-input" value={regBackend} onChange={(e) => setRegBackend(e.target.value)}>
+              {backends.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="btn primary"
+            disabled={regBusy || !regId.trim() || !regPath.trim()}
+            onClick={registerLocal}
+          >
+            {regBusy ? "Registering…" : "Register"}
+          </button>
+        </div>
+        <p className="muted small" style={{ margin: "8px 0 0" }}>
+          Points llmctl at a model file already on disk (no download).
+        </p>
       </div>
       <div className="card">
         <h2>Installed models</h2>

@@ -444,6 +444,8 @@ export const api = {
   addPlugin: (plugin: object) => req<{ ok: boolean }>("/backends", { method: "POST", body: JSON.stringify(plugin) }),
   removePlugin: (id: string) => req<{ ok: boolean }>(`/backends/${encodeURIComponent(id)}`, { method: "DELETE" }),
   models: () => req<Model[]>("/models"),
+  registerModel: (body: { id: string; path: string; backend?: string; ctxSize?: number }) =>
+    req<Model>(`/models`, { method: "POST", body: JSON.stringify(body) }),
   installModel: (body: { repo: string; file?: string; revision?: string; backend?: string; id?: string }) =>
     req<{ job: string; status: string; model: string }>("/models/install", { method: "POST", body: JSON.stringify(body) }),
   removeModel: (id: string) => req<{ ok: boolean }>(`/models/${encodeURIComponent(id)}`, { method: "DELETE" }),
