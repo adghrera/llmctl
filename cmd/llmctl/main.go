@@ -217,8 +217,8 @@ Usage:
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID] [-out FILE]
   llmctl models aliases [--csv] [-out FILE]
-  llmctl models alias <name> <model-id>
-  llmctl models unalias <name>
+  llmctl models alias <name> <model-id> [-json]
+  llmctl models unalias <name> [-json]
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0>
@@ -2807,8 +2807,11 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "alias":
-		if len(rest) < 2 {
-			return fmt.Errorf("usage: llmctl models alias <name> <model-id>")
+		afs := flag.NewFlagSet("models alias", flag.ExitOnError)
+		ajson := afs.Bool("json", false, "print the raw response JSON (F519)")
+		afs.Parse(reorderFlags(rest[2:]))
+		if afs.NArg()+2 < 2 {
+			return fmt.Errorf("usage: llmctl models alias <name> <model-id> [-json]")
 		}
 		code, out, err := cc.Post("/api/v1/aliases", map[string]string{"alias": rest[0], "model": rest[1]})
 		if err != nil {
@@ -2817,11 +2820,18 @@ func cmdModels(args []string) error {
 		if code != 200 && code != 201 {
 			return fmt.Errorf("alias returned %d: %s", code, out)
 		}
+		if *ajson {
+			fmt.Print(string(out))
+			return nil
+		}
 		fmt.Printf("alias %s -> %s\n", rest[0], rest[1])
 		return nil
 	case "unalias":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models unalias <name>")
+		ufs := flag.NewFlagSet("models unalias", flag.ExitOnError)
+		ujson := ufs.Bool("json", false, "print the raw response JSON (F519)")
+		ufs.Parse(reorderFlags(rest[1:]))
+		if ufs.NArg()+1 == 0 {
+			return fmt.Errorf("usage: llmctl models unalias <name> [-json]")
 		}
 		code, out, err := cc.Delete("/api/v1/aliases/" + url.PathEscape(rest[0]))
 		if err != nil {
@@ -2829,6 +2839,10 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("unalias returned %d: %s", code, out)
+		}
+		if *ujson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("removed alias %s\n", rest[0])
 		return nil
