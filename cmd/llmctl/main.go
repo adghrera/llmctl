@@ -191,7 +191,7 @@ Usage:
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv] [-out FILE]
-  llmctl ps [-watch N] [--csv] [-json]
+  llmctl ps [-watch N] [--csv] [-json] [-out FILE]
   llmctl backends list [-json|-csv]
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
@@ -2084,6 +2084,7 @@ func cmdPS(args []string) error {
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	csvOut := fs.Bool("csv", false, "output the instance table as CSV (F373; ignores -watch)")
 	jsonOut := fs.Bool("json", false, "print the raw instances JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw instances JSON to this file instead of stdout (F467)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -2093,6 +2094,15 @@ func cmdPS(args []string) error {
 		_, out, err := cc.Get("/api/v1/instances")
 		if err != nil {
 			return err
+		}
+		if *outFile != "" { // F467: latest snapshot to a file (each -watch refresh overwrites)
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			if *watch <= 0 {
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			}
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))

@@ -584,7 +584,7 @@ llmctl disk [-json] [--csv] [-out FILE]            (model dir + volume disk usag
                                     warns below 1 GiB free, F236), scheduler (warns when a schedule
                                     references a missing model or recent runs failed, F334);
                                     exit ≠0 on errors)
-llmctl ps [-watch N] [--csv] [-json]      (-watch N: live refresh; --csv: one-shot CSV export; -json: raw; also shows uptime, requests served, auto-restart
+llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --csv: one-shot CSV export; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F467; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388)
 llmctl catalog list [-json|-csv] | install <id>      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387)
