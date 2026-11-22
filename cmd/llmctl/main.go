@@ -5912,17 +5912,24 @@ func cmdSkills(args []string) error {
 		fmt.Printf("%sd skill %s\n", sub, rest[0])
 		return nil
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl skills delete <id>")
+		sdfs := flag.NewFlagSet("skills delete", flag.ExitOnError)
+		sdjson := sdfs.Bool("json", false, "print the raw response JSON (F536)")
+		sdfs.Parse(reorderFlags(rest))
+		if sdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills delete <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/skills/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/skills/" + url.PathEscape(sdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("delete returned %d: %s", code, out)
 		}
-		fmt.Printf("deleted skill %s\n", rest[0])
+		if *sdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted skill %s\n", sdfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown skills subcommand %q (list|show|enable|disable|delete)", sub)
@@ -6242,17 +6249,24 @@ func cmdMemory(args []string) error {
 		fmt.Printf("added memory %s\n", rec.Entry.ID)
 		return nil
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl memory delete <id>")
+		mdfs := flag.NewFlagSet("memory delete", flag.ExitOnError)
+		mdjson := mdfs.Bool("json", false, "print the raw response JSON (F536)")
+		mdfs.Parse(reorderFlags(rest))
+		if mdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl memory delete <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/memory/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/memory/" + url.PathEscape(mdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("delete returned %d: %s", code, out)
 		}
-		fmt.Printf("deleted memory %s\n", rest[0])
+		if *mdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted memory %s\n", mdfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown memory subcommand %q (list|show|add|delete)", sub)
@@ -6734,17 +6748,24 @@ func cmdKb(args []string) error {
 		fmt.Printf("created knowledge base %s\n", rec.KB.ID)
 		return nil
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl kb delete <id>")
+		kdfs := flag.NewFlagSet("kb delete", flag.ExitOnError)
+		kdjson := kdfs.Bool("json", false, "print the raw response JSON (F536)")
+		kdfs.Parse(reorderFlags(rest))
+		if kdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl kb delete <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/knowledge-bases/" + url.PathEscape(kdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("delete returned %d: %s", code, out)
 		}
-		fmt.Printf("deleted knowledge base %s\n", rest[0])
+		if *kdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted knowledge base %s\n", kdfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown kb subcommand %q (list|show|create|docs|add-doc|delete)", sub)
@@ -6988,17 +7009,24 @@ func cmdTools(args []string) error {
 		}
 		return nil
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl tools delete <id>")
+		tdfs := flag.NewFlagSet("tools delete", flag.ExitOnError)
+		tdjson := tdfs.Bool("json", false, "print the raw response JSON (F536)")
+		tdfs.Parse(reorderFlags(rest))
+		if tdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl tools delete <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/tools/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/tools/" + url.PathEscape(tdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("delete returned %d: %s", code, out)
 		}
-		fmt.Printf("deleted tool %s\n", rest[0])
+		if *tdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted tool %s\n", tdfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown tools subcommand %q (list|show|install|enable|disable|run|delete)", sub)
@@ -7194,17 +7222,24 @@ func cmdMcp(args []string) error {
 		fmt.Printf("added MCP server %s\n", rec.ID)
 		return nil
 	case "remove":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl mcp remove <id>")
+		mrfs := flag.NewFlagSet("mcp remove", flag.ExitOnError)
+		mrjson := mrfs.Bool("json", false, "print the raw response JSON (F536)")
+		mrfs.Parse(reorderFlags(rest))
+		if mrfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl mcp remove <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/mcp/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/mcp/" + url.PathEscape(mrfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("remove returned %d: %s", code, out)
 		}
-		fmt.Printf("removed MCP server %s\n", rest[0])
+		if *mrjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("removed MCP server %s\n", mrfs.Arg(0))
 		return nil
 	case "enable", "disable":
 		if len(rest) == 0 {
@@ -7984,17 +8019,24 @@ func cmdFiles(args []string) error {
 		fmt.Print(string(out))
 		return nil
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl files delete <id>")
+		fdfs := flag.NewFlagSet("files delete", flag.ExitOnError)
+		fdjson := fdfs.Bool("json", false, "print the raw response JSON (F536)")
+		fdfs.Parse(reorderFlags(rest))
+		if fdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl files delete <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/files/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/files/" + url.PathEscape(fdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("delete returned %d: %s", code, out)
 		}
-		fmt.Printf("deleted %s\n", rest[0])
+		if *fdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("deleted %s\n", fdfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("usage: llmctl files [list|cat <id>|delete <id>] [-json]")
