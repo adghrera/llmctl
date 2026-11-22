@@ -896,6 +896,10 @@ func cmdScheduler(args []string) error {
 				Enabled  bool   `json:"enabled"`
 				NextRun  string `json:"next_run"`
 			} `json:"spec"`
+			LastRun *struct {
+				Time   string `json:"time"`
+				Status string `json:"status"`
+			} `json:"lastRun"`
 		}
 		if err := json.Unmarshal(out, &recs); err != nil {
 			return err
@@ -904,6 +908,7 @@ func cmdScheduler(args []string) error {
 			fmt.Println("no scheduled tasks")
 			return nil
 		}
+		fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %s\n", "ID", "ON", "KIND", "CRON", "MODEL", "LAST", "NAME")
 		for _, r := range recs {
 			kind := r.Spec.Kind
 			if kind == "" {
@@ -913,7 +918,14 @@ func cmdScheduler(args []string) error {
 			if r.Spec.Enabled {
 				on = "on "
 			}
-			fmt.Printf("%-16s %s %-14s %-12s %-12s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, r.Spec.Name)
+			last := "—"
+			if r.LastRun != nil {
+				last = r.LastRun.Status
+				if t, err := time.Parse(time.RFC3339, r.LastRun.Time); err == nil {
+					last += " " + t.Local().Format("01-02 15:04")
+				}
+			}
+			fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, last, r.Spec.Name)
 		}
 		return nil
 	case "add":

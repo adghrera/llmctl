@@ -191,6 +191,7 @@ export interface ScheduleSpec {
   next_run: string;
   created_at: string;
   updated_at: string;
+  lastRun?: ScheduleRun; // most recent run from the in-memory ring (F184)
 }
 
 export interface ScheduleRun {

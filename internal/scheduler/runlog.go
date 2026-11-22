@@ -44,3 +44,18 @@ func Runs(n int) []Run {
 	}
 	return out
 }
+
+// LastRun returns the most recent run for a task id, or nil if the ring has no
+// entry for it (the ring is in-memory, so this is nil after a daemon restart
+// until the task runs again) (F184).
+func LastRun(taskID string) *Run {
+	runsMu.Lock()
+	defer runsMu.Unlock()
+	for i := len(runsBuf) - 1; i >= 0; i-- {
+		if runsBuf[i].TaskID == taskID {
+			r := runsBuf[i]
+			return &r
+		}
+	}
+	return nil
+}

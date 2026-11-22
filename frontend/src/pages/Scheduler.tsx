@@ -18,7 +18,15 @@ export default function Scheduler() {
   const load = () =>
     api
       .schedules()
-      .then(setSchedules)
+      .then((list) =>
+        // The API returns {id, dir, spec}; flatten spec onto each row and
+        // attach the ring's last-run status (F184).
+        setSchedules(
+          (list as unknown as Array<{ spec?: ScheduleSpec } & ScheduleSpec>).map(
+            (r) => ({ ...(r.spec ?? r), lastRun: (r as { lastRun?: ScheduleRun }).lastRun })
+          )
+        )
+      )
       .catch((e) => err(e instanceof Error ? e.message : String(e)));
 
   useEffect(() => {
@@ -252,6 +260,15 @@ export default function Scheduler() {
                       : "—"}
                   </td>
                   <td style={{ fontSize: 12, opacity: 0.7 }}>
+                    {s.lastRun ? (
+                      <span
+                        className={`badge ${s.lastRun.status === "ok" ? "ok" : "err"}`}
+                        title={s.lastRun.detail || s.lastRun.status}
+                        style={{ marginRight: 6 }}
+                      >
+                        {s.lastRun.status}
+                      </span>
+                    ) : null}
                     {s.last_run
                       ? new Date(s.last_run).toLocaleString()
                       : "—"}

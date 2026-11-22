@@ -22,6 +22,13 @@ func (s *Server) schedStore() (*scheduler.Store, error) {
 	return s.sched, nil
 }
 
+// schedView is a scheduler record enriched with its most recent run from the
+// in-memory ring (status/detail), for the list endpoint (F184).
+type schedView struct {
+	scheduler.Record
+	LastRun *scheduler.Run `json:"lastRun,omitempty"`
+}
+
 // listSchedules handles GET /api/v1/scheduler.
 func (s *Server) listSchedules(w http.ResponseWriter, r *http.Request) {
 	ts, err := s.schedStore()
@@ -34,7 +41,11 @@ func (s *Server) listSchedules(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, err.Error())
 		return
 	}
-	writeJSON(w, 200, list)
+	out := make([]schedView, 0, len(list))
+	for _, rec := range list {
+		out = append(out, schedView{Record: rec, LastRun: scheduler.LastRun(rec.ID)})
+	}
+	writeJSON(w, 200, out)
 }
 
 // createSchedule handles POST /api/v1/scheduler.
