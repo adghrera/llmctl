@@ -222,7 +222,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT]
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
@@ -3668,6 +3668,43 @@ func cmdChats(args []string) error {
 			return fmt.Errorf("chat rename: %s", out)
 		}
 		fmt.Printf("renamed chat %s to %q\n", rfs.Arg(0), conv["title"])
+		return nil
+	}
+	if len(args) > 0 && args[0] == "delete-all" {
+		dafs := flag.NewFlagSet("chats delete-all", flag.ExitOnError)
+		yes := dafs.Bool("yes", false, "confirm deletion of every saved chat")
+		dafs.Parse(reorderFlags(args[1:]))
+		if !*yes {
+			return fmt.Errorf("refusing to delete every saved chat without -yes")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats returned %d: %s", code, out)
+		}
+		var list []struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no saved chats")
+			return nil
+		}
+		n := 0
+		for _, c := range list {
+			if code, _, err := cc.Delete("/api/v1/chats/" + url.PathEscape(c.ID)); err == nil && code == 200 {
+				n++
+			}
+		}
+		fmt.Printf("deleted %d/%d saved chats\n", n, len(list))
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {
