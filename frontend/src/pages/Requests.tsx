@@ -357,6 +357,19 @@ export default function Requests() {
                 {openIdx === i && (
                   <tr>
                     <td colSpan={9} style={{ background: "var(--code-background, rgba(127,127,127,0.08))" }}>
+                      <button
+                        className="btn sm"
+                        style={{ margin: "4px 0" }}
+                        title="copy this request's JSON detail to the clipboard (F757)"
+                        onClick={() => {
+                          navigator.clipboard
+                            ?.writeText(JSON.stringify(e, null, 2))
+                            .then(() => ok("copied"))
+                            .catch(() => {});
+                        }}
+                      >
+                        Copy JSON
+                      </button>
                       <pre style={{ margin: 0, fontSize: 11, overflowX: "auto", whiteSpace: "pre-wrap" }}>
                         {JSON.stringify(e, null, 2)}
                       </pre>

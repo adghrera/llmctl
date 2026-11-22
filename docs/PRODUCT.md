@@ -306,7 +306,8 @@ toggle for a light theme (choice remembered). Tabs:
   JSON (F718, F729), a groupable
   stats table (by hour/day/status/model/key/instance — the UI twin of
   `llmctl requests -stats -by …`, F549, F554, F594), with one-click
-  CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
+  CSV export, per-row expand to full JSON detail with a Copy JSON button
+  (F161, F757), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
   stream/plain, key prefix or id (with a key-name dropdown to pick it, F735),
   model and instance dropdown filters (F736),
