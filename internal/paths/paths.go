@@ -26,6 +26,7 @@ func Home() string {
 
 func StateFile() string  { return filepath.Join(Home(), "state.json") }
 func DaemonLog() string  { return filepath.Join(Home(), "llmctl.log") }
+func RequestLog() string  { return filepath.Join(Home(), "requests.jsonl") } // F086
 func BackendsDir() string { return filepath.Join(Home(), "backends") }
 func ModelsDir() string   { return filepath.Join(Home(), "models") }
 func LogsDir() string     { return filepath.Join(Home(), "logs") }

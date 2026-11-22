@@ -1,6 +1,10 @@
 package proxy
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -20,18 +24,83 @@ type RequestLogEntry struct {
 
 const requestLogSize = 256
 
+// persistedLogKeep is how many lines to keep in the JSONL file on startup
+// trim (F086).
+const persistedLogKeep = 1000
+
 // requestLog is a fixed-size ring of the most recent gateway requests.
-// Safe for concurrent use.
+// When a file is attached (F086) every entry is also appended as one JSON
+// line so the log survives daemon restarts. Safe for concurrent use.
 type requestLog struct {
 	mu    sync.Mutex
 	buf   []RequestLogEntry // filled up to requestLogSize, then overwritten round-robin
 	head  int               // next write slot once full
 	count int
+	file  *os.File // JSONL append target; nil = disabled
+}
+
+// useFile enables JSONL persistence at path: the file is trimmed to the last
+// persistedLogKeep lines and the ring is seeded from its newest entries.
+// Best-effort: on any error persistence stays disabled.
+func (l *requestLog) useFile(path string) {
+	lines := []string{}
+	if raw, err := os.ReadFile(path); err == nil {
+		sc := bufio.NewScanner(bytes.NewReader(raw))
+		sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+		for sc.Scan() {
+			if s := sc.Text(); s != "" {
+				lines = append(lines, s)
+			}
+		}
+		if len(lines) > persistedLogKeep {
+			lines = lines[len(lines)-persistedLogKeep:]
+		}
+		// Seed the ring oldest-first so the newest entries end up kept.
+		l.mu.Lock()
+		for _, s := range lines {
+			var e RequestLogEntry
+			if json.Unmarshal([]byte(s), &e) == nil {
+				l.addLocked(e)
+			}
+		}
+		l.mu.Unlock()
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	l.mu.Lock()
+	l.file = f
+	l.mu.Unlock()
+	// Rewrite the trimmed file so it cannot grow unbounded.
+	if len(lines) > 0 {
+		trimmed := ""
+		for _, s := range lines {
+			trimmed += s + "\n"
+		}
+		if os.WriteFile(path, []byte(trimmed), 0o644) == nil {
+			f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+			if err == nil {
+				l.mu.Lock()
+				l.file = f
+				l.mu.Unlock()
+			}
+		}
+	}
 }
 
 func (l *requestLog) add(e RequestLogEntry) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.addLocked(e)
+	if l.file != nil {
+		if b, err := json.Marshal(e); err == nil {
+			l.file.Write(append(b, '\n'))
+		}
+	}
+}
+
+func (l *requestLog) addLocked(e RequestLogEntry) {
 	if len(l.buf) < requestLogSize {
 		l.buf = append(l.buf, e)
 		l.count++

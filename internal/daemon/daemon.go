@@ -143,7 +143,9 @@ func Run(ctx context.Context, opts Options) error {
 		RateRPS:     opts.RateRPS,
 		RateBurst:   opts.RateBurst,
 		MaxInflight: opts.MaxInflight,
-		Logger:      logger,
+		// Persist the request log across restarts (F086).
+		RequestLogPath: paths.RequestLog(),
+		Logger:         logger,
 	}, router)
 	if err != nil {
 		return err

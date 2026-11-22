@@ -54,7 +54,10 @@ type Config struct {
 	RateRPS     float64 // sustained requests/sec per client
 	RateBurst   int
 	MaxInflight int
-	Logger      *slog.Logger
+	// RequestLogPath, when set, persists the recent-request ring to a JSONL
+	// file so it survives daemon restarts (F086).
+	RequestLogPath string
+	Logger         *slog.Logger
 }
 
 func NewServer(cfg Config, router *Router) (*Server, error) {
@@ -101,6 +104,9 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	}
 	s.requireAuth.Store(requireAuth)
 	s.allowCORS.Store(cfg.AllowCORS)
+	if cfg.RequestLogPath != "" {
+		s.collector.reqLog.useFile(cfg.RequestLogPath)
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /v1/models", s.auth(s.listModels))
