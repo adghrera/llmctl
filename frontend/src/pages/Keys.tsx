@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type ApiKey } from "../api/client";
+import { ago, until } from "../lib/time";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -417,15 +418,15 @@ export default function Keys() {
                   </td>
                   <td className="mono">{k.prefix}…</td>
                   <td>
-                    {new Date(k.createdAt).toLocaleString()}
+                    <span title={new Date(k.createdAt).toLocaleString()}>{ago(k.createdAt)}</span>
                     {k.lastUsed && (
-                      <div className="muted" style={{ fontSize: 11 }}>used {new Date(k.lastUsed).toLocaleString()}</div>
+                      <div className="muted" style={{ fontSize: 11 }} title={new Date(k.lastUsed).toLocaleString()}>used {ago(k.lastUsed)}</div>
                     )}
                     {k.expiresAt &&
                       (new Date(k.expiresAt).getTime() < Date.now() ? (
-                        <div className="danger" style={{ fontSize: 11 }}>expired {new Date(k.expiresAt).toLocaleString()}</div>
+                        <div className="danger" style={{ fontSize: 11 }} title={new Date(k.expiresAt).toLocaleString()}>expired {ago(k.expiresAt)}</div>
                       ) : (
-                        <div className="muted" style={{ fontSize: 11 }}>expires {new Date(k.expiresAt).toLocaleDateString()}</div>
+                        <div className="muted" style={{ fontSize: 11 }} title={new Date(k.expiresAt).toLocaleString()}>expires {until(k.expiresAt)}</div>
                       ))}
                   </td>
                   <td className="mono">

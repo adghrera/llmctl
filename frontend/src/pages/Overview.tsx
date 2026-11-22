@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type GatewayMetrics, type GPUInfo } from "../api/client";
+import { ago } from "../lib/time";
 import { useStore } from "../state/store";
 
 export default function Overview() {
@@ -244,8 +245,8 @@ export default function Overview() {
             <tbody>
               {events.map((e, i) => (
                 <tr key={i}>
-                  <td className="muted" style={{ fontSize: 12 }}>
-                    {new Date(e.time).toLocaleString()}
+                  <td className="muted" style={{ fontSize: 12 }} title={new Date(e.time).toLocaleString()}>
+                    {ago(e.time)}
                   </td>
                   <td>
                     <span className={`badge ${e.kind.includes("crashed") ? "err" : "warn"}`}>
