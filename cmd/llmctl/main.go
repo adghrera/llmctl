@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"llmctl/internal/backup"
@@ -64,6 +65,8 @@ func main() {
 		err = cmdStructured(args)
 	case "embed":
 		err = cmdEmbed(args)
+	case "bench":
+		err = cmdBench(args)
 	case "note":
 		err = cmdNote(args)
 	case "autorestart":
@@ -158,6 +161,7 @@ Usage:
   llmctl search <query> [-max N] [-json]
   llmctl structured -model ID -schema file.json <prompt>
   llmctl embed -model ID <text>
+  llmctl bench -model ID [-n N] [-conc C]
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -1105,6 +1109,146 @@ func cmdEmbed(args []string) error {
 	if len(v) > 6 {
 		fmt.Printf("  … (%d more)\n", len(v)-6)
 	}
+	return nil
+}
+
+// cmdBench measures gateway chat throughput/latency for one model (F282).
+func cmdBench(args []string) error {
+	fs := flag.NewFlagSet("bench", flag.ExitOnError)
+	model := fs.String("model", "", "model id to benchmark (required)")
+	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	n := fs.Int("n", 5, "number of requests")
+	conc := fs.Int("conc", 1, "concurrent requests")
+	prompt := fs.String("prompt", "count to five", "prompt for every request")
+	fs.Parse(reorderFlags(args))
+	if *model == "" {
+		return fmt.Errorf("usage: llmctl bench -model ID [-key K] [-n N] [-conc C] [-prompt TEXT]")
+	}
+	if *n < 1 {
+		*n = 1
+	}
+	if *conc < 1 {
+		*conc = 1
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	body, _ := json.Marshal(map[string]any{
+		"model":    *model,
+		"messages": []map[string]string{{"role": "user", "content": *prompt}},
+	})
+	type result struct {
+		ms   float64
+		tok  int
+		errS string
+	}
+	// worker pool over a job channel
+	jobs := make(chan int)
+	res := make(chan result, *n)
+	var wg sync.WaitGroup
+	for w := 0; w < *conc; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range jobs {
+				req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(body)))
+				if err != nil {
+					res <- result{errS: err.Error()}
+					continue
+				}
+				req.Header.Set("Content-Type", "application/json")
+				if *keyF != "" {
+					req.Header.Set("Authorization", "Bearer "+*keyF)
+				}
+				hc := &http.Client{Timeout: 5 * time.Minute}
+				t0 := time.Now()
+				resp, err := hc.Do(req)
+				if err != nil {
+					res <- result{errS: err.Error()}
+					continue
+				}
+				payload, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				ms := float64(time.Since(t0).Microseconds()) / 1000.0
+				if resp.StatusCode != 200 {
+					sn := strings.TrimSpace(string(payload))
+					if len(sn) > 80 {
+						sn = sn[:80] + "…"
+					}
+					res <- result{errS: fmt.Sprintf("%d: %s", resp.StatusCode, sn)}
+					continue
+				}
+				var parsed struct {
+					Usage struct {
+						TotalTokens int `json:"total_tokens"`
+					} `json:"usage"`
+				}
+				json.Unmarshal(payload, &parsed)
+				res <- result{ms: ms, tok: parsed.Usage.TotalTokens}
+			}
+		}()
+	}
+	go func() {
+		for i := 0; i < *n; i++ {
+			jobs <- i
+		}
+		close(jobs)
+	}()
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
+
+	fmt.Printf("bench: model=%s n=%d conc=%d\n", *model, *n, *conc)
+	var lats []float64
+	var fails int
+	var firstErr string
+	var totalTok, done int
+	t0 := time.Now()
+	for r := range res {
+		done++
+		if r.errS != "" {
+			fails++
+			if firstErr == "" {
+				firstErr = r.errS
+			}
+			continue
+		}
+		lats = append(lats, r.ms)
+		totalTok += r.tok
+		if done%10 == 0 || done == *n {
+			fmt.Printf("  %d/%d done\r", done, *n)
+		}
+	}
+	elapsed := time.Since(t0)
+	fmt.Println()
+	if fails > 0 {
+		fmt.Printf("errors: %d/%d (first: %s)\n", fails, *n, firstErr)
+	}
+	if len(lats) == 0 {
+		return fmt.Errorf("bench: no successful requests")
+	}
+	sort.Float64s(lats)
+	pct := func(p float64) float64 {
+		i := int(p * float64(len(lats)))
+		if i >= len(lats) {
+			i = len(lats) - 1
+		}
+		return lats[i]
+	}
+	var sum float64
+	for _, v := range lats {
+		sum += v
+	}
+	fmt.Printf("ok: %d  wall: %s\n", len(lats), elapsed.Round(time.Millisecond))
+	fmt.Printf("latency ms: min %.0f  avg %.0f  p50 %.0f  p95 %.0f  max %.0f\n",
+		lats[0], sum/float64(len(lats)), pct(0.50), pct(0.95), lats[len(lats)-1])
+	fmt.Printf("throughput: %.2f req/s", float64(len(lats))/elapsed.Seconds())
+	if totalTok > 0 {
+		fmt.Printf("  %.0f tok/s", float64(totalTok)/elapsed.Seconds())
+	}
+	fmt.Println()
 	return nil
 }
 
