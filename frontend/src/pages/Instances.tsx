@@ -17,6 +17,7 @@ export default function Instances() {
   const [varsFor, setVarsFor] = useState<string | null>(null);
   const [varsText, setVarsText] = useState("");
   const [varsCap, setVarsCap] = useState(0);
+  const [varsNote, setVarsNote] = useState("");
   const [varsBusy, setVarsBusy] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
@@ -43,10 +44,11 @@ export default function Instances() {
     void loadLogs(id, "stderr");
   };
 
-  const openVars = (id: string, vars?: Record<string, string>, cap?: number) => {
+  const openVars = (id: string, vars?: Record<string, string>, cap?: number, note?: string) => {
     setVarsFor(id);
     setVarsText(JSON.stringify(vars ?? {}, null, 2));
     setVarsCap(cap ?? 0);
+    setVarsNote(note ?? "");
   };
 
   const saveVars = async () => {
@@ -62,6 +64,7 @@ export default function Instances() {
     try {
       const r = await api.setInstanceVars(varsFor, parsed);
       await api.setInstanceCap(varsFor, varsCap);
+      await api.setInstanceNote(varsFor, varsNote.trim());
       ok(r.restartRequired ? "vars saved — restart to apply" : "vars saved");
       setVarsFor(null);
       await refreshOne("instances");
@@ -400,7 +403,14 @@ export default function Instances() {
             <tbody>
               {instances.map((i) => (
                 <tr key={i.id}>
-                  <td className="mono">{i.id}</td>
+                  <td className="mono">
+                    {i.id}
+                    {i.note ? (
+                      <div className="muted" style={{ fontSize: 11, maxWidth: 220 }} title={i.note}>
+                        {i.note}
+                      </div>
+                    ) : null}
+                  </td>
                   <td className="mono">{i.modelId}</td>
                   <td>{i.backendId}</td>
                   <td>{i.transport}</td>
@@ -428,7 +438,7 @@ export default function Instances() {
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
                       Logs
                     </button>
-                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel)}>
+                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel, i.note)}>
                       Vars
                     </button>
                     {!i.attached && (
@@ -569,6 +579,16 @@ export default function Instances() {
               onChange={(e) => setVarsCap(Math.max(0, Number(e.target.value) || 0))}
             />
             <span className="muted small">0 = unlimited; extra requests go to other replicas or get 503</span>
+          </div>
+          <div className="row" style={{ marginTop: 8, alignItems: "center", gap: 8 }}>
+            <span className="muted small" style={{ width: 90 }}>note</span>
+            <input
+              style={{ flex: 1 }}
+              maxLength={200}
+              placeholder="free-text annotation (shown on this row)"
+              value={varsNote}
+              onChange={(e) => setVarsNote(e.target.value)}
+            />
           </div>
         </div>
       )}
