@@ -242,6 +242,7 @@ Usage:
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N]
+                                     interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -7379,7 +7380,7 @@ func cmdChat(args []string) error {
 		}
 	}
 
-	fmt.Printf("\nChatting with model %q. Type your message (Ctrl-D or /quit to exit).\n\n", model)
+	fmt.Printf("\nChatting with model %q. Type your message (Ctrl-D or /quit to exit; /help for commands).\n\n", model)
 
 	reader := bufio.NewReader(os.Stdin)
 	history := []map[string]any{}
@@ -7405,6 +7406,78 @@ func cmdChat(args []string) error {
 		}
 		if line == "/quit" || line == "/exit" {
 			break
+		}
+		// REPL slash commands (F331).
+		if strings.HasPrefix(line, "/") {
+			fields := strings.Fields(line)
+			cmd := fields[0]
+			rest := strings.TrimSpace(strings.TrimPrefix(line, cmd))
+			switch cmd {
+			case "/help":
+				fmt.Println("commands: /help /clear /system TEXT /model ID /save [title] /quit")
+			case "/clear":
+				history = history[:0]
+				if strings.TrimSpace(*system) != "" {
+					history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+				}
+				fmt.Println("[history cleared]")
+			case "/system":
+				if rest == "" {
+					fmt.Println("[usage: /system TEXT]")
+					continue
+				}
+				*system = rest
+				history = []map[string]any{{"role": "system", "content": rest}}
+				fmt.Println("[system prompt set]")
+			case "/model":
+				if rest == "" {
+					fmt.Println("[usage: /model ID]")
+					continue
+				}
+				model = rest
+				fmt.Printf("[model set to %q]\n", model)
+			case "/save":
+				title := rest
+				if title == "" {
+					title = "chat"
+					for _, h := range history {
+						if fmt.Sprint(h["role"]) == "user" {
+							t := fmt.Sprint(h["content"])
+							if len(t) > 40 {
+								t = t[:40]
+							}
+							title = t
+							break
+						}
+					}
+				}
+				msgs := []map[string]string{}
+				for _, h := range history {
+					msgs = append(msgs, map[string]string{"role": fmt.Sprint(h["role"]), "content": fmt.Sprint(h["content"])})
+				}
+				if len(msgs) == 0 {
+					fmt.Println("[nothing to save]")
+					continue
+				}
+				code, out, err := cc.Post("/api/v1/chats", map[string]any{
+					"title": title, "model": model, "messages": msgs,
+				})
+				if err != nil {
+					return err
+				}
+				if code != 200 {
+					fmt.Printf("[save failed: %s]\n", out)
+					continue
+				}
+				var saved struct {
+					ID string `json:"id"`
+				}
+				json.Unmarshal(out, &saved)
+				fmt.Printf("[saved as chat %s: %q]\n", saved.ID, title)
+			default:
+				fmt.Printf("[unknown command %q — try /help]\n", cmd)
+			}
+			continue
 		}
 
 		// Append user message.

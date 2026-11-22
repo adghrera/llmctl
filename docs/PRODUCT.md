@@ -539,6 +539,8 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -kb ID to prepend the top knowledge-base matches as context, F302)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)
+                                    (interactive REPL: /help /clear /system TEXT /model ID
+                                     /save [title] /quit, F331)
 llmctl version
 ```
 
