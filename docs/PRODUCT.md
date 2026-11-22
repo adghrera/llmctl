@@ -141,7 +141,9 @@ GitHub release, or file list. No recompile.
   automatically (F070). The Instances page shows each instance's in-flight
   request count and has a Chat button that deep-links to the Chat page with
   that instance's model preselected (`/chat?model=`, F362) and an Export CSV
-  button matching `llmctl ps --csv` (F406). Its log viewer (stderr/stdout
+  button matching `llmctl ps --csv` (F406), plus a Stats toggle rolling the
+  list up per model — replicas, running, served, restarts — mirroring
+  `llmctl ps -stats` (F635). Its log viewer (stderr/stdout
   tails, download) has a Follow toggle that keeps tailing new lines every 2s,
   the UI counterpart of `llmctl logs -f` (F422), and a filter box that shows
   only lines containing a substring (F450). An optional

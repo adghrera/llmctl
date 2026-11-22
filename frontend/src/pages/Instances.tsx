@@ -40,6 +40,7 @@ export default function Instances() {
   const [logBusy, setLogBusy] = useState(false);
   const [logFollow, setLogFollow] = useState(false);
   const [logFilter, setLogFilter] = useState("");
+  const [showStats, setShowStats] = useState(false); // per-model rollup (CLI `ps -stats` parity, F635)
   const logPreRef = useRef<HTMLPreElement>(null);
   const [varsFor, setVarsFor] = useState<string | null>(null);
   const [varsText, setVarsText] = useState("");
@@ -644,6 +645,15 @@ export default function Instances() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            aria-pressed={showStats}
+            disabled={instances.length === 0}
+            title="group instances per model — CLI: llmctl ps -stats (F635)"
+            onClick={() => setShowStats(!showStats)}
+          >
+            {showStats ? "Show list" : "Stats"}
+          </button>
           {instances.some((i) => i.status === "running" && !i.attached) && (
             <>
               <button className="btn sm" disabled={busy === "restart-all"} onClick={restartAll}>
@@ -656,6 +666,45 @@ export default function Instances() {
           )}
         </div>
         {instances.length ? (
+          showStats ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Replicas</th>
+                <th>Running</th>
+                <th>Served</th>
+                <th>Restarts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                // Same rollup as `llmctl ps -stats` (F635): one row per model,
+                // sorted by requests served.
+                const by = new Map<string, { replicas: number; running: number; served: number; restarts: number }>();
+                for (const i of instances) {
+                  const g = by.get(i.modelId) ?? { replicas: 0, running: 0, served: 0, restarts: 0 };
+                  g.replicas++;
+                  if (i.status === "running") g.running++;
+                  g.served += i.served ?? 0;
+                  g.restarts += i.restartCount ?? 0;
+                  by.set(i.modelId, g);
+                }
+                return [...by.entries()]
+                  .sort((a, b) => b[1].served - a[1].served)
+                  .map(([model, g]) => (
+                    <tr key={model}>
+                      <td>{model}</td>
+                      <td>{g.replicas}</td>
+                      <td>{g.running}</td>
+                      <td>{g.served}</td>
+                      <td>{g.restarts}</td>
+                    </tr>
+                  ));
+              })()}
+            </tbody>
+          </table>
+          ) : (
           <table>
             <thead>
               <tr>
@@ -770,6 +819,7 @@ export default function Instances() {
               ))}
             </tbody>
           </table>
+          )
         ) : (
           <div className="empty">no instances</div>
         )}
