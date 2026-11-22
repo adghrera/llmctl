@@ -62,7 +62,10 @@ GitHub release, or file list. No recompile.
   (running instances apply changes on restart).
 - Health-gated startup; crashed instances are reaped and marked stopped.
   A restart that passes no `-var` reuses the previous instance's start vars,
-  so a crashed attach instance re-attaches to its stored url (F263).
+  so a crashed attach instance re-attaches to its stored url (F263); the last
+  successful start vars are also remembered on the model itself, so `start`
+  after an explicit stop (which deletes the instance record) re-attaches with
+  the same config instead of falling back to backend defaults (F346).
 - Crash auto-restart (per-instance "Auto" toggle): a crashed managed process
   is relaunched after a short delay, at most 3 times per 5 minutes before
   giving up; clean stops never trigger it.

@@ -115,10 +115,14 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 
 	// Carry the previous instance's start vars when the request sets none:
 	// attach urls and custom params would otherwise silently fall back to
-	// backend defaults after a stop/crash (F263).
+	// backend defaults after a stop/crash (F263). After an explicit stop the
+	// instance record is gone, so fall back to the model's remembered
+	// start vars (F346).
 	if len(vars) == 0 {
-		if prev := st.Instances[instanceID]; prev != nil {
+		if prev := st.Instances[instanceID]; prev != nil && len(prev.Vars) > 0 {
 			vars = prev.Vars
+		} else if len(mrec.StartVars) > 0 {
+			vars = mrec.StartVars
 		}
 	}
 
@@ -155,15 +159,38 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 
 	switch spec.Kind {
 	case backend.KindAttach:
-		return sv.startAttach(ctx, inst, spec)
+		out, err := sv.startAttach(ctx, inst, spec)
+		return sv.finishStart(modelID, vars, out, err)
 	case backend.KindProcess:
 		if spec.Transport == backend.TransportStdio {
-			return sv.startStdio(inst, spec, mrec.Path, launchVars)
+			out, err := sv.startStdio(inst, spec, mrec.Path, launchVars)
+			return sv.finishStart(modelID, vars, out, err)
 		}
-		return sv.startHTTP(ctx, inst, spec, port, mrec.Path, launchVars)
+		out, err := sv.startHTTP(ctx, inst, spec, port, mrec.Path, launchVars)
+		return sv.finishStart(modelID, vars, out, err)
 	default:
 		return nil, fmt.Errorf("unknown kind %q", spec.Kind)
 	}
+}
+
+// finishStart remembers the start vars on the model record after a successful
+// start, so a later `start` (after an explicit stop deleted the instance
+// record) re-attaches with the same config (F346).
+func (sv *Supervisor) finishStart(modelID string, vars map[string]string, inst *store.InstanceRecord, err error) (*store.InstanceRecord, error) {
+	if err != nil || len(vars) == 0 {
+		return inst, err
+	}
+	cp := make(map[string]string, len(vars))
+	for k, v := range vars {
+		cp[k] = v
+	}
+	sv.store.Update(func(s *store.State) error {
+		if m := s.Models[modelID]; m != nil {
+			m.StartVars = cp
+		}
+		return nil
+	})
+	return inst, err
 }
 
 // startAttach verifies an externally-run server is reachable.

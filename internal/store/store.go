@@ -48,6 +48,10 @@ type ModelRecord struct {
 	// instances of this model: 0 = global setting, -1 = never unload (pin),
 	// >0 = custom minutes (F136).
 	IdleUnloadMin int `json:"idleUnloadMin,omitempty"`
+	// StartVars remembers the start vars (attach url, ctx, …) of the most
+	// recent successful start, so `start` after an explicit stop (which
+	// deletes the instance record) re-attaches with the same config (F346).
+	StartVars map[string]string `json:"startVars,omitempty"`
 }
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.
