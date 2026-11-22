@@ -243,6 +243,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F231 | P3 | 231 | keys | `key show -json` + `key prune -dry-run` | COMPLETED | `key show <id> -json` prints the raw key view; `key prune -dry-run` (API `?dry=1`) lists expired keys without deleting. Verified live: show JSON parses, dry-run echoes `dry:true` and deletes nothing. |
 | F232 | P3 | 232 | doctor | Failing-webhook check | COMPLETED | `llmctl doctor` gained a "webhook" check: when a notify webhook is configured, reports recent delivery health from the webhook log and warns on failures (with the last error). Verified live: ok (no deliveries / all ok) and warn (dead port) paths. |
 | F233 | P3 | 233 | gateway | `X-LLMCtrl-Key` header | COMPLETED | Gateway responses now echo the authenticating key's id as `X-LLMCtrl-Key` (alongside `X-LLMCtrl-Instance`), making it easy to tell which key served a request. Verified live: header present with the key id. |
+| F234 | P3 | 234 | cli | `key generate`/`key rotate` `-json` | COMPLETED | The two one-time-secret commands gained `-json`, printing the raw API JSON (including the secret) for scripts; table output unchanged. Verified live: both JSON modes parse, both human modes unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

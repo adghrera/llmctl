@@ -134,10 +134,11 @@ Usage:
   llmctl restart <instance>
   llmctl logs <instance> [--stream stderr|stdout] [--tail N]
   llmctl logs -daemon [--tail N]
-  llmctl key generate [name]
-  llmctl key show <id>
+  llmctl key generate [name] [-json]
+  llmctl key show <id> [-json]
   llmctl key note <id> <text...>
   llmctl key disable <id> / llmctl key enable <id>
+  llmctl key rotate <id> [-json]
   llmctl key list
   llmctl key revoke <id>
   llmctl key reset-usage <id>
@@ -2378,6 +2379,7 @@ func cmdKey(args []string) error {
 		budget := fs.Float64("budget", 0, "daily USD budget (0 = unlimited)")
 		rps := fs.Float64("rps", 0, "per-key rate limit, req/s (0 = gateway default)")
 		note := fs.String("note", "", "free-text annotation")
+		jsonOut := fs.Bool("json", false, "print the raw creation JSON, including the secret (for scripts)")
 		fs.Parse(reorderFlags(rest))
 		name := ""
 		if fs.NArg() > 0 {
@@ -2419,6 +2421,10 @@ func cmdKey(args []string) error {
 		json.Unmarshal(out, &r)
 		if code != 201 {
 			return fmt.Errorf("create returned %d: %s", code, string(out))
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Println("key:", r["key"])
 		fmt.Println("name:", r["name"])
@@ -2668,17 +2674,24 @@ func cmdKey(args []string) error {
 		}
 		return nil
 	case "rotate":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl key rotate <id>")
+		rfs := flag.NewFlagSet("key rotate", flag.ExitOnError)
+		rjson := rfs.Bool("json", false, "print the raw rotation JSON, including the new secret (for scripts)")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl key rotate <id> [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/keys/"+rest[0]+"/rotate", map[string]any{})
+		code, out, err := cc.Post("/api/v1/keys/"+rfs.Arg(0)+"/rotate", map[string]any{})
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("rotate returned %d", code)
+			return fmt.Errorf("rotate returned %d: %s", code, out)
 		}
+		if *rjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Println(string(out))
 		return nil
 	default:
 		return fmt.Errorf("unknown key subcommand: %s", sub)

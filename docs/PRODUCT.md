@@ -399,6 +399,7 @@ llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
 llmctl key generate|show|note|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
+                                        generate/rotate -json prints the raw JSON incl. the secret;
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)
