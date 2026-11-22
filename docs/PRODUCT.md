@@ -501,7 +501,8 @@ llmctl disk [-json]                                (model dir + volume disk usag
                                     health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is
                                     bound to a public address with auth off, F183), disk (warns on
-                                    orphaned files in the models dir, F206), backup age (warns when the
+                                    orphaned files in the models dir, F206), keys (warns on expired
+                                    keys, F363), backup age (warns when the
                                     newest snapshot is >7 days old, F207); security also warns when auth
                                     is on but no usable key exists (F223), aliases (warns when an
                                     alias targets a deleted model, F228), webhook (warns when recent

@@ -312,6 +312,24 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Keys: expired keys that should be pruned or rotated (F363).
+	{
+		expired, disabled := 0, 0
+		for _, k := range st.APIKeys {
+			if k.ExpiresAt != nil && time.Now().After(*k.ExpiresAt) {
+				expired++
+			}
+			if k.Disabled {
+				disabled++
+			}
+		}
+		if expired > 0 {
+			add("keys", "warn", fmt.Sprintf("%d of %d key(s) past expiry — prune or rotate (llmctl key prune)", expired, len(st.APIKeys)))
+		} else {
+			add("keys", "ok", fmt.Sprintf("%d key(s), %d disabled", len(st.APIKeys), disabled))
+		}
+	}
+
 	ok := true
 	for _, c := range checks {
 		if c.Status == "error" {
