@@ -1204,11 +1204,15 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 	}
 	streamF := q.Get("stream") // "1" = streaming only, "0" = non-streaming
 	model := q.Get("model")
-	keyF := q.Get("key") // match key id (exact) or key prefix (case-insensitive) (F120)
+	keyF := q.Get("key")       // match key id (exact) or key prefix (case-insensitive) (F120)
+	instF := q.Get("instance") // serving replica id (F131)
 	all := s.gw.RecentRequests(0)
 	out := make([]proxy.RequestLogEntry, 0, len(all))
 	for _, e := range all {
 		if model != "" && e.Model != model {
+			continue
+		}
+		if instF != "" && e.Instance != instF {
 			continue
 		}
 		if keyF != "" && e.KeyID != keyF && !strings.HasPrefix(strings.ToLower(e.Key), strings.ToLower(keyF)) {

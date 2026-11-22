@@ -43,6 +43,7 @@ export default function Requests() {
   const [fMinMs, setFMinMs] = useState("");
   const [fStream, setFStream] = useState("");
   const [fKey, setFKey] = useState(params.get("key") || "");
+  const [fInstance, setFInstance] = useState(params.get("instance") || "");
 
   useEffect(() => {
     let alive = true;
@@ -54,6 +55,7 @@ export default function Requests() {
           minMs: Number(fMinMs) > 0 ? Number(fMinMs) : undefined,
           stream: fStream || undefined,
           key: fKey.trim() || undefined,
+          instance: fInstance.trim() || undefined,
         })
         .then((d) => alive && setEntries(d))
         .catch(() => {});
@@ -64,7 +66,7 @@ export default function Requests() {
       alive = false;
       clearInterval(t);
     };
-  }, [auto, fModel, fStatus, fMinMs, fStream, fKey]);
+  }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance]);
 
   return (
     <div className="card">
@@ -119,12 +121,19 @@ export default function Requests() {
           value={fKey}
           onChange={(e) => setFKey(e.target.value)}
         />
+        <input
+          style={{ width: 120 }}
+          placeholder="instance id"
+          title="filter by serving instance"
+          value={fInstance}
+          onChange={(e) => setFInstance(e.target.value)}
+        />
         <select value={fStream} onChange={(e) => setFStream(e.target.value)} style={{ width: 120 }}>
           <option value="">stream + plain</option>
           <option value="1">streaming</option>
           <option value="0">plain</option>
         </select>
-        {(fModel || fStatus || fMinMs || fStream || fKey) && (
+        {(fModel || fStatus || fMinMs || fStream || fKey || fInstance) && (
           <button
             className="btn sm"
             onClick={() => {
@@ -133,6 +142,7 @@ export default function Requests() {
               setFMinMs("");
               setFStream("");
               setFKey("");
+              setFInstance("");
             }}
           >
             Clear

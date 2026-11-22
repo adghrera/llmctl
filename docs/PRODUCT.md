@@ -179,7 +179,7 @@ toggle for a light theme (choice remembered). Tabs:
   response headers showing what is left (F108).
   History persists across daemon restarts (`~/.llmctl/requests.jsonl`,
   trimmed to the newest 1000 lines at startup).
-  REST: GET /api/v1/requests?model=&status=&minMs=&stream=&key= and
+  REST: GET /api/v1/requests?model=&status=&minMs=&stream=&key=&instance= and
   GET /api/v1/requests/{id} for a single request by its id (F104, F106).
 - **Tools** — install agent tools from a URL (.zip) or a local folder
   (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python

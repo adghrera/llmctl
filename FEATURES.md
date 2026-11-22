@@ -140,6 +140,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F128 | P3 | 128 | cli | `llmctl usage -key ID` | COMPLETED | `usage -key <id>` prints the per-key daily rollup (F126) instead of the per-model one. Verified live: known key shows its day row with cost, unknown key reports none, default output unchanged. |
 | F129 | P3 | 129 | usage | "Daily by Key" table | COMPLETED | The Usage page gained a per-key daily history table (date, key name or `(deleted)` + id, requests, errors, tokens, cost) from `/api/v1/usage/keys`, with its own CSV export. Verified live: endpoint feeds the table, CSV generator checked against sample data. |
 | F130 | P2 | 130 | keys | Per-key rate limits in API/UI | COMPLETED | `rateRPS`/`rateBurst` are settable on key create and PATCH and shown in the key list (Keys page input + `N/s` badge); the gateway token bucket now picks them up even though the key checker is wired after startup (limiter `setGetLimits`). Verified live: rps 1/burst 1 → 200, 429, 429, 200 after refill; PATCH and validation checked. |
+| F131 | P3 | 131 | gateway | Request log instance filter | COMPLETED | `GET /api/v1/requests?instance=ID` keeps only requests served by that replica; `llmctl requests -instance ID` and an "instance id" filter box on the Requests page (also via `?instance=` URL param). Verified live: `instance=so` returned only `so` entries, unknown id empty, CLI flag works. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

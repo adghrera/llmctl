@@ -124,7 +124,7 @@ Usage:
   llmctl scheduler list
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--id ID] [-n 20]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20]
   llmctl backups [list|create|delete <name>]
   llmctl usage [-n 14] [-key ID]
   llmctl metrics
@@ -705,6 +705,7 @@ func cmdRequests(args []string) error {
 	status := fs.String("status", "", "status class (4, 5) or exact code (404)")
 	minMs := fs.Int("min-ms", 0, "minimum latency in ms")
 	key := fs.String("key", "", "filter by API key prefix")
+	instance := fs.String("instance", "", "filter by serving instance id")
 	id := fs.String("id", "", "show the single request with this id")
 	n := fs.Int("n", 20, "number of entries")
 	fs.Parse(reorderFlags(args))
@@ -736,6 +737,9 @@ func cmdRequests(args []string) error {
 	}
 	if *key != "" {
 		q.Set("key", *key)
+	}
+	if *instance != "" {
+		q.Set("instance", *instance)
 	}
 	code, out, err := cc.Get("/api/v1/requests?" + q.Encode())
 	if err != nil {
