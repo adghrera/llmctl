@@ -207,6 +207,19 @@ type State struct {
 	// rather than on the instance record because records are forgotten when
 	// an instance stops (F119).
 	InstanceNotes map[string]string `json:"instanceNotes,omitempty"`
+	// CustomPrompts are user-defined prompt templates (F306), keyed by id.
+	// They merge with the built-in library in the prompts API.
+	CustomPrompts map[string]*CustomPrompt `json:"customPrompts,omitempty"`
+}
+
+// CustomPrompt is a user-defined prompt template (F306).
+type CustomPrompt struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	Category    string    `json:"category,omitempty"`
+	Content     string    `json:"content"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 // KeyUsageRecord is the persisted token usage for one API key prefix, so

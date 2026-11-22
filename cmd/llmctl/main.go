@@ -225,7 +225,7 @@ Usage:
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
-  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories
+  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts delete <id>
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
@@ -5163,6 +5163,71 @@ func cmdCost(args []string) error {
 
 // cmdPrompts lists the built-in prompt library (F218).
 func cmdPrompts(args []string) error {
+	if len(args) > 0 && args[0] == "add" {
+		// Create a custom prompt template (F306).
+		afs := flag.NewFlagSet("prompts add", flag.ExitOnError)
+		name := afs.String("name", "", "display name (required)")
+		category := afs.String("category", "", "category (optional)")
+		desc := afs.String("desc", "", "description (optional)")
+		content := afs.String("content", "", "template text (or use -file / piped stdin)")
+		file := afs.String("file", "", "read the template text from this file")
+		afs.Parse(reorderFlags(args[1:]))
+		if afs.NArg() == 0 || *name == "" {
+			return fmt.Errorf("usage: llmctl prompts add <id> -name N [-category C] [-desc D] (-content TEXT | -file F | piped stdin)")
+		}
+		text := *content
+		if text == "" && *file != "" {
+			b, err := os.ReadFile(*file)
+			if err != nil {
+				return err
+			}
+			text = string(b)
+		}
+		if text == "" {
+			if fi, _ := os.Stdin.Stat(); fi.Mode()&os.ModeCharDevice == 0 {
+				if b, err := io.ReadAll(os.Stdin); err == nil {
+					text = string(b)
+				}
+			}
+		}
+		if strings.TrimSpace(text) == "" {
+			return fmt.Errorf("template text is required (-content, -file, or piped stdin)")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Post("/api/v1/prompts", map[string]any{
+			"id": afs.Arg(0), "name": *name, "category": *category,
+			"description": *desc, "content": text,
+		})
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("prompts add: %s", out)
+		}
+		fmt.Printf("prompt created: %s (%s)\n", *name, afs.Arg(0))
+		return nil
+	}
+	if len(args) > 0 && args[0] == "delete" {
+		if len(args) < 2 {
+			return fmt.Errorf("usage: llmctl prompts delete <id>")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Delete("/api/v1/prompts/" + url.PathEscape(args[1]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompts delete: %s", out)
+		}
+		fmt.Printf("deleted prompt %s\n", args[1])
+		return nil
+	}
 	if len(args) > 0 && args[0] == "categories" {
 		cc, err := daemon.NewControlClient()
 		if err != nil {

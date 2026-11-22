@@ -265,7 +265,10 @@ toggle for a light theme (choice remembered). Tabs:
   Import file-upload button in the Conversations card.
 - **Prompt templates** — curated built-in prompt templates (code review,
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
-  in internal/prompt/templates.go. REST API: GET /api/v1/prompts,
+  in internal/prompt/templates.go, plus user-defined custom templates stored
+  in state (F306): POST/DELETE /api/v1/prompts, merged into the list with a
+  `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts delete <id>`.
+  REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering, copy-to-clipboard, and an "Insert into chat"
   button that opens the Chat page with the template pre-filled (F300). CLI:
