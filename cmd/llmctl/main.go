@@ -278,7 +278,7 @@ Usage:
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
-  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
@@ -2334,7 +2334,7 @@ var llmSubCommands = map[string]string{
 	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
 	"files":     "list upload cat delete",
 	"jobs":      "wait show clear",
-	"kb":        "list show create update tag retag docs doc add-doc export search embed delete",
+	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete",
 	"key":       "generate duplicate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
@@ -8368,7 +8368,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "update", "tag", "retag", "docs", "doc", "add-doc", "export", "search", "embed", "delete":
+		case "list", "show", "create", "update", "tag", "retag", "docs", "doc", "add-doc", "export", "search", "search-all", "embed", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -8477,6 +8477,74 @@ func cmdKb(args []string) error {
 				sn = sn[:100] + "…"
 			}
 			fmt.Printf("%-24s chunk %-4d %6.3f  %s\n", r.Filename, r.ChunkIndex, r.Score, sn)
+		}
+		return nil
+	case "search-all":
+		// One query across every KB, merged by score (F665).
+		sfs := flag.NewFlagSet("kb search-all", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		scsv := sfs.Bool("csv", false, "output the matches as CSV")
+		limit := sfs.Int("limit", 10, "max results")
+		sout := sfs.String("out", "", "write the raw search JSON to this file instead of stdout")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl kb search-all <query> [-limit N] [-json] [-csv] [-out FILE]")
+		}
+		query := strings.Join(sfs.Args(), " ")
+		code, out, err := cc.Post("/api/v1/knowledge-bases/search",
+			map[string]any{"q": query, "limit": *limit})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb search-all: %s", out)
+		}
+		if *sout != "" {
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
+		}
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var res struct {
+			Results []struct {
+				KBID       string  `json:"kb_id"`
+				KBName     string  `json:"kb_name"`
+				DocID      string  `json:"doc_id"`
+				Filename   string  `json:"filename"`
+				ChunkText  string  `json:"chunk_text"`
+				Score      float64 `json:"score"`
+				ChunkIndex int     `json:"chunk_index"`
+			} `json:"results"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return err
+		}
+		if *scsv {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"kb_id", "kb_name", "doc_id", "filename", "chunk_index", "score", "chunk_text"})
+			for _, r := range res.Results {
+				_ = w.Write([]string{r.KBID, r.KBName, r.DocID, r.Filename, strconv.Itoa(r.ChunkIndex),
+					strconv.FormatFloat(r.Score, 'f', 3, 64), r.ChunkText})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		if len(res.Results) == 0 {
+			fmt.Printf("no chunks match %q in any knowledge base\n", query)
+			return nil
+		}
+		for _, r := range res.Results {
+			sn := strings.TrimSpace(r.ChunkText)
+			sn = strings.ReplaceAll(sn, "\n", " ")
+			if len(sn) > 80 {
+				sn = sn[:80] + "…"
+			}
+			fmt.Printf("%-16s %-24s chunk %-4d %6.3f  %s\n", r.KBName, r.Filename, r.ChunkIndex, r.Score, sn)
 		}
 		return nil
 	case "list":

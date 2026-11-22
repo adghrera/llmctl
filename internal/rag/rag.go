@@ -376,6 +376,45 @@ func (s *Store) Search(kbID, query string, limit int) ([]SearchResult, error) {
 	return rankChunks(chunks, qVec, limit), nil
 }
 
+// KBSearchResult is a SearchResult tagged with the knowledge base it came
+// from, for cross-KB search (F665).
+type KBSearchResult struct {
+	KBID   string `json:"kb_id"`
+	KBName string `json:"kb_name"`
+	SearchResult
+}
+
+// SearchAll runs the query against every KB and merges the hits by score
+// (descending), capped at limit. KBs that fail to load or search are
+// skipped, same as List does.
+func (s *Store) SearchAll(query string, limit int) ([]KBSearchResult, error) {
+	kbs, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	var all []KBSearchResult
+	for _, rec := range kbs {
+		if rec.KB.DocCount == 0 {
+			continue
+		}
+		res, err := s.Search(rec.KB.ID, query, limit)
+		if err != nil {
+			continue
+		}
+		for _, r := range res {
+			all = append(all, KBSearchResult{KBID: rec.KB.ID, KBName: rec.KB.Name, SearchResult: r})
+		}
+	}
+	sort.Slice(all, func(i, j int) bool { return all[i].Score > all[j].Score })
+	if len(all) > limit {
+		all = all[:limit]
+	}
+	return all, nil
+}
+
 // rankChunks scores chunks by cosine similarity to qVec, keeps the best chunk
 // per document, and returns up to limit results sorted by score descending.
 func rankChunks(chunks []chunk, qVec []float64, limit int) []SearchResult {

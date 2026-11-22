@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, KB, KBDoc, KBSearchResult } from "../api/client";
+import { api, KB, KBDoc, KBSearchResult, KBAllSearchResult } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function KnowledgeBases() {
@@ -18,6 +18,9 @@ export default function KnowledgeBases() {
   const [embedModel, setEmbedModel] = useState("");
   const [embedKey, setEmbedKey] = useState("");
   const [embedBusy, setEmbedBusy] = useState(false);
+  const [allQuery, setAllQuery] = useState("");
+  const [allResults, setAllResults] = useState<KBAllSearchResult[]>([]);
+  const [allSearching, setAllSearching] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   const load = () =>
@@ -79,6 +82,19 @@ export default function KnowledgeBases() {
       err(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const searchAll = async () => {
+    if (!allQuery.trim()) return;
+    setAllSearching(true);
+    try {
+      const r = await api.searchAllKBs({ q: allQuery.trim(), limit: 10 });
+      setAllResults(r.results ?? []);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAllSearching(false);
     }
   };
 
@@ -307,12 +323,12 @@ export default function KnowledgeBases() {
             className="btn sm"
             disabled={kbs.length === 0}
             onClick={() => {
-              // Same columns as `llmctl kb list --csv` (F393).
+              // Same columns as `llmctl kb list --csv` (F393, tags F664).
               const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
               const rows = [
-                "id,name,docs,description",
+                "id,name,docs,description,tags",
                 ...kbs.map((k) =>
-                  [k.id, k.kb.name, String(k.docs?.length ?? 0), k.kb.description || ""]
+                  [k.id, k.kb.name, String(k.docs?.length ?? 0), k.kb.description || "", (k.kb.tags ?? []).join(";")]
                     .map(esc)
                     .join(",")
                 ),
@@ -331,6 +347,42 @@ export default function KnowledgeBases() {
         {kbs.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
             No knowledge bases yet. Create one above.
+          </div>
+        )}
+        {kbs.length > 0 && (
+          <div>
+            <div className="row" style={{ gap: 8, margin: "10px 0 4px" }}>
+              <input
+                style={{ flex: 1, minWidth: 200 }}
+                placeholder="Search all knowledge bases…"
+                value={allQuery}
+                onChange={(e) => setAllQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && searchAll()}
+              />
+              <button className="btn sm" disabled={allSearching || !allQuery.trim()} onClick={searchAll}>
+                {allSearching ? "Searching…" : "Search all"}
+              </button>
+            </div>
+            {allResults.length > 0 && (
+              <div style={{ fontSize: 13 }}>
+                {allResults.map((r, i) => (
+                  <div key={i} style={{ borderTop: "1px solid var(--border, #333)", padding: "6px 0" }}>
+                    <div>
+                      <b>{r.kb_name}</b>
+                      <span className="muted">
+                        {" "}· {r.filename} · chunk {r.chunk_index} · {r.score.toFixed(3)}
+                      </span>
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {r.chunk_text.replace(/\s+/g, " ").slice(0, 160)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {allQuery.trim() && !allSearching && allResults.length === 0 && (
+              <div className="empty muted" style={{ padding: "6px 0" }}>No chunks matched "{allQuery}"</div>
+            )}
           </div>
         )}
         {kbs.map((kb) => (

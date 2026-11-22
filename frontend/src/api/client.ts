@@ -283,6 +283,12 @@ export interface KBSearchResult {
   chunk_index: number;
 }
 
+// Cross-KB search hit: a KBSearchResult tagged with its knowledge base (F665).
+export interface KBAllSearchResult extends KBSearchResult {
+  kb_id: string;
+  kb_name: string;
+}
+
 export interface PromptTemplate {
   id: string;
   name: string;
@@ -775,6 +781,8 @@ export const api = {
     req<{ ok: boolean }>(`/knowledge-bases/${encodeURIComponent(kbId)}/documents/${encodeURIComponent(docId)}`, { method: "DELETE" }),
   searchKBDocs: (kbId: string, body: { q: string; limit?: number }) =>
     req<KBSearchResult[]>(`/knowledge-bases/${encodeURIComponent(kbId)}/search`, { method: "POST", body: JSON.stringify(body) }),
+  searchAllKBs: (body: { q: string; limit?: number }) =>
+    req<{ query: string; results: KBAllSearchResult[] }>("/knowledge-bases/search", { method: "POST", body: JSON.stringify(body) }),
   setKBEmbed: (kbId: string, body: { url?: string; model?: string; apiKey?: string }) =>
     req<KB>(`/knowledge-bases/${encodeURIComponent(kbId)}/embed`, { method: "PUT", body: JSON.stringify(body) }),
   costSummary: () => req<CostSummary>("/cost"),
