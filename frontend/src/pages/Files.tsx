@@ -209,6 +209,21 @@ export default function Files() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={files.length === 0}
+            title="download the file list as JSON (CLI: llmctl files -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(files, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-files-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
         </div>
         {files.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>

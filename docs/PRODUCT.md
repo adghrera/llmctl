@@ -517,7 +517,8 @@ toggle for a light theme (choice remembered). Tabs:
   F700).
   In chat, `/file <filename>` injects file content as a user message.
   Dedicated Files page for upload/list/delete, with a filename text filter
-  (F356), an Export CSV button (filter-aware, F397), a Stats toggle rolling the
+  (F356), an Export CSV button (filter-aware, F397), an Export JSON button
+  (twin of `files -json`, F716), a Stats toggle rolling the
   list up per content type mirroring `files -stats` (F637), and drag-and-drop upload —
   drop a file onto the upload card to upload it directly (F452). Text files are stored as-is;
   PDF and DOCX uploads have their text extracted automatically (F053).
