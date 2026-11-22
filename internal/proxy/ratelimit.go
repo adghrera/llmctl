@@ -16,8 +16,11 @@ type rateLimiter struct {
 	getLimits func(string) (float64, int) // returns (rps, burst) for the key; (0,0) means use default
 }
 
-// limiter holds the state of a token bucket for a specific key.
+// limiter holds the state of a token bucket for a specific key. Its fields
+// are guarded by its own mutex: buckets are shared across concurrent
+// requests for the same key (F169).
 type limiter struct {
+	mu       sync.Mutex
 	tokens   float64
 	last     time.Time
 	lastSeen time.Time
@@ -63,9 +66,17 @@ func (rl *rateLimiter) setDefault(rps float64, burst int) {
 	rl.burst = burst
 }
 
+// rateState describes the outcome of one allow() call so the gateway can
+// emit X-RateLimit-* headers (F169).
+type rateState struct {
+	Limit      int           // burst size (bucket capacity)
+	Remaining  int           // whole tokens left after this request
+	RetryAfter time.Duration // time until one token is available (only when denied)
+}
+
 // allow reports whether the request with the given key is allowed.
 // key can be empty, meaning the request is not authenticated and should use the default limits.
-func (rl *rateLimiter) allow(key string) bool {
+func (rl *rateLimiter) allow(key string) (bool, rateState) {
 	rl.mu.Lock()
 	l, ok := rl.created[key]
 	defRps, defBurst := rl.rps, rl.burst
@@ -82,31 +93,25 @@ func (rl *rateLimiter) allow(key string) bool {
 		l = &limiter{tokens: float64(rl.burst), last: now, lastSeen: now}
 		rl.created[key] = l
 	}
+	getLimits := rl.getLimits
 	rl.mu.Unlock()
 
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.lastSeen = now
 	elapsed := now.Sub(l.last)
 	l.last = now
 	// Determine the effective rps and burst for this key.
 	var rps float64
 	var burst int
-	if key == "" {
-		// Use the rate limiter's default rps and burst.
-		rps = defRps
-		burst = defBurst
+	if key == "" || getLimits == nil {
+		rps, burst = defRps, defBurst
 	} else {
-		if rl.getLimits != nil {
-			rpsTmp, burstTmp := rl.getLimits(key)
-			if rpsTmp == 0 && burstTmp == 0 {
-				rps = defRps
-				burst = defBurst
-			} else {
-				rps = rpsTmp
-				burst = burstTmp
-			}
+		rpsTmp, burstTmp := getLimits(key)
+		if rpsTmp == 0 && burstTmp == 0 {
+			rps, burst = defRps, defBurst
 		} else {
-			rps = defRps
-			burst = defBurst
+			rps, burst = rpsTmp, burstTmp
 		}
 	}
 	// Token bucket algorithm.
@@ -116,7 +121,8 @@ func (rl *rateLimiter) allow(key string) bool {
 	}
 	if l.tokens >= 1 {
 		l.tokens--
-		return true
+		return true, rateState{Limit: burst, Remaining: int(l.tokens)}
 	}
-	return false
+	wait := time.Duration((1 - l.tokens) / rps * float64(time.Second))
+	return false, rateState{Limit: burst, Remaining: 0, RetryAfter: wait}
 }

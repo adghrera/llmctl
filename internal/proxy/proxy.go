@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -244,6 +245,22 @@ func newRequestID() string {
 	return hex.EncodeToString(b[:])
 }
 
+// setRateHeaders reports the token-bucket state on a rate-limited response.
+// Success responses keep the quota headers (F108) as the meaning of
+// X-RateLimit-* there; on 429 these describe the rate bucket (F169).
+func setRateHeaders(w http.ResponseWriter, st rateState) {
+	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(st.Limit))
+	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(st.Remaining))
+}
+
+func retryAfterSecs(st rateState) string {
+	secs := int(math.Ceil(st.RetryAfter.Seconds()))
+	if secs < 1 {
+		secs = 1
+	}
+	return strconv.Itoa(secs)
+}
+
 // auth enforces Authorization: Bearer *** when keys are configured and
 // requireAuth is true. If requireAuth is false, auth is skipped entirely.
 // The setting is read dynamically on each request so changes to the
@@ -254,7 +271,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if !s.requireAuth.Load() {
 			// Still apply rate limiting keyed on IP.
 			key := clientIP(r)
-			if !s.limiter.allow(key) {
+			if ok, st := s.limiter.allow(key); !ok {
+				setRateHeaders(w, st)
+				w.Header().Set("Retry-After", retryAfterSecs(st))
 				writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
 					fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
 				return
@@ -357,7 +376,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				w.Header().Set("X-LLMCtrl-Requests-Remaining", strconv.FormatInt(left, 10))
 			}
 		}
-		if !s.limiter.allow(key) {
+		if ok, st := s.limiter.allow(key); !ok {
+			setRateHeaders(w, st)
+			w.Header().Set("Retry-After", retryAfterSecs(st))
 			writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
 				fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
 			return

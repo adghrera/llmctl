@@ -118,6 +118,8 @@ GitHub release, or file list. No recompile.
   (used when a key has no own limit, and for unauthenticated traffic keyed on
   IP) is adjustable at runtime from Settings or `PATCH /api/v1/settings`
   (`rateRPS`/`rateBurst`, 0 = CLI defaults) and persists across restarts (F152).
+   Rate-limited 429s carry `X-RateLimit-Limit`/`-Remaining` and `Retry-After`
+   so clients can back off precisely (F169).
 - Replicas of one model are load-balanced least-loaded-first (F113), and a
   replica whose connection fails is retried on the next replica
   automatically (F070). The Instances page shows each instance's in-flight
