@@ -228,7 +228,7 @@ Usage:
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance> | llmctl restart --all
-  llmctl maxparallel <instance> <n>   (0 = unlimited)
+  llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
   llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
@@ -1008,18 +1008,21 @@ func cmdCatalog(args []string) error {
 // cmdMaxParallel caps how many simultaneous gateway requests an instance
 // serves (PATCH /api/v1/instances/{id}/maxparallel, F270).
 func cmdMaxParallel(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: llmctl maxparallel <instance-id> <n>  (0 = unlimited)")
+	fs := flag.NewFlagSet("maxparallel", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw response JSON (F532)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: llmctl maxparallel <instance-id> <n> [-json]  (0 = unlimited)")
 	}
-	n, err := strconv.Atoi(args[1])
+	n, err := strconv.Atoi(fs.Arg(1))
 	if err != nil || n < 0 {
-		return fmt.Errorf("invalid maxParallel: %s (must be >= 0)", args[1])
+		return fmt.Errorf("invalid maxParallel: %s (must be >= 0)", fs.Arg(1))
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(args[0])+"/maxparallel",
+	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(fs.Arg(0))+"/maxparallel",
 		map[string]any{"maxParallel": n})
 	if err != nil {
 		return err
@@ -1027,11 +1030,15 @@ func cmdMaxParallel(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("maxparallel: %s", out)
 	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
 	label := "unlimited"
 	if n > 0 {
 		label = strconv.Itoa(n)
 	}
-	fmt.Printf("instance %s now serves at most %s concurrent request(s)\n", args[0], label)
+	fmt.Printf("instance %s now serves at most %s concurrent request(s)\n", fs.Arg(0), label)
 	return nil
 }
 

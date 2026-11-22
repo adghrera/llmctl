@@ -542,6 +542,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F529 | P3 | 529 | cli | `note -json` | COMPLETED | `llmctl note <instance> <text…> -json` prints the raw response JSON for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned `{"ok":true}`, plain unchanged (note visible in `ps`). |
 | F530 | P3 | 530 | cli | `autorestart -json` | COMPLETED | `llmctl autorestart <instance> <on|off> -json` prints the raw response JSON (`{"autoRestart":…,"ok":true}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
 | F531 | P3 | 531 | cli | `setvars -json` | COMPLETED | `llmctl setvars <instance> [-var k=v …] -json` prints the raw response JSON (`{"ok","restartRequired","vars"}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
+| F532 | P3 | 532 | cli | `maxparallel -json` | COMPLETED | `llmctl maxparallel <instance> <n> -json` prints the raw response JSON (`{"maxParallel":…,"ok":true}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
