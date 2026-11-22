@@ -52,6 +52,9 @@ type ModelRecord struct {
 	// recent successful start, so `start` after an explicit stop (which
 	// deletes the instance record) re-attaches with the same config (F346).
 	StartVars map[string]string `json:"startVars,omitempty"`
+	// Note is a free-text annotation shown on the Models page, same idea as
+	// instance notes but on the record because models persist (F661).
+	Note string `json:"note,omitempty"`
 }
 
 // InstanceRecord is one launched (or attach-declared) serving endpoint.

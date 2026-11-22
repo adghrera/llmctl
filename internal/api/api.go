@@ -118,6 +118,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PATCH /api/v1/models/{id}/price", s.setModelPrice)
 	m.HandleFunc("PATCH /api/v1/models/{id}/idle", s.setModelIdle)
 	m.HandleFunc("PATCH /api/v1/models/{id}/rename", s.renameModel)
+	m.HandleFunc("PATCH /api/v1/models/{id}/note", s.setModelNote)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/logs/daemon", s.daemonLog)
@@ -441,6 +442,7 @@ type modelView struct {
 	// IdleUnloadMin: 0 = global, -1 = pinned, >0 = custom minutes (F136).
 	IdleUnloadMin int      `json:"idleUnloadMin,omitempty"`
 	Aliases       []string `json:"aliases,omitempty"` // user aliases pointing at this model (F367)
+	Note          string   `json:"note,omitempty"`    // free-text annotation (F661)
 }
 
 func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
@@ -466,7 +468,7 @@ func (s *Server) probeModels(w http.ResponseWriter, r *http.Request) {
 // modelViewFor builds the API view of one model, incl. instance membership.
 func modelViewFor(st *store.State, id string) modelView {
 	m := st.Models[id]
-	v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin}
+	v := modelView{ID: id, BackendID: m.BackendID, Path: m.Path, SizeBytes: m.SizeBytes, Downloaded: true, CtxSize: m.CtxSize, PriceIn: m.PriceInPerM, PriceOut: m.PriceOutPerM, IdleUnloadMin: m.IdleUnloadMin, Note: m.Note}
 	for alias, target := range st.Aliases {
 		if strings.EqualFold(target, id) {
 			v.Aliases = append(v.Aliases, alias)
@@ -1162,6 +1164,35 @@ func (s *Server) renameModel(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true, "id": req.NewID, "instancesUpdated": renamed})
+}
+
+// setModelNote handles PATCH /api/v1/models/{id}/note — free-text annotation
+// shown on the Models page, the model twin of instance notes (F661).
+func (s *Server) setModelNote(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Note string `json:"note"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	if len(req.Note) > 200 {
+		writeErr(w, 400, "note too long (max 200 chars)")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Models[id] == nil {
+		writeErr(w, 404, "unknown model: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if m := st.Models[id]; m != nil {
+			m.Note = strings.TrimSpace(req.Note)
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {

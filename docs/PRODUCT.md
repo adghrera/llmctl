@@ -192,7 +192,10 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl models list --csv`, F377) plus a Stats toggle rolling the filtered
   list up per backend — models, running, size — mirroring `models stats` (F634).
   A Rename button (and `llmctl models rename`) changes a model id, updating
-  aliases and stored instance records (F284, F286).
+  aliases and stored instance records (F284, F286). A Note button (and
+  `llmctl models note <id> [text…]`) attaches a free-text annotation to a
+  model — the model twin of instance notes, shown under the model id and in
+  `models show` / `models list --csv` (F661).
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
   survive model swaps; the gateway advertises them in /v1/models. Optional
   per-model USD pricing (`llmctl models price <id> <in> <out>`, or the
@@ -676,6 +679,7 @@ llmctl presets list [-json|-csv]|save|duplicate|start|delete|export|import  (nam
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -json for the raw array, -out FILE writes the raw JSON, F479; install `--wait` blocks until the download finishes, F576,
 llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE] (register an existing local GGUF, F275; -ctx sets the default context window and -json prints the raw created-model JSON, F551; -out writes it to a file, F513)
 llmctl models rename <id> <new-id> [-json]           (change a model id; aliases follow, F284; -json prints the raw response, F523)
+llmctl models note <id> [text…] [-json]              (free-text annotation on a model; empty text clears, F661)
                                     price and idle-unload; show also lists aliases pointing at the
                                     model (F367); list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)

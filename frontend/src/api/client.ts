@@ -33,6 +33,7 @@ export interface Model {
   idleUnloadMin?: number;
   priceInPerM?: number;
   priceOutPerM?: number;
+  note?: string;
 }
 
 export interface Instance {
@@ -525,6 +526,8 @@ export const api = {
     req<{ ok: boolean; priceInPerM: number; priceOutPerM: number }>(`/models/${encodeURIComponent(id)}/price`, { method: "PATCH", body: JSON.stringify({ priceInPerM, priceOutPerM }) }),
   renameModel: (id: string, newId: string) =>
     req<{ ok: boolean; id: string }>(`/models/${encodeURIComponent(id)}/rename`, { method: "PATCH", body: JSON.stringify({ newId }) }),
+  setModelNote: (id: string, note: string) =>
+    req<{ ok: boolean }>(`/models/${encodeURIComponent(id)}/note`, { method: "PATCH", body: JSON.stringify({ note }) }),
   modelMetadata: (id: string) =>
     req<ModelMetadata>(`/models/${encodeURIComponent(id)}/metadata`),
   hfSearch: (q: string, limit = 15) =>

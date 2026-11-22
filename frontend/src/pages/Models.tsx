@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, type CatalogEntry, type ModelMetadata, type ModelAlias } from "../api/client";
+import { api, type CatalogEntry, type ModelMetadata, type ModelAlias, type Model } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -200,6 +200,22 @@ export default function Models() {
     try {
       await api.renameModel(id, next.trim());
       ok(`renamed ${id} → ${next.trim()}`);
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // free-text annotation, twin of instance notes (F661); empty clears.
+  const setNote = async (m: Model) => {
+    const next = window.prompt(`Note for "${m.id}" (empty clears):`, m.note ?? "");
+    if (next === null) return;
+    setBusy(true);
+    try {
+      await api.setModelNote(m.id, next.trim());
+      ok(next.trim() ? `note set on ${m.id}` : `note cleared on ${m.id}`);
       await refreshOne("models");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -458,14 +474,14 @@ export default function Models() {
                       (m.path || "").toLowerCase().includes(low)
                   )
                 : models;
-              const head = ["id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running"];
+              const head = ["id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note"];
               const rows = [
                 head.join(","),
                 ...shown.map((m) =>
                   [
                     m.id, m.backendId, String(m.sizeBytes ?? 0), String(m.ctxSize ?? 0),
                     String(m.priceInPerM ?? 0), String(m.priceOutPerM ?? 0),
-                    String(m.idleUnloadMin ?? 0), String(!!m.running),
+                    String(m.idleUnloadMin ?? 0), String(!!m.running), m.note || "",
                   ]
                     .map(esc)
                     .join(",")
@@ -558,7 +574,14 @@ export default function Models() {
             <tbody>
               {shown.map((m) => (
                 <tr key={m.id}>
-                  <td className="mono">{m.id}</td>
+                  <td className="mono">
+                    {m.id}
+                    {m.note && (
+                      <div className="muted" style={{ fontSize: 11, maxWidth: 220 }} title={m.note}>
+                        {m.note}
+                      </div>
+                    )}
+                  </td>
                   <td>{m.backendId}</td>
                   <td>{fmtBytes(m.sizeBytes)}</td>
                   <td>
@@ -661,6 +684,9 @@ export default function Models() {
                     </button>{" "}
                     <button className="btn sm" disabled={busy} title="rename this model (aliases follow)" onClick={() => rename(m.id)}>
                       Rename
+                    </button>{" "}
+                    <button className="btn sm" disabled={busy} title="free-text annotation (CLI: llmctl models note)" onClick={() => setNote(m)}>
+                      Note
                     </button>{" "}
                     <button
                       className="btn sm"

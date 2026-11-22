@@ -221,6 +221,7 @@ Usage:
   llmctl models show <id> [-json] [-out FILE]
   llmctl models probe [-json] [-out FILE]
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json|-out FILE]
+  llmctl models note <id> [text…] [-json]   (free-text annotation; empty text clears)
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv] [-out FILE]
   llmctl models stats [-json] [--csv] [-out FILE]   (per-backend roll-up: models, running, total size)
@@ -2336,7 +2337,7 @@ var llmSubCommands = map[string]string{
 	"key":       "generate duplicate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
-	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
+	"models":    "list stats show add rename note probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save duplicate start delete export import",
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable delete export import",
@@ -3018,7 +3019,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|stats|show|add|rename|probe|price|ctx|idle|metadata|install|remove|routable|unused|aliases|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|stats|show|add|rename|note|probe|price|ctx|idle|metadata|install|remove|routable|unused|aliases|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -3110,6 +3111,34 @@ func cmdModels(args []string) error {
 			return nil
 		}
 		fmt.Printf("model %s renamed to %s\n", rnfs.Arg(0), rnfs.Arg(1))
+		return nil
+	case "note":
+		// Free-text annotation on a model, twin of `llmctl note` for
+		// instances (F661); empty text clears it.
+		mnfs := flag.NewFlagSet("models note", flag.ExitOnError)
+		mnjson := mnfs.Bool("json", false, "print the raw response JSON")
+		mnfs.Parse(reorderFlags(rest))
+		if mnfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl models note <id> [text…] [-json]  (empty text clears)")
+		}
+		note := strings.Join(mnfs.Args()[1:], " ")
+		code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(mnfs.Arg(0))+"/note",
+			map[string]any{"note": note})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("models note: %s", out)
+		}
+		if *mnjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if strings.TrimSpace(note) == "" {
+			fmt.Printf("model %s note cleared\n", mnfs.Arg(0))
+		} else {
+			fmt.Printf("model %s note set\n", mnfs.Arg(0))
+		}
 		return nil
 	case "add":
 		afs := flag.NewFlagSet("models add", flag.ExitOnError)
@@ -3345,6 +3374,7 @@ func cmdModels(args []string) error {
 			PriceIn   float64 `json:"priceInPerM"`
 			PriceOut  float64 `json:"priceOutPerM"`
 			IdleMin   int     `json:"idleUnloadMin"`
+			Note      string  `json:"note"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
@@ -3352,7 +3382,7 @@ func cmdModels(args []string) error {
 		if len(list) == 0 {
 			if *csvOut { // keep the stream parseable (F372)
 				w := csv.NewWriter(os.Stdout)
-				_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running"})
+				_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note"})
 				w.Flush()
 				return w.Error()
 			}
@@ -3361,11 +3391,11 @@ func cmdModels(args []string) error {
 		}
 		if *csvOut { // F372
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running"})
+			_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running", "note"})
 			for _, m := range list {
 				_ = w.Write([]string{m.ID, m.BackendID, strconv.FormatInt(m.SizeBytes, 10), strconv.Itoa(m.CtxSize),
 					strconv.FormatFloat(m.PriceIn, 'f', -1, 64), strconv.FormatFloat(m.PriceOut, 'f', -1, 64),
-					strconv.Itoa(m.IdleMin), strconv.FormatBool(m.Running)})
+					strconv.Itoa(m.IdleMin), strconv.FormatBool(m.Running), m.Note})
 			}
 			w.Flush()
 			return w.Error()
@@ -3634,6 +3664,7 @@ func cmdModels(args []string) error {
 			PriceOut      float64  `json:"priceOutPerM"`
 			IdleUnloadMin int      `json:"idleUnloadMin"`
 			Aliases       []string `json:"aliases"`
+			Note          string   `json:"note"`
 		}
 		if err := json.Unmarshal(out, &mv); err != nil {
 			return err
@@ -3658,6 +3689,9 @@ func cmdModels(args []string) error {
 			status = "running"
 		}
 		fmt.Printf("id:       %s\nbackend:  %s\npath:     %s\nsize:     %s\nctx:      %s\nprice:    %s\nidle:     %s\nstatus:   %s\n", mv.ID, mv.BackendID, mv.Path, fmtSize(mv.SizeBytes), ctxv, price, idle, status)
+		if mv.Note != "" {
+			fmt.Printf("note:     %s\n", mv.Note)
+		}
 		if len(mv.Aliases) > 0 {
 			fmt.Printf("aliases:  %s\n", strings.Join(mv.Aliases, ", "))
 		}
