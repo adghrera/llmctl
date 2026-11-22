@@ -236,7 +236,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -6287,6 +6287,7 @@ func cmdChat(args []string) error {
 	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
 	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
 	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI)")
+	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -6551,11 +6552,16 @@ func cmdChat(args []string) error {
 				} `json:"choices"`
 			}
 			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
-				fmt.Print(chunk.Choices[0].Delta.Content)
+				if !*jsonOut {
+					fmt.Print(chunk.Choices[0].Delta.Content)
+				}
 				reply.WriteString(chunk.Choices[0].Delta.Content)
 			}
 		}
-		fmt.Println()
+		if !*jsonOut {
+			fmt.Println()
+		}
+		savedID := *contChat
 		if *contChat != "" {
 			msgs := append(contMsgs,
 				map[string]string{"role": "user", "content": oneShot},
@@ -6571,7 +6577,9 @@ func cmdChat(args []string) error {
 			if code != 200 {
 				return fmt.Errorf("chat update: %s", out)
 			}
-			fmt.Printf("[appended to chat %s]\n", *contChat)
+			if !*jsonOut {
+				fmt.Printf("[appended to chat %s]\n", *contChat)
+			}
 		} else if *saveChat != "" {
 			msgs := []map[string]string{}
 			for _, h := range hist {
@@ -6593,7 +6601,16 @@ func cmdChat(args []string) error {
 				ID string `json:"id"`
 			}
 			json.Unmarshal(out, &saved)
-			fmt.Printf("[saved as chat %s: %q]\n", saved.ID, *saveChat)
+			savedID = saved.ID
+			if !*jsonOut {
+				fmt.Printf("[saved as chat %s: %q]\n", saved.ID, *saveChat)
+			}
+		}
+		if *jsonOut {
+			b, _ := json.Marshal(map[string]any{
+				"model": model, "prompt": oneShot, "reply": reply.String(), "chat_id": savedID,
+			})
+			fmt.Println(string(b))
 		}
 		return nil
 	}
