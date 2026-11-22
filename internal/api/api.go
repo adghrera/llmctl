@@ -64,7 +64,7 @@ type Server struct {
 	cost       *cost.Tracker       // token usage and cost tracking (F045)
 	sched      *scheduler.Store    // scheduled agent tasks (F046)
 	schedRun   func(scheduler.Record) // daemon-provided "run this task now" hook (F084)
-	events     *events.Ring             // recent daemon events feed (F099)
+	events     *events.Ring           // recent daemon events feed (F099)
 	rag        *rag.Store          // knowledge bases for RAG (F047)
 	mcpSt      *mcp.Store          // MCP server configs (F054)
 	mcpReg     *mcp.Registry       // live MCP connections (F054)
