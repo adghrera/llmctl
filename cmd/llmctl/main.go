@@ -125,6 +125,8 @@ Usage:
   llmctl logs <instance> [--stream stderr|stdout] [--tail N]
   llmctl logs -daemon [--tail N]
   llmctl key generate [name]
+  llmctl key show <id>
+  llmctl key note <id> <text...>
   llmctl key list
   llmctl key revoke <id>
   llmctl key reset-usage <id>
@@ -1536,7 +1538,7 @@ func cmdEvents(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|show|list|revoke|prune|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|show|note|list|revoke|prune|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1552,12 +1554,16 @@ func cmdKey(args []string) error {
 		expires := fs.Int("expires", 0, "expire after N days (0 = never)")
 		budget := fs.Float64("budget", 0, "daily USD budget (0 = unlimited)")
 		rps := fs.Float64("rps", 0, "per-key rate limit, req/s (0 = gateway default)")
+		note := fs.String("note", "", "free-text annotation")
 		fs.Parse(reorderFlags(rest))
 		name := ""
 		if fs.NArg() > 0 {
 			name = fs.Arg(0)
 		}
 		body := map[string]any{"name": name}
+		if *note != "" {
+			body["note"] = *note
+		}
 		if *quota > 0 {
 			body["tokenQuota"] = *quota
 		}
@@ -1626,6 +1632,7 @@ func cmdKey(args []string) error {
 			LifetimePrompt     int64      `json:"lifetimePromptTokens"`
 			LifetimeComp       int64      `json:"lifetimeCompletionTokens"`
 			LifetimeCost       float64    `json:"lifetimeCost"`
+			Note               string     `json:"note"`
 		}
 		if err := json.Unmarshal(out, &kv); err != nil {
 			return err
@@ -1658,6 +1665,27 @@ func cmdKey(args []string) error {
 		fmt.Println()
 		fmt.Printf("lifetime: %d reqs · %d err · %d in · %d out · $%.4f\n",
 			kv.LifetimeReqs, kv.LifetimeErrors, kv.LifetimePrompt, kv.LifetimeComp, kv.LifetimeCost)
+		if kv.Note != "" {
+			fmt.Printf("note:     %s\n", kv.Note)
+		}
+		return nil
+	case "note":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl key note <id> <text...>  (empty text clears)")
+		}
+		note := strings.TrimSpace(strings.Join(rest[1:], " "))
+		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(rest[0]), map[string]any{"note": note})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("key note returned %d: %s", code, out)
+		}
+		if note == "" {
+			fmt.Println("note cleared")
+		} else {
+			fmt.Printf("note set: %s\n", note)
+		}
 		return nil
 	case "list":
 		_, out, err := cc.Get("/api/v1/keys")

@@ -435,6 +435,7 @@ export interface ApiKey {
   lifetimePromptTokens?: number;
   lifetimeCompletionTokens?: number;
   lifetimeCost?: number;
+  note?: string;
 }
 
 export interface WebhookDelivery {
@@ -775,7 +776,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0, allowedModels: allowedModels ?? [], maxConcurrent: maxConcurrent ?? 0, maxRequests: maxRequests ?? 0, rateRPS: rateRPS ?? 0, rateBurst: rateBurst ?? 0, expiresInDays: expiresInDays ?? 0, dailyCostBudgetUSD: dailyCostBudgetUSD ?? 0 }),
     }),
-  updateKey: (id: string, body: { allowedModels?: string[]; rateRPS?: number; rateBurst?: number; expiresInDays?: number; dailyCostBudgetUSD?: number; name?: string; tokenQuota?: number; maxRequests?: number }) =>
+  updateKey: (id: string, body: { allowedModels?: string[]; rateRPS?: number; rateBurst?: number; expiresInDays?: number; dailyCostBudgetUSD?: number; name?: string; note?: string; tokenQuota?: number; maxRequests?: number }) =>
     req<{ ok: boolean; allowedModels: string[] }>(`/keys/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(body),

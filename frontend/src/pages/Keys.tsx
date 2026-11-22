@@ -17,6 +17,8 @@ export default function Keys() {
   const [budget, setBudget] = useState(0);
   const [renameFor, setRenameFor] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [noteFor, setNoteFor] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
   const [quotaFor, setQuotaFor] = useState<string | null>(null);
   const [quotaTok, setQuotaTok] = useState("");
   const [quotaReqs, setQuotaReqs] = useState("");
@@ -129,6 +131,22 @@ export default function Keys() {
       await api.updateKey(k.id, { allowedModels: k.allowedModels ?? [], name });
       ok("key renamed");
       setRenameFor(null);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setNote = async (k: ApiKey) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // allowedModels is echoed back so the PATCH doesn't clear the allowlist.
+      await api.updateKey(k.id, { allowedModels: k.allowedModels ?? [], note: noteDraft.trim() });
+      ok("note saved");
+      setNoteFor(null);
       await refreshOne("keys");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -329,6 +347,44 @@ export default function Keys() {
                         </button>
                       </span>
                     )}
+                    <div style={{ marginTop: 2 }}>
+                      {noteFor === k.id ? (
+                        <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                          <input
+                            autoFocus
+                            placeholder="note"
+                            style={{ width: 160 }}
+                            value={noteDraft}
+                            onChange={(e) => setNoteDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") setNote(k);
+                              if (e.key === "Escape") setNoteFor(null);
+                            }}
+                          />
+                          <button className="btn sm primary" disabled={busy} onClick={() => setNote(k)}>
+                            Save
+                          </button>
+                          <button className="btn sm" onClick={() => setNoteFor(null)}>
+                            ✕
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="muted small">
+                          {k.note ? k.note : <span style={{ opacity: 0.5 }}>no note</span>}{" "}
+                          <button
+                            className="btn sm"
+                            title="edit note"
+                            style={{ opacity: 0.6 }}
+                            onClick={() => {
+                              setNoteFor(k.id);
+                              setNoteDraft(k.note ?? "");
+                            }}
+                          >
+                            ✎
+                          </button>
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="mono">{k.prefix}…</td>
                   <td>

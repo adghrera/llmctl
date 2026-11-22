@@ -290,7 +290,8 @@ toggle for a light theme (choice remembered). Tabs:
   (F109). Keys page shows usage and estimated cost, today's per-key usage
   (F127), and links each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed
-  inline (F140). Optional per-key model
+  inline (F140) and carry a free-text note edited inline or via
+  `llmctl key note <id> <text>` (F186). Optional per-key model
   allowlist (editable via an inline checkbox editor on the Keys page, F154)
   (403 for other models; aliases resolved before checking; restricted keys
    also only see allowed models in `/v1/models`, F177) and concurrency
@@ -375,8 +376,9 @@ llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
-llmctl key generate|show|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps;
-                                        show: one key's full view; list shows usage, cost,
+llmctl key generate|show|note|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
+                                        show: one key's full view; note: set a free-text note;
+                                        list shows usage, cost,
                                         quota, expiry, daily budget; prune deletes expired keys)
 llmctl scheduler list|add|run|runs|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]

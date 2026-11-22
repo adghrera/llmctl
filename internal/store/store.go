@@ -113,6 +113,8 @@ type APIKeyRecord struct {
 	// DailyCostBudgetUSD caps the estimated USD a key may spend per UTC
 	// day; 0 = unlimited (F138).
 	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD,omitempty"`
+	// Note is a free-text user annotation (F186).
+	Note string `json:"note,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

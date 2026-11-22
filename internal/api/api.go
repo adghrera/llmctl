@@ -1550,12 +1550,14 @@ type keyView struct {
 	LifetimePrompt int64   `json:"lifetimePromptTokens"`
 	LifetimeComp   int64   `json:"lifetimeCompletionTokens"`
 	LifetimeCost   float64 `json:"lifetimeCost"`
+	// Note is a free-text user annotation (F186).
+	Note string `json:"note,omitempty"`
 }
 
 // keyViewFor builds the API view of one key, merging live gateway counters
 // (falling back to the persisted usage record for lastUsed).
 func (s *Server) keyViewFor(st *store.State, k *store.APIKeyRecord, live map[string]proxy.KeyUsage) keyView {
-	v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD}
+	v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD, Note: k.Note}
 	if s.gw != nil {
 		v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
 		life := s.gw.KeyLifetime(k.ID)        // retained-history totals (F182)
@@ -1624,6 +1626,7 @@ type createKeyReq struct {
 	// DailyCostBudgetUSD caps estimated USD per UTC day for this key;
 	// 0 = unlimited (F138).
 	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD"`
+	Note               string  `json:"note"` // free-text annotation (F186)
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -1640,6 +1643,7 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 		ExpiresInDays      *int     `json:"expiresInDays"`      // 0 = never expires (F135)
 		DailyCostBudgetUSD *float64 `json:"dailyCostBudgetUSD"` // 0 = unlimited (F138)
 		Name               *string  `json:"name"`               // rename key (F140)
+		Note               *string  `json:"note"`               // free-text annotation (F186)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")
@@ -1702,6 +1706,9 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 			}
 			if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
 				k.Name = strings.TrimSpace(*req.Name) // rename (F140)
+			}
+			if req.Note != nil {
+				k.Note = strings.TrimSpace(*req.Note) // free-text annotation (F186)
 			}
 		}
 		return nil
@@ -1776,6 +1783,7 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 			MaxRequests:        req.MaxRequests,
 			ExpiresAt:          expiresAt,              // nil = never (F135)
 			DailyCostBudgetUSD: req.DailyCostBudgetUSD, // 0 = unlimited (F138)
+			Note:               strings.TrimSpace(req.Note),
 		}
 		return nil
 	})
