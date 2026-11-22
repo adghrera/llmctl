@@ -4,13 +4,14 @@ import { ago } from "../lib/time";
 import { useStore } from "../state/store";
 
 export default function Overview() {
-  const { status, instances, jobs } = useStore();
+  const { status, instances, jobs, models } = useStore();
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [gpus, setGpus] = useState<GPUInfo[] | null>(null);
   const [disk, setDisk] = useState<Awaited<ReturnType<typeof api.disk>> | null>(null);
   const [events, setEvents] = useState<Awaited<ReturnType<typeof api.events>>>([]);
   const [eventKind, setEventKind] = useState("");
   const [eventKinds, setEventKinds] = useState<string[]>([]);
+  const [eventModel, setEventModel] = useState("");
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
   const [daemonLog, setDaemonLog] = useState<string | null>(null);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
@@ -63,7 +64,7 @@ export default function Overview() {
     let alive = true;
     const tick = () =>
       api
-        .events(50, eventKind)
+        .events(50, eventKind, eventModel)
         .then((e) => {
           if (!alive) return;
           setEvents(e);
@@ -76,7 +77,7 @@ export default function Overview() {
       alive = false;
       clearInterval(t);
     };
-  }, [eventKind]);
+  }, [eventKind, eventModel]);
 
   useEffect(() => {
     let alive = true;
@@ -262,10 +263,23 @@ export default function Overview() {
           <div className="empty">no instances running</div>
         )}
       </div>
-      {(events.length > 0 || eventKind) && (
+      {(events.length > 0 || eventKind || eventModel) && (
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Events</h2>
+            <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              model
+              <select
+                style={{ width: 140 }}
+                value={eventModel}
+                onChange={(e) => setEventModel(e.target.value)}
+              >
+                <option value="">all</option>
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>{m.id}</option>
+                ))}
+              </select>
+            </label>
             <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               kind
               <select
