@@ -25,6 +25,9 @@ type Target struct {
 	BaseURL    *url.URL
 	APIPath    string // e.g. "/v1" (http only)
 	Session    *stdio.Session
+	// MaxParallel caps simultaneous requests for this instance at the
+	// gateway; 0 = unlimited (F114).
+	MaxParallel int
 }
 
 // Router resolves model names to running instances. It re-reads state.json
@@ -171,6 +174,7 @@ func (rt *Router) ResolveList(model string) ([]*Target, error) {
 		if err != nil {
 			continue // skip instances that cannot produce a target
 		}
+		t.MaxParallel = inst.MaxParallel
 		targets = append(targets, t)
 	}
 	if len(targets) == 0 {

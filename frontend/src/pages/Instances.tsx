@@ -16,6 +16,7 @@ export default function Instances() {
   const [logBusy, setLogBusy] = useState(false);
   const [varsFor, setVarsFor] = useState<string | null>(null);
   const [varsText, setVarsText] = useState("");
+  const [varsCap, setVarsCap] = useState(0);
   const [varsBusy, setVarsBusy] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
@@ -42,9 +43,10 @@ export default function Instances() {
     void loadLogs(id, "stderr");
   };
 
-  const openVars = (id: string, vars?: Record<string, string>) => {
+  const openVars = (id: string, vars?: Record<string, string>, cap?: number) => {
     setVarsFor(id);
     setVarsText(JSON.stringify(vars ?? {}, null, 2));
+    setVarsCap(cap ?? 0);
   };
 
   const saveVars = async () => {
@@ -59,6 +61,7 @@ export default function Instances() {
     setVarsBusy(true);
     try {
       const r = await api.setInstanceVars(varsFor, parsed);
+      await api.setInstanceCap(varsFor, varsCap);
       ok(r.restartRequired ? "vars saved — restart to apply" : "vars saved");
       setVarsFor(null);
       await refreshOne("instances");
@@ -425,7 +428,7 @@ export default function Instances() {
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
                       Logs
                     </button>
-                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars)}>
+                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel)}>
                       Vars
                     </button>
                     {!i.attached && (
@@ -555,6 +558,18 @@ export default function Instances() {
             value={varsText}
             onChange={(e) => setVarsText(e.target.value)}
           />
+          <div className="row" style={{ marginTop: 8, alignItems: "center", gap: 8 }}>
+            <span className="muted small">max parallel</span>
+            <input
+              type="number"
+              min={0}
+              style={{ width: 90 }}
+              value={varsCap || ""}
+              title="Gateway concurrency cap for this instance (0 = unlimited)"
+              onChange={(e) => setVarsCap(Math.max(0, Number(e.target.value) || 0))}
+            />
+            <span className="muted small">0 = unlimited; extra requests go to other replicas or get 503</span>
+          </div>
         </div>
       )}
     </>

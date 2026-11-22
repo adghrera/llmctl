@@ -68,6 +68,9 @@ type InstanceRecord struct {
 	// AutoRestart relaunches the instance when it crashes (owned processes
 	// only). Crash-loop guard: max 3 restarts per 5 minutes (F087).
 	AutoRestart bool `json:"autoRestart,omitempty"`
+	// MaxParallel caps simultaneous gateway requests served by this
+	// instance; 0 = unlimited (F114).
+	MaxParallel int `json:"maxParallel,omitempty"`
 }
 
 // BaseURL returns the HTTP base for an http-transport instance.

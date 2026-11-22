@@ -108,6 +108,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/instances/stop-all", s.stopAllInstances)
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("POST /api/v1/instances/{id}/autorestart", s.setAutoRestart)
+	m.HandleFunc("PATCH /api/v1/instances/{id}/maxparallel", s.setMaxParallel)
 	m.HandleFunc("PATCH /api/v1/models/{id}/price", s.setModelPrice)
 	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
@@ -668,6 +669,8 @@ type instanceView struct {
 	AutoRestart bool `json:"autoRestart,omitempty"`
 	// Inflight: gateway requests currently being served (F113).
 	Inflight int64 `json:"inflight,omitempty"`
+	// MaxParallel: gateway concurrency cap for this instance; 0 = none (F114).
+	MaxParallel int `json:"maxParallel,omitempty"`
 }
 
 func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
@@ -680,6 +683,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 			Transport: i.Transport, Port: i.Port, Status: i.Status,
 			Attached: i.Attached, PID: i.PID, StartedAt: i.StartedAt,
 			Vars: i.Vars, LastError: i.LastError, AutoRestart: i.AutoRestart,
+			MaxParallel: i.MaxParallel,
 		}
 		if s.gw != nil {
 			v.LastUsed = s.gw.ModelLastUsed(i.ModelID)
@@ -824,6 +828,36 @@ func (s *Server) setAutoRestart(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true, "autoRestart": req.Enabled})
+}
+
+// setMaxParallel handles PATCH /api/v1/instances/{id}/maxparallel — cap the
+// number of simultaneous gateway requests this instance serves
+// (0 = unlimited, F114).
+func (s *Server) setMaxParallel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		MaxParallel int `json:"maxParallel"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	if req.MaxParallel < 0 {
+		writeErr(w, 400, "maxParallel must be >= 0")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Instances[id] == nil {
+		writeErr(w, 404, "unknown instance: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if r := st.Instances[id]; r != nil {
+			r.MaxParallel = req.MaxParallel
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "maxParallel": req.MaxParallel})
 }
 
 // setInstanceVars handles PUT /api/v1/instances/{id}/vars — replace the

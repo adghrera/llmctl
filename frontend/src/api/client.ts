@@ -44,6 +44,7 @@ export interface Instance {
   startedAt: string;
   lastUsed?: string;
   inflight?: number;
+  maxParallel?: number;
   vars?: Record<string, string>;
   lastError?: string;
   autoRestart?: boolean;
@@ -485,6 +486,11 @@ export const api = {
     req<{ ok: boolean; vars: Record<string, string>; restartRequired: boolean }>(
       `/instances/${encodeURIComponent(id)}/vars`,
       { method: "PUT", body: JSON.stringify({ vars }) }
+    ),
+  setInstanceCap: (id: string, maxParallel: number) =>
+    req<{ ok: boolean; maxParallel: number }>(
+      `/instances/${encodeURIComponent(id)}/maxparallel`,
+      { method: "PATCH", body: JSON.stringify({ maxParallel }) }
     ),
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),

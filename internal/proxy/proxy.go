@@ -476,6 +476,22 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 		return s.instLoad(targets[i].InstanceID) < s.instLoad(targets[j].InstanceID)
 	})
 
+	// Per-instance concurrency cap (F114): skip replicas already at their
+	// limit; 503 when every replica is saturated.
+	free := make([]*Target, 0, len(targets))
+	for _, t := range targets {
+		if t.MaxParallel > 0 && s.instLoad(t.InstanceID) >= int64(t.MaxParallel) {
+			continue
+		}
+		free = append(free, t)
+	}
+	if len(free) == 0 {
+		writeErr(w, http.StatusServiceUnavailable, "overloaded_error",
+			"all instances for this model are at their concurrency cap")
+		return
+	}
+	targets = free
+
 	if targets[0].Transport == "stdio" {
 		s.instAdd(targets[0].InstanceID, 1)
 		s.proxyStdio(w, r, targets[0], body, path, peek.Stream)
