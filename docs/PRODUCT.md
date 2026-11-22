@@ -703,7 +703,8 @@ toggle for a light theme (choice remembered). Tabs:
   and a `-stats` per-event roll-up —
   total/ok/failed/last attempt (F624); the Settings page delivery list has a matching event
   dropdown (F358), a "Failed only" checkbox (F709), filter-aware Export CSV/JSON
-  buttons (F416, F748), and an
+  buttons (F416, F748), a per-event Stats roll-up toggle (twin of
+  `webhooks -stats`, F749), and an
   Auto-refresh checkbox that polls every 5s while testing a receiver
   (F615). Event and
   scheduler-hook deliveries retry

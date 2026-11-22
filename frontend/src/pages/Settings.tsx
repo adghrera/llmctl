@@ -44,6 +44,7 @@ export default function SettingsPage() {
   const [autoSnap, setAutoSnap] = useState(false); // live-refresh the snapshot list (CLI `backups -watch`, F610)
   const [autoWh, setAutoWh] = useState(false); // live-refresh the webhook log (CLI `webhooks -watch`, F615)
   const [whFailed, setWhFailed] = useState(false); // failed-only view, CLI `webhooks -failed` twin (F709)
+  const [whStats, setWhStats] = useState(false); // per-event roll-up, CLI `webhooks -stats` twin (F749)
   // API console state (F589, UI counterpart of `llmctl api`).
   const [apiMethod, setApiMethod] = useState("GET");
   const [apiPath, setApiPath] = useState("/api/v1/status");
@@ -662,7 +663,54 @@ export default function SettingsPage() {
                   >
                     Export JSON
                   </button>
+                  <button
+                    className="btn sm"
+                    aria-pressed={whStats}
+                    disabled={shownWh.length === 0}
+                    title="group the delivery log per event — CLI: llmctl webhooks -stats (F749)"
+                    onClick={() => setWhStats(!whStats)}
+                  >
+                    {whStats ? "Show list" : "Stats"}
+                  </button>
                 </div>
+                {whStats ? (
+                  <table style={{ marginTop: 4 }}>
+                    <thead>
+                      <tr>
+                        <th>Event</th>
+                        <th>Total</th>
+                        <th>Ok</th>
+                        <th>Failed</th>
+                        <th>Last</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        // Per-event roll-up, same columns as `llmctl webhooks -stats` (F749).
+                        const m = new Map<string, { total: number; ok: number; failed: number; last: string }>();
+                        for (const d of shownWh) {
+                          const ev = d.event || "(none)";
+                          const r = m.get(ev) ?? { total: 0, ok: 0, failed: 0, last: "" };
+                          r.total++;
+                          if (d.ok) r.ok++; else r.failed++;
+                          if (d.time > r.last) r.last = d.time;
+                          m.set(ev, r);
+                        }
+                        return [...m.entries()]
+                          .sort((a, b) => b[1].total - a[1].total)
+                          .map(([ev, r]) => (
+                            <tr key={ev}>
+                              <td className="mono" style={{ fontSize: 12 }}>{ev}</td>
+                              <td className="oc-num">{r.total}</td>
+                              <td className="oc-num">{r.ok}</td>
+                              <td className="oc-num">{r.failed}</td>
+                              <td className="muted" style={{ fontSize: 12 }} title={new Date(r.last).toLocaleString()}>{ago(r.last)}</td>
+                            </tr>
+                          ));
+                      })()}
+                    </tbody>
+                  </table>
+                ) : (
                 <table style={{ marginTop: 4 }}>
                   <thead>
                     <tr>
@@ -691,6 +739,7 @@ export default function SettingsPage() {
                     ))}
                   </tbody>
                 </table>
+                )}
               </div>
             )}
           </div>
