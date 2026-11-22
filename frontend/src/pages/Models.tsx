@@ -430,7 +430,47 @@ export default function Models() {
         </p>
       </div>
       <div className="card">
-        <h2>Installed models</h2>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Installed models</h2>
+          <button
+            className="btn sm"
+            disabled={models.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl models list --csv` (F372/F377).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const low = filter.trim().toLowerCase();
+              const shown = low
+                ? models.filter(
+                    (m) =>
+                      m.id.toLowerCase().includes(low) ||
+                      m.backendId.toLowerCase().includes(low) ||
+                      (m.path || "").toLowerCase().includes(low)
+                  )
+                : models;
+              const head = ["id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running"];
+              const rows = [
+                head.join(","),
+                ...shown.map((m) =>
+                  [
+                    m.id, m.backendId, String(m.sizeBytes ?? 0), String(m.ctxSize ?? 0),
+                    String(m.priceInPerM ?? 0), String(m.priceOutPerM ?? 0),
+                    String(m.idleUnloadMin ?? 0), String(!!m.running),
+                  ]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-models-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
+        </div>
         <input
           className="input"
           placeholder="Filter by id, backend or path…"
