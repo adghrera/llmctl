@@ -75,7 +75,9 @@ type modelRef struct {
 	ID     string // request id echoed as X-Request-Id (F092)
 	Model  string
 	Stream bool
-	Key    string // API key prefix (first 8 chars) for per-key cost tracking
+	Key    string // counter key: API key id, or 8-char prefix fallback (F109)
+	// KeyLabel is the human-readable 8-char key prefix for the request log.
+	KeyLabel string
 	// AllowedModels, when non-empty, restricts the request to these model
 	// names for the calling key (F089).
 	AllowedModels []string

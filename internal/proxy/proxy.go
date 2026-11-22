@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -221,7 +222,7 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := newRecordingResponseWriter(w)
 		next.ServeHTTP(rec, r)
-		s.collector.record(holder.Model, holder.Key, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes(), rid)
+		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, rec.status, float64(time.Since(start).Microseconds())/1000.0, holder.Stream, rec.buf.Bytes(), rid)
 	})
 }
 
@@ -276,16 +277,23 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
+		// Counter key: the unique key id when known (F109), else the 8-char
+		// prefix. The old prefix-only keying collided because generated keys
+		// share the "sk-llm-" prefix (only 1 hex char of variance).
+		ckey := keyPrefix(got)
+		if keyRecord != nil {
+			ckey = keyRecord.ID
+		}
 		// Per-key token quota (F074): reject once the key has spent its budget.
 		if keyRecord != nil && keyRecord.TokenQuota > 0 &&
-			s.KeyTotalTokens(keyPrefix(got)) >= keyRecord.TokenQuota {
+			s.KeyTotalTokens(ckey) >= keyRecord.TokenQuota {
 			writeErr(w, http.StatusTooManyRequests, "quota_exceeded",
 				fmt.Sprintf("API key %q has used its token quota (%d tokens)", keyRecord.Name, keyRecord.TokenQuota))
 			return
 		}
 		// Per-key request count quota (F105).
 		if keyRecord != nil && keyRecord.MaxRequests > 0 &&
-			s.KeyRequests(keyPrefix(got)) >= keyRecord.MaxRequests {
+			s.KeyRequests(ckey) >= keyRecord.MaxRequests {
 			writeErr(w, http.StatusTooManyRequests, "request_quota_exceeded",
 				fmt.Sprintf("API key %q has used its request quota (%d requests)", keyRecord.Name, keyRecord.MaxRequests))
 			return
@@ -293,7 +301,7 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		// Per-key concurrency cap (F095): reject when the key already has
 		// MaxConcurrent requests in flight.
 		if keyRecord != nil && keyRecord.MaxConcurrent > 0 {
-			release, ok := s.keyAcquire(keyPrefix(got), keyRecord.MaxConcurrent)
+			release, ok := s.keyAcquire(ckey, keyRecord.MaxConcurrent)
 			if !ok {
 				writeErr(w, http.StatusTooManyRequests, "concurrency_exceeded",
 					fmt.Sprintf("API key %q already has %d requests in flight", keyRecord.Name, keyRecord.MaxConcurrent))
@@ -306,14 +314,36 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if key == "" {
 			key = clientIP(r)
 		}
+		// Quota visibility (F108): tell the client what is left.
+		if keyRecord != nil {
+			if keyRecord.TokenQuota > 0 {
+				used := s.KeyTotalTokens(ckey)
+				left := keyRecord.TokenQuota - used
+				if left < 0 {
+					left = 0
+				}
+				w.Header().Set("X-RateLimit-Limit", strconv.FormatInt(keyRecord.TokenQuota, 10))
+				w.Header().Set("X-RateLimit-Remaining", strconv.FormatInt(left, 10))
+			}
+			if keyRecord.MaxRequests > 0 {
+				used := s.KeyRequests(ckey)
+				left := keyRecord.MaxRequests - used
+				if left < 0 {
+					left = 0
+				}
+				w.Header().Set("X-LLMCtrl-Requests-Limit", strconv.FormatInt(keyRecord.MaxRequests, 10))
+				w.Header().Set("X-LLMCtrl-Requests-Remaining", strconv.FormatInt(left, 10))
+			}
+		}
 		if !s.limiter.allow(key) {
 			writeErr(w, http.StatusTooManyRequests, "rate_limit_exceeded",
 				fmt.Sprintf("gateway at capacity (%d in-flight requests)", s.maxInflight))
 			return
 		}
-		// Store key prefix on modelRef for per-key cost tracking.
+		// Store counter key + readable prefix on modelRef for cost tracking.
 		if ref := modelRefFrom(r.Context()); ref != nil {
-			ref.Key = keyPrefix(key)
+			ref.Key = ckey
+			ref.KeyLabel = keyPrefix(got)
 			if keyRecord != nil {
 				ref.AllowedModels = keyRecord.AllowedModels
 			}
@@ -803,10 +833,10 @@ func (s *Server) SeedDaily(daily map[string]map[string]*store.DailyModelUsage) {
 	s.collector.seedDaily(daily)
 }
 
-// KeyTotalTokens exposes one key prefix's token total for quota checks (F074).
+// KeyTotalTokens exposes one key counter's token total for quota checks (F074).
 func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
 
-// KeyRequests returns the number of requests billed to one key prefix (F105).
+// KeyRequests returns the number of requests billed to one key (F105).
 func (s *Server) KeyRequests(prefix string) int64 {
 	if u, ok := s.collector.keyUsage()[prefix]; ok {
 		return u.Requests
@@ -814,7 +844,7 @@ func (s *Server) KeyRequests(prefix string) int64 {
 	return 0
 }
 
-// ResetKeyUsage zeroes the usage counters for one key prefix (F107).
+// ResetKeyUsage zeroes the usage counters for one key (F107).
 func (s *Server) ResetKeyUsage(prefix string) {
 	s.collector.resetKeyUsage(prefix)
 }

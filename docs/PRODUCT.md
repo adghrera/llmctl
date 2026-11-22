@@ -158,9 +158,12 @@ toggle for a light theme (choice remembered). Tabs:
   persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103).
 - **Requests** — the last 256 gateway requests (time, model, key, status,
   latency, tokens) in an auto-refreshing table, with one-click CSV export and
-  combinable filters (model, status class, min latency, stream/plain).
+  combinable filters (model, status class, min latency, stream/plain, key
+  prefix).
   Each request has an id echoed as the X-Request-Id response header (a
-  client-sent X-Request-Id is reused).
+  client-sent X-Request-Id is reused). Keys with a token or request quota get
+  X-RateLimit-Limit/-Remaining and X-LLMCtrl-Requests-Limit/-Remaining
+  response headers showing what is left (F108).
   History persists across daemon restarts (`~/.llmctl/requests.jsonl`,
   trimmed to the newest 1000 lines at startup).
   REST: GET /api/v1/requests?model=&status=&minMs=&stream=&key= and
@@ -239,8 +242,10 @@ toggle for a light theme (choice remembered). Tabs:
   semantic-search panel in the UI; TF-IDF remains the fallback).
 - **API Keys** — generate / list / revoke. Optional per-key token quota
   (total prompt+completion tokens); once spent, the gateway returns 429
-  until the quota is raised. Usage counters persist across restarts. Keys
-  page shows usage and estimated cost. Optional per-key model allowlist
+  until the quota is raised. Usage counters persist across restarts and are
+  tracked per key id, so keys that share a visible prefix never share usage
+  (F109). Keys page shows usage and estimated cost. Optional per-key model
+  allowlist
   (403 for other models; aliases resolved before checking) and concurrency
   cap (429 while more than N requests are in flight). Optional per-key total
   request cap (429 `request_quota_exceeded` once reached; only served

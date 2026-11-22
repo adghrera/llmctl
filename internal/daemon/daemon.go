@@ -157,9 +157,26 @@ func Run(ctx context.Context, opts Options) error {
 	gw.SetKeyCheck(mgmt.KeyCheck)
 
 	// Restore per-key token counters so quotas (F074) survive restarts (F080).
+	// Counters key on the key id (F109); legacy entries keyed by the old
+	// 8-char prefix are remapped to the matching key's id.
 	if cur, err := st.Load(); err == nil && len(cur.KeyUsage) > 0 {
+		byPrefix := make(map[string]string)
+		for _, k := range cur.APIKeys {
+			p := k.Prefix
+			if len(p) > 8 {
+				p = p[:8]
+			}
+			if _, dup := byPrefix[p]; !dup {
+				byPrefix[p] = k.ID
+			}
+		}
 		seed := make(map[string]proxy.KeyUsage, len(cur.KeyUsage))
 		for k, u := range cur.KeyUsage {
+			if _, ok := cur.APIKeys[k]; !ok {
+				if id, isPrefix := byPrefix[k]; isPrefix {
+					k = id
+				}
+			}
 			seed[k] = proxy.KeyUsage{InputTok: u.Input, OutputTok: u.Output, TotalTok: u.Total, Requests: u.Requests, Cost: u.Cost}
 		}
 		gw.SeedKeyUsage(seed)

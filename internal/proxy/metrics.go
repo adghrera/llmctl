@@ -90,7 +90,7 @@ func (m *metricsCollector) pricingFor(model string) cost.ModelPricing {
 }
 
 // record adds one completed gateway request. model may be "" (unknown).
-func (m *metricsCollector) record(model, key string, status int, latencyMs float64, stream bool, respBody []byte, rid string) {
+func (m *metricsCollector) record(model, key, keyLabel string, status int, latencyMs float64, stream bool, respBody []byte, rid string) {
 	var pTok, cTok int64
 	if stream {
 		pTok, cTok = scanUsageSSE(respBody)
@@ -167,12 +167,15 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 		kc.mu.Unlock()
 	}
 
-	// Recent-requests ring (F061).
+	// Recent-requests ring (F061). Show the readable prefix, not the id.
+	if keyLabel == "" {
+		keyLabel = key
+	}
 	m.reqLog.add(RequestLogEntry{
 		ID:        rid,
 		Time:      time.Now(),
 		Model:     model,
-		Key:       key,
+		Key:       keyLabel,
 		Status:    status,
 		LatencyMs: latencyMs,
 		PromptTok: pTok,

@@ -1304,12 +1304,8 @@ func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	out := []keyView{}
 	for _, k := range st.APIKeys {
 		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests}
-		if s.gw != nil && len(k.Prefix) > 0 {
-			p := k.Prefix
-			if len(p) > 8 {
-				p = p[:8] // gateway counters key on the first 8 chars
-			}
-			if ku, ok := s.gw.KeyUsage()[p]; ok {
+		if s.gw != nil {
+			if ku, ok := s.gw.KeyUsage()[k.ID]; ok { // counters key on the key id (F109)
 				v.UsedTok = ku.TotalTok
 				v.UsedCost = ku.Cost
 				v.UsedReqs = ku.Requests
@@ -1373,15 +1369,11 @@ func (s *Server) resetKeyUsage(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "unknown key: "+id)
 		return
 	}
-	p := k.Prefix
-	if len(p) > 8 {
-		p = p[:8] // gateway counters key on the first 8 chars
-	}
 	if s.gw != nil {
-		s.gw.ResetKeyUsage(p)
+		s.gw.ResetKeyUsage(id) // counters key on the key id (F109)
 	}
 	s.store.Update(func(st *store.State) error {
-		delete(st.KeyUsage, p)
+		delete(st.KeyUsage, id)
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true})
