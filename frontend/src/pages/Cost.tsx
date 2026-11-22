@@ -7,6 +7,8 @@ export default function Cost() {
   const [keyCosts, setKeyCosts] = useState<Record<string, CostCounter>>({});
   const [modelCosts, setModelCosts] = useState<Record<string, CostCounter>>({});
   const [busy, setBusy] = useState(false);
+  const [keyFilter, setKeyFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
 
   const load = async () => {
     setBusy(true);
@@ -31,6 +33,11 @@ export default function Cost() {
     const t = setInterval(load, 10000);
     return () => clearInterval(t);
   }, []);
+
+  // Cost table text filters: keep rows whose id contains the text
+  // (case-insensitive) — UI counterpart of `llmctl cost -model/-key` (F353).
+  const match = (id: string, f: string) =>
+    !f.trim() || id.toLowerCase().includes(f.trim().toLowerCase());
 
   return (
     <>
@@ -76,7 +83,16 @@ export default function Cost() {
 
       {Object.keys(keyCosts).length > 0 && (
         <div className="card">
-          <h2>Cost by API Key</h2>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Cost by API Key</h2>
+            <input
+              className="oc-input"
+              style={{ width: 160 }}
+              placeholder="filter key…"
+              value={keyFilter}
+              onChange={(e) => setKeyFilter(e.target.value)}
+            />
+          </div>
           <table>
             <thead>
               <tr>
@@ -89,7 +105,9 @@ export default function Cost() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(keyCosts).map(([key, c]) => (
+              {Object.entries(keyCosts)
+                .filter(([key]) => match(key, keyFilter))
+                .map(([key, c]) => (
                 <tr key={key}>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>{key}</td>
                   <td className="oc-num">{c.requests.toLocaleString()}</td>
@@ -106,7 +124,16 @@ export default function Cost() {
 
       {Object.keys(modelCosts).length > 0 && (
         <div className="card">
-          <h2>Cost by Model</h2>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Cost by Model</h2>
+            <input
+              className="oc-input"
+              style={{ width: 160 }}
+              placeholder="filter model…"
+              value={modelFilter}
+              onChange={(e) => setModelFilter(e.target.value)}
+            />
+          </div>
           <table>
             <thead>
               <tr>
@@ -119,7 +146,9 @@ export default function Cost() {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(modelCosts).map(([model, c]) => (
+              {Object.entries(modelCosts)
+                .filter(([model]) => match(model, modelFilter))
+                .map(([model, c]) => (
                 <tr key={model}>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>{model}</td>
                   <td className="oc-num">{c.requests.toLocaleString()}</td>
