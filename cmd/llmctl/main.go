@@ -135,7 +135,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20]
   llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv]
-  llmctl metrics
+  llmctl metrics [-watch N]
   llmctl events [-n 20]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
@@ -1146,18 +1146,44 @@ func cmdBackups(args []string) error {
 // per-model table (requests, errors, tokens, latency p50/p95, tok/s).
 func cmdMetrics(args []string) error {
 	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
+	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Get("/api/v1/metrics")
-	if err != nil {
-		return err
+	printOnce := func() error {
+		code, out, err := cc.Get("/api/v1/metrics")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("metrics returned %d: %s", code, out)
+		}
+		return printMetrics(out)
 	}
-	if code != 200 {
-		return fmt.Errorf("metrics returned %d: %s", code, out)
+	if *watch <= 0 {
+		return printOnce()
 	}
+	// Live view: clear + reprint every interval until interrupted (F179).
+	for {
+		code, out, err := cc.Get("/api/v1/metrics")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("metrics returned %d: %s", code, out)
+		}
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live metrics — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
+		if err := printMetrics(out); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(*watch) * time.Second)
+	}
+}
+
+func printMetrics(out []byte) error {
 	var m struct {
 		RequestsTotal int64 `json:"requests_total"`
 		Tokens        struct {

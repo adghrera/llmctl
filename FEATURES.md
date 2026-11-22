@@ -188,6 +188,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F176 | P3 | 176 | ui | Backup restore button | COMPLETED | The Settings "Scheduled backups" list gained a Restore button (confirm dialog + restart hint) wired to the F175 endpoint. Verified: type-check + build clean, served bundle contains the control. |
 | F177 | P3 | 177 | gateway | `/v1/models` respects key allowlist | COMPLETED | A key with a model allowlist (F089) now only sees the models it may call in `GET /v1/models` — aliases are resolved before checking, so an alias pointing at an allowed model stays visible. Verified live: key allowed=[so] sees so + its fast alias; key allowed=[other] sees only fast (→ so) and not so. |
 | F178 | P3 | 178 | cli | Instance uptime in `status` | COMPLETED | `/api/v1/status` now lists running instances (id, model, uptimeSec) and `llmctl status` prints one line per running instance with its uptime. Verified live: `so so up 2s` line and the JSON field. |
+| F179 | P3 | 179 | cli | `metrics -watch` | COMPLETED | `llmctl metrics -watch N` clears the screen and reprints the metrics snapshot every N seconds until Ctrl-C. Verified live: 4 refreshes in 4 s at `-watch 1`, fresh counters each pass. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

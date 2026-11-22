@@ -374,7 +374,7 @@ llmctl scheduler list|add|run|runs|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
 llmctl backups [list|create|restore <name>|delete <name]]
 llmctl usage [-n 14] [-key ID | -keys] [--csv]
-llmctl metrics
+llmctl metrics [-watch N]          (-watch N: live refresh every N seconds)
 llmctl events [-n 20]
 llmctl chat [--model ID] [--key KEY]
 llmctl version
