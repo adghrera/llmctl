@@ -229,7 +229,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|pin|unpin|delete|delete-all …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
@@ -3889,6 +3889,67 @@ func cmdChats(args []string) error {
 				fmt.Printf("    [%s] %s\n", m.Role, sn)
 			}
 		}
+		return nil
+	}
+	if len(args) > 0 && args[0] == "export-all" {
+		// Bulk export every chat to a directory (F325); re-import happens
+		// through `llmctl backup` or per-chat POSTs.
+		xfs := flag.NewFlagSet("chats export-all", flag.ExitOnError)
+		outDir := xfs.String("out", "", "target directory (default ./chats-export)")
+		mdAll := xfs.Bool("md", false, "export as Markdown instead of JSON")
+		xfs.Parse(reorderFlags(args[1:]))
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats list: %s", out)
+		}
+		var chats []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(out, &chats); err != nil {
+			return err
+		}
+		if len(chats) == 0 {
+			fmt.Println("no chats to export")
+			return nil
+		}
+		dir := *outDir
+		if dir == "" {
+			dir = "chats-export"
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		ext := "json"
+		q := ""
+		if *mdAll {
+			ext = "md"
+			q = "?format=md"
+		}
+		var n int
+		for _, c := range chats {
+			code, body, err := cc.Get("/api/v1/chats/" + url.PathEscape(c.ID) + "/export" + q)
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				fmt.Printf("  skip %s: %s\n", c.ID, body)
+				continue
+			}
+			name := c.ID + "." + ext
+			if err := os.WriteFile(filepath.Join(dir, name), body, 0o644); err != nil {
+				return err
+			}
+			n++
+		}
+		fmt.Printf("exported %d chat(s) to %s/\n", n, dir)
 		return nil
 	}
 	if len(args) > 0 && args[0] == "export" {

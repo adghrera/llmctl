@@ -288,7 +288,8 @@ toggle for a light theme (choice remembered). Tabs:
    lists saved conversations,
    `llmctl chats show <id> [-json]` prints one with a message preview,
    `llmctl chats search <query> [-json]` full-text searches message content
-   with match snippets, and `chats export <id> [-md] [-out f]`,
+   with match snippets, `chats export <id> [-md] [-out f]` and
+   `chats export-all [-out DIR] [-md]` (bulk file export, F325),
    `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
    `chats pin|unpin <id>` (pinned chats sort first, F310; the Chat page
    shows a 📌 marker and a Pin/Unpin button, F311),
