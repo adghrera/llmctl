@@ -191,7 +191,9 @@ toggle for a light theme (choice remembered). Tabs:
   and the Instances page Saved-configs card has matching Export CSV /
   Export JSON / Import JSON buttons (F399, F413).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
-  stream tokens live (SSE), multi-turn history. Assistant messages carry real
+  stream tokens live (SSE), multi-turn history. A "Copy cURL" button in the
+  sampling options copies a ready-to-run curl for the conversation's next
+  request (model, messages, system prompt, sampling, $LLMCTL_API_KEY, F434). Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a
   conversation total); other messages fall back to an estimate
   (~4 chars/token); the conversation shows a context-window bar

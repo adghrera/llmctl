@@ -732,6 +732,31 @@ export default function Chat() {
                 value={temp}
                 onChange={(e) => setTemp(e.target.value)}
               />
+              <button
+                className="btn sm"
+                title="copy a curl command for this conversation's next request"
+                onClick={() => {
+                  // Same body the stream sends (model, messages, stream, sampling).
+                  const history: { role: string; content: string }[] = msgs.map((m) => ({ role: m.role, content: m.content }));
+                  if (systemPrompt.trim()) history.unshift({ role: "system", content: systemPrompt.trim() });
+                  const body: Record<string, unknown> = { model, messages: history, stream: true };
+                  if (maxTok) body.max_tokens = Number(maxTok);
+                  if (temp) body.temperature = Number(temp);
+                  const json = JSON.stringify(body);
+                  const q = `'${json.replace(/'/g, `'\\''`)}'`; // shell-safe single quoting
+                  const cmd =
+                    `curl -N ${window.location.origin}/v1/chat/completions \\\n` +
+                    `  -H "Authorization: Bearer $LLMCTL_API_KEY" \\\n` +
+                    `  -H "Content-Type: application/json" \\\n` +
+                    `  -d ${q}\n`;
+                  navigator.clipboard
+                    .writeText(cmd)
+                    .then(() => ok("copied curl command"))
+                    .catch(() => err("clipboard unavailable"));
+                }}
+              >
+                Copy cURL
+              </button>
             </div>
           </details>
         </div>
