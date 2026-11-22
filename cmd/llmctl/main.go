@@ -6640,6 +6640,41 @@ func cmdWebhooks(args []string) error {
 		fmt.Println("test notification delivered to the configured webhook")
 		return nil
 	}
+	if len(args) > 0 && args[0] == "retry" { // F679: re-send a logged delivery
+		rfs := flag.NewFlagSet("webhooks retry", flag.ExitOnError)
+		rjson := rfs.Bool("json", false, "print the raw response JSON")
+		rfs.Parse(reorderFlags(args[1:]))
+		if rfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl webhooks retry <delivery-id> [-json]")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Post("/api/v1/webhook/retry", map[string]any{"id": rfs.Arg(0)})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("webhook retry returned %d: %s", code, out)
+		}
+		if *rjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var rr struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(out, &rr); err != nil {
+			return err
+		}
+		if !rr.OK {
+			return fmt.Errorf("webhook retry failed: %s", rr.Error)
+		}
+		fmt.Printf("delivery %s re-sent\n", rfs.Arg(0))
+		return nil
+	}
 	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of deliveries")
 	event := fs.String("event", "", "only deliveries for this event name, e.g. instance.crashed (F357)")
@@ -6658,6 +6693,7 @@ func cmdWebhooks(args []string) error {
 		path += "&event=" + url.QueryEscape(*event)
 	}
 	type hookRow struct {
+		ID     string    `json:"id"` // delivery id for `webhooks retry` (F679)
 		Time   time.Time `json:"time"`
 		URL    string    `json:"url"`
 		Event  string    `json:"event"`
@@ -6772,13 +6808,13 @@ func cmdWebhooks(args []string) error {
 	}
 	if *csvOut { // F380
 		w := csv.NewWriter(os.Stdout)
-		_ = w.Write([]string{"time", "event", "url", "status", "ok", "error"})
+		_ = w.Write([]string{"id", "time", "event", "url", "status", "ok", "error"})
 		for _, d := range list {
 			status := ""
 			if d.Status > 0 {
 				status = strconv.Itoa(d.Status)
 			}
-			_ = w.Write([]string{d.Time.UTC().Format(time.RFC3339), d.Event, d.URL, status,
+			_ = w.Write([]string{d.ID, d.Time.UTC().Format(time.RFC3339), d.Event, d.URL, status,
 				strconv.FormatBool(d.OK), d.Error})
 		}
 		w.Flush()
@@ -6801,10 +6837,10 @@ func cmdWebhooks(args []string) error {
 		if ev == "" {
 			ev = "-"
 		}
-		fmt.Printf("%-14s %-24s %-6s %-5s %s\n",
+		fmt.Printf("%-6s %-14s %-24s %-6s %-5s %s\n", d.ID,
 			d.Time.Local().Format("01-02 15:04:05"), ev, status, ok, info)
 	}
-	fmt.Printf("%-14s %-24s %-6s %-5s %s\n", "TIME", "EVENT", "STATUS", "OK", "URL / ERROR")
+	fmt.Printf("%-6s %-14s %-24s %-6s %-5s %s\n", "ID", "TIME", "EVENT", "STATUS", "OK", "URL / ERROR")
 	for _, d := range list {
 		printRow(d)
 	}
@@ -6814,6 +6850,9 @@ func cmdWebhooks(args []string) error {
 	// Live tail: remember what we've shown and print only newer deliveries (F556).
 	seen := map[string]bool{}
 	key := func(d hookRow) string {
+		if d.ID != "" { // unique per attempt since F679
+			return d.ID
+		}
 		return fmt.Sprintf("%d|%s|%s|%d", d.Time.UnixNano(), d.Event, d.URL, d.Status)
 	}
 	for _, d := range list {

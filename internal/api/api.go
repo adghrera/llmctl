@@ -254,6 +254,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/settings", s.getSettings)
 	m.HandleFunc("POST /api/v1/settings/notify-test", s.testNotifyWebhook)
 	m.HandleFunc("GET /api/v1/webhook/log", s.webhookLog)
+	m.HandleFunc("POST /api/v1/webhook/retry", s.webhookRetry)
 	m.HandleFunc("PATCH /api/v1/settings", s.updateSettings)
 	return s.recoverer(m)
 }
@@ -2228,6 +2229,36 @@ func (s *Server) webhookLog(w http.ResponseWriter, r *http.Request) {
 		dels = dels[:limit]
 	}
 	writeJSON(w, 200, dels)
+}
+
+// webhookRetry handles POST /api/v1/webhook/retry (F679): body {"id": "..."}
+// re-posts the stored payload of that delivery attempt to its original URL,
+// signed with the current webhook secret. Returns {ok:true} on success or
+// {ok:false,error} when the re-send failed; 404 for unknown ids.
+func (s *Server) webhookRetry(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	if strings.TrimSpace(req.ID) == "" {
+		writeErr(w, 400, "id is required")
+		return
+	}
+	st, _ := s.store.Load()
+	err := webhook.Retry(r.Context(), strings.TrimSpace(req.ID), st.Settings.NotifyWebhookSecret)
+	if err != nil {
+		msg := err.Error()
+		if strings.HasPrefix(msg, "webhook: no delivery") || strings.Contains(msg, "no stored payload") {
+			writeErr(w, 404, msg)
+			return
+		}
+		writeJSON(w, 200, map[string]any{"ok": false, "error": msg})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {

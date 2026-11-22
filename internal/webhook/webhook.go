@@ -20,24 +20,36 @@ import (
 // Delivery is one webhook POST attempt kept in a small in-memory ring so the
 // UI can show what was sent and whether it landed (F144).
 type Delivery struct {
+	ID     string    `json:"id"` // short id, referenced by `webhooks retry` (F679)
 	Time   time.Time `json:"time"`
 	URL    string    `json:"url"`
 	Event  string    `json:"event,omitempty"` // "event" field of the payload, if any
 	Status int       `json:"status,omitempty"`
 	OK     bool      `json:"ok"`
 	Error  string    `json:"error,omitempty"`
+	// Body keeps the raw JSON payload (capped) so failed deliveries can be
+	// re-sent with `webhooks retry` (F679). Empty when the payload was too
+	// large to store.
+	Body string `json:"-"`
 }
 
 const deliveryLogSize = 50
 
+// maxStoredBody caps the payload bytes kept for retry; events are small JSON,
+// so this only guards against pathological payloads.
+const maxStoredBody = 8 << 10
+
 var (
 	histMu  sync.Mutex
 	histBuf []Delivery
+	histSeq uint64
 )
 
 func record(d Delivery) {
 	histMu.Lock()
 	defer histMu.Unlock()
+	histSeq++
+	d.ID = fmt.Sprintf("%x", histSeq)
 	histBuf = append(histBuf, d)
 	if len(histBuf) > deliveryLogSize {
 		histBuf = append(histBuf[:0], histBuf[len(histBuf)-deliveryLogSize:]...)
@@ -53,6 +65,29 @@ func History(n int) []Delivery {
 		out = append(out, histBuf[i])
 	}
 	return out
+}
+
+// Retry re-posts the stored payload of delivery id to its original URL with
+// the given secret, recording a fresh delivery attempt (F679). Returns an
+// error when the id is unknown or its payload was not stored.
+func Retry(ctx context.Context, id, secret string) error {
+	histMu.Lock()
+	var d *Delivery
+	for i := range histBuf {
+		if histBuf[i].ID == id {
+			cp := histBuf[i]
+			d = &cp
+			break
+		}
+	}
+	histMu.Unlock()
+	if d == nil {
+		return fmt.Errorf("webhook: no delivery %q", id)
+	}
+	if d.Body == "" {
+		return fmt.Errorf("webhook: no stored payload for delivery %q (too large?)", id)
+	}
+	return postRaw(ctx, d.URL, []byte(d.Body), secret)
 }
 
 // Post sends v as JSON to url with Content-Type application/json. Returns an
@@ -91,12 +126,18 @@ func PostWithRetries(ctx context.Context, url string, v any, secret string, atte
 // sent as "X-LLMCtrl-Signature: sha256=<hex>" when secret is non-empty, so
 // receivers can verify the payload really came from this daemon (F111).
 func PostWithSecret(ctx context.Context, url string, v any, secret string) error {
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return fmt.Errorf("webhook: url must be http(s), got %q", url)
-	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("webhook: marshal: %w", err)
+	}
+	return postRaw(ctx, url, b, secret)
+}
+
+// postRaw sends an already-marshalled JSON body to url, recording the
+// delivery attempt (F144, F679).
+func postRaw(ctx context.Context, url string, b []byte, secret string) error {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return fmt.Errorf("webhook: url must be http(s), got %q", url)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -133,6 +174,9 @@ func wrapDo(err error, resp *http.Response, url string) error {
 // field when present (best-effort).
 func deliveryFrom(url string, body []byte, resp *http.Response, err error) Delivery {
 	d := Delivery{Time: time.Now().UTC(), URL: url, OK: err == nil, Error: ""}
+	if len(body) <= maxStoredBody {
+		d.Body = string(body) // kept for `webhooks retry` (F679)
+	}
 	if err != nil {
 		d.Error = err.Error()
 	}

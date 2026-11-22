@@ -20,6 +20,17 @@ export default function SettingsPage() {
   const [whEvent, setWhEvent] = useState("");
   const [testEvent, setTestEvent] = useState(""); // custom test-event name (F592)
   const loadWhLog = () => api.webhookLog().then(setWhLog).catch(() => setWhLog([]));
+  // Re-send a failed delivery's stored payload (F679), twin of `webhooks retry`.
+  const retryDelivery = async (id: string) => {
+    try {
+      const r = await api.retryWebhook(id);
+      if (r.ok) ok("delivery re-sent");
+      else err(r.error || "retry failed");
+      await loadWhLog();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -564,9 +575,9 @@ export default function SettingsPage() {
                       // Same columns as `llmctl webhooks --csv` (F416); filter-aware.
                       const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
                       const rows = [
-                        "time,event,url,status,ok,error",
+                        "id,time,event,url,status,ok,error",
                         ...(whEvent ? whLog.filter((d) => d.event === whEvent) : whLog).map((d) =>
-                          [d.time, d.event || "", d.url, String(d.status ?? ""), String(d.ok), d.error || ""]
+                          [d.id || "", d.time, d.event || "", d.url, String(d.status ?? ""), String(d.ok), d.error || ""]
                             .map(esc)
                             .join(",")
                         ),
@@ -600,6 +611,11 @@ export default function SettingsPage() {
                         <td>
                           <span className={`badge ${d.ok ? "ok" : "err"}`}>{d.status || (d.ok ? 200 : "err")}</span>
                           {!d.ok && d.error ? <span className="muted" style={{ fontSize: 11 }}> {d.error}</span> : null}
+                          {!d.ok && d.id ? (
+                            <button className="btn sm" style={{ marginLeft: 6 }} title="re-send this delivery (CLI: llmctl webhooks retry)" onClick={() => retryDelivery(d.id!)}>
+                              Retry
+                            </button>
+                          ) : null}
                         </td>
                       </tr>
                     ))}

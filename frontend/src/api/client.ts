@@ -458,6 +458,7 @@ export interface ApiKey {
 }
 
 export interface WebhookDelivery {
+  id?: string; // delivery id for retry (F679)
   time: string;
   url: string;
   event?: string;
@@ -876,6 +877,8 @@ export const api = {
     }),
   webhookLog: () =>
     req<WebhookDelivery[]>("/webhook/log"),
+  retryWebhook: (id: string) =>
+    req<{ ok: boolean; error?: string }>("/webhook/retry", { method: "POST", body: JSON.stringify({ id }) }),
   restoreBackup: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
