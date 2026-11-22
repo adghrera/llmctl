@@ -3,6 +3,14 @@ import { api, type AutoStartSpec, type PresetSpec, type InstanceLogTail } from "
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
+function uptime(startedAt: string): string {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+}
+
 export default function Instances() {
   const { instances, models, backends, refreshOne } = useStore();
   const [model, setModel] = useState("");
@@ -396,6 +404,7 @@ export default function Instances() {
                 <th>Transport</th>
                 <th>Port</th>
                 <th>Status</th>
+                <th>Uptime</th>
                 <th>Last used</th>
                 <th />
               </tr>
@@ -430,6 +439,9 @@ export default function Instances() {
                         {i.inflight} busy
                       </span>
                     ) : null}
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {i.status === "running" && i.startedAt ? uptime(i.startedAt) : "—"}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {i.lastUsed ? new Date(i.lastUsed).toLocaleTimeString() : "—"}
