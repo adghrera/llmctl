@@ -203,6 +203,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F191 | P3 | 191 | cli | `llmctl webhooks` | COMPLETED | New CLI command prints recent webhook delivery attempts (time, event, status, ok, URL/error) from `GET /api/v1/webhook/log`. Verified live: a successful test delivery and a connection-refused failure both render correctly. |
 | F192 | P3 | 192 | cli | Human-readable model sizes | COMPLETED | `llmctl models list` shows sizes as KiB/MiB/GiB with a `total:` row; `models show` and `hf-files` also format sizes. Verified live: a 5 MiB model renders `5.0 MiB` and the total row sums correctly. |
 | F193 | P3 | 193 | cli | `doctor -json` | COMPLETED | `llmctl doctor -json` prints the raw doctor payload (like `status -json`) and skips the table; exit code still ≠0 when checks fail. Verified live: output parses as JSON (8 checks), plain mode unchanged. |
+| F194 | P3 | 194 | cli | `ps -watch N` | COMPLETED | `llmctl ps -watch N` live-refreshes the instance table every N seconds (same pattern as `metrics -watch`). Verified live: watch mode clears and reprints the table each second. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

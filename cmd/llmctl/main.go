@@ -104,7 +104,7 @@ Usage:
   llmctl down
   llmctl status [-json]
   llmctl doctor [-json]
-  llmctl ps
+  llmctl ps [-watch N]
   llmctl backends list
   llmctl backends install <id> [--asset <hint>]
   llmctl backends uninstall <id>
@@ -314,14 +314,39 @@ func cmdDoctor(args []string) error {
 }
 
 func cmdPS(args []string) error {
+	fs := flag.NewFlagSet("ps", flag.ExitOnError)
+	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	_, out, err := cc.Get("/api/v1/instances")
-	if err != nil {
-		return err
+	printOnce := func() error {
+		_, out, err := cc.Get("/api/v1/instances")
+		if err != nil {
+			return err
+		}
+		return printPS(out)
 	}
+	if *watch <= 0 {
+		return printOnce()
+	}
+	// Live view: clear + reprint every interval until interrupted (F194).
+	for {
+		_, out, err := cc.Get("/api/v1/instances")
+		if err != nil {
+			return err
+		}
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live instances — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
+		if err := printPS(out); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(*watch) * time.Second)
+	}
+}
+
+func printPS(out []byte) error {
 	var list []struct {
 		ID           string    `json:"id"`
 		ModelID      string    `json:"modelId"`
