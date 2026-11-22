@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
+  const [snapLabel, setSnapLabel] = useState("");
   const [snapBusy, setSnapBusy] = useState(false);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
 
@@ -217,8 +218,9 @@ export default function SettingsPage() {
   const createSnapshot = async () => {
     setSnapBusy(true);
     try {
-      const b = await api.createBackup();
+      const b = await api.createBackup(snapLabel.trim() || undefined);
       ok(`snapshot ${b.name} created`);
+      setSnapLabel("");
       api.backups().then(setBackups).catch(() => {});
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -641,6 +643,14 @@ export default function SettingsPage() {
           (~/.llmctl/backups). Create one on the Scheduler page.
         </p>
         <div className="row" style={{ marginBottom: 10 }}>
+          <input
+            className="oc-input"
+            style={{ width: 160 }}
+            placeholder="label (optional)"
+            title="embedded in the snapshot file name (CLI: llmctl backups create -name LABEL)"
+            value={snapLabel}
+            onChange={(e) => setSnapLabel(e.target.value)}
+          />
           <button className="btn primary" disabled={snapBusy} onClick={createSnapshot}>
             {snapBusy ? "Creating…" : "Create snapshot now"}
           </button>

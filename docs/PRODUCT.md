@@ -536,8 +536,8 @@ toggle for a light theme (choice remembered). Tabs:
   and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
   `llmctl backups restore <name>` or the Restore button, F175, F176; CLI
-  `backups create [-name LABEL]` embeds a sanitized label in the file name,
-  llmctl-<label>-<ts>.tar.gz, F443), next to an
+  `backups create [-name LABEL]` and a UI label input embed a sanitized label
+  in the file name, llmctl-<label>-<ts>.tar.gz, F443, F444), next to an
   Export CSV button matching `backups list --csv` (F398).
   `llmctl backups list --csv` exports the snapshot inventory
   (name,size_bytes,created), header-only when empty (F383).
