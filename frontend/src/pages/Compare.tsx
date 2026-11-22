@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Instance } from "../api/client";
+import { api, Instance, FileEntry } from "../api/client";
 import { err, ok } from "../ui/toast";
 
 export default function Compare() {
@@ -12,6 +12,8 @@ export default function Compare() {
   const [maxTok, setMaxTok] = useState("");
   const [temp, setTemp] = useState("");
   const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
+  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [fileId, setFileId] = useState("");
 
   const load = () =>
     api
@@ -21,6 +23,7 @@ export default function Compare() {
 
   useEffect(() => {
     load();
+    api.files().then(setFiles).catch(() => setFiles([]));
   }, []);
 
   const toggle = (id: string) => {
@@ -51,6 +54,19 @@ export default function Compare() {
     }
     setResults(newResults);
 
+    // Optional uploaded-file context, sent to every model like CLI
+    // `compare -file` (F672); fetched once before the fan-out.
+    let fileCtx = "";
+    if (fileId) {
+      try {
+        const entry = files.find((f) => f.id === fileId);
+        const content = await api.getFileContent(fileId);
+        fileCtx = `File: ${entry?.entry.filename || fileId}\n\n${content}`;
+      } catch (e) {
+        err(e instanceof Error ? e.message : String(e));
+      }
+    }
+
     const key = apiKey;
     await Promise.all(
       Array.from(selected).map(async (id) => {
@@ -61,6 +77,7 @@ export default function Compare() {
             model: inst.modelId,
             messages: [
               ...(sys.trim() ? [{ role: "system", content: sys.trim() }] : []),
+              ...(fileCtx ? [{ role: "user", content: fileCtx }] : []),
               { role: "user", content: prompt },
             ],
             stream: true,
@@ -167,6 +184,21 @@ export default function Compare() {
             onChange={(e) => setSys(e.target.value)}
             onBlur={() => localStorage.setItem("llmctl.compare.sys", sys)}
           />
+          {files.length > 0 && (
+            <select
+              style={{ minWidth: 140 }}
+              title="attach an uploaded file as context to every model (CLI: compare -file, F672)"
+              value={fileId}
+              onChange={(e) => setFileId(e.target.value)}
+            >
+              <option value="">no file</option>
+              {files.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.entry.filename}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div style={{ marginBottom: 10 }}>
           <strong>Select instances:</strong>{" "}
