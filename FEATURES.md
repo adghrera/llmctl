@@ -478,6 +478,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F465 | P3 | 465 | cli | `disk -out FILE` | COMPLETED | `llmctl disk -out FILE` writes the raw disk JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human report are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
 | F466 | P3 | 466 | cli | `status -out FILE` | COMPLETED | `llmctl status -out FILE` writes the raw status JSON to the file (stdout stays clean, notice on stderr; with -watch the file is refreshed each tick without notices), for scripting; -json and the human summary are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
 | F467 | P3 | 467 | cli | `ps -out FILE` | COMPLETED | `llmctl ps -out FILE` writes the raw instances JSON to the file (stdout stays clean, notice on stderr; with -watch the file is refreshed each tick without notices), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
+| F468 | P3 | 468 | cli | `events -out FILE` | COMPLETED | `llmctl events -out FILE` writes the raw events JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json, -watch and the human table are unchanged. Verified live: -out wrote the exact API payload ([] with a fresh daemon — same bytes as -json), plain path unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

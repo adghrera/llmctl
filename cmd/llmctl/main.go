@@ -247,7 +247,7 @@ Usage:
   llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
-  llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
+  llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
@@ -4526,6 +4526,7 @@ func cmdEvents(args []string) error {
 	watch := fs.Int("watch", 0, "poll every N seconds and print new events until Ctrl-C (0 = print once)")
 	jsonOut := fs.Bool("json", false, "print the raw events JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
+	outFile := fs.String("out", "", "write the raw events JSON to this file instead of stdout (F468)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -4538,7 +4539,7 @@ func cmdEvents(args []string) error {
 	if *model != "" {
 		u += "&model=" + url.QueryEscape(*model)
 	}
-	if *jsonOut {
+	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F468)
 		code, out, err := cc.Get(u)
 		if err != nil {
 			return err
@@ -4546,7 +4547,14 @@ func cmdEvents(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("events returned %d: %s", code, out)
 		}
-		fmt.Print(string(out))
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		} else {
+			fmt.Print(string(out))
+		}
 		return nil
 	}
 	fetch := func() ([]eventRow, error) {

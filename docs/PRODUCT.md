@@ -625,7 +625,7 @@ llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--js
 llmctl backups [list|create [-name LABEL]|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)
-llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
+llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE]   (-out writes the raw JSON to a file, F468)
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test    recent delivery attempts / send a test event (F447)
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
