@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [whLog, setWhLog] = useState<WebhookDelivery[]>([]);
   const [whEvent, setWhEvent] = useState("");
   const [testEvent, setTestEvent] = useState(""); // custom test-event name (F592)
+  const [testMsg, setTestMsg] = useState(""); // custom test message text (F697)
   const loadWhLog = () => api.webhookLog().then(setWhLog).catch(() => setWhLog([]));
   // Re-send a failed delivery's stored payload (F679), twin of `webhooks retry`.
   const retryDelivery = async (id: string) => {
@@ -269,7 +270,10 @@ export default function SettingsPage() {
     if (busy) return;
     setBusy(true);
     try {
-      const r = await api.testNotifyWebhook(testEvent.trim() || undefined);
+      const r = await api.testNotifyWebhook(
+        testEvent.trim() || undefined,
+        testMsg.trim() || undefined
+      );
       if (r.ok) ok(testEvent.trim() ? `test "${testEvent.trim()}" delivered` : "test notification delivered");
       else err(`webhook failed: ${r.error}`);
       loadWhLog();
@@ -506,6 +510,14 @@ export default function SettingsPage() {
                 title="event name for the test payload (CLI: llmctl webhooks test -event E)"
                 value={testEvent}
                 onChange={(e) => setTestEvent(e.target.value)}
+              />
+              <input
+                className="oc-input"
+                style={{ width: 180 }}
+                placeholder="message text (optional)"
+                title="message text for the test payload (CLI: llmctl webhooks test -message M, F697)"
+                value={testMsg}
+                onChange={(e) => setTestMsg(e.target.value)}
               />
               <button className="btn" disabled={busy || !webhook.trim()} onClick={testWebhook}>
                 Test

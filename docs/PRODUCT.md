@@ -641,9 +641,9 @@ toggle for a light theme (choice remembered). Tabs:
   silent), when a key first hits its token quota, request cap or daily
   cost budget, or when an expired key is used — `key.*` events deduped to
   one alert per key+kind per hour, also shown in the events feed
-  (F689, expiry F690). A "Test" button sends a test event to verify the endpoint, with an
-  optional event-name input for realistic payloads (F592, CLI twin:
-  `llmctl webhooks test -event E`, F591). An
+  (F689, expiry F690). A "Test" button sends a test event to verify the endpoint, with
+  optional event-name and message-text inputs for realistic payloads (F592,
+  message F697; CLI twin: `llmctl webhooks test -event E -message M`, F591). An
   optional signing secret makes every webhook POST (events, test, scheduler
   task results) carry `X-LLMCtrl-Signature: sha256=HMAC(secret, body)` so
   receivers can verify the sender (F111). An "events" filter (comma-separated
