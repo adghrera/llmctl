@@ -493,6 +493,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F480 | P3 | 480 | cli | `models show -out FILE` | COMPLETED | `llmctl models show <id> -out FILE` writes the raw model JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human view are unchanged. Verified live: -out wrote the exact payload (140 B), plain and -json unchanged. |
 | F481 | P3 | 481 | cli | `key list -out FILE` | COMPLETED | `llmctl key list -out FILE` writes the raw keys JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (11528 B), plain and -json unchanged. |
 | F482 | P3 | 482 | cli | `chats search -out FILE` | COMPLETED | `llmctl chats search <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human view are unchanged. Verified live: -out wrote the exact payload (407 B), plain and -json unchanged. |
+| F483 | P3 | 483 | cli | `kb search -out FILE` | COMPLETED | `llmctl kb search <kb-id> <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; -json, -limit and the human view are unchanged. Verified live with a temporary KB + doc: -out wrote the exact hit payload (162 B), plain and -json unchanged; KB deleted after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

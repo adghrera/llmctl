@@ -6016,9 +6016,10 @@ func cmdKb(args []string) error {
 		sfs := flag.NewFlagSet("kb search", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
 		limit := sfs.Int("limit", 10, "max results")
+		sout := sfs.String("out", "", "write the raw search JSON to this file instead of stdout (F483)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl kb search <kb-id> <query> [-limit N] [-json]")
+			return fmt.Errorf("usage: llmctl kb search <kb-id> <query> [-limit N] [-json] [-out FILE]")
 		}
 		kbID := sfs.Arg(0)
 		query := strings.Join(sfs.Args()[1:], " ")
@@ -6029,6 +6030,13 @@ func cmdKb(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("kb search: %s", out)
+		}
+		if *sout != "" { // F483: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		if *sjson {
 			fmt.Print(string(out))
