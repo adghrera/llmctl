@@ -570,6 +570,21 @@ export default function SettingsPage() {
                   <td>{(b.size / 1024).toFixed(1)} KB</td>
                   <td>{new Date(b.created).toLocaleString()}</td>
                   <td style={{ textAlign: "right" }}>
+                    <button
+                      className="btn sm"
+                      title="import this snapshot into the state dir (restart the daemon to load it)"
+                      onClick={async () => {
+                        if (!confirm(`Restore ${b.name}? This overwrites the current state. Restart the daemon afterwards to load it.`)) return;
+                        try {
+                          const r = await api.restoreStoredBackup(b.name);
+                          ok(`restored ${r.files} file(s) — restart the daemon to load the state`);
+                        } catch (e) {
+                          err(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                    >
+                      Restore
+                    </button>{" "}
                     <a className="btn sm" href={`/api/v1/backups/${encodeURIComponent(b.name)}`} download>
                       Download
                     </a>{" "}

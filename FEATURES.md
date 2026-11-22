@@ -185,6 +185,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F173 | P3 | 173 | ui | Daemon log viewer | COMPLETED | The Overview page has a "Daemon log" card: Show fetches the last ~8 KB of the daemon log into a scrollable panel, Hide collapses it (backed by the F172 endpoint). Verified: build clean, served bundle contains the card, endpoint returns the tail. |
 | F174 | P3 | 174 | cli | `scheduler runs` | COMPLETED | `llmctl scheduler runs [-n 20]` prints the recent scheduler run ring (time, task, kind, status, duration, detail excerpt) — CLI parity with the Scheduler page's Recent Runs table. Verified live: a backup run showed ok + detail. |
 | F175 | P3 | 175 | backups | Restore by name | COMPLETED | `POST /api/v1/backups/{name}/restore` + `llmctl backups restore <name>` import a stored snapshot (e.g. from a scheduled backup) without downloading it first; the CLI notes that a daemon restart loads the restored state. Verified live: restore of a fresh snapshot returned 6 files, unknown name → 404, path-traversal name → 400. |
+| F176 | P3 | 176 | ui | Backup restore button | COMPLETED | The Settings "Scheduled backups" list gained a Restore button (confirm dialog + restart hint) wired to the F175 endpoint. Verified: type-check + build clean, served bundle contains the control. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

@@ -340,8 +340,9 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl restore <file>` on the CLI. Binaries/models/logs are excluded.
   A scheduler task of kind "backup" can snapshot the state automatically on a
   cron (kept in `~/.llmctl/backups`, pruned to the newest N); the Settings
-  page lists those snapshots for download or deletion, and "Create snapshot
-  now" writes one on demand (`POST /api/v1/backups`).
+  page lists those snapshots for download, restore-in-place or deletion, and
+  "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
+  `llmctl backups restore <name>` or the Restore button, F175, F176).
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
 survives the periodic UI re-render.

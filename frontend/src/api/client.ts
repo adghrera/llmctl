@@ -563,6 +563,8 @@ export const api = {
   backups: () => req<{ name: string; size: number; created: string }[]>("/backups"),
   createBackup: () => req<{ name: string; size: number; created: string }>("/backups", { method: "POST" }),
   deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  restoreStoredBackup: (name: string) =>
+    req<{ ok: boolean; files: number }>(`/backups/${encodeURIComponent(name)}/restore`, { method: "POST" }),
   requests: (
     limit = 100,
     filters: { model?: string; status?: string; minMs?: number; stream?: string; key?: string; instance?: string } = {}
