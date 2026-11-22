@@ -199,7 +199,9 @@ toggle for a light theme (choice remembered). Tabs:
 - **Scheduled tasks** — cron-scheduled tasks of three kinds: `chat` (send a
   prompt to a model, result saved as a conversation), `instance.start` and
   `instance.stop` (start/stop an instance on schedule — e.g. load a model
-  every morning, unload it at night). Optionally set a webhook URL: after
+  every morning, unload it at night), plus `backup` (state snapshot).
+  Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
+  Optionally set a webhook URL: after
   every run llmctl POSTs a JSON summary (status ok/error, result or error)
   to it.
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
@@ -251,6 +253,7 @@ llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl key generate|list|revoke
+llmctl scheduler list|add|run|enable|disable|delete
 llmctl chat [--model ID] [--key KEY]
 llmctl version
 ```

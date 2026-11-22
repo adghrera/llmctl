@@ -169,6 +169,10 @@ func Run(ctx context.Context, opts Options) error {
 		return err
 	}
 	go schedulerLoop(ctx, sch, sv, gw, logger)
+	// Let the API trigger immediate task runs (F084).
+	mgmt.SetScheduleRunner(func(rec scheduler.Record) {
+		runScheduledTask(ctx, sch, sv, rec, gw, logger)
+	})
 
 	// Auto-stop instances that have served no gateway request for a while.
 	go idleUnloadLoop(ctx, st, sv, gw, logger)

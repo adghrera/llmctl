@@ -128,6 +128,31 @@ func (s *Server) setScheduleEnabled(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// runScheduleNow handles POST /api/v1/scheduler/{id}/run — execute a task
+// immediately (async), regardless of its cron schedule (F084).
+func (s *Server) runScheduleNow(w http.ResponseWriter, r *http.Request) {
+	ts, err := s.schedStore()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	rec, err := ts.Get(r.PathValue("id"))
+	if err != nil {
+		writeErr(w, statusForSched(err), err.Error())
+		return
+	}
+	if s.schedRun == nil {
+		writeErr(w, 503, "scheduler runner unavailable")
+		return
+	}
+	go s.schedRun(*rec)
+	writeJSON(w, 202, map[string]any{"ok": true, "started": rec.ID})
+}
+
+// SetScheduleRunner wires the daemon's task executor so the API can trigger
+// immediate runs (F084).
+func (s *Server) SetScheduleRunner(fn func(scheduler.Record)) { s.schedRun = fn }
+
 func statusForSched(err error) int {
 	msg := strings.ToLower(err.Error())
 	if strings.Contains(msg, "invalid schedule id") || strings.Contains(msg, "not found") || strings.Contains(msg, "no such file") {

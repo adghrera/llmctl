@@ -56,6 +56,8 @@ func main() {
 		err = cmdKey(args)
 	case "autostart":
 		err = cmdAutoStart(args)
+	case "scheduler":
+		err = cmdScheduler(args)
 	case "chat":
 		err = cmdChat(args)
 	case "backup":
@@ -106,6 +108,9 @@ Usage:
   llmctl autostart list
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
+  llmctl scheduler list
+  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
+  llmctl scheduler run|enable|disable|delete <id>
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -544,6 +549,113 @@ func cmdLogs(args []string) error {
 	}
 	fmt.Print(v.Logs)
 	return nil
+}
+
+// cmdScheduler manages cron-scheduled tasks (list/add/run/enable/disable/delete).
+func cmdScheduler(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: llmctl scheduler <list|add|run|enable|disable|delete> [id] [flags]")
+	}
+	sub, rest := args[0], args[1:]
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	printOut := func(code int, out []byte, okCode int) error {
+		fmt.Println(string(out))
+		if code != okCode {
+			return fmt.Errorf("%s returned %d", sub, code)
+		}
+		return nil
+	}
+	switch sub {
+	case "list":
+		code, out, err := cc.Get("/api/v1/scheduler")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler list returned %d: %s", code, out)
+		}
+		var recs []struct {
+			ID   string `json:"id"`
+			Spec struct {
+				Name     string `json:"name"`
+				Kind     string `json:"kind"`
+				CronExpr string `json:"cron_expr"`
+				Model    string `json:"model"`
+				Enabled  bool   `json:"enabled"`
+				NextRun  string `json:"next_run"`
+			} `json:"spec"`
+		}
+		if err := json.Unmarshal(out, &recs); err != nil {
+			return err
+		}
+		if len(recs) == 0 {
+			fmt.Println("no scheduled tasks")
+			return nil
+		}
+		for _, r := range recs {
+			kind := r.Spec.Kind
+			if kind == "" {
+				kind = "chat"
+			}
+			on := "off"
+			if r.Spec.Enabled {
+				on = "on "
+			}
+			fmt.Printf("%-16s %s %-14s %-12s %-12s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, r.Spec.Name)
+		}
+		return nil
+	case "add":
+		fs := flag.NewFlagSet("scheduler add", flag.ExitOnError)
+		name := fs.String("name", "", "task name (required)")
+		cron := fs.String("cron", "", "cron expression, e.g. \"0 9 * * *\" (required)")
+		kind := fs.String("kind", "chat", "chat | instance.start | instance.stop | backup")
+		model := fs.String("model", "", "model id")
+		prompt := fs.String("prompt", "", "prompt (chat kind)")
+		instance := fs.String("instance", "", "instance id (instance.stop)")
+		fs.Parse(reorderFlags(rest))
+		body := map[string]any{
+			"name": *name, "cron_expr": *cron, "kind": *kind,
+			"model": *model, "prompt": *prompt, "instance": *instance,
+			"enabled": true,
+		}
+		code, out, err := cc.Post("/api/v1/scheduler", body)
+		if err != nil {
+			return err
+		}
+		return printOut(code, out, 201)
+	case "run":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl scheduler run <id>")
+		}
+		code, out, err := cc.Post("/api/v1/scheduler/"+rest[0]+"/run", nil)
+		if err != nil {
+			return err
+		}
+		return printOut(code, out, 202)
+	case "enable", "disable":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl scheduler %s <id>", sub)
+		}
+		code, out, err := cc.Post("/api/v1/scheduler/"+rest[0]+"/enabled", map[string]any{"enabled": sub == "enable"})
+		if err != nil {
+			return err
+		}
+		return printOut(code, out, 200)
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl scheduler delete <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/scheduler/" + rest[0])
+		if err != nil {
+			return err
+		}
+		return printOut(code, out, 200)
+	default:
+		return fmt.Errorf("unknown scheduler subcommand %q", sub)
+	}
 }
 
 func cmdKey(args []string) error {
