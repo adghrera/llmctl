@@ -319,6 +319,7 @@ export interface ChatSummary {
   title: string;
   model?: string;
   agentMode?: boolean;
+  pinned?: boolean;
   messages: number;
   createdAt: string;
   updatedAt: string;
@@ -656,6 +657,8 @@ export const api = {
   saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; system?: string; messages: unknown[] }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  pinChat: (id: string, pinned: boolean) =>
+    req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}/pin`, { method: "POST", body: JSON.stringify({ pinned }) }),
   forkChat: (id: string, body: { forkAt: number; title?: string }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}/fork`, {
       method: "POST",

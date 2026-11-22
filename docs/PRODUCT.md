@@ -285,7 +285,8 @@ toggle for a light theme (choice remembered). Tabs:
    `llmctl chats search <query> [-json]` full-text searches message content
    with match snippets, and `chats export <id> [-md] [-out f]`,
    `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
-   `chats pin|unpin <id>` (pinned chats sort first, F310),
+   `chats pin|unpin <id>` (pinned chats sort first, F310; the Chat page
+   shows a 📌 marker and a Pin/Unpin button, F311),
    `chats delete <id>`, and `chats delete-all -yes` manage them
    (over the chat-store API, F244, F267, F269, F295, F299, F310).
  - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs

@@ -181,6 +181,15 @@ export default function Chat() {
     }
   };
 
+  const togglePin = async (id: string, pinned: boolean) => {
+    try {
+      await api.pinChat(id, !pinned);
+      await loadChats();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const forkChat = async (id: string, forkAt: number, title: string) => {
     try {
       const c = await api.forkChat(id, { forkAt, title });
@@ -496,12 +505,16 @@ export default function Chat() {
                     >
                       {c.title || "Untitled"}
                     </a>{" "}
+                    {c.pinned && <span title="pinned">📌</span>}
                     {c.agentMode && <span className="badge">agent</span>}
                     <div className="muted" style={{ fontSize: 12 }}>
                       {c.model} · {c.messages} msgs · <span title={new Date(c.updatedAt).toLocaleString()}>{ago(c.updatedAt)}</span>
                     </div>
                   </td>
                   <td style={{ textAlign: "right", verticalAlign: "middle" }}>
+                    <button className="btn sm" disabled={streaming} onClick={() => togglePin(c.id, !!c.pinned)}>
+                      {c.pinned ? "Unpin" : "Pin"}
+                    </button>{" "}
                     <button className="btn sm" disabled={streaming} onClick={() => renameChat(c.id, c.title || "")}>
                       Rename
                     </button>{" "}
