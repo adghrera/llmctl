@@ -251,6 +251,9 @@ toggle for a light theme (choice remembered). Tabs:
   page with category filtering and copy-to-clipboard. CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` (F218).
+ - **File CLI** — `llmctl files [list|cat <id>|delete <id>] [-json]` covers
+   the uploaded-files API from the shell; uploads stay a web-UI action
+   (multipart) (F219).
 - **File upload** — upload text-based files stored at
   `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
@@ -402,6 +405,7 @@ llmctl metrics [-watch N] [-json]  (-watch N: live refresh every N seconds)
 llmctl events [-n 20] [-watch N] [-json]
 llmctl webhooks [-n 20] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id>
+llmctl files [list|cat <id>|delete <id>] [-json]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
 llmctl version
 ```

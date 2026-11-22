@@ -75,6 +75,8 @@ func main() {
 		err = cmdWebhooks(args)
 	case "prompts":
 		err = cmdPrompts(args)
+	case "files":
+		err = cmdFiles(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -149,6 +151,7 @@ Usage:
   llmctl events [-n 20]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
+  llmctl files [list|cat <id>|delete <id>] [-json]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -1911,6 +1914,88 @@ func cmdPrompts(args []string) error {
 		fmt.Printf("%-16s %-12s %-22s %s\n", p.ID, p.Category, p.Name, p.Description)
 	}
 	return nil
+}
+
+// cmdFiles lists, prints and deletes uploaded files (F219). Uploads stay a
+// web-UI thing (multipart); the CLI covers the scripting side.
+func cmdFiles(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub := "list"
+	rest := args
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		sub, rest = args[0], args[1:]
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("files", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw files JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/files")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("files returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			ID    string `json:"id"`
+			Entry struct {
+				Filename    string    `json:"filename"`
+				ContentType string    `json:"contentType"`
+				Size        int64     `json:"size"`
+				Source      string    `json:"source"`
+				CreatedAt   time.Time `json:"created_at"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no uploaded files (upload via the web UI)")
+			return nil
+		}
+		fmt.Printf("%-16s %10s  %-28s %-8s %-17s %s\n", "ID", "SIZE", "TYPE", "SOURCE", "CREATED", "FILENAME")
+		for _, f := range list {
+			fmt.Printf("%-16s %10s  %-28s %-8s %-17s %s\n", f.ID, fmtSize(f.Entry.Size), f.Entry.ContentType, f.Entry.Source,
+				f.Entry.CreatedAt.Local().Format("2006-01-02 15:04:05"), f.Entry.Filename)
+		}
+		return nil
+	case "cat":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl files cat <id>")
+		}
+		code, out, err := cc.Get("/api/v1/files/" + url.PathEscape(rest[0]) + "/content")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("file %q not found (%d)", rest[0], code)
+		}
+		fmt.Print(string(out))
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl files delete <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/files/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("delete returned %d: %s", code, out)
+		}
+		fmt.Printf("deleted %s\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("usage: llmctl files [list|cat <id>|delete <id>] [-json]")
+	}
 }
 
 func cmdKey(args []string) error {

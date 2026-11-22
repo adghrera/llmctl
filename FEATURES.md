@@ -228,6 +228,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F216 | P3 | 216 | cli | `status -watch N` | COMPLETED | `llmctl status -watch N` live-refreshes the status view every N seconds (clear-screen loop, same pattern as `ps -watch`). Verified live: one-shot, `-json` and `-watch 1` all behave. |
 | F217 | P3 | 217 | cli | `metrics -json` + `webhooks -json` | COMPLETED | `llmctl metrics -json` prints the raw metrics JSON; `llmctl webhooks -json` prints the delivery log as JSON (honors `-n`). Verified live: both parse as JSON; table modes unchanged. |
 | F218 | P3 | 218 | cli | `llmctl prompts` | COMPLETED | New CLI over the existing prompt-library API: `prompts [filter] [-category X] [-json]` lists, `prompts show <id>` prints the template. Verified live: list, filter, category, JSON and show all behave. |
+| F219 | P3 | 219 | cli | `llmctl files` | COMPLETED | New CLI over the uploaded-files API: `files [-json]` lists (human sizes), `files cat <id>` prints content, `files delete <id>` removes. Verified live: upload → list → cat → delete round-trip. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
