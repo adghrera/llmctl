@@ -5,6 +5,7 @@ import { ok, err } from "../ui/toast";
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [idleMin, setIdleMin] = useState(0);
+  const [startupSec, setStartupSec] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
@@ -19,6 +20,7 @@ export default function SettingsPage() {
     api.settings().then((s) => {
       setSettings(s);
       setIdleMin(s.idleUnloadMin || 0);
+      setStartupSec(s.startupTimeoutSec || 0);
       setWebhook(s.notifyWebhook || "");
     }).catch(() => {});
   }, []);
@@ -45,6 +47,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ idleUnloadMin: idleMin });
       setSettings(r);
       ok(r.idleUnloadMin > 0 ? `instances auto-stop after ${r.idleUnloadMin} min idle` : "idle auto-unload disabled");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveStartup = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ startupTimeoutSec: startupSec });
+      setSettings(r);
+      ok((r.startupTimeoutSec ?? 0) > 0 ? `instance startup timeout: ${r.startupTimeoutSec}s` : "startup timeout back to default (240s)");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -123,6 +139,29 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               Running instances that serve no gateway request for this many
               minutes are stopped automatically (frees VRAM). 0 disables it.
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Startup timeout</h3>
+              <div className="spacer" />
+              <input
+                type="number"
+                min={0}
+                max={86400}
+                style={{ width: 90 }}
+                value={startupSec}
+                onChange={(e) => setStartupSec(Math.max(0, Number(e.target.value) || 0))}
+              />
+              <span className="muted small">seconds</span>
+              <button className="btn primary" disabled={busy} onClick={saveStartup}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              How long an instance start waits for the backend to become
+              healthy. Raise for very large models on slow storage.
+              0 uses the default (240 s).
             </p>
           </div>
           <div>

@@ -1188,27 +1188,30 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 // ---- settings ----
 
 type settingsView struct {
-	RequireAuth   bool   `json:"requireAuth"`
-	IdleUnloadMin int    `json:"idleUnloadMin"`
-	NotifyWebhook string `json:"notifyWebhook"`
-	AllowCORS     bool   `json:"allowCORS"`
+	RequireAuth       bool   `json:"requireAuth"`
+	IdleUnloadMin     int    `json:"idleUnloadMin"`
+	NotifyWebhook     string `json:"notifyWebhook"`
+	AllowCORS         bool   `json:"allowCORS"`
+	StartupTimeoutSec int    `json:"startupTimeoutSec"`
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
-		RequireAuth:   st.Settings.RequireAuth,
-		IdleUnloadMin: st.Settings.IdleUnloadMin,
-		NotifyWebhook: st.Settings.NotifyWebhook,
-		AllowCORS:     st.Settings.AllowCORS,
+		RequireAuth:       st.Settings.RequireAuth,
+		IdleUnloadMin:     st.Settings.IdleUnloadMin,
+		NotifyWebhook:     st.Settings.NotifyWebhook,
+		AllowCORS:         st.Settings.AllowCORS,
+		StartupTimeoutSec: st.Settings.StartupTimeoutSec,
 	})
 }
 
 type updateSettingsReq struct {
-	RequireAuth   *bool   `json:"requireAuth"`
-	IdleUnloadMin *int    `json:"idleUnloadMin"`
-	NotifyWebhook *string `json:"notifyWebhook"`
-	AllowCORS     *bool   `json:"allowCORS"`
+	RequireAuth       *bool   `json:"requireAuth"`
+	IdleUnloadMin     *int    `json:"idleUnloadMin"`
+	NotifyWebhook     *string `json:"notifyWebhook"`
+	AllowCORS         *bool   `json:"allowCORS"`
+	StartupTimeoutSec *int    `json:"startupTimeoutSec"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1219,6 +1222,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.IdleUnloadMin != nil && *req.IdleUnloadMin < 0 {
 		writeErr(w, 400, "idleUnloadMin must be >= 0")
+		return
+	}
+	if req.StartupTimeoutSec != nil && (*req.StartupTimeoutSec < 0 || *req.StartupTimeoutSec > 86400) {
+		writeErr(w, 400, "startupTimeoutSec must be 0–86400 (0 = default 240)")
 		return
 	}
 	s.store.Update(func(st *store.State) error {
@@ -1234,6 +1241,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.AllowCORS != nil {
 			st.Settings.AllowCORS = *req.AllowCORS
 		}
+		if req.StartupTimeoutSec != nil {
+			st.Settings.StartupTimeoutSec = *req.StartupTimeoutSec
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1246,10 +1256,11 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	// Return updated settings.
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
-		RequireAuth:   st.Settings.RequireAuth,
-		IdleUnloadMin: st.Settings.IdleUnloadMin,
-		NotifyWebhook: st.Settings.NotifyWebhook,
-		AllowCORS:     st.Settings.AllowCORS,
+		RequireAuth:       st.Settings.RequireAuth,
+		IdleUnloadMin:     st.Settings.IdleUnloadMin,
+		NotifyWebhook:     st.Settings.NotifyWebhook,
+		AllowCORS:         st.Settings.AllowCORS,
+		StartupTimeoutSec: st.Settings.StartupTimeoutSec,
 	})
 }
 

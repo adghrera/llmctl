@@ -96,6 +96,10 @@ type Settings struct {
 	// AllowCORS makes the gateway answer OPTIONS preflights and send
 	// Access-Control-Allow-* headers so browser apps can call it directly.
 	AllowCORS bool `json:"allowCORS"`
+	// StartupTimeoutSec bounds how long an instance start waits for the
+	// backend to become healthy (0 = default 240 s). Raise for very large
+	// models on slow storage (F085).
+	StartupTimeoutSec int `json:"startupTimeoutSec"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

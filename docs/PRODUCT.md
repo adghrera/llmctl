@@ -222,6 +222,9 @@ toggle for a light theme (choice remembered). Tabs:
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each
   instance's last-used time.
+- **Startup timeout** — Settings → "Startup timeout" (seconds, 0 = default
+  240): how long an instance start waits for the backend to become healthy.
+  Raise for very large models on slow storage.
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
   silent).

@@ -413,9 +413,14 @@ func (sv *Supervisor) put(inst *store.InstanceRecord) error {
 	})
 }
 
-// waitHealthy polls url until it returns <500 or the deadline passes.
+// waitHealthy polls url until it returns <500 or the deadline passes. The
+// deadline comes from settings.startupTimeoutSec (0 = 240 s default) (F085).
 func (sv *Supervisor) waitHealthy(ctx context.Context, url string) error {
-	deadline := time.Now().Add(240 * time.Second)
+	secs := 240
+	if cur, err := sv.store.Load(); err == nil && cur.Settings != nil && cur.Settings.StartupTimeoutSec > 0 {
+		secs = cur.Settings.StartupTimeoutSec
+	}
+	deadline := time.Now().Add(time.Duration(secs) * time.Second)
 	for {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("timed out waiting for %s", url)
