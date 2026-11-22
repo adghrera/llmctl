@@ -226,7 +226,7 @@ Usage:
   llmctl key note <id> <text...>
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
   llmctl key disable <id> / llmctl key enable <id>
-  llmctl key rotate <id> [-json]
+  llmctl key rotate <id> [-json] [-out FILE]
   llmctl key list [--csv] [-out FILE]
   llmctl key revoke <id>
   llmctl key reset-usage <id>
@@ -8473,9 +8473,10 @@ func cmdKey(args []string) error {
 	case "rotate":
 		rfs := flag.NewFlagSet("key rotate", flag.ExitOnError)
 		rjson := rfs.Bool("json", false, "print the raw rotation JSON, including the new secret (for scripts)")
+		rout := rfs.String("out", "", "write the raw rotation JSON, including the new secret, to this file instead of stdout (F508)")
 		rfs.Parse(reorderFlags(rest))
 		if rfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl key rotate <id> [-json]")
+			return fmt.Errorf("usage: llmctl key rotate <id> [-json] [-out FILE]")
 		}
 		code, out, err := cc.Post("/api/v1/keys/"+rfs.Arg(0)+"/rotate", map[string]any{})
 		if err != nil {
@@ -8483,6 +8484,13 @@ func cmdKey(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("rotate returned %d: %s", code, out)
+		}
+		if *rout != "" { // F508: raw JSON (with the new secret) to a file, stdout stays clean
+			if err := os.WriteFile(*rout, out, 0o600); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *rout, len(out))
+			return nil
 		}
 		if *rjson {
 			fmt.Print(string(out))
