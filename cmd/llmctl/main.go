@@ -222,7 +222,7 @@ Usage:
   llmctl models alias <name> <model-id> [-json]
   llmctl models unalias <name> [-json]
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID] [-json] [-out FILE]
-  llmctl models remove <id> [--file]
+  llmctl models remove <id> [--file] [-json]
   llmctl models ctx <model-id> <tokens|0> [-json] [-out FILE]
   llmctl models price <model-id> <in-per-M> <out-per-M> [-json] [-out FILE]
   llmctl models hf-search <query> [-json] [-out FILE]
@@ -3216,23 +3216,29 @@ func cmdModels(args []string) error {
 		fmt.Printf("download started for model %s (job %s) — track: web UI or llmctl jobs\n", jr.Model, jr.Job)
 		return nil
 	case "remove":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models remove <id> [--file]")
+		mrfs := flag.NewFlagSet("models remove", flag.ExitOnError)
+		mrfile := mrfs.Bool("file", false, "also delete a registered file outside the models dir (F162)")
+		mrjson := mrfs.Bool("json", false, "print the raw response JSON (F571)")
+		mrfs.Parse(reorderFlags(rest))
+		if mrfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl models remove <id> [--file] [-json]")
 		}
-		path := "/api/v1/models/" + rest[0]
-		for _, a := range rest[1:] {
-			if a == "--file" {
-				path += "?file=true" // also delete a registered file outside the models dir (F162)
-			}
+		path := "/api/v1/models/" + url.PathEscape(mrfs.Arg(0))
+		if *mrfile {
+			path += "?file=true"
 		}
 		code, out, err := cc.Delete(path)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("remove returned %d", code)
+			return fmt.Errorf("remove returned %d: %s", code, out)
 		}
+		if *mrjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("model %s removed\n", mrfs.Arg(0))
 		return nil
 	case "ctx":
 		cfs := flag.NewFlagSet("models ctx", flag.ExitOnError)
@@ -4284,14 +4290,25 @@ func cmdScheduler(args []string) error {
 		}
 		return printOut(code, out, 200)
 	case "delete":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl scheduler delete <id>")
+		sdfs := flag.NewFlagSet("scheduler delete", flag.ExitOnError)
+		sdjson := sdfs.Bool("json", false, "print the raw response JSON (F571)")
+		sdfs.Parse(reorderFlags(rest))
+		if sdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl scheduler delete <id> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/scheduler/" + rest[0])
+		code, out, err := cc.Delete("/api/v1/scheduler/" + url.PathEscape(sdfs.Arg(0)))
 		if err != nil {
 			return err
 		}
-		return printOut(code, out, 200)
+		if code != 200 {
+			return fmt.Errorf("delete returned %d: %s", code, out)
+		}
+		if *sdjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("task %s deleted\n", sdfs.Arg(0))
+		return nil
 	default:
 		return fmt.Errorf("unknown scheduler subcommand %q", sub)
 	}
