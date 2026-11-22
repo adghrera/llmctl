@@ -234,6 +234,7 @@ type CustomPrompt struct {
 	Description string    `json:"description,omitempty"`
 	Category    string    `json:"category,omitempty"`
 	Content     string    `json:"content"`
+	Tags        []string  `json:"tags,omitempty"` // free-form labels (F694)
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt,omitempty"`
 }

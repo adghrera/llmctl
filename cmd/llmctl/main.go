@@ -281,7 +281,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-tag T] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-tags a,b] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts tag <id> [a,b] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-tags a,b] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
@@ -2466,7 +2466,7 @@ var llmSubCommands = map[string]string{
 	"memory":    "list show add update search delete export import retag",
 	"models":    "list stats show add rename note tag retag probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save duplicate start delete export import",
-	"prompts":   "list show render run categories add duplicate retag update delete export import",
+	"prompts":   "list show render run categories add duplicate tag retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable tag retag delete export import",
 	"settings":  "set test-webhook",
 	"skills":    "list show add update export retag enable disable delete",
@@ -10463,6 +10463,46 @@ func cmdPrompts(args []string) error {
 		fmt.Printf("prompt duplicated: %s -> %s (%s)\n", dfs.Arg(0), dfs.Arg(1), newName)
 		return nil
 	}
+	if len(args) > 0 && args[0] == "tag" {
+		// Replace a custom prompt's free-form tags (F694); empty clears.
+		// Distinct from `prompts retag`, which renames a category.
+		tgfs := flag.NewFlagSet("prompts tag", flag.ExitOnError)
+		tgjson := tgfs.Bool("json", false, "print the raw response JSON")
+		tgfs.Parse(reorderFlags(args[1:]))
+		if tgfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl prompts tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tgfs.NArg() > 1 {
+			for _, t := range strings.Split(tgfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/prompts/"+url.PathEscape(tgfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompts tag returned %d: %s", code, out)
+		}
+		if *tgjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("prompt %s tags cleared\n", tgfs.Arg(0))
+		} else {
+			fmt.Printf("prompt %s tags: %s\n", tgfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
+	}
 	if len(args) > 0 && args[0] == "retag" {
 		// Bulk-rename a category across all custom templates (F641).
 		rfs := flag.NewFlagSet("prompts retag", flag.ExitOnError)
@@ -10526,6 +10566,7 @@ func cmdPrompts(args []string) error {
 		desc := afs.String("desc", "", "description (optional)")
 		content := afs.String("content", "", "template text (or use -file / piped stdin)")
 		file := afs.String("file", "", "read the template text from this file")
+		tags := afs.String("tags", "", "comma-separated tags (F694)")
 		pajson := afs.Bool("json", false, "print the raw created-prompt JSON (F544)")
 		afs.Parse(reorderFlags(args[1:]))
 		if afs.NArg() == 0 || *name == "" {
@@ -10553,10 +10594,20 @@ func cmdPrompts(args []string) error {
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Post("/api/v1/prompts", map[string]any{
+		body := map[string]any{
 			"id": afs.Arg(0), "name": *name, "category": *category,
 			"description": *desc, "content": text,
-		})
+		}
+		if *tags != "" { // tag at creation (F694)
+			tagList := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tagList = append(tagList, t)
+				}
+			}
+			body["tags"] = tagList
+		}
+		code, out, err := cc.Post("/api/v1/prompts", body)
 		if err != nil {
 			return err
 		}
@@ -10578,10 +10629,11 @@ func cmdPrompts(args []string) error {
 		desc := ufs.String("desc", "", "new description")
 		content := ufs.String("content", "", "new template text (or -file / piped stdin)")
 		file := ufs.String("file", "", "read the new template text from this file")
+		tags := ufs.String("tags", "", "replace tags, comma-separated (F694)")
 		pujson := ufs.Bool("json", false, "print the raw response JSON (F539)")
 		ufs.Parse(reorderFlags(args[1:]))
 		if ufs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl prompts update <id> [-name N] [-category C] [-desc D] [-content T | -file F | piped stdin] [-json]")
+			return fmt.Errorf("usage: llmctl prompts update <id> [-name N] [-category C] [-desc D] [-content T | -file F | piped stdin] [-tags a,b] [-json]")
 		}
 		body := map[string]any{}
 		if *name != "" {
@@ -10611,8 +10663,17 @@ func cmdPrompts(args []string) error {
 		if text != "" {
 			body["content"] = text
 		}
+		if *tags != "" { // replace tags (F694)
+			tagList := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tagList = append(tagList, t)
+				}
+			}
+			body["tags"] = tagList
+		}
 		if len(body) == 0 {
-			return fmt.Errorf("nothing to change (pass -name, -category, -desc or -content)")
+			return fmt.Errorf("nothing to change (pass -name, -category, -desc, -content or -tags)")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -11080,6 +11141,7 @@ func cmdPrompts(args []string) error {
 	}
 	fs := flag.NewFlagSet("prompts", flag.ExitOnError)
 	category := fs.String("category", "", "only this category")
+	tagF := fs.String("tag", "", "only prompts carrying this tag (F694)")
 	csvOut := fs.Bool("csv", false, "output the prompt list as CSV (F382)")
 	jsonOut := fs.Bool("json", false, "print the prompts as JSON (for scripts)")
 	outFile := fs.String("out", "", "write the prompts JSON to this file instead of stdout (F488)")
@@ -11098,10 +11160,11 @@ func cmdPrompts(args []string) error {
 		return fmt.Errorf("prompts returned %d: %s", code, out)
 	}
 	type promptRow struct {
-		ID          string `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Category    string `json:"category"`
+		ID          string   `json:"id"`
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Category    string   `json:"category"`
+		Tags        []string `json:"tags"`
 	}
 	var list []promptRow
 	if err := json.Unmarshal(out, &list); err != nil {
@@ -11111,6 +11174,18 @@ func cmdPrompts(args []string) error {
 	for _, p := range list {
 		if *category != "" && !strings.EqualFold(p.Category, *category) {
 			continue
+		}
+		if *tagF != "" { // exact tag match, like the other -tag filters (F694)
+			found := false
+			for _, t := range p.Tags {
+				if t == *tagF {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
 		}
 		if filter != "" && !strings.Contains(strings.ToLower(p.ID+" "+p.Name+" "+p.Description+" "+p.Category), filter) {
 			continue
@@ -11211,16 +11286,16 @@ func cmdPrompts(args []string) error {
 	}
 	if *csvOut { // F382
 		w := csv.NewWriter(os.Stdout)
-		_ = w.Write([]string{"id", "category", "name", "description"})
+		_ = w.Write([]string{"id", "category", "name", "description", "tags"})
 		for _, p := range shown {
-			_ = w.Write([]string{p.ID, p.Category, p.Name, p.Description})
+			_ = w.Write([]string{p.ID, p.Category, p.Name, p.Description, strings.Join(p.Tags, " ")})
 		}
 		w.Flush()
 		return w.Error()
 	}
-	fmt.Printf("%-16s %-12s %-22s %s\n", "ID", "CATEGORY", "NAME", "DESCRIPTION")
+	fmt.Printf("%-16s %-12s %-22s %-20s %s\n", "ID", "CATEGORY", "NAME", "TAGS", "DESCRIPTION")
 	for _, p := range shown {
-		fmt.Printf("%-16s %-12s %-22s %s\n", p.ID, p.Category, p.Name, p.Description)
+		fmt.Printf("%-16s %-12s %-22s %-20s %s\n", p.ID, p.Category, p.Name, strings.Join(p.Tags, ","), p.Description)
 	}
 	return nil
 }

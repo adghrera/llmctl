@@ -112,6 +112,21 @@ export default function Prompts() {
     }
   };
 
+  // Free-form tags on custom templates, comma-separated in the prompt
+  // (F694); empty clears. Twin of the Scheduler page Tag button.
+  const tagTemplate = async (t: PromptTemplate) => {
+    const next = window.prompt(`Tags for "${t.name}" (comma-separated, empty clears):`, (t.tags ?? []).join(", "));
+    if (next == null) return;
+    const tags = next.split(",").map((s) => s.trim()).filter(Boolean);
+    try {
+      await api.setPromptTags(t.id, tags);
+      ok(tags.length ? `tags set: ${tags.join(", ")}` : "tags cleared");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const duplicateTemplate = async (t: PromptTemplate) => {
     // Same flow as `llmctl prompts duplicate` (F638): copy any template to a
     // new custom id so it can be edited without touching the original.
@@ -467,6 +482,20 @@ export default function Prompts() {
                   custom
                 </span>
               )}
+              {t.tags?.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    fontSize: 10,
+                    opacity: 0.8,
+                    background: "rgba(120,200,120,0.15)",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
             {t.description && (
               <div style={{ opacity: 0.75, fontSize: 13, marginBottom: 6 }}>
@@ -623,6 +652,13 @@ export default function Prompts() {
               <>
                 <button className="btn sm" onClick={() => startEdit(t)}>
                   Edit
+                </button>{" "}
+                <button
+                  className="btn sm"
+                  title="edit tags (CLI: llmctl prompts tag)"
+                  onClick={() => tagTemplate(t)}
+                >
+                  Tag
                 </button>{" "}
                 <button className="btn sm danger" onClick={() => deleteTemplate(t.id)}>
                   Delete

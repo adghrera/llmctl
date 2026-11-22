@@ -368,9 +368,12 @@ toggle for a light theme (choice remembered). Tabs:
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
   in internal/prompt/templates.go, plus user-defined custom templates stored
   in state (F306): POST/DELETE /api/v1/prompts, merged into the list with a
-  `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts update <id>
+  `custom` flag; CLI `prompts add <id> -name N [-content T] [-tags a,b]` / `prompts update <id>
   [-name N …]` / `prompts delete <id>` / `prompts duplicate <id> <new-id> [-name N]`
   (copies any template, built-in or custom, to a new custom id, F638);
+  custom templates carry free-form tags — `prompts tag <id> [a,b]` (empty clears),
+  `prompts -tag T` filters, and the Prompts page shows tag badges plus a Tag
+  button per custom entry (built-ins stay read-only, F694);
   `prompts retag OLD NEW` renames a category across all custom templates in one
   shot (built-ins untouched, F641);
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)

@@ -190,6 +190,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/prompts/categories", s.categoriesPrompt)
 	m.HandleFunc("GET /api/v1/prompts/{id}", s.findPrompt)
 	m.HandleFunc("PUT /api/v1/prompts/{id}", s.updatePrompt)
+	m.HandleFunc("PATCH /api/v1/prompts/{id}/tags", s.setPromptTags)
 	m.HandleFunc("DELETE /api/v1/prompts/{id}", s.deletePrompt)
 	m.HandleFunc("POST /api/v1/presets", s.savePreset)
 	m.HandleFunc("DELETE /api/v1/presets/{name}", s.deletePreset)

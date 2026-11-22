@@ -298,6 +298,7 @@ export interface PromptTemplate {
   category: string;
   content: string;
   custom?: boolean;
+  tags?: string[]; // free-form labels on custom prompts (F694)
 }
 
 export interface ChatMessage {
@@ -825,8 +826,10 @@ export const api = {
     req<PromptTemplate>("/prompts", { method: "POST", body: JSON.stringify(body) }),
   deletePrompt: (id: string) =>
     req<{ ok: boolean }>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  updatePrompt: (id: string, body: { name?: string; category?: string; description?: string; content?: string }) =>
+  updatePrompt: (id: string, body: { name?: string; category?: string; description?: string; content?: string; tags?: string[] }) =>
     req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+  setPromptTags: (id: string, tags: string[]) =>
+    req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}/tags`, { method: "PATCH", body: JSON.stringify({ tags }) }),
   promptCategories: () => req<string[]>("/prompts/categories"),
   prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),
   presets: () => req<PresetSpec[]>("/presets"),
