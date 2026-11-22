@@ -7,17 +7,38 @@ export default function Keys() {
   const { keys, refreshOne } = useStore();
   const [name, setName] = useState("");
   const [quota, setQuota] = useState(0);
+  const [models, setModels] = useState("");
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const create = async () => {
     setBusy(true);
     try {
-      const r = await api.createKey(name, quota);
+      const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
+      const r = await api.createKey(name, quota, allowed);
       setCreated(r.key);
       setName("");
       setQuota(0);
+      setModels("");
       ok(`created key ${r.prefix}…`);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const editModels = async (id: string, current?: string[]) => {
+    const input = window.prompt(
+      "Allowed models (comma-separated, empty = all):",
+      (current ?? []).join(", ")
+    );
+    if (input === null) return;
+    setBusy(true);
+    try {
+      await api.updateKey(id, input.split(",").map((s) => s.trim()).filter(Boolean));
+      ok("model allowlist updated");
       await refreshOne("keys");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -61,6 +82,13 @@ export default function Keys() {
             value={quota || ""}
             onChange={(e) => setQuota(Math.max(0, Number(e.target.value) || 0))}
           />
+          <input
+            style={{ width: 200 }}
+            placeholder="allowed models (csv, empty = all)"
+            title="Comma-separated model ids this key may call; empty = all"
+            value={models}
+            onChange={(e) => setModels(e.target.value)}
+          />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create
           </button>
@@ -93,6 +121,7 @@ export default function Keys() {
                 <th>Prefix</th>
                 <th>Created</th>
                 <th>Used / quota</th>
+                <th>Models</th>
                 <th />
               </tr>
             </thead>
@@ -105,7 +134,13 @@ export default function Keys() {
                   <td className="mono">
                     {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
                   </td>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {k.allowedModels?.length ? k.allowedModels.join(", ") : "all"}
+                  </td>
                   <td style={{ textAlign: "right" }}>
+                    <button className="btn sm" style={{ marginRight: 6 }} disabled={busy} onClick={() => editModels(k.id, k.allowedModels)}>
+                      Models
+                    </button>
                     <button className="btn sm danger" disabled={busy} onClick={() => revoke(k.id)}>
                       Revoke
                     </button>

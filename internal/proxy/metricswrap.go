@@ -75,6 +75,9 @@ type modelRef struct {
 	Model  string
 	Stream bool
 	Key    string // API key prefix (first 8 chars) for per-key cost tracking
+	// AllowedModels, when non-empty, restricts the request to these model
+	// names for the calling key (F089).
+	AllowedModels []string
 }
 
 type modelRefKey struct{}

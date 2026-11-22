@@ -81,6 +81,9 @@ type APIKeyRecord struct {
 	// TokenQuota caps total tokens (prompt+completion) this key may spend
 	// since daemon start; 0 = unlimited (F074).
 	TokenQuota int64 `json:"tokenQuota,omitempty"`
+	// AllowedModels restricts which gateway models this key may call;
+	// empty = all models (F089).
+	AllowedModels []string `json:"allowedModels,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

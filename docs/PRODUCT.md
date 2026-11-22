@@ -222,7 +222,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **API Keys** — generate / list / revoke. Optional per-key token quota
   (total prompt+completion tokens); once spent, the gateway returns 429
   until the quota is raised. Usage counters persist across restarts. Keys
-  page shows usage.
+  page shows usage. Optional per-key model allowlist (403 for other
+  models; aliases resolved before checking).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each

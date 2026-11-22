@@ -268,6 +268,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		// Store key prefix on modelRef for per-key cost tracking.
 		if ref := modelRefFrom(r.Context()); ref != nil {
 			ref.Key = keyPrefix(key)
+			if keyRecord != nil {
+				ref.AllowedModels = keyRecord.AllowedModels
+			}
 		}
 		next(w, r)
 	}
@@ -344,6 +347,26 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	if ref := modelRefFrom(r.Context()); ref != nil {
 		ref.Model = peek.Model
 		ref.Stream = peek.Stream
+		// Per-key model allowlist (F089): the requested name or its alias
+		// target must be in the key's list.
+		if len(ref.AllowedModels) > 0 {
+			name := strings.ToLower(peek.Model)
+			if target, ok := s.router.Aliases()[name]; ok {
+				name = strings.ToLower(target)
+			}
+			allowed := false
+			for _, m := range ref.AllowedModels {
+				if strings.EqualFold(m, name) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				writeErr(w, http.StatusForbidden, "permission_error",
+					fmt.Sprintf("this API key may not call model %q", peek.Model))
+				return
+			}
+		}
 	}
 
 	targets, err := s.router.ResolveList(peek.Model)

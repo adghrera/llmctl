@@ -209,6 +209,7 @@ func (s *Server) Handler() http.Handler {
 	// Keys
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
+	m.HandleFunc("PATCH /api/v1/keys/{id}", s.updateKey)
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
 	// Settings
 	m.HandleFunc("GET /api/v1/settings", s.getSettings)
@@ -1143,19 +1144,20 @@ func (s *Server) jobEvents(w http.ResponseWriter, r *http.Request) {
 // ---- keys ----
 
 type keyView struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	Prefix     string    `json:"prefix"`
-	CreatedAt  time.Time `json:"createdAt"`
-	TokenQuota int64     `json:"tokenQuota,omitempty"`
-	UsedTok    int64     `json:"usedTokens"` // tokens spent since daemon start (F074)
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Prefix        string   `json:"prefix"`
+	CreatedAt     time.Time `json:"createdAt"`
+	TokenQuota    int64    `json:"tokenQuota,omitempty"`
+	UsedTok       int64    `json:"usedTokens"` // tokens spent since daemon start (F074)
+	AllowedModels []string `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota}
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels}
 		if s.gw != nil && len(k.Prefix) > 0 {
 			p := k.Prefix
 			if len(p) > 8 {
@@ -1169,8 +1171,35 @@ func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 }
 
 type createKeyReq struct {
-	Name       string `json:"name"`
-	TokenQuota int64  `json:"tokenQuota"` // 0 = unlimited (F074)
+	Name          string   `json:"name"`
+	TokenQuota    int64    `json:"tokenQuota"` // 0 = unlimited (F074)
+	AllowedModels []string `json:"allowedModels"` // empty = all models (F089)
+}
+
+// updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
+// (F089).
+func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		AllowedModels []string `json:"allowedModels"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.APIKeys[id] == nil {
+		writeErr(w, 404, "unknown key: "+id)
+		return
+	}
+	list := normalizeModelList(req.AllowedModels)
+	s.store.Update(func(st *store.State) error {
+		if k := st.APIKeys[id]; k != nil {
+			k.AllowedModels = list
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "allowedModels": list})
 }
 
 func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
@@ -1189,14 +1218,15 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.Update(func(st *store.State) error {
 		st.APIKeys[id] = &store.APIKeyRecord{
-			ID:         id,
-			Name:       req.Name,
-			Hash:       hex.EncodeToString(sum[:]),
-			Prefix:     prefix,
-			CreatedAt:  time.Now(),
-			RateRPS:    0, // use default
-			RateBurst:  0, // use default
-			TokenQuota: req.TokenQuota,
+			ID:            id,
+			Name:          req.Name,
+			Hash:          hex.EncodeToString(sum[:]),
+			Prefix:        prefix,
+			CreatedAt:     time.Now(),
+			RateRPS:       0, // use default
+			RateBurst:     0, // use default
+			TokenQuota:    req.TokenQuota,
+			AllowedModels: normalizeModelList(req.AllowedModels),
 		}
 		return nil
 	})
@@ -1351,6 +1381,25 @@ func sanitizeID(s string) string {
 		s = s[:80]
 	}
 	return s
+}
+
+// normalizeModelList trims, lowercases and de-duplicates a model allowlist,
+// dropping empty entries (F089).
+func normalizeModelList(in []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, m := range in {
+		m = strings.ToLower(strings.TrimSpace(m))
+		if m == "" || seen[m] {
+			continue
+		}
+		seen[m] = true
+		out = append(out, m)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func urlQueryEscape(s string) string {
