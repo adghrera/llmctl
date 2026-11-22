@@ -185,7 +185,53 @@ export default function Overview() {
         </div>
       )}
       <div className="card">
-        <h2>GPU</h2>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>GPU</h2>
+          {gpus && gpus.length > 0 && (
+            <div className="row" style={{ gap: 6 }}>
+              <button
+                className="btn sm"
+                title="download the GPU list as CSV — same columns as llmctl gpu --csv (F721)"
+                onClick={() => {
+                  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                  const rows = [
+                    "vendor,name,total_bytes,used_bytes,used_pct",
+                    ...gpus.map((g) =>
+                      [
+                        g.vendor, g.name, String(g.total_bytes), String(g.used_bytes),
+                        g.total_bytes > 0 ? ((g.used_bytes / g.total_bytes) * 100).toFixed(1) : "0",
+                      ]
+                        .map(esc)
+                        .join(",")
+                    ),
+                  ];
+                  const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-gpu-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                className="btn sm"
+                title="download the GPU list as JSON (CLI: llmctl gpu -json)"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(gpus, null, 2)], { type: "application/json" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-gpu-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export JSON
+              </button>
+            </div>
+          )}
+        </div>
         {gpus === null ? (
           <div className="empty">detecting…</div>
         ) : gpus.length === 0 ? (

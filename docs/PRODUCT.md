@@ -160,7 +160,7 @@ toggle for a light theme (choice remembered). Tabs:
   checks (or "all N checks passed", F241; the full list with a re-run button
   lives on the Settings page, F253), a "Today (UTC)" usage card (requests, errors,
   tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
-  usage, disk usage
+  usage and Export CSV/JSON buttons (F721), disk usage
   (model bytes + free space), running instances, active jobs (the Recent jobs
   card has Export CSV / Export JSON matching `llmctl jobs --csv`/`-json`, F433, F719, and a Clear done
   button that drops finished jobs from daemon memory, F586; running jobs show

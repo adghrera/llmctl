@@ -731,6 +731,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F718 | P3 | 718 | ui | Export JSON on Models/Requests/Usage/Cost/Search | COMPLETED | The last list pages that only had Export CSV gained Export JSON buttons: Models (`models list -json`), Requests (`requests -json`), Usage (daily and daily-by-key cards, `usage -json`), Cost (per-key and per-model cards, `cost -json`) and Search (matches as a {kind,name,detail} JSON array). Verified live: all titles present in the served bundle. |
 | F719 | P3 | 719 | ui | Overview Export JSON on jobs + events | COMPLETED | The Overview page's jobs card and events feed gained Export JSON buttons beside their Export CSV — UI twins of `llmctl jobs -json` and `llmctl events -json`. Verified live: both titles present in the served bundle. |
 | F720 | P3 | 720 | mcp | MCP tested-tools Export JSON | COMPLETED | The MCP page's test-result (advertised tools) list gained an Export JSON button beside its Export CSV. Verified live: served bundle carries the button. |
+| F721 | P3 | 721 | ui | GPU card Export CSV/JSON | COMPLETED | The Overview GPU card gained Export CSV and Export JSON buttons (shown when GPUs are detected) — UI twins of `llmctl gpu --csv`/`-json`, CSV with the same vendor,name,total_bytes,used_bytes,used_pct columns. Verified live: served bundle carries the buttons. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
