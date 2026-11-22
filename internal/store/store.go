@@ -220,6 +220,7 @@ type CustomPrompt struct {
 	Category    string    `json:"category,omitempty"`
 	Content     string    `json:"content"`
 	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt,omitempty"`
 }
 
 // KeyUsageRecord is the persisted token usage for one API key prefix, so

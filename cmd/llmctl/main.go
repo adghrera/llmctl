@@ -225,7 +225,7 @@ Usage:
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
-  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts delete <id>
+  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id>
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
@@ -5208,6 +5208,63 @@ func cmdPrompts(args []string) error {
 			return fmt.Errorf("prompts add: %s", out)
 		}
 		fmt.Printf("prompt created: %s (%s)\n", *name, afs.Arg(0))
+		return nil
+	}
+	if len(args) > 0 && args[0] == "update" {
+		// Edit a custom prompt template (F308); only the flags given change.
+		ufs := flag.NewFlagSet("prompts update", flag.ExitOnError)
+		name := ufs.String("name", "", "new display name")
+		category := ufs.String("category", "", "new category")
+		desc := ufs.String("desc", "", "new description")
+		content := ufs.String("content", "", "new template text (or -file / piped stdin)")
+		file := ufs.String("file", "", "read the new template text from this file")
+		ufs.Parse(reorderFlags(args[1:]))
+		if ufs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl prompts update <id> [-name N] [-category C] [-desc D] [-content T | -file F | piped stdin]")
+		}
+		body := map[string]any{}
+		if *name != "" {
+			body["name"] = *name
+		}
+		if *category != "" {
+			body["category"] = *category
+		}
+		if *desc != "" {
+			body["description"] = *desc
+		}
+		text := *content
+		if text == "" && *file != "" {
+			b, err := os.ReadFile(*file)
+			if err != nil {
+				return err
+			}
+			text = string(b)
+		}
+		if text == "" {
+			if fi, _ := os.Stdin.Stat(); fi.Mode()&os.ModeCharDevice == 0 {
+				if b, err := io.ReadAll(os.Stdin); err == nil {
+					text = string(b)
+				}
+			}
+		}
+		if text != "" {
+			body["content"] = text
+		}
+		if len(body) == 0 {
+			return fmt.Errorf("nothing to change (pass -name, -category, -desc or -content)")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Put("/api/v1/prompts/"+url.PathEscape(ufs.Arg(0)), body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompts update: %s", out)
+		}
+		fmt.Printf("updated prompt %s\n", ufs.Arg(0))
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {

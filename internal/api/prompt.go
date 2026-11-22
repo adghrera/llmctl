@@ -143,6 +143,56 @@ func (s *Server) createPrompt(w http.ResponseWriter, r *http.Request) {
 	}, Custom: true})
 }
 
+// updatePrompt handles PUT /api/v1/prompts/{id} (F308): replaces the editable
+// fields of a custom template (name/category/description/content).
+func (s *Server) updatePrompt(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Name        *string `json:"name"`
+		Category    *string `json:"category"`
+		Description *string `json:"description"`
+		Content     *string `json:"content"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON: "+err.Error())
+		return
+	}
+	if prompt.Find(id) != nil {
+		writeErr(w, 400, "built-in prompts cannot be edited")
+		return
+	}
+	var updated *store.CustomPrompt
+	err := s.store.Update(func(st *store.State) error {
+		c, ok := st.CustomPrompts[id]
+		if !ok {
+			return fmt.Errorf("prompt %q not found", id)
+		}
+		if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+			c.Name = strings.TrimSpace(*req.Name)
+		}
+		if req.Category != nil {
+			c.Category = strings.TrimSpace(*req.Category)
+		}
+		if req.Description != nil {
+			c.Description = strings.TrimSpace(*req.Description)
+		}
+		if req.Content != nil && strings.TrimSpace(*req.Content) != "" {
+			c.Content = strings.TrimSpace(*req.Content)
+		}
+		c.UpdatedAt = time.Now().UTC()
+		updated = c
+		return nil
+	})
+	if err != nil {
+		writeErr(w, 404, err.Error())
+		return
+	}
+	writeJSON(w, 200, promptOut{Template: prompt.Template{
+		ID: updated.ID, Name: updated.Name, Description: updated.Description,
+		Category: updated.Category, Content: updated.Content,
+	}, Custom: true})
+}
+
 // deletePrompt handles DELETE /api/v1/prompts/{id} (F306).
 func (s *Server) deletePrompt(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
