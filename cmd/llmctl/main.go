@@ -63,6 +63,8 @@ func main() {
 		err = cmdBackups(args)
 	case "usage":
 		err = cmdUsage(args)
+	case "events":
+		err = cmdEvents(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -121,6 +123,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
   llmctl backups [list|create|delete <name>]
   llmctl usage [-n 14]
+  llmctl events [-n 20]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -843,6 +846,43 @@ func cmdUsage(args []string) error {
 			fmt.Printf("  %-20s %6d reqs %4d err %10d in %10d out\n",
 				name, u.Requests, u.Errors, u.Prompt, u.Comp)
 		}
+	}
+	return nil
+}
+
+// cmdEvents prints the recent daemon events feed (newest first).
+func cmdEvents(args []string) error {
+	fs := flag.NewFlagSet("events", flag.ExitOnError)
+	n := fs.Int("n", 20, "number of events")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/events?limit=" + strconv.Itoa(*n))
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("events returned %d: %s", code, out)
+	}
+	var evs []struct {
+		Time     time.Time `json:"time"`
+		Kind     string    `json:"kind"`
+		Instance string    `json:"instance"`
+		Model    string    `json:"model"`
+	}
+	if err := json.Unmarshal(out, &evs); err != nil {
+		return err
+	}
+	if len(evs) == 0 {
+		fmt.Println("no events since daemon start")
+		return nil
+	}
+	fmt.Printf("%-19s %-26s %-16s %s\n", "TIME", "EVENT", "INSTANCE", "MODEL")
+	for _, e := range evs {
+		fmt.Printf("%-19s %-26s %-16s %s\n",
+			e.Time.Local().Format("2006-01-02 15:04:05"), e.Kind, e.Instance, e.Model)
 	}
 	return nil
 }
