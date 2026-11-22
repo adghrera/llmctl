@@ -261,7 +261,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
@@ -5230,6 +5230,7 @@ func cmdWebhooks(args []string) error {
 	csvOut := fs.Bool("csv", false, "output the delivery log as CSV (F380)")
 	jsonOut := fs.Bool("json", false, "print the delivery log as JSON (for scripts)")
 	outFile := fs.String("out", "", "write the delivery log JSON to this file instead of stdout (F478)")
+	watch := fs.Int("watch", 0, "poll every N seconds and print new deliveries until Ctrl-C (0 = print once) (F556)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -5239,14 +5240,7 @@ func cmdWebhooks(args []string) error {
 	if *event != "" {
 		path += "&event=" + url.QueryEscape(*event)
 	}
-	code, out, err := cc.Get(path)
-	if err != nil {
-		return err
-	}
-	if code != 200 {
-		return fmt.Errorf("webhook log returned %d", code)
-	}
-	var list []struct {
+	type hookRow struct {
 		Time   time.Time `json:"time"`
 		URL    string    `json:"url"`
 		Event  string    `json:"event"`
@@ -5254,7 +5248,22 @@ func cmdWebhooks(args []string) error {
 		OK     bool      `json:"ok"`
 		Error  string    `json:"error"`
 	}
-	if err := json.Unmarshal(out, &list); err != nil {
+	fetch := func() ([]hookRow, error) {
+		code, out, err := cc.Get(path)
+		if err != nil {
+			return nil, err
+		}
+		if code != 200 {
+			return nil, fmt.Errorf("webhook log returned %d", code)
+		}
+		var list []hookRow
+		if err := json.Unmarshal(out, &list); err != nil {
+			return nil, err
+		}
+		return list, nil
+	}
+	list, err := fetch()
+	if err != nil {
 		return err
 	}
 	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F478)
@@ -5273,13 +5282,7 @@ func cmdWebhooks(args []string) error {
 		fmt.Println(string(b))
 		return nil
 	}
-	if len(list) == 0 {
-		if *csvOut { // keep the stream parseable (F380)
-			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"time", "event", "url", "status", "ok", "error"})
-			w.Flush()
-			return w.Error()
-		}
+	if len(list) == 0 && !*csvOut && *watch <= 0 {
 		fmt.Println("no webhook deliveries yet")
 		return nil
 	}
@@ -5297,8 +5300,7 @@ func cmdWebhooks(args []string) error {
 		w.Flush()
 		return w.Error()
 	}
-	fmt.Printf("%-14s %-24s %-6s %-5s %s\n", "TIME", "EVENT", "STATUS", "OK", "URL / ERROR")
-	for _, d := range list {
+	printRow := func(d hookRow) {
 		status := "-"
 		if d.Status > 0 {
 			status = strconv.Itoa(d.Status)
@@ -5318,7 +5320,39 @@ func cmdWebhooks(args []string) error {
 		fmt.Printf("%-14s %-24s %-6s %-5s %s\n",
 			d.Time.Local().Format("01-02 15:04:05"), ev, status, ok, info)
 	}
-	return nil
+	fmt.Printf("%-14s %-24s %-6s %-5s %s\n", "TIME", "EVENT", "STATUS", "OK", "URL / ERROR")
+	for _, d := range list {
+		printRow(d)
+	}
+	if *watch <= 0 {
+		return nil
+	}
+	// Live tail: remember what we've shown and print only newer deliveries (F556).
+	seen := map[string]bool{}
+	key := func(d hookRow) string {
+		return fmt.Sprintf("%d|%s|%s|%d", d.Time.UnixNano(), d.Event, d.URL, d.Status)
+	}
+	for _, d := range list {
+		seen[key(d)] = true
+	}
+	fmt.Printf("\nwatching for new webhook deliveries every %ds (Ctrl-C to stop)…\n", *watch)
+	for {
+		time.Sleep(time.Duration(*watch) * time.Second)
+		cur, err := fetch()
+		if err != nil {
+			return err
+		}
+		var fresh []hookRow
+		for _, d := range cur { // newest-first; collect unseen
+			if !seen[key(d)] {
+				fresh = append(fresh, d)
+				seen[key(d)] = true
+			}
+		}
+		for i := len(fresh) - 1; i >= 0; i-- { // print oldest-first
+			printRow(fresh[i])
+		}
+	}
 }
 
 // cmdChats lists saved chat conversations (F244).
