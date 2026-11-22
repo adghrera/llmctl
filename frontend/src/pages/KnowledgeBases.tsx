@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, KB, KBDoc, KBSearchResult } from "../api/client";
 import { ok, err } from "../ui/toast";
 
@@ -17,6 +17,7 @@ export default function KnowledgeBases() {
   const [embedModel, setEmbedModel] = useState("");
   const [embedKey, setEmbedKey] = useState("");
   const [embedBusy, setEmbedBusy] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
 
   const load = () =>
     api
@@ -82,6 +83,68 @@ export default function KnowledgeBases() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setFile(e.target.files[0]);
+    }
+  };
+
+  // Export every document of the selected KB as one JSON array
+  // [{filename, content}] — the UI counterpart of `llmctl kb export` (F435).
+  const exportKB = async () => {
+    if (!selectedKB) return;
+    setBusy(true);
+    try {
+      const docs = await api.listKBDocs(selectedKB.id);
+      const items = [];
+      for (const d of docs) {
+        try {
+          items.push({ filename: d.filename, content: await api.getKBDocContent(selectedKB.id, d.id) });
+        } catch {
+          /* skip unreadable doc, like the CLI does */
+        }
+      }
+      const blob = new Blob([JSON.stringify(items, null, 2) + "\n"], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `llmctl-kb-${selectedKB.id}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      ok(`exported ${items.length} document(s)`);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Import a JSON array [{filename, content}] produced by exportKB: each
+  // entry is uploaded as a new document (F435).
+  const importKB = async (f: File) => {
+    if (!selectedKB) return;
+    setBusy(true);
+    try {
+      const list = JSON.parse(await f.text());
+      if (!Array.isArray(list)) throw new Error("expected a JSON array of {filename, content}");
+      let created = 0;
+      let skipped = 0;
+      for (const it of list) {
+        if (!it || typeof it.filename !== "string" || typeof it.content !== "string") {
+          skipped++;
+          continue;
+        }
+        try {
+          const fd = new FormData();
+          fd.append("file", new Blob([it.content], { type: "text/plain" }), it.filename);
+          await api.uploadKBDoc(selectedKB.id, fd);
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created}, skipped ${skipped}`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -312,9 +375,28 @@ export default function KnowledgeBases() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0 }}>{selectedKB.kb.name}</h2>
-            <button className="btn sm" onClick={() => setSelectedKB(null)}>
-              Back
-            </button>
+            <div className="row" style={{ gap: 6 }}>
+              <button className="btn sm" disabled={busy} onClick={() => void exportKB()}>
+                Export JSON
+              </button>
+              <button className="btn sm" disabled={busy} onClick={() => importRef.current?.click()}>
+                Import JSON
+              </button>
+              <input
+                ref={importRef}
+                type="file"
+                accept="application/json,.json"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void importKB(f);
+                  e.target.value = "";
+                }}
+              />
+              <button className="btn sm" onClick={() => setSelectedKB(null)}>
+                Back
+              </button>
+            </div>
           </div>
           <div className="row" style={{ gap: 8, marginBottom: 12 }}>
             <input

@@ -440,7 +440,9 @@ toggle for a light theme (choice remembered). Tabs:
   (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST
   API. In chat, /file <filename> or KB selection injects
   document content as context. Dedicated Knowledge Bases page with an
-  Export CSV button on the KB list (F393). Search ranks
+  Export CSV button on the KB list (F393) and per-KB Export/Import JSON
+  (all documents as a [{filename, content}] array, the UI counterpart of
+  `llmctl kb export`, F435). Search ranks
   chunks by TF-IDF cosine similarity, or by embedding similarity when the KB
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).
