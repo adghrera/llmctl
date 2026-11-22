@@ -443,6 +443,35 @@ export default function Instances() {
         <div className="row" style={{ alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Instances</h2>
           <div className="spacer" />
+          <button
+            className="btn sm"
+            disabled={instances.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl ps --csv` (F406).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "id,model,backend,transport,port,status,uptime_s,served,restarts,note",
+                ...instances.map((i) => {
+                  const up = i.startedAt ? Math.max(0, Math.floor((Date.now() - new Date(i.startedAt).getTime()) / 1000)) : 0;
+                  return [
+                    i.id, i.modelId, i.backendId || "", i.transport, String(i.port || ""),
+                    i.status, String(i.status === "running" ? up : 0), String(i.served ?? 0),
+                    String(i.restartCount ?? 0), i.note || "",
+                  ]
+                    .map(esc)
+                    .join(",");
+                }),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-ps-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
           {instances.some((i) => i.status === "running" && !i.attached) && (
             <button className="btn sm danger" disabled={busy === "stop-all"} onClick={stopAll}>
               {busy === "stop-all" ? "Stopping…" : "Stop all"}

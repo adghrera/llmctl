@@ -134,7 +134,8 @@ GitHub release, or file list. No recompile.
   replica whose connection fails is retried on the next replica
   automatically (F070). The Instances page shows each instance's in-flight
   request count and has a Chat button that deep-links to the Chat page with
-  that instance's model preselected (`/chat?model=`, F362). An optional
+  that instance's model preselected (`/chat?model=`, F362) and an Export CSV
+  button matching `llmctl ps --csv` (F406). An optional
   per-instance "max parallel" cap (Vars dialog)
   sheds excess requests with 503 instead of overloading a backend (F114).
 

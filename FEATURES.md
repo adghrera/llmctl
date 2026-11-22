@@ -416,6 +416,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F403 | P3 | 403 | cli | `mcp list --csv` | COMPLETED | `llmctl mcp list --csv` exports configured MCP servers (id,name,enabled,command with args appended) as machine-readable CSV, header-only when empty. Verified live: created server with comma-in-name exported with correct quoting, then removed; table output unchanged. |
 | F404 | P3 | 404 | ui | Backends page Export CSV | COMPLETED | The Backends card header has an Export CSV button with the same columns as `llmctl backends list --csv` (id,transport,kind,installed,version,description). Verified live: served bundle contains the export; replay against the API produced correct quoted rows for all backends. |
 | F405 | P3 | 405 | ui | MCP page Export CSV | COMPLETED | The MCP Servers card header has an Export CSV button with the same columns as `llmctl mcp list --csv` (id,name,enabled,command). Verified live: served bundle contains the export; CLI replay with a created server produced the correct quoted row, server removed after. |
+| F406 | P3 | 406 | ui | Instances list Export CSV | COMPLETED | The Instances card header has an Export CSV button with the same columns as `llmctl ps --csv` (id,model,backend,transport,port,status,uptime_s,served,restarts,note). Verified live: served bundle contains the export; replay against the API matched the CLI output exactly for the running instance. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
