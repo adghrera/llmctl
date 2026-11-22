@@ -187,7 +187,7 @@ Usage:
   llmctl embed -model ID [-json] [-out FILE] <text>
   llmctl complete -model ID [-json] [-out FILE] <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
-  llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
+  llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv]
@@ -1924,6 +1924,7 @@ func cmdCount(args []string) error {
 	chat := fs.String("chat", "", "size a saved chat by id (its system prompt + all messages, F336)")
 	model := fs.String("model", "", "also show the share of this model's context window")
 	jsonOut := fs.Bool("json", false, "print the counts as JSON (for scripts)")
+	outFile := fs.String("out", "", "write the counts JSON to this file instead of stdout (implies -json, F461)")
 	fs.Parse(reorderFlags(args))
 	text := strings.Join(fs.Args(), " ")
 	if text == "" && *file != "" {
@@ -2001,11 +2002,18 @@ func cmdCount(args []string) error {
 		json.Unmarshal(out, &m)
 		ctx = m.CtxSize
 	}
-	if *jsonOut {
+	if *jsonOut || *outFile != "" { // -out implies the JSON shape (F461)
 		b, _ := json.Marshal(map[string]any{
 			"chars": chars, "words": words, "est_tokens": tokens,
 			"model": *model, "ctx_tokens": ctx, "chat_id": *chat, "messages": chatMsgs,
 		})
+		if *outFile != "" { // F461: counts JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+			return nil
+		}
 		fmt.Println(string(b))
 		return nil
 	}

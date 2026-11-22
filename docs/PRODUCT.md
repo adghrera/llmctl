@@ -568,7 +568,7 @@ llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperatur
 llmctl embed -model ID [-key K] [-json] [-out FILE] <text>     (gateway embeddings, F281; -out writes the JSON to a file, F456)
 llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454)
-llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336)
+llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]  (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336; -out writes the counts JSON to a file, F461)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
 llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]  (multi-model comparison table; --csv one row per model, -out writes the stats JSON to a file, F426, F303, F315, F460)
 llmctl disk [-json] [--csv]                        (model dir + volume disk usage; --csv one row, raw bytes, F451)
