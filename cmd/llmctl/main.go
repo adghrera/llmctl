@@ -189,7 +189,7 @@ Usage:
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
-  llmctl bench -models A,B [-n N] [-conc C] [-json|--csv]   (benchmark + comparison table)
+  llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv]
   llmctl ps [-watch N] [--csv] [-json]
   llmctl backends list [-json|-csv]
@@ -1331,7 +1331,11 @@ func cmdBench(args []string) error {
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
 	jsonOut := fs.Bool("json", false, "print per-model stats as one JSON array instead of text (F315)")
 	csvOut := fs.Bool("csv", false, "output per-model stats as CSV (F426)")
+	outFile := fs.String("out", "", "write the stats JSON to this file instead of stdout (implies -json, F460)")
 	fs.Parse(reorderFlags(args))
+	if *outFile != "" {
+		*jsonOut = true // -out implies the JSON shape (F460)
+	}
 	var models []string
 	if *modelsFlag != "" {
 		for _, m := range strings.Split(*modelsFlag, ",") {
@@ -1529,6 +1533,13 @@ func cmdBench(args []string) error {
 		}
 		arr = append(arr, failed...)
 		b, _ := json.Marshal(arr)
+		if *outFile != "" { // F460: stats JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+			return nil
+		}
 		fmt.Println(string(b))
 	} else if *csvOut { // F426: one row per model, header-only when none succeeded
 		w := csv.NewWriter(os.Stdout)
