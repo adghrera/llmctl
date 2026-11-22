@@ -105,6 +105,14 @@ export default function Requests() {
           <option value="2">2xx</option>
           <option value="4">4xx</option>
           <option value="5">5xx</option>
+          <option value="400">400</option>
+          <option value="401">401</option>
+          <option value="404">404</option>
+          <option value="413">413</option>
+          <option value="429">429</option>
+          <option value="500">500</option>
+          <option value="502">502</option>
+          <option value="503">503</option>
         </select>
         <input
           type="number"
