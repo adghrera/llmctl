@@ -630,7 +630,8 @@ toggle for a light theme (choice remembered). Tabs:
    `llmctl key prune` / `POST /api/v1/keys/prune` or the Keys page "Prune
    expired" button (F167); `key prune -idle N` additionally removes keys
    unused for N+ days — never-used keys count once created N+ days ago
-   (F710). A per-key daily cost budget
+   (F710), with a matching "Prune idle" button on the Keys page (F711).
+   A per-key daily cost budget
    (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once
    the key's estimated USD spend for the UTC day reaches it (F138). Per-key usage counters (tokens, requests, cost) can
   be zeroed with a "Reset" button, `llmctl key reset-usage <id>` or

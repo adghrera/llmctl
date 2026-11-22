@@ -116,6 +116,24 @@ export default function Keys() {
     }
   };
 
+  // Keys untouched for 30+ days (never-used counts from createdAt) — UI twin
+  // of `llmctl key prune -idle 30` (F711).
+  const idleCutoff = Date.now() - 30 * 86400000;
+  const idleKeys = keys.filter((k) => new Date(k.lastUsed || k.createdAt).getTime() < idleCutoff);
+  const pruneIdle = async () => {
+    if (!window.confirm(`Remove ${idleKeys.length} key(s) unused for 30+ days?`)) return;
+    setBusy(true);
+    try {
+      const r = await api.pruneKeys(30);
+      ok(`removed ${r.removed.length} idle key(s)`);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const resetUsage = async (id: string) => {
     setBusy(true);
     try {
@@ -449,6 +467,16 @@ export default function Keys() {
             </button>{" "}
             <span className="muted small">
               {keys.filter((k) => k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()).length} key(s) past expiry
+            </span>
+          </p>
+        )}
+        {idleKeys.length > 0 && (
+          <p style={{ margin: "0 0 10px" }}>
+            <button className="btn sm danger" disabled={busy} onClick={pruneIdle}>
+              Prune idle
+            </button>{" "}
+            <span className="muted small">
+              {idleKeys.length} key(s) unused for 30+ days (CLI: llmctl key prune -idle 30)
             </span>
           </p>
         )}

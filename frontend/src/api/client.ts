@@ -885,7 +885,8 @@ export const api = {
       method: "POST",
       body: "{}",
     }),
-  pruneKeys: () => req<{ ok: boolean; removed: string[] }>("/keys/prune", { method: "POST" }),
+  pruneKeys: (idleDays?: number) =>
+    req<{ ok: boolean; removed: string[] }>(`/keys/prune${idleDays ? `?idle=${idleDays}` : ""}`, { method: "POST" }),
   daemonLog: (bytes = 8000) =>
     req<{ size: number; logs: string }>(`/logs/daemon?bytes=${bytes}`),
   settings: () => req<Settings>("/settings"),
