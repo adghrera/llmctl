@@ -895,13 +895,20 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "hf-search":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models hf-search <query>")
+		hfs := flag.NewFlagSet("models hf-search", flag.ExitOnError)
+		hjson := hfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		hfs.Parse(reorderFlags(rest))
+		if hfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl models hf-search <query> [-json]")
 		}
-		q := strings.Join(rest, " ")
+		q := strings.Join(hfs.Args(), " ")
 		_, out, err := cc.Get("/api/v1/hf/search?q=" + urlEscape(q))
 		if err != nil {
 			return err
+		}
+		if *hjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var res []map[string]any
 		json.Unmarshal(out, &res)
@@ -910,18 +917,34 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	case "hf-files":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl models hf-files <repo>")
+		ffs := flag.NewFlagSet("models hf-files", flag.ExitOnError)
+		fjson := ffs.Bool("json", false, "print the raw files JSON (for scripts)")
+		ffs.Parse(reorderFlags(rest))
+		if ffs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl models hf-files <repo> [-json]")
 		}
-		_, out, err := cc.Get("/api/v1/hf/files?repo=" + urlEscape(rest[0]))
+		_, out, err := cc.Get("/api/v1/hf/files?repo=" + urlEscape(ffs.Arg(0)))
 		if err != nil {
 			return err
+		}
+		if *fjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var files []map[string]any
 		json.Unmarshal(out, &files)
 		for _, f := range files {
-			size, _ := f["sizeBytes"].(float64)
-			fmt.Printf("%s  (%s)\n", f["path"], fmtSize(int64(size)))
+			// The HF proxy returns Go field names (Path/SizeBytes); accept
+			// lowercase too (F257).
+			path := fmt.Sprint(f["Path"])
+			if path == "<nil>" {
+				path = fmt.Sprint(f["path"])
+			}
+			size, _ := f["SizeBytes"].(float64)
+			if size == 0 {
+				size, _ = f["sizeBytes"].(float64)
+			}
+			fmt.Printf("%s  (%s)\n", path, fmtSize(int64(size)))
 		}
 		return nil
 	default:
