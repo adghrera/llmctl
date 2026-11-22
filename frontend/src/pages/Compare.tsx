@@ -203,6 +203,33 @@ export default function Compare() {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Results</h2>
+            <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              disabled={streaming}
+              title="one row per model — model,ok,reply,error (CLI: llmctl compare --csv, F607)"
+              onClick={() => {
+                // Same rows as `llmctl compare --csv` (F606, F607).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "model,ok,reply,error",
+                  ...selectedInstances.map((inst) => {
+                    const r = results[inst.id];
+                    return [inst.modelId, String(!!r?.done && !r.error), r?.content || "", r?.error || ""]
+                      .map(esc)
+                      .join(",");
+                  }),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-compare-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
             <button
               className="btn sm"
               disabled={streaming}
@@ -224,6 +251,7 @@ export default function Compare() {
             >
               Export JSON
             </button>
+            </div>
           </div>
           <div className="row" style={{ gap: 12 }}>
             {selectedInstances.map((inst) => (
