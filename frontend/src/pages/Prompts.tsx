@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, PromptTemplate } from "../api/client";
+import { api, chatStream, PromptTemplate } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function Prompts() {
@@ -17,6 +17,10 @@ export default function Prompts() {
   const [nf, setNf] = useState({ id: "", name: "", category: "", description: "", content: "" });
   // Inline render preview (CLI `prompts render -var` parity, F361).
   const [render, setRender] = useState<{ id: string; input: string; vars: string; out: string } | null>(null);
+  // Run the rendered prompt through the gateway (CLI `prompts run` parity, F596).
+  const [runModel, setRunModel] = useState("");
+  const [runReply, setRunReply] = useState<{ id: string; text: string; busy: boolean } | null>(null);
+  const [modelChoices, setModelChoices] = useState<string[]>([]);
 
   const doRender = (t: PromptTemplate, input: string, vars: string): string => {
     let out = t.content.split("{{input}}").join(input);
@@ -25,6 +29,24 @@ export default function Prompts() {
       if (i > 0) out = out.split(`{{${kv.slice(0, i).trim()}}}`).join(kv.slice(i + 1));
     }
     return out;
+  };
+
+  const runPrompt = async (t: PromptTemplate, rendered: string) => {
+    if (!runModel) {
+      err("pick a model first");
+      return;
+    }
+    setRunReply({ id: t.id, text: "", busy: true });
+    try {
+      const key = localStorage.getItem("llmctl.chat.key") ?? "";
+      for await (const delta of chatStream(key, runModel, [{ role: "user", content: rendered }])) {
+        setRunReply((r) => (r ? { ...r, text: r.text + delta } : r));
+      }
+      setRunReply((r) => (r ? { ...r, busy: false } : r));
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+      setRunReply((r) => (r ? { ...r, busy: false } : r));
+    }
   };
 
   const saveTemplate = async () => {
@@ -393,13 +415,16 @@ export default function Prompts() {
             </button>{" "}
             <button
               className="btn sm"
-              onClick={() =>
-                setRender(
-                  render?.id === t.id
-                    ? null
-                    : { id: t.id, input: "", vars: "", out: t.content }
-                )
-              }
+              onClick={() => {
+                if (render?.id === t.id) {
+                  setRender(null);
+                  return;
+                }
+                setRender({ id: t.id, input: "", vars: "", out: t.content });
+                if (modelChoices.length === 0) {
+                  api.models().then((ms) => setModelChoices(ms.map((m) => m.id))).catch(() => {});
+                }
+              }}
             >
               {render?.id === t.id ? "Hide render" : "Render"}
             </button>
@@ -457,6 +482,44 @@ export default function Prompts() {
                 >
                   Copy rendered
                 </button>
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <select
+                    className="input"
+                    style={{ width: 180 }}
+                    title="model to send the rendered prompt to (CLI: llmctl prompts run -model M)"
+                    value={runModel}
+                    onChange={(e) => setRunModel(e.target.value)}
+                  >
+                    <option value="">model…</option>
+                    {modelChoices.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn sm primary"
+                    disabled={runReply?.busy || !runModel || !render.out.trim()}
+                    onClick={() => runPrompt(t, render.out)}
+                  >
+                    {runReply?.busy && runReply.id === t.id ? "Running…" : "Run"}
+                  </button>
+                </div>
+                {runReply?.id === t.id && (runReply.text || runReply.busy) && (
+                  <pre
+                    style={{
+                      margin: 0,
+                      padding: 8,
+                      fontSize: 11,
+                      fontFamily: "monospace",
+                      whiteSpace: "pre-wrap",
+                      background: "rgba(127,127,127,0.08)",
+                      borderRadius: 4,
+                      maxHeight: 200,
+                      overflow: "auto",
+                    }}
+                  >
+                    {runReply.text || "…"}
+                  </pre>
+                )}
               </div>
             )}
             {t.custom && (

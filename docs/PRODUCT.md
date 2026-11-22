@@ -343,7 +343,9 @@ toggle for a light theme (choice remembered). Tabs:
   page with category filtering, copy-to-clipboard, an "Insert into chat"
   button that opens the Chat page with the template pre-filled (F300), and a
   per-template "Render" preview that fills {{input}} and extra {{k}} vars
-  live (F361). CLI:
+  live (F361), with a model picker + Run button that sends the rendered
+  template through the gateway and streams the reply inline (UI counterpart
+  of `llmctl prompts run`, F596). CLI:
    `llmctl prompts [list] [filter] [-category X] [-json] [-csv]` (the `list`
    word is accepted as an explicit subcommand, and `--csv` exports the
    filtered list as id,category,name,description, header-only when empty, F382)
