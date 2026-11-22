@@ -178,6 +178,20 @@ export default function Batch() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              title="download the batch results as JSON (CLI: llmctl batch -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(results, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-batch-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
           </div>
           <table>
             <thead>

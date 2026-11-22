@@ -742,6 +742,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F729 | P3 | 729 | requests | Requests stats Export JSON | COMPLETED | The Requests page stats bar gained an Export JSON button beside Export CSV — the same summary fields as `requests --stats --csv` as one JSON object. Verified live: served bundle carries the button. |
 | F730 | P3 | 730 | keys | Keys page Export JSON | COMPLETED | The Keys page gained an Export JSON button beside Export CSV (follows the text+tag filters) — UI twin of `llmctl key list -json`. Verified live: served bundle carries the button. |
 | F731 | P3 | 731 | instances | Instances list Export JSON | COMPLETED | The Instances page main list gained an Export JSON button beside Export CSV (follows the tag filter) — UI twin of `llmctl ps -json`. Verified live: served bundle carries the button. |
+| F732 | P3 | 732 | batch | Batch results Export JSON | COMPLETED | The Batch page results card gained an Export JSON button beside Export CSV — UI twin of `llmctl batch -json`. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
