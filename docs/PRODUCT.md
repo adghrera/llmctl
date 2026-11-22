@@ -560,7 +560,7 @@ llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-ke
 llmctl down
 llmctl status [-json] [-watch N]   (-watch N: live refresh; -json: raw; version, uptime, running instances with
                                     uptime, gateway auth, today's usage)
-llmctl doctor [-json] [--csv] [-quiet] [-check NAME]...  (--csv exports name,status,detail (F429); -quiet prints only warn/error lines + a summary; -check keeps matching checks, repeatable)
+llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-out FILE]  (--csv exports name,status,detail (F429); -quiet prints only warn/error lines + a summary; -check keeps matching checks, repeatable; -out writes the JSON to a file, F464)
 llmctl gpu [-json] [--csv] [-out FILE]             (GPU inventory: vendor, name, used/total; --csv adds raw bytes + used_pct, -out writes the raw JSON, F430, F463)
 llmctl jobs [-json] [--csv] [-watch N]              (background install jobs; --csv exports the job list, F427, F273)
 llmctl search <query> [-max N] [-json] [--csv] [-out FILE]  (keyless web search; --csv exports rank,title,url,snippet, -out writes the raw JSON, F428, F274, F462)

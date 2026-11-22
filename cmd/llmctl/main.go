@@ -179,7 +179,7 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status [-json] [-watch N]
-  llmctl doctor [-json] [--csv] [-quiet] [-check NAME]...
+  llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE]
   llmctl jobs [-json] [--csv] [-watch N]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
@@ -404,6 +404,7 @@ func cmdDoctor(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the raw doctor JSON (for scripts)")
 	quiet := fs.Bool("quiet", false, "print only warn/error checks (for cron/monitoring)")
 	csvOut := fs.Bool("csv", false, "output the checks as CSV (F429)")
+	outFile := fs.String("out", "", "write the doctor JSON to this file instead of stdout (F464)")
 	var only stringList
 	fs.Var(&only, "check", "only checks whose name contains this (repeatable, F259)")
 	fs.Parse(reorderFlags(args))
@@ -456,15 +457,29 @@ func cmdDoctor(args []string) error {
 			}
 		}
 	}
-	if *jsonOut {
+	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F464)
 		if len(only) > 0 {
 			b, err := json.Marshal(res)
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(b))
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+			} else {
+				fmt.Println(string(b))
+			}
 		} else {
-			fmt.Print(string(out))
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			} else {
+				fmt.Print(string(out))
+			}
 		}
 		if !res.OK {
 			return fmt.Errorf("doctor: some checks failed")
