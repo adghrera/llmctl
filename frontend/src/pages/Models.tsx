@@ -15,6 +15,7 @@ export default function Models() {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
   const [today, setToday] = useState<Record<string, { requests: number; cost: number }>>({});
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     api
@@ -430,7 +431,27 @@ export default function Models() {
       </div>
       <div className="card">
         <h2>Installed models</h2>
+        <input
+          className="input"
+          placeholder="Filter by id, backend or path…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          style={{ width: "100%", margin: "4px 0 10px" }}
+        />
         {models.length ? (
+          (() => {
+            const low = filter.trim().toLowerCase();
+            const shown = low
+              ? models.filter(
+                  (m) =>
+                    m.id.toLowerCase().includes(low) ||
+                    m.backendId.toLowerCase().includes(low) ||
+                    (m.path || "").toLowerCase().includes(low)
+                )
+              : models;
+            return shown.length === 0 ? (
+            <p className="muted small">No models match “{filter}”.</p>
+          ) : (
           <table>
             <thead>
               <tr>
@@ -446,7 +467,7 @@ export default function Models() {
               </tr>
             </thead>
             <tbody>
-              {models.map((m) => (
+              {shown.map((m) => (
                 <tr key={m.id}>
                   <td className="mono">{m.id}</td>
                   <td>{m.backendId}</td>
@@ -574,6 +595,8 @@ export default function Models() {
               ))}
             </tbody>
           </table>
+          );
+          })()
         ) : (
           <div className="empty">no models installed</div>
         )}

@@ -152,6 +152,7 @@ toggle for a light theme (choice remembered). Tabs:
   `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
+  The installed-models table has a live text filter (id/backend/path, F332).
   A Rename button (and `llmctl models rename`) changes a model id, updating
   aliases and stored instance records (F284, F286).
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
