@@ -259,7 +259,7 @@ Usage:
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
-  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json]
+  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
@@ -7473,6 +7473,7 @@ func cmdBatch(args []string) error {
 	key := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (needed when auth is on; default $LLMCTL_API_KEY)")
 	file := fs.String("file", "", "read prompts from this file, one per line")
 	jsonOut := fs.Bool("json", false, "print the raw batch JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw batch JSON to this file instead of stdout (implies -json, F449)")
 	fs.Parse(reorderFlags(args))
 
 	var prompts []string
@@ -7534,6 +7535,13 @@ func cmdBatch(args []string) error {
 	out, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("batch returned %d: %s", resp.StatusCode, out)
+	}
+	if *outFile != "" { // F449: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
 	}
 	if *jsonOut {
 		fmt.Println(string(out))
