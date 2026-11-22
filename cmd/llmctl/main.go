@@ -168,7 +168,7 @@ Usage:
   llmctl complete -model ID <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-json] <prompt>
   llmctl bench -model ID [-n N] [-conc C]
-  llmctl bench -models A,B [-n N] [-conc C]   (benchmark + comparison table)
+  llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -1129,6 +1129,7 @@ func cmdBench(args []string) error {
 	n := fs.Int("n", 5, "number of requests")
 	conc := fs.Int("conc", 1, "concurrent requests")
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
+	jsonOut := fs.Bool("json", false, "print per-model stats as one JSON array instead of text (F315)")
 	fs.Parse(reorderFlags(args))
 	var models []string
 	if *modelsFlag != "" {
@@ -1234,7 +1235,9 @@ func cmdBench(args []string) error {
 			close(res)
 		}()
 
-		fmt.Printf("bench: model=%s n=%d conc=%d\n", m, *n, *conc)
+		if !*jsonOut {
+			fmt.Printf("bench: model=%s n=%d conc=%d\n", m, *n, *conc)
+		}
 		var lats []float64
 		var fails int
 		var firstErr string
@@ -1251,13 +1254,15 @@ func cmdBench(args []string) error {
 			}
 			lats = append(lats, r.ms)
 			totalTok += r.tok
-			if done%10 == 0 || done == *n {
+			if !*jsonOut && (done%10 == 0 || done == *n) {
 				fmt.Printf("  %d/%d done\r", done, *n)
 			}
 		}
 		elapsed := time.Since(t0)
-		fmt.Println()
-		if fails > 0 {
+		if !*jsonOut {
+			fmt.Println()
+		}
+		if fails > 0 && !*jsonOut {
 			fmt.Printf("errors: %d/%d (first: %s)\n", fails, *n, firstErr)
 		}
 		if len(lats) == 0 {
@@ -1275,14 +1280,16 @@ func cmdBench(args []string) error {
 		for _, v := range lats {
 			sum += v
 		}
-		fmt.Printf("ok: %d  wall: %s\n", len(lats), elapsed.Round(time.Millisecond))
-		fmt.Printf("latency ms: min %.0f  avg %.0f  p50 %.0f  p95 %.0f  max %.0f\n",
-			lats[0], sum/float64(len(lats)), pct(0.50), pct(0.95), lats[len(lats)-1])
-		fmt.Printf("throughput: %.2f req/s", float64(len(lats))/elapsed.Seconds())
-		if totalTok > 0 {
-			fmt.Printf("  %.0f tok/s", float64(totalTok)/elapsed.Seconds())
+		if !*jsonOut {
+			fmt.Printf("ok: %d  wall: %s\n", len(lats), elapsed.Round(time.Millisecond))
+			fmt.Printf("latency ms: min %.0f  avg %.0f  p50 %.0f  p95 %.0f  max %.0f\n",
+				lats[0], sum/float64(len(lats)), pct(0.50), pct(0.95), lats[len(lats)-1])
+			fmt.Printf("throughput: %.2f req/s", float64(len(lats))/elapsed.Seconds())
+			if totalTok > 0 {
+				fmt.Printf("  %.0f tok/s", float64(totalTok)/elapsed.Seconds())
+			}
+			fmt.Println()
 		}
-		fmt.Println()
 		return &benchStats{
 			model: m, ok: len(lats), fails: fails, wall: elapsed,
 			min: lats[0], avg: sum / float64(len(lats)), p50: pct(0.50), p95: pct(0.95),
@@ -1293,17 +1300,36 @@ func cmdBench(args []string) error {
 		}, nil
 	}
 	var all []*benchStats
+	var failed []map[string]any
 	var firstErr error
 	for _, m := range models {
 		st, err := benchOne(m)
-		if err != nil && firstErr == nil {
-			firstErr = err
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			failed = append(failed, map[string]any{"model": m, "error": err.Error()})
 		}
 		if st != nil {
 			all = append(all, st)
 		}
 	}
-	if len(models) > 1 && len(all) > 0 {
+	if *jsonOut {
+		var arr []map[string]any
+		for _, st := range all {
+			arr = append(arr, map[string]any{
+				"model": st.model, "ok": st.ok, "fails": st.fails,
+				"wall_ms": st.wall.Milliseconds(),
+				"min_ms":  st.min, "avg_ms": st.avg, "p50_ms": st.p50,
+				"p95_ms": st.p95, "max_ms": st.max,
+				"req_per_s": st.reqps, "tok_per_s": st.tokps,
+				"first_error": st.firstErr,
+			})
+		}
+		arr = append(arr, failed...)
+		b, _ := json.Marshal(arr)
+		fmt.Println(string(b))
+	} else if len(models) > 1 && len(all) > 0 {
 		fmt.Printf("\ncomparison (n=%d conc=%d):\n", *n, *conc)
 		fmt.Printf("%-24s %5s %8s %8s %8s %9s\n", "MODEL", "OK", "AVG MS", "P50 MS", "P95 MS", "TOK/S")
 		for _, st := range all {
