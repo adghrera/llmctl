@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, SkillRecord } from "../api/client";
 import { ok, err } from "../ui/toast";
 
@@ -32,6 +32,34 @@ export default function Skills() {
   useEffect(() => {
     load();
   }, []);
+
+  // JSON export/import, same shapes as `llmctl skills export` + `skills add` (F415).
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const exportSkill = (s: SkillRecord) => {
+    const blob = new Blob([JSON.stringify(s.manifest, null, 2) + "\n"], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-skill-${s.manifest.short_name || s.id}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const importSkill = async (f: File) => {
+    try {
+      const m = JSON.parse(await f.text()) as Record<string, unknown>;
+      if (!m.short_name || !m.prompt_template) throw new Error("manifest needs short_name and prompt_template");
+      await api.createSkill({
+        short_name: String(m.short_name),
+        name: m.name ? String(m.name) : undefined,
+        description: m.description ? String(m.description) : undefined,
+        prompt_template: String(m.prompt_template),
+        tags: Array.isArray(m.tags) ? (m.tags as string[]) : undefined,
+      });
+      ok(`imported skill /s.${m.short_name}`);
+      load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const create = async () => {
     const tags = newSkill.tags
@@ -169,6 +197,7 @@ export default function Skills() {
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Installed skills ({skills.length})</h2>
+          <div className="row" style={{ gap: 6 }}>
           <button
             className="btn sm"
             disabled={skills.length === 0}
@@ -196,6 +225,25 @@ export default function Skills() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            title="import a skill manifest JSON (CLI: llmctl skills export → skills add)"
+            onClick={() => importFileRef.current?.click()}
+          >
+            Import JSON
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importSkill(f);
+              e.target.value = "";
+            }}
+          />
+          </div>
         </div>
         {skills.length === 0 && <p style={{ opacity: 0.7 }}>No skills created yet.</p>}
         {skills.map((s) => {
@@ -236,6 +284,13 @@ export default function Skills() {
                       </button>
                       <button className="btn sm" onClick={() => setEditing(s.id)}>
                         Edit
+                      </button>
+                      <button
+                        className="btn sm"
+                        title="download the manifest JSON (CLI: llmctl skills export)"
+                        onClick={() => exportSkill(s)}
+                      >
+                        Export
                       </button>
                       <button className="btn sm danger" onClick={() => remove(s)}>
                         Remove

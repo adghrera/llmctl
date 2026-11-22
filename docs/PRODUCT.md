@@ -268,7 +268,8 @@ toggle for a light theme (choice remembered). Tabs:
   description, prompt template (with {{input}} and {{conversation}} placeholders),
   tags, and an enabled flag. Stored as directories at
   `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable
-  and an Export CSV button on the installed list (F395).
+  and an Export CSV button on the installed list (F395), per-skill Export JSON
+  (manifest, CLI parity) and an Import JSON button on the list (F415).
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
   and plain chat modes.
