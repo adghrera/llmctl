@@ -12775,11 +12775,19 @@ func cmdKey(args []string) error {
 	case "prune":
 		pfs := flag.NewFlagSet("key prune", flag.ExitOnError)
 		dry := pfs.Bool("dry-run", false, "list expired keys without deleting them")
+		idle := pfs.Int("idle", 0, "also remove keys unused for N+ days (0 = only expired) (F710)")
 		pout := pfs.String("out", "", "write the raw prune-result JSON to this file instead of stdout (F509)")
 		pfs.Parse(reorderFlags(rest))
 		prunePath := "/api/v1/keys/prune"
+		var q []string
 		if *dry {
-			prunePath += "?dry=1"
+			q = append(q, "dry=1")
+		}
+		if *idle > 0 {
+			q = append(q, "idle="+strconv.Itoa(*idle))
+		}
+		if len(q) > 0 {
+			prunePath += "?" + strings.Join(q, "&")
 		}
 		code, out, err := cc.Post(prunePath, nil)
 		if err != nil {
@@ -12805,7 +12813,11 @@ func cmdKey(args []string) error {
 		if *dry {
 			verb = "would remove"
 		}
-		fmt.Printf("%s %d expired key(s)\n", verb, len(r.Removed))
+		label := "expired"
+		if *idle > 0 {
+			label = "expired/idle"
+		}
+		fmt.Printf("%s %d %s key(s)\n", verb, len(r.Removed), label)
 		for _, id := range r.Removed {
 			fmt.Println(" ", id)
 		}

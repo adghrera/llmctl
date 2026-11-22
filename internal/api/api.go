@@ -2187,10 +2187,24 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 func (s *Server) pruneKeys(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	dry := r.URL.Query().Get("dry") == "1" // report without deleting (F231)
+	// idle=N also removes keys unused for N+ days (never-used counts as idle
+	// once created N+ days ago) (F710).
+	idleDays, _ := strconv.Atoi(r.URL.Query().Get("idle"))
 	removed := []string{}
 	s.store.Update(func(st *store.State) error {
 		for id, k := range st.APIKeys {
-			if k.ExpiresAt != nil && k.ExpiresAt.Before(now) {
+			expired := k.ExpiresAt != nil && k.ExpiresAt.Before(now)
+			idle := false
+			if idleDays > 0 {
+				cutoff := now.AddDate(0, 0, -idleDays)
+				last := time.Time{}
+				if u, ok := st.KeyUsage[id]; ok {
+					last = u.LastUsed
+				}
+				idle = (!last.IsZero() && last.Before(cutoff)) ||
+					(last.IsZero() && k.CreatedAt.Before(cutoff))
+			}
+			if expired || idle {
 				if dry {
 					removed = append(removed, id)
 					continue
