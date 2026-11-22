@@ -233,6 +233,15 @@ func cmdStatus(args []string) error {
 	} else {
 		fmt.Printf("instances: %v\n", st["instances"])
 	}
+	if list, ok := st["runningInstances"].([]any); ok && len(list) > 0 {
+		for _, e := range list {
+			m, _ := e.(map[string]any)
+			id, _ := m["id"].(string)
+			model, _ := m["model"].(string)
+			sec, _ := m["uptimeSec"].(float64)
+			fmt.Printf("  %-16s %-16s up %s\n", id, model, uptimeShort(time.Duration(sec)*time.Second))
+		}
+	}
 	auth := ""
 	if v, ok := st["requireAuth"].(bool); ok && v {
 		auth = " (auth on)"

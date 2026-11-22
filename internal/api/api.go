@@ -277,21 +277,30 @@ func (s *Server) shutdown(w http.ResponseWriter, r *http.Request) {
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	running := 0
-	for _, i := range st.Instances {
+	type runInst struct {
+		ID        string `json:"id"`
+		Model     string `json:"model"`
+		UptimeSec int64  `json:"uptimeSec"`
+	}
+	var runningList []runInst
+	for id, i := range st.Instances {
 		if i.Status == "running" {
 			running++
+			runningList = append(runningList, runInst{ID: id, Model: i.ModelID, UptimeSec: int64(time.Since(i.StartedAt).Seconds())})
 		}
 	}
+	sort.Slice(runningList, func(a, b int) bool { return runningList[a].ID < runningList[b].ID })
 	out := map[string]any{
-		"ok":          true,
-		"version":     "0.2.0",
-		"backends":    len(st.Backends),
-		"models":      len(st.Models),
-		"instances":   len(st.Instances),
-		"running":     running,
-		"gateway":     fmt.Sprintf("http://127.0.0.1:%d", s.gwPort),
-		"requireAuth": st.Settings.RequireAuth,
-		"uptimeSec":   int64(time.Since(s.started).Seconds()),
+		"ok":               true,
+		"version":          "0.2.0",
+		"backends":         len(st.Backends),
+		"models":           len(st.Models),
+		"instances":        len(st.Instances),
+		"running":          running,
+		"runningInstances": runningList,
+		"gateway":          fmt.Sprintf("http://127.0.0.1:%d", s.gwPort),
+		"requireAuth":      st.Settings.RequireAuth,
+		"uptimeSec":        int64(time.Since(s.started).Seconds()),
 	}
 	if s.gw != nil {
 		reqs, errs, cost := s.gw.TodayTotals()
