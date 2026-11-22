@@ -490,6 +490,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F477 | P3 | 477 | cli | `jobs -out FILE` | COMPLETED | `llmctl jobs -out FILE` writes the raw jobs JSON to the file (stdout stays clean, notice on stderr; with -watch the file is refreshed each tick without notices), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload, plain and -json unchanged. |
 | F478 | P3 | 478 | cli | `webhooks -out FILE` | COMPLETED | `llmctl webhooks -out FILE` writes the delivery-log JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json, -event, -n and the human table are unchanged. Verified live: -out wrote `[]` when empty and the real delivery (128 B) after `webhooks test` against the stub; notifyWebhook restored after. |
 | F479 | P3 | 479 | cli | `models list -out FILE` | COMPLETED | `llmctl models list -out FILE` writes the raw models JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (1024 B), plain and -json unchanged. |
+| F480 | P3 | 480 | cli | `models show -out FILE` | COMPLETED | `llmctl models show <id> -out FILE` writes the raw model JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human view are unchanged. Verified live: -out wrote the exact payload (140 B), plain and -json unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

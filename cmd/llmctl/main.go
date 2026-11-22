@@ -198,7 +198,7 @@ Usage:
   llmctl backends add <plugin.json>
   llmctl backends remove <id>
   llmctl models list [--csv] [-out FILE]
-  llmctl models show <id>
+  llmctl models show <id> [-json] [-out FILE]
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json]
@@ -2739,9 +2739,10 @@ func cmdModels(args []string) error {
 	case "show":
 		sfs := flag.NewFlagSet("models show", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw model JSON (for scripts)")
+		sout := sfs.String("out", "", "write the raw model JSON to this file instead of stdout (F480)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl models show <id> [-json]")
+			return fmt.Errorf("usage: llmctl models show <id> [-json] [-out FILE]")
 		}
 		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
@@ -2749,6 +2750,13 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("models show returned %d: %s", code, out)
+		}
+		if *sout != "" { // F480: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		if *sjson {
 			fmt.Print(string(out))
