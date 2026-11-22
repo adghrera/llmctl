@@ -8,7 +8,7 @@ export default function Backends() {
   const { backends, refreshOne } = useStore();
   const [showPlugin, setShowPlugin] = useState(false);
   const [pluginJson, setPluginJson] = useState(
-    '{\n  "id": "my-backend",\n  "name": "My Backend",\n  "description": "Custom backend",\n  "transport": "http",\n  "kind": "process",\n  "binary": {\n    "url": "https://example.com/my-backend-{platform}",\n    "sha256": ""\n  },\n  "command": ["my-backend", "--port", "{port}"]\n}'
+    '{\n  "id": "my-backend",\n  "name": "My Backend",\n  "description": "Custom backend",\n  "transport": "http",\n  "kind": "process",\n  "binary": "my-backend",\n  "args": ["--port", "{port}"],\n  "install": { "kind": "url", "url": "https://example.com/my-backend-{os}-{arch}{ext}" }\n}'
   );
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
