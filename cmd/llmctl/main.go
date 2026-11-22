@@ -193,7 +193,7 @@ Usage:
   llmctl restart <instance>
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
-  llmctl logs <instance> [--stream stderr|stdout] [--tail N]
+  llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE]
   llmctl logs -daemon [--tail N]
   llmctl key generate [name] [-json]
   llmctl key show <id> [-json]
@@ -2095,6 +2095,7 @@ func cmdLogs(args []string) error {
 	stream := fs.String("stream", "stderr", "log stream: stderr|stdout")
 	tail := fs.Int("tail", 4000, "bytes to show from the end")
 	daemonFlag := fs.Bool("daemon", false, "show the daemon's own log instead of an instance")
+	outFile := fs.String("out", "", "with an instance: download the full log file to this path (F292)")
 	fs.Parse(reorderFlags(args))
 	if *daemonFlag {
 		cc, err := daemon.NewControlClient()
@@ -2118,11 +2119,26 @@ func cmdLogs(args []string) error {
 		return nil
 	}
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] | llmctl logs -daemon [--tail N]")
+		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] | llmctl logs -daemon [--tail N]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
+	}
+	if *outFile != "" {
+		// Full log file as an attachment (GET …/logs/download, F292).
+		code, body, err := cc.Get("/api/v1/instances/" + url.PathEscape(fs.Arg(0)) + "/logs/download?stream=" + url.QueryEscape(*stream))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("logs download: %s", body)
+		}
+		if err := os.WriteFile(*outFile, body, 0o644); err != nil {
+			return err
+		}
+		fmt.Printf("downloaded %s %s log to %s (%s)\n", fs.Arg(0), *stream, *outFile, fmtSize(int64(len(body))))
+		return nil
 	}
 	path := fmt.Sprintf("/api/v1/instances/%s/logs?stream=%s&bytes=%d",
 		fs.Arg(0), url.QueryEscape(*stream), *tail)
