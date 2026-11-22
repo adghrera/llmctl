@@ -260,7 +260,7 @@ Usage:
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
-  llmctl scheduler run|enable|disable <id> | delete <id> [-json]
+  llmctl scheduler duplicate <id> [-name N] [-json] | run|enable|disable <id> | delete <id> [-json]
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [-json] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
@@ -2282,7 +2282,7 @@ var llmSubCommands = map[string]string{
 	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save start delete export import",
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
-	"scheduler": "list show add update run runs enable disable delete export import",
+	"scheduler": "list show add duplicate update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
 	"skills":    "list show add export enable disable delete",
 	"tools":     "list show install enable disable run delete",
@@ -4207,7 +4207,7 @@ func untilStr(t time.Time) string {
 
 func cmdScheduler(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl scheduler <list|show|add|update|run|enable|disable|delete|export|import> [id] [flags]")
+		return fmt.Errorf("usage: llmctl scheduler <list|show|add|duplicate|update|run|enable|disable|delete|export|import> [id] [flags]")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -4439,6 +4439,76 @@ func cmdScheduler(args []string) error {
 			return err
 		}
 		fmt.Printf("task %s (%s) added — cron %q\n", *name, rec.ID, *cron)
+		return nil
+	case "duplicate":
+		// Copy an existing schedule under a new name (F646).
+		dfs := flag.NewFlagSet("scheduler duplicate", flag.ExitOnError)
+		dname := dfs.String("name", "", "name for the copy (default: <old name> copy)")
+		djson := dfs.Bool("json", false, "print the raw created-task JSON")
+		dfs.Parse(reorderFlags(rest))
+		if dfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl scheduler duplicate <id> [-name N] [-json]")
+		}
+		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(dfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler %s: %s", dfs.Arg(0), out)
+		}
+		var rec struct {
+			Spec struct {
+				Name       string `json:"name"`
+				CronExpr   string `json:"cron_expr"`
+				Kind       string `json:"kind"`
+				Model      string `json:"model"`
+				Prompt     string `json:"prompt"`
+				Instance   string `json:"instance"`
+				Keep       int    `json:"keep"`
+				KB         string `json:"kb"`
+				Enabled    bool   `json:"enabled"`
+				WebhookURL string `json:"webhook_url"`
+			} `json:"spec"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil {
+			return err
+		}
+		name := *dname
+		if name == "" {
+			name = rec.Spec.Name + " copy"
+		}
+		body := map[string]any{
+			"name": name, "cron_expr": rec.Spec.CronExpr, "kind": rec.Spec.Kind,
+			"model": rec.Spec.Model, "prompt": rec.Spec.Prompt,
+			"instance": rec.Spec.Instance, "enabled": rec.Spec.Enabled,
+		}
+		if rec.Spec.Keep > 0 {
+			body["keep"] = rec.Spec.Keep
+		}
+		if rec.Spec.KB != "" {
+			body["kb"] = rec.Spec.KB
+		}
+		if rec.Spec.WebhookURL != "" {
+			body["webhook_url"] = rec.Spec.WebhookURL
+		}
+		code, out, err = cc.Post("/api/v1/scheduler", body)
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("scheduler duplicate returned %d: %s", code, out)
+		}
+		if *djson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var created struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(out, &created); err != nil {
+			return err
+		}
+		fmt.Printf("task %s (%s) duplicated from %s — cron %q\n", name, created.ID, dfs.Arg(0), rec.Spec.CronExpr)
 		return nil
 	case "show":
 		sfs := flag.NewFlagSet("scheduler show", flag.ExitOnError)

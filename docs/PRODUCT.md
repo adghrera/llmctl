@@ -470,7 +470,10 @@ toggle for a light theme (choice remembered). Tabs:
   token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
   `llmctl scheduler add` prints a one-line confirmation with the new task id
-  (`-json` for the raw record, F563).
+  (`-json` for the raw record, F563). `llmctl scheduler duplicate <id>
+  [-name N]` copies an existing task (cron, kind, model, prompt, kb, webhook,
+  enabled state all carried over) under a new name — default `<old name> copy`
+  (F646).
   `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
   specs between instances (fresh ids on import, F326); the Scheduler page has
   matching Export JSON / Import JSON buttons (F412).
@@ -686,7 +689,7 @@ llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune|res
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)
-llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/runs --json for scripts; list --csv for audit export (F376); list -out FILE writes the raw JSON, F495; show -out FILE writes the raw task JSON, F504; delete prints a confirmation, -json for raw, F571;
+llmctl scheduler list|show|add|duplicate|update|run|runs|enable|disable|delete   (list/runs --json for scripts; list --csv for audit export (F376); list -out FILE writes the raw JSON, F495; show -out FILE writes the raw task JSON, F504; duplicate copies a task under a new name, default "<old> copy" (F646); delete prints a confirmation, -json for raw, F571;
                                     add: -name -cron -kind -model -prompt -instance -webhook -keep -kb;
                                     update: same flags, changes only what you pass, F290)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [-out FILE]   (--csv also exports -stats rows, F420; -out writes the raw JSON, also with -id, F473)
