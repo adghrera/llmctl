@@ -236,7 +236,7 @@ Usage:
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
-  llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
+  llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json|-csv] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
@@ -5322,6 +5322,7 @@ func cmdMemory(args []string) error {
 		fs := flag.NewFlagSet("memory", flag.ExitOnError)
 		n := fs.Int("n", 30, "number of entries")
 		jsonOut := fs.Bool("json", false, "print the entries as JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the memory entries as CSV (F401)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/memory")
 		if err != nil {
@@ -5372,6 +5373,15 @@ func cmdMemory(args []string) error {
 			}
 			fmt.Println(string(b))
 			return nil
+		}
+		if *csvOut { // F401: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "created_at", "tags", "content"})
+			for _, m := range list {
+				_ = w.Write([]string{m.Entry.ID, m.Entry.CreatedAt, strings.Join(m.Entry.Tags, ";"), m.Entry.Content})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(list) == 0 {
 			fmt.Println("no memory entries")

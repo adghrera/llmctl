@@ -279,7 +279,8 @@ toggle for a light theme (choice remembered). Tabs:
   content, tags, and source, stored at `~/.llmctl/memory/<id>/`. REST API:
   GET/POST/GET/PUT/DELETE /api/v1/memory, GET /api/v1/memory/search?q=. During
   agent chat, relevant memories are searched using the last user message and
-  injected as system context. Dedicated Memory page to add/delete entries.
+  injected as system context. Dedicated Memory page to add/delete entries,
+  with an Export CSV button on the entry list (F402).
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page, with
   optional max-tokens/temperature inputs (F359).
@@ -343,7 +344,8 @@ toggle for a light theme (choice remembered). Tabs:
    when empty, F384); `skills show|enable|disable|delete <id>`
    manages them, `skills add <manifest.json>` creates one from a JSON
    manifest and `skills export <id> [-out f]` dumps one back out (F245, F288, F305).
- - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
+ - **Memory CLI** — `llmctl memory [filter] [-json] [-csv]` lists memory entries
+   (`--csv` exports id,created_at,tags (`;`-joined),content, F401);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
    [-tags a,b]`, `memory show <id>`, `memory search <query> [-json]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`

@@ -181,7 +181,33 @@ export default function Memory() {
         )}
         {!searchQuery.trim() && (
           <>
-            <h2 style={{ margin: "16px 0 8px 0" }}>All memory entries ({entries.length})</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0 8px 0" }}>
+              <h2 style={{ margin: 0 }}>All memory entries ({entries.length})</h2>
+              <button
+                className="btn sm"
+                disabled={entries.length === 0}
+                onClick={() => {
+                  // Same columns as `llmctl memory list --csv` (F402).
+                  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                  const rows = [
+                    "id,created_at,tags,content",
+                    ...entries.map((e) =>
+                      [e.entry.id, e.entry.created_at, (e.entry.tags ?? []).join(";"), e.entry.content]
+                        .map(esc)
+                        .join(",")
+                    ),
+                  ];
+                  const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-memory-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export CSV
+              </button>
+            </div>
             {entries.length === 0 && (
               <div className="empty muted" style={{ padding: "10px 0" }}>
                 No memory entries yet. Add one above.
