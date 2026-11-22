@@ -257,7 +257,7 @@ Usage:
   llmctl tools [-json|-csv] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json|-csv] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
-  llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
+  llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
@@ -7571,6 +7571,7 @@ func cmdFiles(args []string) error {
 		fs := flag.NewFlagSet("files", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw files JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the file list as CSV (F381)")
+		outFile := fs.String("out", "", "write the raw files JSON to this file instead of stdout (F485)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/files")
 		if err != nil {
@@ -7578,6 +7579,13 @@ func cmdFiles(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("files returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F485: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))

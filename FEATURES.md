@@ -495,6 +495,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F482 | P3 | 482 | cli | `chats search -out FILE` | COMPLETED | `llmctl chats search <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human view are unchanged. Verified live: -out wrote the exact payload (407 B), plain and -json unchanged. |
 | F483 | P3 | 483 | cli | `kb search -out FILE` | COMPLETED | `llmctl kb search <kb-id> <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; -json, -limit and the human view are unchanged. Verified live with a temporary KB + doc: -out wrote the exact hit payload (162 B), plain and -json unchanged; KB deleted after. |
 | F484 | P3 | 484 | cli | `memory search -out FILE` | COMPLETED | `llmctl memory search <query> -out FILE` writes the raw search JSON to the file (stdout stays clean, notice on stderr), for scripting; -json and the human view are unchanged. Verified live: -out wrote the exact payload (528 B), plain and -json unchanged. |
+| F485 | P3 | 485 | cli | `files list -out FILE` | COMPLETED | `llmctl files -out FILE` writes the raw files JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote `[]` when empty and the real list (243 B) after a temporary upload; file deleted after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
