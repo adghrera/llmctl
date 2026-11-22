@@ -346,6 +346,31 @@ function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
     a.click();
     URL.revokeObjectURL(a.href);
   };
+  const exportJson = () => {
+    // Same fields as `llmctl requests --stats --csv`, as one JSON object (F729).
+    const avg = lat.length ? lat.reduce((s, l) => s + l, 0) / lat.length : 0;
+    const max = lat.length ? lat[lat.length - 1] : 0;
+    const cpct = (p: number) => (lat.length ? lat[Math.floor(p * (lat.length - 1))] : 0);
+    const obj = {
+      group: "(all)",
+      requests: entries.length,
+      errors,
+      error_pct: entries.length ? (100 * errors) / entries.length : 0,
+      avg_ms: Math.round(avg),
+      p50_ms: cpct(0.5),
+      p95_ms: cpct(0.95),
+      max_ms: max,
+      in_tokens: entries.reduce((s, e) => s + e.promptTok, 0),
+      out_tokens: entries.reduce((s, e) => s + e.compTok, 0),
+      cost_usd: Number(cost.toFixed(6)),
+    };
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-requests-stats-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   return (
     <p style={{ margin: "0 0 12px", fontSize: 13 }}>
       {item("requests", String(entries.length))}
@@ -356,6 +381,9 @@ function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
       {item("cost", cost > 0 ? `$${cost.toFixed(4)}` : "—")}
       <button className="btn sm" style={{ marginLeft: 8 }} onClick={exportCsv}>
         Export CSV
+      </button>
+      <button className="btn sm" style={{ marginLeft: 6 }} title="download the stats summary as JSON (CLI: llmctl requests --stats -json)" onClick={exportJson}>
+        Export JSON
       </button>
     </p>
   );
