@@ -268,7 +268,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
@@ -8707,10 +8707,11 @@ func cmdPrompts(args []string) error {
 		system := rfs.String("system", "", "system message prepended to the request")
 		temp := rfs.Float64("temperature", -1, "sampling temperature (-1 = model default)")
 		maxTok := rfs.Int("max-tokens", 0, "max tokens to generate (0 = model default)")
+		saveChat := rfs.String("save", "", "save the exchange as a saved chat under this title (F583)")
 		rjson := rfs.Bool("json", false, "print the raw gateway JSON instead of the reply text")
 		rfs.Parse(reorderFlags(args[1:]))
 		if rfs.NArg() == 0 || *modelF == "" {
-			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-temperature T] [-max-tokens N] [-key K] [-json]")
+			return fmt.Errorf("usage: llmctl prompts run <id> -model M [-input TEXT] [-var k=v ...] [-system S] [-temperature T] [-max-tokens N] [-save TITLE] [-key K] [-json]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -8773,10 +8774,6 @@ func cmdPrompts(args []string) error {
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("chat returned %d: %s", resp.StatusCode, string(body))
 		}
-		if *rjson {
-			fmt.Print(string(body))
-			return nil
-		}
 		var parsed struct {
 			Choices []struct {
 				Message struct {
@@ -8787,7 +8784,34 @@ func cmdPrompts(args []string) error {
 		if err := json.Unmarshal(body, &parsed); err != nil || len(parsed.Choices) == 0 {
 			return fmt.Errorf("unexpected gateway response: %s", body)
 		}
-		fmt.Println(parsed.Choices[0].Message.Content)
+		if *rjson {
+			fmt.Print(string(body))
+		} else {
+			fmt.Println(parsed.Choices[0].Message.Content)
+		}
+		if *saveChat != "" { // F583: keep the exchange like chat -save does
+			smsgs := []map[string]string{}
+			if strings.TrimSpace(*system) != "" {
+				smsgs = append(smsgs, map[string]string{"role": "system", "content": strings.TrimSpace(*system)})
+			}
+			smsgs = append(smsgs,
+				map[string]string{"role": "user", "content": rendered},
+				map[string]string{"role": "assistant", "content": parsed.Choices[0].Message.Content})
+			scode, sout, err := cc.Post("/api/v1/chats", map[string]any{
+				"title": *saveChat, "model": *modelF, "messages": smsgs,
+			})
+			if err != nil {
+				return err
+			}
+			if scode != 200 {
+				return fmt.Errorf("chat save: %s", sout)
+			}
+			var saved struct {
+				ID string `json:"id"`
+			}
+			json.Unmarshal(sout, &saved)
+			fmt.Fprintf(os.Stderr, "saved chat %s\n", saved.ID)
+		}
 		return nil
 	}
 	if len(args) > 0 && args[0] == "show" {
