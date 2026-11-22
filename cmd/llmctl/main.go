@@ -210,7 +210,7 @@ Usage:
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
-  llmctl disk [-json] [--csv] [-out FILE]
+  llmctl disk [-json] [--csv] [-out FILE] [-watch N]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE]
   llmctl backends list [-json|-csv|-out FILE]
   llmctl backends install <id> [--asset <hint>] [-json] [--wait]
@@ -692,11 +692,36 @@ func cmdGPU(args []string) error {
 }
 
 // cmdDisk prints model-disk usage from the daemon (GET /api/v1/disk).
+// cmdDisk reports model/storage disk usage; -watch N reprints every N seconds
+// until interrupted (F590), pairing with usage/cost -watch.
 func cmdDisk(args []string) error {
+	watch := 0
+	for i, a := range args {
+		if a == "-watch" && i+1 < len(args) {
+			watch, _ = strconv.Atoi(args[i+1])
+		} else if strings.HasPrefix(a, "-watch=") {
+			watch, _ = strconv.Atoi(strings.TrimPrefix(a, "-watch="))
+		}
+	}
+	if watch <= 0 {
+		return diskOnce(args)
+	}
+	for {
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live disk — refreshing every %ds (Ctrl-C to stop)\n\n", watch)
+		if err := diskOnce(args); err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(watch) * time.Second)
+	}
+}
+
+func diskOnce(args []string) error {
 	fs := flag.NewFlagSet("disk", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw disk JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the disk report as CSV (F451)")
 	outFile := fs.String("out", "", "write the raw disk JSON to this file instead of stdout (F465)")
+	fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once) (F590)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
