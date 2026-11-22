@@ -249,7 +249,8 @@ toggle for a light theme (choice remembered). Tabs:
   and prints the result on stdout, F339). Tools run inside the llm-sandbox framework
   (container, no network, memory & PID caps) by default; a per-tool toggle
   opts out to host execution. List, enable/disable, test-run with args, and
-  uninstall. Enabled tools join the agent's tool set in Chat.
+  uninstall. Enabled tools join the agent's tool set in Chat. The Tools page
+  has an Export CSV button on the installed list (F396).
 - **MCP servers** — add Model Context Protocol servers launched as local
   processes (command + args). llmctl performs the MCP handshake, lists each
   server's tools, and offers them to the agent as
@@ -259,7 +260,8 @@ toggle for a light theme (choice remembered). Tabs:
   `/s.<short_name> <text>`. Each skill has a short name, display name,
   description, prompt template (with {{input}} and {{conversation}} placeholders),
   tags, and an enabled flag. Stored as directories at
-  `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable.
+  `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable
+  and an Export CSV button on the installed list (F395).
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
   and plain chat modes.
@@ -298,7 +300,8 @@ toggle for a light theme (choice remembered). Tabs:
   `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts update <id>
   [-name N …]` / `prompts delete <id>`;
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)
-  plus a live text filter with `?q=` deep links from Search (F322);
+  plus a live text filter with `?q=` deep links from Search (F322) and an
+  Export CSV button on the template list (F394);
   `prompts export [-out F]` / `prompts import FILE` move custom templates
   between instances (F323).
   REST API: GET /api/v1/prompts,
@@ -375,7 +378,7 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
   In chat, `/file <filename>` injects file content as a user message.
   Dedicated Files page for upload/list/delete, with a filename text filter
-  (F356). Text files are stored as-is;
+  (F356) and an Export CSV button (filter-aware, F397). Text files are stored as-is;
   PDF and DOCX uploads have their text extracted automatically (F053).
 - **Cost tracking** — track token usage and estimate costs per API key and per
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
@@ -411,7 +414,8 @@ toggle for a light theme (choice remembered). Tabs:
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove documents
   (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST
   API. In chat, /file <filename> or KB selection injects
-  document content as context. Dedicated Knowledge Bases page. Search ranks
+  document content as context. Dedicated Knowledge Bases page with an
+  Export CSV button on the KB list (F393). Search ranks
   chunks by TF-IDF cosine similarity, or by embedding similarity when the KB
   is pointed at any OpenAI-compatible `/v1/embeddings` endpoint (per-KB
   semantic-search panel in the UI; TF-IDF remains the fallback).

@@ -121,6 +121,33 @@ export default function Files() {
               onChange={(e) => setFilter(e.target.value)}
             />
           )}
+          <button
+            className="btn sm"
+            disabled={shown.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl files list --csv` (F397); filter-aware.
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "id,filename,content_type,size_bytes,source,created_at",
+                ...shown.map((f) =>
+                  [
+                    f.entry.id, f.entry.filename, f.entry.contentType,
+                    String(f.entry.size), f.entry.source, f.entry.created_at,
+                  ]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-files-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
         </div>
         {files.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>

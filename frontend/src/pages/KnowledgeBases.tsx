@@ -220,7 +220,33 @@ export default function KnowledgeBases() {
       </div>
 
       <div className="card">
-        <h2>Knowledge Bases ({kbs.length})</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Knowledge Bases ({kbs.length})</h2>
+          <button
+            className="btn sm"
+            disabled={kbs.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl kb list --csv` (F393).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "id,name,docs,description",
+                ...kbs.map((k) =>
+                  [k.id, k.kb.name, String(k.docs?.length ?? 0), k.kb.description || ""]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-kb-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
+        </div>
         {kbs.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
             No knowledge bases yet. Create one above.
