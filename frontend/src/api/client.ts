@@ -787,6 +787,11 @@ export const api = {
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   resetKeyUsage: (id: string) =>
     req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}/reset-usage`, { method: "POST" }),
+  setKeyDisabled: (id: string, disabled: boolean) =>
+    req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ disabled }),
+    }),
   pruneKeys: () => req<{ ok: boolean; removed: string[] }>("/keys/prune", { method: "POST" }),
   daemonLog: (bytes = 8000) =>
     req<{ size: number; logs: string }>(`/logs/daemon?bytes=${bytes}`),

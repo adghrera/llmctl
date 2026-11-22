@@ -302,8 +302,9 @@ toggle for a light theme (choice remembered). Tabs:
    + `rateBurst`, set at create or PATCH; 0 = gateway default; 429 on excess;
    F130). Keys may expire (`expiresInDays` at create/PATCH, 0 = never; expired
    keys get 403 `key_expired`; F135). Keys can also be temporarily blocked and
-    re-enabled without deleting them (`llmctl key disable/enable`, PATCH
-    `{"disabled":true}`; blocked keys get 403 `key_disabled`; F195). Expired keys can be bulk-deleted with
+    re-enabled without deleting them (`llmctl key disable/enable`, a Disable/
+    Enable button on the Keys page, PATCH
+    `{"disabled":true}`; blocked keys get 403 `key_disabled`; F195, F205). Expired keys can be bulk-deleted with
    `llmctl key prune` / `POST /api/v1/keys/prune` or the Keys page "Prune
    expired" button (F167). A per-key daily cost budget
    (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once

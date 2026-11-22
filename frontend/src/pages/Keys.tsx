@@ -123,6 +123,19 @@ export default function Keys() {
     }
   };
 
+  const toggleDisabled = async (id: string, disabled: boolean) => {
+    setBusy(true);
+    try {
+      await api.setKeyDisabled(id, disabled);
+      ok(disabled ? "key disabled" : "key enabled");
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const renameKey = async (k: ApiKey) => {
     const name = renameDraft.trim();
     if (!name || busy) return;
@@ -528,6 +541,15 @@ export default function Keys() {
                       onClick={() => resetUsage(k.id)}
                     >
                       Reset
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      disabled={busy}
+                      title={k.disabled ? "re-enable this key" : "temporarily block this key"}
+                      onClick={() => toggleDisabled(k.id, !k.disabled)}
+                    >
+                      {k.disabled ? "Enable" : "Disable"}
                     </button>
                     <button className="btn sm danger" disabled={busy} onClick={() => revoke(k.id)}>
                       Revoke
