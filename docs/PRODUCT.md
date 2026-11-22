@@ -147,7 +147,8 @@ toggle for a light theme (choice remembered). Tabs:
   (model bytes + free space), running instances, active jobs, and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with kind and model filters (`?kind=`, `?model=`,
-  F116, F351; also `llmctl events -kind … -model …`). A "Daemon log" card shows the tail of the
+  F116, F351; also `llmctl events -kind … -model …`) and an Export CSV button
+  matching `llmctl events --csv` columns (F371). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173). `llmctl events -watch N` live-tails
    the feed, printing new events every N seconds (F187).
 - **Search** — one box across local resources (F283): fan-out over the

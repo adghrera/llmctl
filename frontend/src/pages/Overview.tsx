@@ -267,6 +267,30 @@ export default function Overview() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Events</h2>
+            <button
+              className="btn sm"
+              disabled={events.length === 0}
+              onClick={() => {
+                // Same columns as `llmctl events --csv` (F371).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  ["time", "kind", "instance", "model"].join(","),
+                  ...events.map((e) =>
+                    [new Date(e.time).toISOString(), e.kind || "", e.instance || "", e.model || ""]
+                      .map(esc)
+                      .join(",")
+                  ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-events-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
             <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               model
               <select
