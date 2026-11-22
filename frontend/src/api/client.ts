@@ -472,6 +472,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ enabled }),
     }),
+  setInstanceVars: (id: string, vars: Record<string, string>) =>
+    req<{ ok: boolean; vars: Record<string, string>; restartRequired: boolean }>(
+      `/instances/${encodeURIComponent(id)}/vars`,
+      { method: "PUT", body: JSON.stringify({ vars }) }
+    ),
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),

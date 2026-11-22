@@ -105,6 +105,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/instances/stop-all", s.stopAllInstances)
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("POST /api/v1/instances/{id}/autorestart", s.setAutoRestart)
+	m.HandleFunc("PUT /api/v1/instances/{id}/vars", s.setInstanceVars)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs/download", s.instanceLogsDownload)
 	// Auto-start specs
@@ -809,6 +810,37 @@ func (s *Server) setAutoRestart(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true, "autoRestart": req.Enabled})
+}
+
+// setInstanceVars handles PUT /api/v1/instances/{id}/vars — replace the
+// stored start vars of an instance; a running instance needs a restart to
+// apply them (F091).
+func (s *Server) setInstanceVars(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Vars map[string]string `json:"vars"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	st, _ := s.store.Load()
+	inst := st.Instances[id]
+	if inst == nil {
+		writeErr(w, 404, "unknown instance: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if r := st.Instances[id]; r != nil {
+			r.Vars = req.Vars
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{
+		"ok":              true,
+		"vars":            req.Vars,
+		"restartRequired": inst.Status == store.StatusRunning,
+	})
 }
 
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {

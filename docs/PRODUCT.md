@@ -54,7 +54,8 @@ GitHub release, or file list. No recompile.
 - Start/stop from UI or CLI; multiple instances (different models,
   different backends, or replicas) run concurrently.
 - Per-instance parameters: ctx, ngl (GPU layers), parallel slots, threads,
-  url (attach backends).
+  url (attach backends). Editable after the fact with the "Vars" button
+  (running instances apply changes on restart).
 - Health-gated startup; crashed instances are reaped and marked stopped.
 - Crash auto-restart (per-instance "Auto" toggle): a crashed managed process
   is relaunched after a short delay, at most 3 times per 5 minutes before

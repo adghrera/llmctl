@@ -14,6 +14,9 @@ export default function Instances() {
   const [logStream, setLogStream] = useState<"stdout" | "stderr">("stderr");
   const [logData, setLogData] = useState<InstanceLogTail | null>(null);
   const [logBusy, setLogBusy] = useState(false);
+  const [varsFor, setVarsFor] = useState<string | null>(null);
+  const [varsText, setVarsText] = useState("");
+  const [varsBusy, setVarsBusy] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
 
@@ -37,6 +40,33 @@ export default function Instances() {
     setLogFor(id);
     setLogStream("stderr");
     void loadLogs(id, "stderr");
+  };
+
+  const openVars = (id: string, vars?: Record<string, string>) => {
+    setVarsFor(id);
+    setVarsText(JSON.stringify(vars ?? {}, null, 2));
+  };
+
+  const saveVars = async () => {
+    if (!varsFor) return;
+    let parsed: Record<string, string>;
+    try {
+      parsed = JSON.parse(varsText) as Record<string, string>;
+    } catch {
+      err("vars must be valid JSON, e.g. {\"ctx\": \"8192\"}");
+      return;
+    }
+    setVarsBusy(true);
+    try {
+      const r = await api.setInstanceVars(varsFor, parsed);
+      ok(r.restartRequired ? "vars saved — restart to apply" : "vars saved");
+      setVarsFor(null);
+      await refreshOne("instances");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVarsBusy(false);
+    }
   };
 
   const switchStream = (stream: "stdout" | "stderr") => {
@@ -390,6 +420,9 @@ export default function Instances() {
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
                       Logs
                     </button>
+                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars)}>
+                      Vars
+                    </button>
                     {!i.attached && (
                       <button
                         className={`btn sm ${i.autoRestart ? "primary" : ""}`}
@@ -490,6 +523,33 @@ export default function Instances() {
           >
             {logBusy && !logData ? "loading…" : logData?.logs || "(empty)"}
           </pre>
+        </div>
+      )}
+      {varsFor && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>
+              Vars — <span className="mono">{varsFor}</span>
+            </h2>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn sm primary" disabled={varsBusy} onClick={saveVars}>
+                {varsBusy ? "Saving…" : "Save"}
+              </button>
+              <button className="btn sm" onClick={() => setVarsFor(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+          <p className="muted small" style={{ margin: "6px 0" }}>
+            JSON object of start parameters (ctx, ngl, url, …). A running
+            instance applies them on next restart.
+          </p>
+          <textarea
+            className="mono"
+            style={{ width: "100%", minHeight: 140, background: "rgba(0,0,0,0.25)", color: "inherit", borderRadius: 6, padding: 10 }}
+            value={varsText}
+            onChange={(e) => setVarsText(e.target.value)}
+          />
         </div>
       )}
     </>
