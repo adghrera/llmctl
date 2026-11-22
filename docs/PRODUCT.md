@@ -368,9 +368,8 @@ survives the periodic UI re-render.
 ```
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
 llmctl down
-llmctl status [-json]              (version, uptime, running instances with
-                                    uptime, gateway auth, today's usage;
-                                    -json = raw)
+llmctl status [-json] [-watch N]   (-watch N: live refresh; -json: raw; version, uptime, running instances with
+                                    uptime, gateway auth, today's usage)
 llmctl doctor [-json]              (health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is
                                     bound to a public address with auth off, F183), disk (warns on

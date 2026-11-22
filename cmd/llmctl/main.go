@@ -102,7 +102,7 @@ func usage() {
 Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
-  llmctl status [-json]
+  llmctl status [-json] [-watch N]
   llmctl doctor [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list
@@ -213,56 +213,71 @@ func cmdDown(args []string) error {
 func cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw status JSON (for scripts)")
+	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Get("/api/v1/status")
-	if err != nil {
-		return err
-	}
-	if *jsonOut {
-		fmt.Println(string(out))
+	printOnce := func() error {
+		code, out, err := cc.Get("/api/v1/status")
+		if err != nil {
+			return err
+		}
+		if *jsonOut {
+			fmt.Println(string(out))
+			_ = code
+			return nil
+		}
+		var st map[string]any
+		json.Unmarshal(out, &st)
+		ver, _ := st["version"].(string)
+		up := ""
+		if sec, ok := st["uptimeSec"].(float64); ok && sec > 0 {
+			up = ", up " + uptimeShort(time.Duration(sec)*time.Second)
+		}
+		fmt.Printf("daemon: running (%s) v%s%s\n", cc.Base, ver, up)
+		fmt.Printf("backends: %v installed\n", st["backends"])
+		fmt.Printf("models: %v downloaded\n", st["models"])
+		if run, ok := st["running"]; ok {
+			fmt.Printf("instances: %v (%v running)\n", st["instances"], run)
+		} else {
+			fmt.Printf("instances: %v\n", st["instances"])
+		}
+		if list, ok := st["runningInstances"].([]any); ok && len(list) > 0 {
+			for _, e := range list {
+				m, _ := e.(map[string]any)
+				id, _ := m["id"].(string)
+				model, _ := m["model"].(string)
+				sec, _ := m["uptimeSec"].(float64)
+				fmt.Printf("  %-16s %-16s up %s\n", id, model, uptimeShort(time.Duration(sec)*time.Second))
+			}
+		}
+		auth := ""
+		if v, ok := st["requireAuth"].(bool); ok && v {
+			auth = " (auth on)"
+		}
+		fmt.Printf("gateway: %v%s\n", st["gateway"], auth)
+		if reqs, ok := st["todayRequests"].(float64); ok {
+			errs, _ := st["todayErrors"].(float64)
+			cost, _ := st["todayCost"].(float64)
+			fmt.Printf("today: %d reqs, %d errors, $%.4f est. cost\n", int64(reqs), int64(errs), cost)
+		}
 		_ = code
 		return nil
 	}
-	var st map[string]any
-	json.Unmarshal(out, &st)
-	ver, _ := st["version"].(string)
-	up := ""
-	if sec, ok := st["uptimeSec"].(float64); ok && sec > 0 {
-		up = ", up " + uptimeShort(time.Duration(sec)*time.Second)
+	if *watch <= 0 {
+		return printOnce()
 	}
-	fmt.Printf("daemon: running (%s) v%s%s\n", cc.Base, ver, up)
-	fmt.Printf("backends: %v installed\n", st["backends"])
-	fmt.Printf("models: %v downloaded\n", st["models"])
-	if run, ok := st["running"]; ok {
-		fmt.Printf("instances: %v (%v running)\n", st["instances"], run)
-	} else {
-		fmt.Printf("instances: %v\n", st["instances"])
-	}
-	if list, ok := st["runningInstances"].([]any); ok && len(list) > 0 {
-		for _, e := range list {
-			m, _ := e.(map[string]any)
-			id, _ := m["id"].(string)
-			model, _ := m["model"].(string)
-			sec, _ := m["uptimeSec"].(float64)
-			fmt.Printf("  %-16s %-16s up %s\n", id, model, uptimeShort(time.Duration(sec)*time.Second))
+	// Live view: clear + reprint every interval until interrupted (F216).
+	for {
+		fmt.Print("\x1b[2J\x1b[H") // clear screen
+		fmt.Printf("live status — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
+		if err := printOnce(); err != nil {
+			return err
 		}
+		time.Sleep(time.Duration(*watch) * time.Second)
 	}
-	auth := ""
-	if v, ok := st["requireAuth"].(bool); ok && v {
-		auth = " (auth on)"
-	}
-	fmt.Printf("gateway: %v%s\n", st["gateway"], auth)
-	if reqs, ok := st["todayRequests"].(float64); ok {
-		errs, _ := st["todayErrors"].(float64)
-		cost, _ := st["todayCost"].(float64)
-		fmt.Printf("today: %d reqs, %d errors, $%.4f est. cost\n", int64(reqs), int64(errs), cost)
-	}
-	_ = code
-	return nil
 }
 
 // cmdDoctor runs the daemon-side health sweep and prints one line per check
