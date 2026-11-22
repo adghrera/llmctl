@@ -290,7 +290,8 @@ toggle for a light theme (choice remembered). Tabs:
   Each request has an id echoed as the X-Request-Id response header (a
   client-sent X-Request-Id is reused). Keys with a token or request quota get
   X-RateLimit-Limit/-Remaining and X-LLMCtrl-Requests-Limit/-Remaining
-  response headers showing what is left (F108).
+  response headers showing what is left (F108); keys with a daily cost budget
+  get X-LLMCtrl-Cost-Budget-USD and X-LLMCtrl-Cost-Spent-Today-USD (F693).
   History persists across daemon restarts (`~/.llmctl/requests.jsonl`,
   trimmed to the newest 1000 lines at startup). Each entry also carries the
   estimated USD cost from per-model pricing, shown as a Cost column and

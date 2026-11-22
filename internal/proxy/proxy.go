@@ -415,6 +415,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				w.Header().Set("X-LLMCtrl-Requests-Limit", strconv.FormatInt(keyRecord.MaxRequests, 10))
 				w.Header().Set("X-LLMCtrl-Requests-Remaining", strconv.FormatInt(left, 10))
 			}
+			if keyRecord.DailyCostBudgetUSD > 0 { // daily budget progress (F693)
+				w.Header().Set("X-LLMCtrl-Cost-Budget-USD", strconv.FormatFloat(keyRecord.DailyCostBudgetUSD, 'f', 4, 64))
+				w.Header().Set("X-LLMCtrl-Cost-Spent-Today-USD", strconv.FormatFloat(s.KeyDailyCost(ckey), 'f', 4, 64))
+			}
 		}
 		if ok, st := s.limiter.allow(key); !ok {
 			setRateHeaders(w, st)
