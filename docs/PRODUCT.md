@@ -427,8 +427,9 @@ toggle for a light theme (choice remembered). Tabs:
    `{totals, groups}`, `-out FILE` writes that JSON to a file, `-watch N`
    reprints the view every N seconds (F251, F349, F370, F470, F588).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
-   <id>] [--csv] [-json]` covers the whole uploaded-files API from the shell, including
-   uploads (F219, F243) and CSV inventory export (F381).
+   <id>] [--csv] [-json] [-stats]` covers the whole uploaded-files API from the shell, including
+   uploads (F219, F243), CSV inventory export (F381), and a `-stats` per-content-type
+   roll-up — files, bytes, last upload (F631).
 - **File upload** — upload text-based files stored at
   `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
@@ -678,7 +679,7 @@ llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: liv
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE] [-stats]   (-out writes the raw JSON to a file, F468; -stats aggregates one row per kind — count, last seen, instances/models — with --csv and -json/-out of the rollup, F599)
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]    recent delivery attempts / send a test event (F447; -out writes the delivery-log JSON, F478; -watch N live-tails new deliveries, F556; -stats rolls the log up per event — total/ok/failed/last, F624; test prints a delivery confirmation, -json for raw, F573; test -event/-message send a custom payload, F591)
 llmctl prompts [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE]   (run renders the template and sends it to the gateway, F579; -save keeps the exchange as a saved chat, F583; -chat continues one, F584; -out writes the reply text — or the raw JSON with -json — to a file, F614; -stats counts templates per category, F630)
-llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list, F485; cat -out writes the stored bytes to a file, F613]
+llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list, F485; cat -out writes the stored bytes to a file, F613; -stats on list rolls up per content type, F631]
 llmctl skills|memory|kb|tools delete <id> [-json] | mcp remove <id> [-json]   (delete/remove print the raw response with -json, F536)
 llmctl skills|tools|mcp enable|disable <id> [-json]   (toggles print the raw response with -json, F537)
 llmctl presets delete <name> [-json] | chats delete <id> [-json] | prompts delete <id> [-json] | memory add "<text>" [-json] | kb create <name> [-json]   (print the raw response/created-record JSON with -json, F538)

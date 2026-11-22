@@ -278,7 +278,7 @@ Usage:
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
-  llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list]
+  llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
@@ -9936,6 +9936,7 @@ func cmdFiles(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the raw files JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the file list as CSV (F381)")
 		outFile := fs.String("out", "", "write the raw files JSON to this file instead of stdout (F485)")
+		stats := fs.Bool("stats", false, "aggregate the files per content type instead of listing them (F631)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/files")
 		if err != nil {
@@ -9943,6 +9944,91 @@ func cmdFiles(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("files returned %d: %s", code, out)
+		}
+		if *stats { // F631: one row per content type (files, bytes, last upload)
+			var fl []struct {
+				Entry struct {
+					ContentType string    `json:"contentType"`
+					Size        int64     `json:"size"`
+					CreatedAt   time.Time `json:"created_at"`
+				} `json:"entry"`
+			}
+			if err := json.Unmarshal(out, &fl); err != nil {
+				return err
+			}
+			type fst struct {
+				ContentType string `json:"content_type"`
+				Files       int    `json:"files"`
+				Bytes       int64  `json:"bytes"`
+				Last        string `json:"last"`
+			}
+			byType := map[string]*fst{}
+			lastT := map[string]time.Time{}
+			for _, f := range fl {
+				ct := f.Entry.ContentType
+				if ct == "" {
+					ct = "(none)"
+				}
+				g := byType[ct]
+				if g == nil {
+					g = &fst{ContentType: ct}
+					byType[ct] = g
+				}
+				g.Files++
+				g.Bytes += f.Entry.Size
+				if f.Entry.CreatedAt.After(lastT[ct]) {
+					lastT[ct] = f.Entry.CreatedAt
+				}
+			}
+			names := make([]string, 0, len(byType))
+			for k := range byType {
+				names = append(names, k)
+			}
+			sort.Slice(names, func(i, j int) bool { return byType[names[i]].Bytes > byType[names[j]].Bytes })
+			rows := make([]fst, 0, len(names))
+			for _, k := range names {
+				g := byType[k]
+				if !lastT[k].IsZero() {
+					g.Last = lastT[k].UTC().Format(time.RFC3339)
+				}
+				rows = append(rows, *g)
+			}
+			if *outFile != "" {
+				b, _ := json.Marshal(rows)
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
+			}
+			if *jsonOut {
+				b, _ := json.Marshal(rows)
+				fmt.Println(string(b))
+				return nil
+			}
+			if *csvOut {
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"content_type", "files", "bytes", "last"})
+				for _, r := range rows {
+					_ = w.Write([]string{r.ContentType, strconv.Itoa(r.Files),
+						strconv.FormatInt(r.Bytes, 10), r.Last})
+				}
+				w.Flush()
+				return w.Error()
+			}
+			if len(rows) == 0 {
+				fmt.Println("no uploaded files (upload via the web UI)")
+				return nil
+			}
+			fmt.Printf("%-28s %6s %10s %-20s\n", "CONTENT TYPE", "FILES", "BYTES", "LAST (UTC)")
+			for _, r := range rows {
+				last := r.Last
+				if t, err := time.Parse(time.RFC3339, r.Last); err == nil {
+					last = t.Format("2006-01-02 15:04:05")
+				}
+				fmt.Printf("%-28s %6d %10s %-20s\n", r.ContentType, r.Files, fmtSize(r.Bytes), last)
+			}
+			return nil
 		}
 		if *outFile != "" { // F485: raw JSON to a file, stdout stays clean
 			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
