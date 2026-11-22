@@ -262,7 +262,7 @@ Usage:
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|status]] [--csv on list and stats] [-out FILE]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
@@ -4533,12 +4533,12 @@ func cmdRequests(args []string) error {
 	watch := fs.Int("watch", 0, "poll every N seconds and print new requests until Ctrl-C (0 = print once)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	stats := fs.Bool("stats", false, "print aggregate stats (count, errors, latency percentiles, tokens, cost) instead of the table")
-	by := fs.String("by", "", "with -stats: group by model, key, instance, day or status")
+	by := fs.String("by", "", "with -stats: group by model, key, instance, day, hour or status")
 	jsonOut := fs.Bool("json", false, "print the raw requests JSON (for scripts)")
 	outFile := fs.String("out", "", "write the raw requests JSON to this file instead of stdout (F473)")
 	fs.Parse(reorderFlags(args))
-	if *by != "" && *by != "model" && *by != "key" && *by != "instance" && *by != "day" && *by != "status" {
-		return fmt.Errorf("-by must be model, key, instance, day or status")
+	if *by != "" && *by != "model" && *by != "key" && *by != "instance" && *by != "day" && *by != "hour" && *by != "status" {
+		return fmt.Errorf("-by must be model, key, instance, day, hour or status")
 	}
 	if *by != "" && !*stats {
 		return fmt.Errorf("-by requires -stats")
@@ -4696,6 +4696,8 @@ func cmdRequests(args []string) error {
 					g = e.Instance
 				case "day": // UTC calendar day, matching the request log (F548)
 					g = e.Time.UTC().Format("2006-01-02")
+				case "hour": // UTC hour bucket, for same-day analysis (F582)
+					g = e.Time.UTC().Format("2006-01-02 15:00")
 				case "status": // one row per status code, for error triage (F553)
 					g = strconv.Itoa(e.Status)
 				}

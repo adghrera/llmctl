@@ -637,7 +637,7 @@ llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune|res
 llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/runs --json for scripts; list --csv for audit export (F376); list -out FILE writes the raw JSON, F495; show -out FILE writes the raw task JSON, F504; delete prints a confirmation, -json for raw, F571;
                                     add: -name -cron -kind -model -prompt -instance -webhook -keep -kb;
                                     update: same flags, changes only what you pass, F290)
-llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]] [-out FILE]   (--csv also exports -stats rows, F420; -out writes the raw JSON, also with -id, F473)
+llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [-out FILE]   (--csv also exports -stats rows, F420; -out writes the raw JSON, also with -id, F473)
 llmctl backups [list|create [-name LABEL]|restore <name>|prune [-keep N]|verify <name|-all>|delete <name]]   (list: human sizes + total, --json, -out FILE writes the list JSON, F475; prune deletes all but the newest N snapshots, F558; verify -all checks every snapshot, F561; create/restore/delete print one-line confirmations, `-json` for raw, F564)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE]   (-out writes the usage JSON — raw, or the -model-filtered one — to a file, F474)
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -out writes the raw JSON to a file, refreshed each -watch tick, F469)
@@ -657,7 +657,7 @@ llmctl backup [file] [-json] | backup verify <file> [-json] | restore <file> [-j
 llmctl backups restore|download|delete … [-json] | chats delete-all -yes [-json]   (raw response / {file,bytes} / {deleted,total} with -json, F546)
 llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON | -d-file F|-] [-out FILE]   raw management-API call; body printed verbatim, non-2xx exits non-zero (F547)
 llmctl open [-print]   open the web UI in the default browser (xdg-open / open / rundll32); -print just shows the URL (F577)
-llmctl requests -stats -by day   per-UTC-day aggregate rows added to the model/key/instance groupings (F548); -by status groups per status code for error triage (F553)
+llmctl requests -stats -by day   per-UTC-day aggregate rows added to the model/key/instance groupings (F548); -by status groups per status code for error triage (F553); -by hour buckets by UTC hour for same-day analysis (F582)
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook   (set prints the changed flags, `-json` prints the raw updated settings, F581)
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
