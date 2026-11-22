@@ -202,7 +202,7 @@ Usage:
   llmctl models probe [-json] [-out FILE]
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json] [-out FILE]
-  llmctl models unused [--csv]
+  llmctl models unused [--csv] [-out FILE]
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
   llmctl models aliases [--csv] [-out FILE]
@@ -2472,6 +2472,7 @@ func cmdModels(args []string) error {
 		// cleanup candidates (F280).
 		uufs := flag.NewFlagSet("models unused", flag.ExitOnError)
 		uucsv := uufs.Bool("csv", false, "output the unused models as CSV (F408)")
+		uuout := uufs.String("out", "", "write the unused models as JSON to this file instead of stdout (F512)")
 		uufs.Parse(reorderFlags(rest))
 		_, mout, err := cc.Get("/api/v1/models")
 		if err != nil {
@@ -2512,6 +2513,26 @@ func cmdModels(args []string) error {
 				ID   string
 				Size int64
 			}{m.ID, m.Size})
+		}
+		if *uuout != "" { // F512: JSON to a file, stdout stays clean
+			type unusedRow struct {
+				ID        string `json:"id"`
+				SizeBytes int64  `json:"sizeBytes"`
+			}
+			rows := []unusedRow{}
+			for _, m := range unused {
+				rows = append(rows, unusedRow{m.ID, m.Size})
+			}
+			b, err := json.Marshal(rows)
+			if err != nil {
+				return err
+			}
+			b = append(b, '\n')
+			if err := os.WriteFile(*uuout, b, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *uuout, len(b))
+			return nil
 		}
 		if *uucsv { // F408: header-only when empty keeps the stream parseable
 			w := csv.NewWriter(os.Stdout)
