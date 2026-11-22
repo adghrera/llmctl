@@ -212,7 +212,7 @@ Usage:
   llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0>
   llmctl models price <model-id> <in-per-M> <out-per-M>
-  llmctl models hf-search <query>
+  llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo>
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force] | llmctl stop --all
@@ -2949,14 +2949,22 @@ func cmdModels(args []string) error {
 	case "hf-search":
 		hfs := flag.NewFlagSet("models hf-search", flag.ExitOnError)
 		hjson := hfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		hout := hfs.String("out", "", "write the raw search JSON to this file instead of stdout (F502)")
 		hfs.Parse(reorderFlags(rest))
 		if hfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl models hf-search <query> [-json]")
+			return fmt.Errorf("usage: llmctl models hf-search <query> [-json] [-out FILE]")
 		}
 		q := strings.Join(hfs.Args(), " ")
 		_, out, err := cc.Get("/api/v1/hf/search?q=" + urlEscape(q))
 		if err != nil {
 			return err
+		}
+		if *hout != "" { // F502: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*hout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *hout, len(out))
+			return nil
 		}
 		if *hjson {
 			fmt.Print(string(out))
