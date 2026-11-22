@@ -590,7 +590,7 @@ llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --cs
 llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388)
 llmctl catalog list [-json|-csv] | install <id>      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387)
 llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328)
-llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export,
+llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -out FILE writes the raw JSON, F479,
 llmctl models add <id> <file> [-backend ID]              (register an existing local GGUF, F275)
 llmctl models rename <id> <new-id>                    (change a model id; aliases follow, F284)
                                     price and idle-unload; show also lists aliases pointing at the

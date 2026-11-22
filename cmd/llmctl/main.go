@@ -197,7 +197,7 @@ Usage:
   llmctl backends uninstall <id>
   llmctl backends add <plugin.json>
   llmctl backends remove <id>
-  llmctl models list [--csv]
+  llmctl models list [--csv] [-out FILE]
   llmctl models show <id>
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
@@ -2505,10 +2505,18 @@ func cmdModels(args []string) error {
 		fs := flag.NewFlagSet("models list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw models JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the model table as CSV (F372)")
+		outFile := fs.String("out", "", "write the raw models JSON to this file instead of stdout (F479)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/models")
 		if err != nil {
 			return err
+		}
+		if *outFile != "" { // F479: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
