@@ -154,7 +154,9 @@ toggle for a light theme (choice remembered). Tabs:
   instance can carry a free-text note (Vars dialog) shown under its id and
   persisted across restarts (F119); running instances show their uptime (F125)
   and link to their gateway request history (F132); the Req button shows how
-  many requests the instance has served since daemon start (F150).
+  many requests the instance has served since daemon start (F150). Named start
+  presets (model + vars + port recipe) can be saved and one-click started from
+  the page, and from the CLI with `llmctl presets list|save|start|delete` (F265).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a

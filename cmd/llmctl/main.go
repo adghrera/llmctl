@@ -50,6 +50,8 @@ func main() {
 		err = cmdGPU(args)
 	case "disk":
 		err = cmdDisk(args)
+	case "presets":
+		err = cmdPresets(args)
 	case "ps":
 		err = cmdPS(args)
 	case "backends":
@@ -171,6 +173,7 @@ Usage:
   llmctl autostart list
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
+  llmctl presets list|save -name N -model ID [...]|start <name>|delete <name>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
@@ -509,6 +512,164 @@ func cmdDisk(args []string) error {
 	fmt.Printf("models:  %d file(s), %s\n", res.ModelsCount, fmtSize(res.ModelsBytes))
 	fmt.Printf("volume:  %s free of %s\n", fmtSize(res.FreeBytes), fmtSize(res.TotalBytes))
 	return nil
+}
+
+// sortedVars renders a vars map as stable "k=v k=v" text for tables.
+func sortedVars(m map[string]string) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+m[k])
+	}
+	return strings.Join(parts, " ")
+}
+
+// cmdPresets manages start presets (named start recipes from the Instances
+// page): list, save, start, delete (F265).
+func cmdPresets(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: llmctl presets <list|save|start|delete> [flags]")
+	}
+	sub, rest := args[0], args[1:]
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("presets list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw presets JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/presets")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("presets returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			Name      string            `json:"name"`
+			Instance  string            `json:"instance"`
+			ModelID   string            `json:"modelId"`
+			BackendID string            `json:"backendId"`
+			Port      int               `json:"port"`
+			Vars      map[string]string `json:"vars"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no presets (save one: llmctl presets save -name N -model ID)")
+			return nil
+		}
+		fmt.Printf("%-18s %-16s %-12s %-7s %s\n", "NAME", "MODEL", "INSTANCE", "PORT", "VARS")
+		for _, p := range list {
+			inst := p.Instance
+			if inst == "" {
+				inst = p.ModelID
+			}
+			port := "auto"
+			if p.Port > 0 {
+				port = strconv.Itoa(p.Port)
+			}
+			fmt.Printf("%-18s %-16s %-12s %-7s %s\n", p.Name, p.ModelID, inst, port, sortedVars(p.Vars))
+		}
+		return nil
+	case "save":
+		fs := flag.NewFlagSet("presets save", flag.ExitOnError)
+		name := fs.String("name", "", "preset name (required)")
+		model := fs.String("model", "", "model id (required)")
+		instance := fs.String("instance", "", "instance name (default: model id)")
+		backendID := fs.String("backend", "", "backend id (default: model's)")
+		port := fs.Int("port", 0, "fixed port (0 = auto-assign)")
+		var vars stringList
+		fs.Var(&vars, "var", "parameter k=v (repeatable)")
+		fs.Parse(reorderFlags(rest))
+		if *name == "" || *model == "" {
+			return fmt.Errorf("usage: llmctl presets save -name N -model ID [-instance I] [-backend B] [-port P] [-var k=v ...]")
+		}
+		body := map[string]any{"name": *name, "modelId": *model}
+		if *instance != "" {
+			body["instance"] = *instance
+		}
+		if *backendID != "" {
+			body["backendId"] = *backendID
+		}
+		if *port > 0 {
+			body["port"] = *port
+		}
+		if m := vars.Map(); len(m) > 0 {
+			body["vars"] = m
+		}
+		code, out, err := cc.Post("/api/v1/presets", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 && code != 201 {
+			return fmt.Errorf("presets save returned %d: %s", code, out)
+		}
+		fmt.Printf("preset %s saved\n", *name)
+		return nil
+	case "start":
+		fs := flag.NewFlagSet("presets start", flag.ExitOnError)
+		port := fs.Int("port", 0, "override the preset port")
+		var vars stringList
+		fs.Var(&vars, "var", "parameter k=v override (repeatable)")
+		fs.Parse(reorderFlags(rest))
+		if fs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl presets start <name> [-port P] [-var k=v ...]")
+		}
+		name := fs.Arg(0)
+		body := map[string]any{}
+		if *port > 0 {
+			body["port"] = *port
+		}
+		if m := vars.Map(); len(m) > 0 {
+			body["vars"] = m
+		}
+		var b any
+		if len(body) > 0 {
+			b = body
+		}
+		code, out, err := cc.Post("/api/v1/presets/"+url.PathEscape(name)+"/start", b)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("preset start failed: %s", out)
+		}
+		var inst struct {
+			ID    string `json:"id"`
+			Port  int    `json:"port"`
+			Model string `json:"modelId"`
+		}
+		json.Unmarshal(out, &inst)
+		fmt.Printf("preset %s started — instance %s on port %d\n", name, inst.ID, inst.Port)
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl presets delete <name>")
+		}
+		code, out, err := cc.Delete("/api/v1/presets/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("presets delete returned %d: %s", code, out)
+		}
+		fmt.Printf("preset %s deleted\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown presets subcommand: %s (list|save|start|delete)", sub)
+	}
 }
 
 func cmdPS(args []string) error {
