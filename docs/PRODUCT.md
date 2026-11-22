@@ -266,7 +266,8 @@ toggle for a light theme (choice remembered). Tabs:
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
   in internal/prompt/templates.go. REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
-  page with category filtering and copy-to-clipboard. CLI:
+  page with category filtering, copy-to-clipboard, and an "Insert into chat"
+  button that opens the Chat page with the template pre-filled (F300). CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
    piped stdin]` (renders the template with {{input}} filled, for scripts)

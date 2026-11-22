@@ -61,6 +61,12 @@ export default function Chat() {
   useEffect(() => {
     loadChats();
     loadKBs();
+    // Prompt page "Insert into chat" hands the template over this way (F300).
+    const seed = sessionStorage.getItem("llmctl.chatSeed");
+    if (seed) {
+      sessionStorage.removeItem("llmctl.chatSeed");
+      setInput(seed);
+    }
   }, []);
 
   const searchConversations = async (q: string) => {

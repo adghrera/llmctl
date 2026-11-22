@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, PromptTemplate } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function Prompts() {
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -46,8 +48,9 @@ export default function Prompts() {
       <div className="card">
         <h2>Prompt Templates</h2>
         <p style={{ opacity: 0.75, margin: "4px 0 10px" }}>
-          Curated prompt templates you can insert into chat. Click "Copy" to
-          copy a template to your clipboard, then paste it into the chat input.
+          Curated prompt templates you can insert into chat. Click "Insert into
+          chat" to open the Chat page with the template in the input, or "Copy"
+          to copy a template to your clipboard.
         </p>
         <div className="row" style={{ gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: 12, opacity: 0.7 }}>Category:</span>{" "}
@@ -130,6 +133,15 @@ export default function Prompts() {
               onClick={() => copyToClipboard(t.content, t.id)}
             >
               {copied.has(t.id) ? "Copied ✓" : "Copy to clipboard"}
+            </button>{" "}
+            <button
+              className="btn sm"
+              onClick={() => {
+                sessionStorage.setItem("llmctl.chatSeed", t.content);
+                navigate("/chat");
+              }}
+            >
+              Insert into chat
             </button>
           </div>
         ))}
