@@ -412,8 +412,9 @@ toggle for a light theme (choice remembered). Tabs:
    (bulk-delete old chats, pinned skipped, dry-run by default, F333), and
    `chats delete-all -yes` manage them
    (over the chat-store API, F244, F267, F269, F295, F299, F310).
- - **Skills CLI** — `llmctl skills [filter] [-json] [-csv]` lists skill packs
-   (filter matches id/name/description/tags; `--csv` exports
+ - **Skills CLI** — `llmctl skills [filter] [-json] [-csv] [-tag T]` lists skill packs
+   (filter matches id/name/description/tags; `-tag T` keeps only skills carrying
+   tag T exactly (F674); `--csv` exports
    id,enabled,name,description,tags with tags joined by `;`, header-only
    when empty, F384); `skills show <id> [-out FILE]|enable|disable|delete <id>`
    manages them, `skills add <manifest.json>` creates one from a JSON
@@ -422,8 +423,9 @@ toggle for a light theme (choice remembered). Tabs:
    bulk-renames or drops a tag across skills (F663) and `skills export <id>
    [-out f]` dumps one back
    out (F245, F288, F305).
- - **Memory CLI** — `llmctl memory [filter] [-json] [-csv] [-out FILE] [-stats]` lists memory entries
-   (`--csv` exports id,created_at,tags (`;`-joined),content, F401; `-stats` rolls entries
+ - **Memory CLI** — `llmctl memory [filter] [-json] [-csv] [-out FILE] [-stats] [-tag T]` lists memory entries
+   (`-tag T` keeps only entries carrying tag T exactly, F674;
+   `--csv` exports id,created_at,tags (`;`-joined),content, F401; `-stats` rolls entries
    up per tag — entries, last created, with `(none)` for untagged, F626);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
    [-tags a,b]`, `memory show <id> [-out FILE]`, `memory search <query> [-json] [-csv] [-out FILE]`,
@@ -435,7 +437,8 @@ toggle for a light theme (choice remembered). Tabs:
    entry that copies it with editable tags (F642), a Retag button that renames or
    removes a tag across all entries mirroring `memory retag` (F643), and a Stats toggle
    that rolls the list up per tag, mirroring `memory -stats` (F632).
- - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE]` lists knowledge bases;
+ - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T]` lists knowledge bases
+   (`-tag T` keeps only KBs carrying tag T exactly, F674);
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
    `kb tag <id> [a,b]` / `kb retag <old> <new> | retag -rm <tag>` label KBs with
    free-form tags — the KB twin of model tags, shown by `kb show`, matched by

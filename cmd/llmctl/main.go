@@ -7767,6 +7767,7 @@ func cmdSkills(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the skills as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the skill list as CSV (F384)")
 		outFile := fs.String("out", "", "write the skills JSON to this file instead of stdout (F489)")
+		tagF := fs.String("tag", "", "only skills carrying this tag (F674)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/skills")
 		if err != nil {
@@ -7792,6 +7793,18 @@ func cmdSkills(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *tagF != "" { // F674: exact tag filter, twin of models list -tag
+			keep := list[:0]
+			for _, s := range list {
+				for _, t := range s.Manifest.Tags {
+					if t == *tagF {
+						keep = append(keep, s)
+						break
+					}
+				}
+			}
+			list = keep
 		}
 		if filter != "" {
 			var keep []struct {
@@ -8241,6 +8254,7 @@ func cmdMemory(args []string) error {
 		csvOut := fs.Bool("csv", false, "output the memory entries as CSV (F401)")
 		outFile := fs.String("out", "", "write the memory entries JSON to this file instead of stdout (F490)")
 		stats := fs.Bool("stats", false, "aggregate the entries per tag instead of listing them (F626)")
+		tagF := fs.String("tag", "", "only entries carrying this tag (F674)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/memory")
 		if err != nil {
@@ -8263,6 +8277,18 @@ func cmdMemory(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *tagF != "" { // F674: exact tag filter, twin of models list -tag
+			keep := list[:0]
+			for _, m := range list {
+				for _, t := range m.Entry.Tags {
+					if t == *tagF {
+						keep = append(keep, m)
+						break
+					}
+				}
+			}
+			list = keep
 		}
 		if filter != "" {
 			var keep []struct {
@@ -8677,6 +8703,7 @@ func cmdKb(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the knowledge bases as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the knowledge-base list as CSV (F379)")
 		outFile := fs.String("out", "", "write the knowledge-base JSON to this file instead of stdout (F491)")
+		tagF := fs.String("tag", "", "only knowledge bases carrying this tag (F674)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/knowledge-bases")
 		if err != nil {
@@ -8700,6 +8727,18 @@ func cmdKb(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *tagF != "" { // F674: exact tag filter, twin of models list -tag
+			keep := list[:0]
+			for _, kb := range list {
+				for _, t := range kb.KB.Tags {
+					if t == *tagF {
+						keep = append(keep, kb)
+						break
+					}
+				}
+			}
+			list = keep
 		}
 		if filter != "" {
 			var keep []struct {
