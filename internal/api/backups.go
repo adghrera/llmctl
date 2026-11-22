@@ -75,6 +75,29 @@ func (s *Server) downloadBackupFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+// restoreBackupByName handles POST /api/v1/backups/{name}/restore — import a
+// stored snapshot (e.g. from a scheduled backup) back into the state dir (F175).
+func (s *Server) restoreBackupByName(w http.ResponseWriter, r *http.Request) {
+	path, err := backupPath(r.PathValue("name"))
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		writeErr(w, 404, "no such backup")
+		return
+	}
+	defer f.Close()
+	n, err := backup.Restore(f)
+	if err != nil {
+		writeErr(w, 400, "restore failed: "+err.Error())
+		return
+	}
+	s.logger.Info("restored stored backup", "name", filepath.Base(path), "files", n)
+	writeJSON(w, 200, map[string]any{"ok": true, "files": n})
+}
+
 // deleteBackupFile handles DELETE /api/v1/backups/{name}.
 func (s *Server) deleteBackupFile(w http.ResponseWriter, r *http.Request) {
 	path, err := backupPath(r.PathValue("name"))

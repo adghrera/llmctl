@@ -369,7 +369,7 @@ llmctl key generate|show|list|revoke|prune   (generate: -quota -maxreq -models -
                                         quota, expiry, daily budget; prune deletes expired keys)
 llmctl scheduler list|add|run|runs|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
-llmctl backups [list|create|delete <name>]
+llmctl backups [list|create|restore <name>|delete <name]]
 llmctl usage [-n 14] [-key ID | -keys] [--csv]
 llmctl metrics
 llmctl events [-n 20]

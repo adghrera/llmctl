@@ -133,7 +133,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20]
-  llmctl backups [list|create|delete <name>]
+  llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv]
   llmctl metrics
   llmctl events [-n 20]
@@ -1101,6 +1101,20 @@ func cmdBackups(args []string) error {
 			return fmt.Errorf("backup create returned %d", code)
 		}
 		return nil
+	case "restore":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl backups restore <name>")
+		}
+		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(rest[0])+"/restore", nil)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("restore returned %d", code)
+		}
+		fmt.Println("NOTE: restart the daemon (llmctl down && llmctl up) to load the restored state")
+		return nil
 	case "delete":
 		if len(rest) == 0 {
 			return fmt.Errorf("usage: llmctl backups delete <name>")
@@ -1115,7 +1129,7 @@ func cmdBackups(args []string) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("unknown backups subcommand %q (list|create|delete)", sub)
+		return fmt.Errorf("unknown backups subcommand %q (list|create|restore|delete)", sub)
 	}
 }
 
