@@ -94,6 +94,37 @@ export default function Scheduler() {
     }
   };
 
+  const editTask = async (s: ScheduleSpec) => {
+    const name = window.prompt("Task name:", s.name);
+    if (name === null) return;
+    const cron = window.prompt("Cron expression:", s.cron_expr);
+    if (cron === null) return;
+    const model = window.prompt("Model id:", s.model);
+    if (model === null) return;
+    const prompt =
+      (s.kind || "chat") === "chat"
+        ? window.prompt("Prompt:", s.prompt)
+        : s.prompt;
+    if (prompt === null) return;
+    setBusy(true);
+    try {
+      await api.updateSchedule(s.id, {
+        name: name.trim() || s.name,
+        cron_expr: cron.trim() || s.cron_expr,
+        model: model.trim() || s.model,
+        prompt,
+        enabled: s.enabled,
+        webhook_url: s.webhook_url,
+      });
+      ok("schedule updated");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const toggleEnabled = async (s: ScheduleSpec) => {
     const next = !s.enabled;
     setBusy(true);
@@ -282,6 +313,14 @@ export default function Scheduler() {
                       onClick={() => runNow(s)}
                     >
                       Run
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      title="edit name, cron, model and prompt"
+                      onClick={() => editTask(s)}
+                    >
+                      Edit
                     </button>
                     <button
                       className="btn sm danger"

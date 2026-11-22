@@ -323,7 +323,8 @@ toggle for a light theme (choice remembered). Tabs:
   to it.
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page with a
-  "Run" button per task (F141) and a "Recent Runs" history of the last 50
+  "Run" button per task (F141), an "Edit" button (prompts for name/cron/model/
+  prompt and PUTs the updated spec, F293) and a "Recent Runs" history of the last 50
   executions — status, duration and error/result excerpt
   (GET /api/v1/scheduler/runs, F145). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
