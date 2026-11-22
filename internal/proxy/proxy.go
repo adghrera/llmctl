@@ -283,6 +283,13 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				fmt.Sprintf("API key %q has used its token quota (%d tokens)", keyRecord.Name, keyRecord.TokenQuota))
 			return
 		}
+		// Per-key request count quota (F105).
+		if keyRecord != nil && keyRecord.MaxRequests > 0 &&
+			s.KeyRequests(keyPrefix(got)) >= keyRecord.MaxRequests {
+			writeErr(w, http.StatusTooManyRequests, "request_quota_exceeded",
+				fmt.Sprintf("API key %q has used its request quota (%d requests)", keyRecord.Name, keyRecord.MaxRequests))
+			return
+		}
 		// Per-key concurrency cap (F095): reject when the key already has
 		// MaxConcurrent requests in flight.
 		if keyRecord != nil && keyRecord.MaxConcurrent > 0 {
@@ -798,6 +805,14 @@ func (s *Server) SeedDaily(daily map[string]map[string]*store.DailyModelUsage) {
 
 // KeyTotalTokens exposes one key prefix's token total for quota checks (F074).
 func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
+
+// KeyRequests returns the number of requests billed to one key prefix (F105).
+func (s *Server) KeyRequests(prefix string) int64 {
+	if u, ok := s.collector.keyUsage()[prefix]; ok {
+		return u.Requests
+	}
+	return 0
+}
 
 // SeedKeyUsage restores per-key counters from persisted state at startup (F080).
 func (s *Server) SeedKeyUsage(usage map[string]KeyUsage) { s.collector.seedKeyUsage(usage) }

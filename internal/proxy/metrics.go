@@ -158,7 +158,9 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 		kc.InputTok += pTok
 		kc.OutputTok += cTok
 		kc.TotalTok += pTok + cTok
-		kc.Requests++
+		if status < 400 {
+			kc.Requests++ // only served requests count toward per-key quotas (F105)
+		}
 		kc.Cost += float64(pTok)/1e6 * m.pricingFor(model).InputPerM
 		kc.Cost += float64(cTok)/1e6 * m.pricingFor(model).OutputPerM
 		kc.UpdatedAt = time.Now().UTC()

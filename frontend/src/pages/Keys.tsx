@@ -9,6 +9,7 @@ export default function Keys() {
   const [quota, setQuota] = useState(0);
   const [models, setModels] = useState("");
   const [conc, setConc] = useState(0);
+  const [maxReq, setMaxReq] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -16,12 +17,13 @@ export default function Keys() {
     setBusy(true);
     try {
       const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await api.createKey(name, quota, allowed, conc);
+      const r = await api.createKey(name, quota, allowed, conc, maxReq);
       setCreated(r.key);
       setName("");
       setQuota(0);
       setModels("");
       setConc(0);
+      setMaxReq(0);
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -100,6 +102,15 @@ export default function Keys() {
             value={conc || ""}
             onChange={(e) => setConc(Math.max(0, Number(e.target.value) || 0))}
           />
+          <input
+            type="number"
+            min={0}
+            style={{ width: 110 }}
+            placeholder="max reqs"
+            title="Total request cap (0 = unlimited)"
+            value={maxReq || ""}
+            onChange={(e) => setMaxReq(Math.max(0, Number(e.target.value) || 0))}
+          />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create
           </button>
@@ -145,6 +156,9 @@ export default function Keys() {
                   <td className="mono">
                     {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
                     {k.usedCost ? <span className="muted"> · ${k.usedCost.toFixed(4)}</span> : null}
+                    {k.maxRequests ? (
+                      <span className="muted"> · {k.usedRequests ?? 0}/{k.maxRequests} reqs</span>
+                    ) : null}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
                     {k.allowedModels?.length ? k.allowedModels.join(", ") : "all"}

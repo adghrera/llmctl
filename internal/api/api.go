@@ -1290,13 +1290,15 @@ type keyView struct {
 	UsedCost      float64   `json:"usedCost"`                // estimated USD spent (F102)
 	AllowedModels []string  `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
 	MaxConcurrent int       `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
+	MaxRequests   int64     `json:"maxRequests,omitempty"`   // total request cap, 0 = unlimited (F105)
+	UsedReqs      int64     `json:"usedRequests"`            // requests made since daemon start (F105)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent}
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests}
 		if s.gw != nil && len(k.Prefix) > 0 {
 			p := k.Prefix
 			if len(p) > 8 {
@@ -1305,6 +1307,7 @@ func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 			if ku, ok := s.gw.KeyUsage()[p]; ok {
 				v.UsedTok = ku.TotalTok
 				v.UsedCost = ku.Cost
+				v.UsedReqs = ku.Requests
 			}
 		}
 		out = append(out, v)
@@ -1317,6 +1320,7 @@ type createKeyReq struct {
 	TokenQuota    int64    `json:"tokenQuota"`    // 0 = unlimited (F074)
 	AllowedModels []string `json:"allowedModels"` // empty = all models (F089)
 	MaxConcurrent int      `json:"maxConcurrent"` // 0 = unlimited (F095)
+	MaxRequests   int64    `json:"maxRequests"`   // 0 = unlimited (F105)
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -1379,6 +1383,7 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 			TokenQuota:    req.TokenQuota,
 			AllowedModels: normalizeModelList(req.AllowedModels),
 			MaxConcurrent: req.MaxConcurrent,
+			MaxRequests:   req.MaxRequests,
 		}
 		return nil
 	})

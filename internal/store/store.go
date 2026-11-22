@@ -94,6 +94,9 @@ type APIKeyRecord struct {
 	// MaxConcurrent caps simultaneous in-flight requests for this key;
 	// 0 = unlimited (F095).
 	MaxConcurrent int `json:"maxConcurrent,omitempty"`
+	// MaxRequests caps the total number of requests this key may make;
+	// 0 = unlimited (F105).
+	MaxRequests int64 `json:"maxRequests,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

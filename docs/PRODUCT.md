@@ -242,7 +242,9 @@ toggle for a light theme (choice remembered). Tabs:
   until the quota is raised. Usage counters persist across restarts. Keys
   page shows usage and estimated cost. Optional per-key model allowlist
   (403 for other models; aliases resolved before checking) and concurrency
-  cap (429 while more than N requests are in flight).
+  cap (429 while more than N requests are in flight). Optional per-key total
+  request cap (429 `request_quota_exceeded` once reached; only served
+  requests count; F105).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Instances page shows each
