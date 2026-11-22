@@ -326,6 +326,9 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		}
 		// Expired keys are rejected even though the secret still matches (F135).
 		if keyRecord != nil && keyRecord.ExpiresAt != nil && time.Now().After(*keyRecord.ExpiresAt) {
+			if s.keyLimitHook != nil { // alert once per key (F690)
+				s.keyLimitHook(keyRecord.ID, keyRecord.Name, "expired")
+			}
 			writeErr(w, http.StatusForbidden, "key_expired",
 				fmt.Sprintf("API key %q expired at %s", keyRecord.Name, keyRecord.ExpiresAt.UTC().Format(time.RFC3339)))
 			return
