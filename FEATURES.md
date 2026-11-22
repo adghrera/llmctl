@@ -207,6 +207,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F195 | P3 | 195 | keys | Enable/disable toggle | COMPLETED | Keys can be temporarily blocked without deletion: `disabled` on the record, `PATCH {"disabled":true}`, `llmctl key enable/disable <id>`, gateway 403 `key_disabled`, "off" badge on the Keys page, `disabled` in `key list`/`key show`. Verified live: disable → 403, enable → 200 (with requireAuth on). |
 | F196 | P3 | 196 | cli | `requests -json` | COMPLETED | `llmctl requests -json` prints the raw request-log JSON (like `status -json`), filters included. Verified live: `-json -n 3` parses as JSON with 3 entries; table mode unchanged. |
 | F197 | P3 | 197 | cli | `ps -json` | COMPLETED | `llmctl ps -json` prints the raw instances JSON for scripts. Verified live: output parses as JSON (1 instance); table mode unchanged. |
+| F198 | P3 | 198 | cli | `usage -json` | COMPLETED | `llmctl usage -json` prints raw usage JSON in all three modes (per-model, `-keys`, `-key ID`). Verified live: daily and keys modes parse as JSON; table mode unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

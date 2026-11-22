@@ -142,7 +142,7 @@ Usage:
   llmctl scheduler runs [-n 20]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json]
   llmctl backups [list|create|restore <name>|delete <name>]
-  llmctl usage [-n 14] [-key ID] [-keys] [--csv]
+  llmctl usage [-n 14] [-key ID] [-keys] [--csv] [--json]
   llmctl metrics [-watch N]
   llmctl events [-n 20]
   llmctl webhooks [-n 20]     recent webhook delivery attempts
@@ -1386,6 +1386,7 @@ func cmdUsage(args []string) error {
 	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
 	keysFlag := fs.Bool("keys", false, "show daily usage for all keys instead of per-model")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
+	jsonOut := fs.Bool("json", false, "print the raw usage JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1398,6 +1399,10 @@ func cmdUsage(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("usage returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var kd map[string]map[string]struct {
 			Requests int64   `json:"requests"`
@@ -1436,6 +1441,10 @@ func cmdUsage(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("usage returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var kd map[string]map[string]struct {
 			Requests int64   `json:"requests"`
@@ -1513,6 +1522,10 @@ func cmdUsage(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("usage returned %d: %s", code, out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
 	}
 	var daily map[string]map[string]struct {
 		Requests int64   `json:"requests"`
