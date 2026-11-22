@@ -1878,10 +1878,15 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 // has passed (F135), plus its persisted usage record. Returns the removed ids.
 func (s *Server) pruneKeys(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
+	dry := r.URL.Query().Get("dry") == "1" // report without deleting (F231)
 	removed := []string{}
 	s.store.Update(func(st *store.State) error {
 		for id, k := range st.APIKeys {
 			if k.ExpiresAt != nil && k.ExpiresAt.Before(now) {
+				if dry {
+					removed = append(removed, id)
+					continue
+				}
 				delete(st.APIKeys, id)
 				delete(st.KeyUsage, id)
 				removed = append(removed, id)
@@ -1889,7 +1894,7 @@ func (s *Server) pruneKeys(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	writeJSON(w, 200, map[string]any{"ok": true, "removed": removed})
+	writeJSON(w, 200, map[string]any{"ok": true, "dry": dry, "removed": removed})
 }
 
 // ---- settings ----

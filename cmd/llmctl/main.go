@@ -2426,14 +2426,21 @@ func cmdKey(args []string) error {
 		return nil
 	case "show":
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl key show <id>")
+			return fmt.Errorf("usage: llmctl key show <id> [-json]")
 		}
+		kfs := flag.NewFlagSet("key show", flag.ExitOnError)
+		kjson := kfs.Bool("json", false, "print the raw key JSON (for scripts)")
+		kfs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/keys/" + url.PathEscape(rest[0]))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("key show returned %d: %s", code, out)
+		}
+		if *kjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var kv struct {
 			ID                 string     `json:"id"`
@@ -2618,7 +2625,14 @@ func cmdKey(args []string) error {
 		}
 		return nil
 	case "prune":
-		code, out, err := cc.Post("/api/v1/keys/prune", nil)
+		pfs := flag.NewFlagSet("key prune", flag.ExitOnError)
+		dry := pfs.Bool("dry-run", false, "list expired keys without deleting them")
+		pfs.Parse(reorderFlags(rest))
+		prunePath := "/api/v1/keys/prune"
+		if *dry {
+			prunePath += "?dry=1"
+		}
+		code, out, err := cc.Post(prunePath, nil)
 		if err != nil {
 			return err
 		}
@@ -2631,7 +2645,11 @@ func cmdKey(args []string) error {
 		if err := json.Unmarshal(out, &r); err != nil {
 			return err
 		}
-		fmt.Printf("removed %d expired key(s)\n", len(r.Removed))
+		verb := "removed"
+		if *dry {
+			verb = "would remove"
+		}
+		fmt.Printf("%s %d expired key(s)\n", verb, len(r.Removed))
 		for _, id := range r.Removed {
 			fmt.Println(" ", id)
 		}

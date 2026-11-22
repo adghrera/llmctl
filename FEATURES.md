@@ -240,6 +240,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F228 | P3 | 228 | doctor | Dead-alias check | COMPLETED | `llmctl doctor` gained an "aliases" check: warns when an alias targets a model that no longer exists (can happen after model deletion), ok otherwise. Verified live: delete-then-warn, remove-then-ok. |
 | F229 | P3 | 229 | cli | `requests -stats -json` | COMPLETED | `llmctl requests -stats -json` emits the aggregate stats as JSON (counts, error rate, latency percentiles, tokens, cost); plain `-json` still prints the raw log. Verified live: both modes parse correctly. |
 | F230 | P3 | 230 | cli | `usage -model ID` | COMPLETED | `llmctl usage -model ID` filters the per-model daily table (and `-json` output, and the totals row) to one model. Verified live: table, filtered JSON and unfiltered JSON all correct. |
+| F231 | P3 | 231 | keys | `key show -json` + `key prune -dry-run` | COMPLETED | `key show <id> -json` prints the raw key view; `key prune -dry-run` (API `?dry=1`) lists expired keys without deleting. Verified live: show JSON parses, dry-run echoes `dry:true` and deletes nothing. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
