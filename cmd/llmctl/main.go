@@ -1001,11 +1001,19 @@ func cmdScheduler(args []string) error {
 		model := fs.String("model", "", "model id")
 		prompt := fs.String("prompt", "", "prompt (chat kind)")
 		instance := fs.String("instance", "", "instance id (instance.stop)")
+		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
+		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
 		fs.Parse(reorderFlags(rest))
 		body := map[string]any{
 			"name": *name, "cron_expr": *cron, "kind": *kind,
 			"model": *model, "prompt": *prompt, "instance": *instance,
 			"enabled": true,
+		}
+		if *webhook != "" {
+			body["webhook_url"] = *webhook
+		}
+		if *keep > 0 {
+			body["keep"] = *keep
 		}
 		code, out, err := cc.Post("/api/v1/scheduler", body)
 		if err != nil {
