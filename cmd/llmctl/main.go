@@ -246,7 +246,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats]
   llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
-  llmctl metrics [-watch N] [-model M] [--csv] [-json]
+  llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
@@ -4129,6 +4129,7 @@ func cmdMetrics(args []string) error {
 	modelF := fs.String("model", "", "show only this model id in the table (F348)")
 	csvOut := fs.Bool("csv", false, "output the per-model table as CSV (F370; ignores -watch)")
 	jsonOut := fs.Bool("json", false, "print the raw metrics JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw metrics JSON to this file instead of stdout (F469)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -4141,6 +4142,15 @@ func cmdMetrics(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("metrics returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F469: latest snapshot to a file (each -watch refresh overwrites)
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			if *watch <= 0 {
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			}
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
