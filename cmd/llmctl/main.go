@@ -232,7 +232,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|pin|unpin|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
-  llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
+  llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl cost [-keys] [-json]
@@ -4567,7 +4567,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "update", "docs", "add-doc", "search", "embed", "delete":
+		case "list", "show", "create", "update", "docs", "doc", "add-doc", "search", "embed", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -4757,6 +4757,31 @@ func cmdKb(args []string) error {
 		for _, d := range docs {
 			fmt.Printf("%-18s %-40s %d\n", d.ID, d.Filename, d.Size)
 		}
+		return nil
+	case "doc":
+		// Download one document's stored text (GET …/documents/{id}/content, F320).
+		dfs := flag.NewFlagSet("kb doc", flag.ExitOnError)
+		outFile := dfs.String("out", "", "write to this file instead of stdout")
+		dfs.Parse(reorderFlags(rest))
+		if dfs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl kb doc <kb-id> <doc-id> [-out FILE]")
+		}
+		code, body, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(dfs.Arg(0)) +
+			"/documents/" + url.PathEscape(dfs.Arg(1)) + "/content")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb doc: %s", body)
+		}
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, body, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("saved %s to %s (%s)\n", dfs.Arg(1), *outFile, fmtSize(int64(len(body))))
+			return nil
+		}
+		fmt.Print(string(body))
 		return nil
 	case "add-doc":
 		dfs := flag.NewFlagSet("kb add-doc", flag.ExitOnError)
