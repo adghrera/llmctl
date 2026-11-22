@@ -277,7 +277,7 @@ toggle for a light theme (choice remembered). Tabs:
   (F127), and links each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed
   inline (F140). Optional per-key model
-  allowlist
+  allowlist (editable via an inline checkbox editor on the Keys page, F154)
   (403 for other models; aliases resolved before checking) and concurrency
   cap (429 while more than N requests are in flight). Optional per-key total
   request cap (429 `request_quota_exceeded` once reached; only served

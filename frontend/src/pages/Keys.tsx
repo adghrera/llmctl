@@ -5,7 +5,7 @@ import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
 export default function Keys() {
-  const { keys, refreshOne } = useStore();
+  const { keys, models: allModels, refreshOne } = useStore();
   const [name, setName] = useState("");
   const [quota, setQuota] = useState(0);
   const [models, setModels] = useState("");
@@ -20,6 +20,8 @@ export default function Keys() {
   const [quotaFor, setQuotaFor] = useState<string | null>(null);
   const [quotaTok, setQuotaTok] = useState("");
   const [quotaReqs, setQuotaReqs] = useState("");
+  const [modelsFor, setModelsFor] = useState<string | null>(null);
+  const [modelsDraft, setModelsDraft] = useState<string[]>([]);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
@@ -65,16 +67,13 @@ export default function Keys() {
     }
   };
 
-  const editModels = async (id: string, current?: string[]) => {
-    const input = window.prompt(
-      "Allowed models (comma-separated, empty = all):",
-      (current ?? []).join(", ")
-    );
-    if (input === null) return;
+  const saveModels = async (id: string) => {
+    if (busy) return;
     setBusy(true);
     try {
-      await api.updateKey(id, { allowedModels: input.split(",").map((s) => s.trim()).filter(Boolean) });
-      ok("model allowlist updated");
+      await api.updateKey(id, { allowedModels: modelsDraft });
+      ok(modelsDraft.length ? "model allowlist updated" : "key may use all models");
+      setModelsFor(null);
       await refreshOne("keys");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -389,7 +388,37 @@ export default function Keys() {
                     })()}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>
-                    {k.allowedModels?.length ? k.allowedModels.join(", ") : "all"}
+                    {modelsFor === k.id ? (
+                      <span style={{ display: "inline-flex", flexDirection: "column", gap: 2 }}>
+                        {Array.from(new Set([...allModels.map((m) => m.id), ...modelsDraft])).map((mid) => (
+                          <label key={mid} style={{ display: "inline-flex", gap: 4, alignItems: "center", whiteSpace: "nowrap" }}>
+                            <input
+                              type="checkbox"
+                              checked={modelsDraft.includes(mid)}
+                              onChange={(e) =>
+                                setModelsDraft((d) => (e.target.checked ? [...d, mid] : d.filter((x) => x !== mid)))
+                              }
+                            />
+                            {mid}
+                          </label>
+                        ))}
+                        <span style={{ display: "inline-flex", gap: 4, marginTop: 2 }}>
+                          <button className="btn sm primary" disabled={busy} onClick={() => saveModels(k.id)}>
+                            Save
+                          </button>
+                          <button className="btn sm" onClick={() => setModelsFor(null)}>
+                            ✕
+                          </button>
+                          <span className="muted" style={{ alignSelf: "center" }}>
+                            {modelsDraft.length ? "" : "empty = all"}
+                          </span>
+                        </span>
+                      </span>
+                    ) : k.allowedModels?.length ? (
+                      k.allowedModels.join(", ")
+                    ) : (
+                      "all"
+                    )}
                   </td>
                   <td style={{ textAlign: "right" }}>
                     <Link
@@ -400,7 +429,15 @@ export default function Keys() {
                     >
                       Log
                     </Link>
-                    <button className="btn sm" style={{ marginRight: 6 }} disabled={busy} onClick={() => editModels(k.id, k.allowedModels)}>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      disabled={busy}
+                      onClick={() => {
+                        setModelsFor(k.id);
+                        setModelsDraft(k.allowedModels ?? []);
+                      }}
+                    >
                       Models
                     </button>
                     <button
