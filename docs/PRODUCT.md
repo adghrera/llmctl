@@ -628,7 +628,7 @@ llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE] 
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -out writes the raw JSON to a file, refreshed each -watch tick, F469)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE]   (-out writes the raw JSON to a file, F468)
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test    recent delivery attempts / send a test event (F447; -out writes the delivery-log JSON, F478)
-llmctl prompts [filter] [-category X] [-json] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file]
+llmctl prompts [filter] [-category X] [-json] [-out FILE] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list, F485]
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb

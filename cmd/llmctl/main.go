@@ -249,7 +249,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
@@ -7459,6 +7459,7 @@ func cmdPrompts(args []string) error {
 	category := fs.String("category", "", "only this category")
 	csvOut := fs.Bool("csv", false, "output the prompt list as CSV (F382)")
 	jsonOut := fs.Bool("json", false, "print the prompts as JSON (for scripts)")
+	outFile := fs.String("out", "", "write the prompts JSON to this file instead of stdout (F488)")
 	fs.Parse(reorderFlags(args))
 	filter := strings.ToLower(fs.Arg(0))
 	cc, err := daemon.NewControlClient()
@@ -7492,16 +7493,23 @@ func cmdPrompts(args []string) error {
 		}
 		shown = append(shown, p)
 	}
-	if *jsonOut {
-		if len(shown) == len(list) {
-			fmt.Print(string(out))
+	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F488)
+		payload := out
+		if len(shown) != len(list) {
+			b, err := json.Marshal(shown)
+			if err != nil {
+				return err
+			}
+			payload = append(b, '\n')
+		}
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, payload, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(payload))
 			return nil
 		}
-		b, err := json.Marshal(shown)
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(b))
+		fmt.Print(string(payload))
 		return nil
 	}
 	if len(shown) == 0 {
