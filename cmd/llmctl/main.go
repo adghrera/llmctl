@@ -256,7 +256,7 @@ Usage:
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json|-csv] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json|-csv] | mcp add|remove|enable|disable|test <id …> | mcp export|import
-  llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
+  llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
@@ -6829,6 +6829,7 @@ func cmdCost(args []string) error {
 	keyF := fs.String("key", "", "with -keys: show only this key id (F349)")
 	csvOut := fs.Bool("csv", false, "output the cost table as CSV (F370)")
 	jsonOut := fs.Bool("json", false, "print the raw cost JSON (for scripts)")
+	outFile := fs.String("out", "", "write the cost JSON to this file instead of stdout (F470)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -6861,7 +6862,7 @@ func cmdCost(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("cost %s returned %d: %s", groupPath, code, groups)
 	}
-	if *jsonOut {
+	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F470)
 		var payload struct {
 			Totals json.RawMessage `json:"totals"`
 			Groups json.RawMessage `json:"groups"`
@@ -6872,7 +6873,14 @@ func cmdCost(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(b))
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+		} else {
+			fmt.Println(string(b))
+		}
 		return nil
 	}
 	if !*csvOut {
