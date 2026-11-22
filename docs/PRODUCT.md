@@ -253,8 +253,8 @@ toggle for a light theme (choice remembered). Tabs:
   key, status, latency, tokens) in an auto-refreshing table with a summary bar
   (count, errors, p50/p95 latency, tokens, cost — the UI twin of
   `llmctl requests -stats`, F258) with its own Export CSV (F421), a groupable
-  stats table (by day/status/model/key/instance — the UI twin of
-  `llmctl requests -stats -by …`, F549, F554), with one-click
+  stats table (by hour/day/status/model/key/instance — the UI twin of
+  `llmctl requests -stats -by …`, F549, F554, F594), with one-click
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
   stream/plain, key prefix or id, and a since/until time range (F189). The serving replica is also echoed to clients as

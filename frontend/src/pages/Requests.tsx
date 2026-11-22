@@ -190,6 +190,7 @@ export default function Requests() {
             <select value={groupBy} onChange={(ev) => setGroupBy(ev.target.value)}>
               <option value="">off</option>
               <option value="day">by day</option>
+              <option value="hour">by hour</option>
               <option value="status">by status</option>
               <option value="model">by model</option>
               <option value="key">by key</option>
@@ -353,6 +354,8 @@ function GroupStats({ entries, by }: { entries: RequestLogEntry[]; by: string })
     switch (by) {
       case "day":
         return e.time.slice(0, 10); // RFC3339 UTC → calendar day
+      case "hour": // UTC hour bucket, matching `requests -stats -by hour` (F582, F594)
+        return new Date(e.time).toISOString().slice(0, 13).replace("T", " ") + ":00";
       case "status":
         return String(e.status);
       case "model":
@@ -373,8 +376,8 @@ function GroupStats({ entries, by }: { entries: RequestLogEntry[]; by: string })
     else groups.set(d, [e]);
   }
   const keys = [...groups.keys()].sort();
-  if (by === "day") keys.reverse();
-  const label = { day: "Day", status: "Status", model: "Model", key: "Key", instance: "Instance" }[by] || "Group";
+  if (by === "day" || by === "hour") keys.reverse();
+  const label = { day: "Day", hour: "Hour", status: "Status", model: "Model", key: "Key", instance: "Instance" }[by] || "Group";
   return (
     <table style={{ marginBottom: 12 }}>
       <thead>
