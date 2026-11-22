@@ -113,6 +113,15 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 		return nil, fmt.Errorf("instance %q already running", instanceID)
 	}
 
+	// Carry the previous instance's start vars when the request sets none:
+	// attach urls and custom params would otherwise silently fall back to
+	// backend defaults after a stop/crash (F263).
+	if len(vars) == 0 {
+		if prev := st.Instances[instanceID]; prev != nil {
+			vars = prev.Vars
+		}
+	}
+
 	// Per-model context-size default: applies unless the start request
 	// explicitly sets vars["ctx"].
 	vars = applyModelCtxDefault(vars, mrec)

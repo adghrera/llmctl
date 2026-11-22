@@ -61,6 +61,8 @@ GitHub release, or file list. No recompile.
   url (attach backends). Editable after the fact with the "Vars" button
   (running instances apply changes on restart).
 - Health-gated startup; crashed instances are reaped and marked stopped.
+  A restart that passes no `-var` reuses the previous instance's start vars,
+  so a crashed attach instance re-attaches to its stored url (F263).
 - Crash auto-restart (per-instance "Auto" toggle): a crashed managed process
   is relaunched after a short delay, at most 3 times per 5 minutes before
   giving up; clean stops never trigger it.
