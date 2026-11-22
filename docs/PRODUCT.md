@@ -157,7 +157,8 @@ toggle for a light theme (choice remembered). Tabs:
   tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
   usage, disk usage
   (model bytes + free space), running instances, active jobs (the Recent jobs
-  card has an Export CSV matching `llmctl jobs --csv`, F433), and a recent
+  card has an Export CSV matching `llmctl jobs --csv`, F433, and a Clear done
+  button that drops finished jobs from daemon memory, F586), and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with kind and model filters (`?kind=`, `?model=`,
   F116, F351; also `llmctl events -kind … -model …`) and an Export CSV button

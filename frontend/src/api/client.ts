@@ -803,6 +803,7 @@ export const api = {
   clearAutoStart: (model: string) =>
     req<{ ok: boolean }>(`/autostart/${encodeURIComponent(model)}`, { method: "DELETE" }),
   jobs: () => req<Job[]>("/jobs"),
+  clearJobs: () => req<{ cleared: number }>("/jobs", { method: "DELETE" }),
   keys: () => req<ApiKey[]>("/keys"),
   createKey: (name: string, tokenQuota?: number, allowedModels?: string[], maxConcurrent?: number, maxRequests?: number, rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number) =>
     req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, {

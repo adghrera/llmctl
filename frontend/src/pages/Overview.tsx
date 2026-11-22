@@ -4,7 +4,7 @@ import { ago } from "../lib/time";
 import { useStore } from "../state/store";
 
 export default function Overview() {
-  const { status, instances, jobs, models } = useStore();
+  const { status, instances, jobs, models, refresh } = useStore();
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [gpus, setGpus] = useState<GPUInfo[] | null>(null);
   const [disk, setDisk] = useState<Awaited<ReturnType<typeof api.disk>> | null>(null);
@@ -382,6 +382,17 @@ export default function Overview() {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Recent jobs</h2>
+            <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              title="drop finished jobs from the daemon's memory (F586)"
+              onClick={async () => {
+                await api.clearJobs();
+                refresh();
+              }}
+            >
+              Clear done
+            </button>
             <button
               className="btn sm"
               onClick={() => {
@@ -406,6 +417,7 @@ export default function Overview() {
             >
               Export CSV
             </button>
+            </div>
           </div>
           <ul>
             {completedJobs.map((j) => (
