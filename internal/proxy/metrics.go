@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"llmctl/internal/cost"
+	"llmctl/internal/store"
 )
 
 // metricsCollector tracks gateway traffic: request counts, latency samples
@@ -31,6 +32,7 @@ type metricsCollector struct {
 
 	keyCounters map[string]*costCounter // per API key prefix
 	pricing     map[string]cost.ModelPricing
+	daily       map[string]map[string]*store.DailyModelUsage // UTC date -> model (F097)
 }
 
 type modelMt struct {
@@ -62,6 +64,7 @@ func newMetricsCollector() *metricsCollector {
 		reqLog:      &requestLog{},
 		keyCounters: map[string]*costCounter{},
 		pricing:     make(map[string]cost.ModelPricing),
+		daily:       map[string]map[string]*store.DailyModelUsage{},
 	}
 }
 
@@ -103,6 +106,24 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 	}
 	mm.promptTok += pTok
 	mm.compTok += cTok
+	// Daily rollup (F097): UTC date -> model -> counters.
+	day := time.Now().UTC().Format("2006-01-02")
+	dm := m.daily[day]
+	if dm == nil {
+		dm = map[string]*store.DailyModelUsage{}
+		m.daily[day] = dm
+	}
+	du := dm[model]
+	if du == nil {
+		du = &store.DailyModelUsage{}
+		dm[model] = du
+	}
+	du.Requests++
+	if status >= 400 {
+		du.Errors++
+	}
+	du.Prompt += pTok
+	du.Comp += cTok
 	// Per-model latency reservoir (bounded, same policy as global).
 	mm.seen++
 	if len(mm.latSamples) < reservoirSize {
@@ -207,6 +228,39 @@ func (m *metricsCollector) keyTotalTokens(prefix string) int64 {
 // seedKeyUsage initializes per-key counters from persisted totals (F080).
 // Only keys without a live counter are seeded, so it is safe to call once at
 // startup before traffic flows.
+// seedDaily restores the daily usage rollup from persisted state (F097).
+func (m *metricsCollector) seedDaily(daily map[string]map[string]*store.DailyModelUsage) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for day, models := range daily {
+		if m.daily[day] == nil {
+			m.daily[day] = map[string]*store.DailyModelUsage{}
+		}
+		for model, u := range models {
+			if m.daily[day][model] == nil {
+				cp := *u
+				m.daily[day][model] = &cp
+			}
+		}
+	}
+}
+
+// dailyUsage returns a deep copy of the daily rollup for persistence (F097).
+func (m *metricsCollector) dailyUsage() map[string]map[string]*store.DailyModelUsage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make(map[string]map[string]*store.DailyModelUsage, len(m.daily))
+	for day, models := range m.daily {
+		cp := make(map[string]*store.DailyModelUsage, len(models))
+		for model, u := range models {
+			c := *u
+			cp[model] = &c
+		}
+		out[day] = cp
+	}
+	return out
+}
+
 func (m *metricsCollector) seedKeyUsage(usage map[string]KeyUsage) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

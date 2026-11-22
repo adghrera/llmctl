@@ -146,6 +146,9 @@ type State struct {
 	Presets   map[string]*PresetSpec       `json:"presets,omitempty"`   // keyed by preset name
 	Aliases   map[string]string            `json:"aliases,omitempty"`   // gateway alias -> model id (F065)
 	KeyUsage  map[string]*KeyUsageRecord `json:"keyUsage,omitempty"`  // per key prefix, flushed periodically (F080)
+	// DailyUsage is UTC date ("2006-01-02") -> model id -> counters,
+	// flushed with the key-usage loop so usage history survives restarts (F097).
+	DailyUsage map[string]map[string]*DailyModelUsage `json:"dailyUsage,omitempty"`
 }
 
 // KeyUsageRecord is the persisted token usage for one API key prefix, so
@@ -155,6 +158,14 @@ type KeyUsageRecord struct {
 	Output   int64 `json:"output"`
 	Total    int64 `json:"total"`
 	Requests int64 `json:"requests"`
+}
+
+// DailyModelUsage is one day's gateway usage for one model (F097).
+type DailyModelUsage struct {
+	Requests int64 `json:"requests"`
+	Errors   int64 `json:"errors"`
+	Prompt   int64 `json:"prompt"`
+	Comp     int64 `json:"comp"`
 }
 
 func newState() *State {

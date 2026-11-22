@@ -482,6 +482,10 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  dailyUsage: (days = 14) =>
+    req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number }>>>(
+      `/usage/daily?days=${days}`
+    ),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   disk: () =>
     req<{ dir: string; modelsBytes: number; modelsCount: number; freeBytes?: number; totalBytes?: number }>(

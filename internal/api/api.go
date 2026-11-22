@@ -178,6 +178,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
+	m.HandleFunc("GET /api/v1/usage/daily", s.dailyUsage)
 	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
 	m.HandleFunc("GET /api/v1/disk", s.diskUsage)
 	m.HandleFunc("GET /api/v1/backups", s.listBackups)
@@ -969,6 +970,32 @@ func (s *Server) metricsSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, s.gw.Metrics())
+}
+
+// dailyUsage handles GET /api/v1/usage/daily — the persisted UTC-date ->
+// model usage rollup (F097). days=N limits the response to the newest N days.
+func (s *Server) dailyUsage(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway not running")
+		return
+	}
+	daily := s.gw.DailyUsage()
+	if n, err := strconv.Atoi(r.URL.Query().Get("days")); err == nil && n > 0 {
+		days := make([]string, 0, len(daily))
+		for d := range daily {
+			days = append(days, d)
+		}
+		sort.Strings(days)
+		if len(days) > n {
+			days = days[len(days)-n:]
+		}
+		out := make(map[string]map[string]*store.DailyModelUsage, len(days))
+		for _, d := range days {
+			out[d] = daily[d]
+		}
+		daily = out
+	}
+	writeJSON(w, 200, daily)
 }
 
 // recentRequests handles GET /api/v1/requests — the ring of recent gateway

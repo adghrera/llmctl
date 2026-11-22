@@ -749,6 +749,16 @@ func keyPrefix(key string) string {
 // KeyUsage exposes per-key token totals (F074).
 func (s *Server) KeyUsage() map[string]KeyUsage { return s.collector.keyUsage() }
 
+// DailyUsage returns the UTC-date -> model usage rollup (F097).
+func (s *Server) DailyUsage() map[string]map[string]*store.DailyModelUsage {
+	return s.collector.dailyUsage()
+}
+
+// SeedDaily restores the daily rollup from persisted state at startup (F097).
+func (s *Server) SeedDaily(daily map[string]map[string]*store.DailyModelUsage) {
+	s.collector.seedDaily(daily)
+}
+
 // KeyTotalTokens exposes one key prefix's token total for quota checks (F074).
 func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
 

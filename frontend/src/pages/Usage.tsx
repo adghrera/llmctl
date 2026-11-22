@@ -5,15 +5,18 @@ import { err } from "../ui/toast";
 export default function Usage() {
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [chats, setChats] = useState<any[]>([]);
+  const [daily, setDaily] = useState<Awaited<ReturnType<typeof api.dailyUsage>> | null>(null);
 
   const load = async () => {
     try {
-      const [m, c] = await Promise.all([
+      const [m, c, d] = await Promise.all([
         api.metrics().catch(() => null as GatewayMetrics | null),
         api.chats().catch(() => [] as any[]),
+        api.dailyUsage().catch(() => null),
       ]);
       setMetrics(m);
       setChats(c);
+      setDaily(d);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     }
@@ -146,6 +149,51 @@ export default function Usage() {
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {daily && Object.keys(daily).length > 0 && (
+        <div className="card">
+          <h2>Daily History</h2>
+          <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+            Gateway usage per UTC day (last {Object.keys(daily).length} days
+            with traffic); survives daemon restarts.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Requests</th>
+                <th>Errors</th>
+                <th>Prompt</th>
+                <th>Completion</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(daily)
+                .sort((a, b) => b[0].localeCompare(a[0]))
+                .map(([date, models]) => {
+                  let reqs = 0, errs = 0, prompt = 0, comp = 0;
+                  for (const u of Object.values(models)) {
+                    reqs += u.requests;
+                    errs += u.errors;
+                    prompt += u.prompt;
+                    comp += u.comp;
+                  }
+                  return (
+                    <tr key={date}>
+                      <td style={{ fontFamily: "monospace", fontSize: 12 }}>{date}</td>
+                      <td className="oc-num">{reqs.toLocaleString()}</td>
+                      <td className="oc-num">{errs}</td>
+                      <td className="oc-num">{prompt.toLocaleString()}</td>
+                      <td className="oc-num">{comp.toLocaleString()}</td>
+                      <td className="oc-num">{(prompt + comp).toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>

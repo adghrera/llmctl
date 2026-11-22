@@ -162,6 +162,10 @@ func Run(ctx context.Context, opts Options) error {
 		}
 		gw.SeedKeyUsage(seed)
 	}
+	// Restore the daily usage rollup so history survives restarts (F097).
+	if cur, err := st.Load(); err == nil && len(cur.DailyUsage) > 0 {
+		gw.SeedDaily(cur.DailyUsage)
+	}
 	go flushKeyUsageLoop(ctx, st, gw, logger)
 
 	// Initialize scheduler and start the scheduler loop.
@@ -203,6 +207,7 @@ func Run(ctx context.Context, opts Options) error {
 
 	defer func() {
 		os.Remove(daemonFilePath())
+		flushUsage(st, gw, logger) // final synchronous flush (F097)
 		logger.Info("stopping instances...")
 		sv.StopAll()
 	}()
@@ -331,37 +336,42 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 	}
 }
 
-// flushKeyUsageLoop periodically persists per-key token counters to the state
-// file so per-key quotas (F074) and usage views survive daemon restarts (F080).
-// A final flush runs on shutdown.
+// flushKeyUsageLoop periodically persists per-key token counters and the
+// daily usage rollup to the state file so per-key quotas (F074) and usage
+// history (F097) survive daemon restarts. Run also calls flushUsage once
+// synchronously on shutdown.
 func flushKeyUsageLoop(ctx context.Context, st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	flush := func() {
-		usage := gw.KeyUsage()
-		if len(usage) == 0 {
-			return
-		}
-		if err := st.Update(func(s *store.State) error {
-			s.KeyUsage = make(map[string]*store.KeyUsageRecord, len(usage))
-			for k, u := range usage {
-				s.KeyUsage[k] = &store.KeyUsageRecord{
-					Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests,
-				}
-			}
-			return nil
-		}); err != nil {
-			logger.Error("persist key usage failed", "error", err)
-		}
-	}
 	for {
 		select {
 		case <-ctx.Done():
-			flush()
 			return
 		case <-ticker.C:
-			flush()
+			flushUsage(st, gw, logger)
 		}
+	}
+}
+
+// flushUsage writes the gateway's per-key counters and daily rollup to the
+// state file (F080, F097).
+func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
+	usage := gw.KeyUsage()
+	daily := gw.DailyUsage()
+	if len(usage) == 0 && len(daily) == 0 {
+		return
+	}
+	if err := st.Update(func(s *store.State) error {
+		s.KeyUsage = make(map[string]*store.KeyUsageRecord, len(usage))
+		for k, u := range usage {
+			s.KeyUsage[k] = &store.KeyUsageRecord{
+				Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests,
+			}
+		}
+		s.DailyUsage = daily // deep copy from the collector (F097)
+		return nil
+	}); err != nil {
+		logger.Error("persist key usage failed", "error", err)
 	}
 }
 
