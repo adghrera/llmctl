@@ -12,6 +12,7 @@ export default function Memory() {
   const [searchResults, setSearchResults] = useState<MemoryEntry[]>([]);
   const [searching, setSearching] = useState(false);
   const [copied, setCopied] = useState<Set<string>>(new Set());
+  const [showStats, setShowStats] = useState(false); // per-tag rollup (CLI `memory -stats` parity, F632)
 
   // Copy one entry's content to the clipboard (F441).
   const copyEntry = async (e: MemoryEntry) => {
@@ -248,6 +249,15 @@ export default function Memory() {
               <div className="row" style={{ gap: 6 }}>
               <button
                 className="btn sm"
+                aria-pressed={showStats}
+                disabled={entries.length === 0}
+                title="group entries per tag — CLI: llmctl memory -stats (F632)"
+                onClick={() => setShowStats(!showStats)}
+              >
+                {showStats ? "Show list" : "Stats"}
+              </button>
+              <button
+                className="btn sm"
                 disabled={entries.length === 0}
                 onClick={() => {
                   // Same columns as `llmctl memory list --csv` (F402).
@@ -303,7 +313,45 @@ export default function Memory() {
                 No memory entries yet. Add one above.
               </div>
             )}
-            {entries.length > 0 && (
+            {entries.length > 0 && showStats && (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tag</th>
+                    <th>Entries</th>
+                    <th>Last</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // Same rollup as `llmctl memory -stats` (F632): one row per
+                    // tag, "(none)" groups untagged entries, sorted by count.
+                    const by = new Map<string, { count: number; last: string }>();
+                    for (const e of entries) {
+                      const keys = e.entry.tags && e.entry.tags.length > 0 ? e.entry.tags : ["(none)"];
+                      for (const t of keys) {
+                        const g = by.get(t) ?? { count: 0, last: "" };
+                        g.count++;
+                        if (e.entry.created_at > g.last) g.last = e.entry.created_at;
+                        by.set(t, g);
+                      }
+                    }
+                    return [...by.entries()]
+                      .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
+                      .map(([tag, g]) => (
+                        <tr key={tag}>
+                          <td>{tag}</td>
+                          <td>{g.count}</td>
+                          <td className="muted" style={{ fontSize: 12 }}>
+                            {g.last ? new Date(g.last).toLocaleString() : ""}
+                          </td>
+                        </tr>
+                      ));
+                  })()}
+                </tbody>
+              </table>
+            )}
+            {entries.length > 0 && !showStats && (
               <table>
                 <tbody>
                   {entries.map((e) => (
