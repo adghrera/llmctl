@@ -166,6 +166,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl scheduler list
+  llmctl scheduler show <id> [-json]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
@@ -1086,7 +1087,7 @@ func untilStr(t time.Time) string {
 
 func cmdScheduler(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl scheduler <list|add|run|enable|disable|delete> [id] [flags]")
+		return fmt.Errorf("usage: llmctl scheduler <list|show|add|run|enable|disable|delete> [id] [flags]")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1189,6 +1190,76 @@ func cmdScheduler(args []string) error {
 			return err
 		}
 		return printOut(code, out, 201)
+	case "show":
+		sfs := flag.NewFlagSet("scheduler show", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw task JSON (for scripts)")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl scheduler show <id> [-json]")
+		}
+		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(sfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler %s: %s", sfs.Arg(0), out)
+		}
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var rec struct {
+			ID   string `json:"id"`
+			Spec struct {
+				ID         string    `json:"id"`
+				Name       string    `json:"name"`
+				CronExpr   string    `json:"cron_expr"`
+				Kind       string    `json:"kind"`
+				Model      string    `json:"model"`
+				Instance   string    `json:"instance"`
+				Prompt     string    `json:"prompt"`
+				Enabled    bool      `json:"enabled"`
+				WebhookURL string    `json:"webhook_url"`
+				LastRun    time.Time `json:"last_run"`
+				NextRun    time.Time `json:"next_run"`
+			} `json:"spec"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil {
+			return err
+		}
+		sp := rec.Spec
+		kind := sp.Kind
+		if kind == "" {
+			kind = "chat"
+		}
+		on := "no"
+		if sp.Enabled {
+			on = "yes"
+		}
+		fmt.Printf("id:      %s\nname:    %s\nkind:    %s\ncron:    %s\nenabled: %s\n", rec.ID, sp.Name, kind, sp.CronExpr, on)
+		if sp.Model != "" {
+			fmt.Printf("model:   %s\n", sp.Model)
+		}
+		if sp.Instance != "" {
+			fmt.Printf("instance: %s\n", sp.Instance)
+		}
+		if sp.Prompt != "" {
+			p := sp.Prompt
+			if len(p) > 80 {
+				p = p[:80] + "…"
+			}
+			fmt.Printf("prompt:  %s\n", p)
+		}
+		if sp.WebhookURL != "" {
+			fmt.Printf("webhook: %s\n", sp.WebhookURL)
+		}
+		if !sp.LastRun.IsZero() {
+			fmt.Printf("last:    %s\n", sp.LastRun.Local().Format("2006-01-02 15:04:05"))
+		}
+		if !sp.NextRun.IsZero() {
+			fmt.Printf("next:    %s (%s)\n", sp.NextRun.Local().Format("2006-01-02 15:04:05"), untilStr(sp.NextRun))
+		}
+		return nil
 	case "runs":
 		fs := flag.NewFlagSet("scheduler runs", flag.ExitOnError)
 		n := fs.Int("n", 20, "number of recent runs")

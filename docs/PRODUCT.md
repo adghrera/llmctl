@@ -434,7 +434,7 @@ llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)
-llmctl scheduler list|add|run|runs|enable|disable|delete   (list/runs --json for scripts;
+llmctl scheduler list|show|add|run|runs|enable|disable|delete   (list/runs --json for scripts;
                                     add: -name -cron -kind -model -prompt -instance -webhook -keep)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]]
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
