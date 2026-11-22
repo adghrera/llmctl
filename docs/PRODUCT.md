@@ -632,7 +632,7 @@ llmctl disk [-json] [--csv] [-out FILE] [-watch N]            (model dir + volum
                                     references a missing model or recent runs failed, F334), embeddings
                                     (warns when a KB's configured embedding endpoint is unreachable, F552);
                                     exit ≠0 on errors)
-llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --csv: one-shot CSV export; -json: raw, printed each -watch tick; -out writes the raw JSON to a file, refreshed each -watch tick, F467, F620; also shows uptime, requests served, auto-restart
+llmctl ps [-watch N] [--csv] [-json] [-out FILE] [-stats]   (-watch N: live refresh; --csv: one-shot CSV export; -json: raw, printed each -watch tick; -out writes the raw JSON to a file, refreshed each -watch tick, F467, F620; -stats: per-model roll-up — replicas, running, served, restarts, F629; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388; mutations print one-line confirmations, `-json` for raw, F566; install `--wait` blocks until the job finishes, F576)
 llmctl catalog list [-json|-csv] | install <id> [--wait]      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387; install `--wait` blocks until the download finishes, F576)

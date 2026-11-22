@@ -211,7 +211,7 @@ Usage:
   llmctl bench -model ID [-n N] [-conc C] [-json|--csv] [-out FILE]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv] [-out FILE] [-watch N]
-  llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
+  llmctl ps [-watch N] [--csv] [-json] [-out FILE] [-stats]   (-json/-out refresh each -watch tick, F620; -stats: per-model roll-up)
   llmctl backends list [-json|-csv|-out FILE]
   llmctl backends install <id> [--asset <hint>] [-json] [--wait]
   llmctl backends uninstall <id> [-json]
@@ -2598,6 +2598,7 @@ func cmdPS(args []string) error {
 	csvOut := fs.Bool("csv", false, "output the instance table as CSV (F373; ignores -watch)")
 	jsonOut := fs.Bool("json", false, "print the raw instances JSON (for scripts)")
 	outFile := fs.String("out", "", "write the raw instances JSON to this file instead of stdout (F467)")
+	stats := fs.Bool("stats", false, "aggregate the instances per model instead of listing them (F629)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -2607,6 +2608,79 @@ func cmdPS(args []string) error {
 		_, out, err := cc.Get("/api/v1/instances")
 		if err != nil {
 			return err
+		}
+		if *stats { // F629: one row per model (replicas, running, served, restarts)
+			var insts []struct {
+				ModelID      string `json:"modelId"`
+				Status       string `json:"status"`
+				Served       int64  `json:"served"`
+				RestartCount int    `json:"restartCount"`
+			}
+			if err := json.Unmarshal(out, &insts); err != nil {
+				return err
+			}
+			type pst struct {
+				Model    string `json:"model"`
+				Replicas int    `json:"replicas"`
+				Running  int    `json:"running"`
+				Served   int64  `json:"served"`
+				Restarts int    `json:"restarts"`
+			}
+			byModel := map[string]*pst{}
+			for _, i := range insts {
+				g := byModel[i.ModelID]
+				if g == nil {
+					g = &pst{Model: i.ModelID}
+					byModel[i.ModelID] = g
+				}
+				g.Replicas++
+				if i.Status == "running" {
+					g.Running++
+				}
+				g.Served += i.Served
+				g.Restarts += i.RestartCount
+			}
+			names := make([]string, 0, len(byModel))
+			for k := range byModel {
+				names = append(names, k)
+			}
+			sort.Slice(names, func(i, j int) bool { return byModel[names[i]].Served > byModel[names[j]].Served })
+			rows := make([]pst, 0, len(names))
+			for _, k := range names {
+				rows = append(rows, *byModel[k])
+			}
+			if *outFile != "" {
+				b, _ := json.Marshal(rows)
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
+			}
+			if *jsonOut {
+				b, _ := json.Marshal(rows)
+				fmt.Println(string(b))
+				return nil
+			}
+			if *csvOut {
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"model", "replicas", "running", "served", "restarts"})
+				for _, r := range rows {
+					_ = w.Write([]string{r.Model, strconv.Itoa(r.Replicas), strconv.Itoa(r.Running),
+						strconv.FormatInt(r.Served, 10), strconv.Itoa(r.Restarts)})
+				}
+				w.Flush()
+				return w.Error()
+			}
+			if len(rows) == 0 {
+				fmt.Println("no instances (start one: llmctl start <model-id>)")
+				return nil
+			}
+			fmt.Printf("%-24s %9s %8s %8s %9s\n", "MODEL", "REPLICAS", "RUNNING", "SERVED", "RESTARTS")
+			for _, r := range rows {
+				fmt.Printf("%-24s %9d %8d %8d %9d\n", r.Model, r.Replicas, r.Running, r.Served, r.Restarts)
+			}
+			return nil
 		}
 		if *outFile != "" { // F467: latest snapshot to a file (each -watch refresh overwrites)
 			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
@@ -2623,7 +2697,7 @@ func cmdPS(args []string) error {
 		}
 		return printPS(out, *csvOut)
 	}
-	if *watch <= 0 || *csvOut { // CSV is a one-shot export (F373)
+	if *watch <= 0 || *csvOut || *stats { // CSV/stats are one-shot exports (F373, F629)
 		return printOnce()
 	}
 	// Live view: clear + reprint every interval until interrupted (F194).
