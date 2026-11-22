@@ -221,7 +221,7 @@ Usage:
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-f]
-  llmctl key generate [name] [-json]
+  llmctl key generate [name] [-json] [-out FILE]
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...>
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
@@ -8067,6 +8067,7 @@ func cmdKey(args []string) error {
 		rps := fs.Float64("rps", 0, "per-key rate limit, req/s (0 = gateway default)")
 		note := fs.String("note", "", "free-text annotation")
 		jsonOut := fs.Bool("json", false, "print the raw creation JSON, including the secret (for scripts)")
+		outFile := fs.String("out", "", "write the raw creation JSON, including the secret, to this file instead of stdout (F507)")
 		fs.Parse(reorderFlags(rest))
 		name := ""
 		if fs.NArg() > 0 {
@@ -8108,6 +8109,13 @@ func cmdKey(args []string) error {
 		json.Unmarshal(out, &r)
 		if code != 201 {
 			return fmt.Errorf("create returned %d: %s", code, string(out))
+		}
+		if *outFile != "" { // F507: raw JSON (with the secret) to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o600); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
