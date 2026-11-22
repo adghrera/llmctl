@@ -151,6 +151,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F139 | P3 | 139 | cli | models/key list parity columns | COMPLETED | `llmctl models list` shows PRICE $/M and IDLE (pinned/Nm) columns; `llmctl key list` shows EXPIRES (date or `expired`) and a daily-budget progress (`$spent/$budget/day`) in QUOTA. Verified live against the running daemon. |
 | F140 | P3 | 140 | keys | Key rename | COMPLETED | `PATCH /api/v1/keys/{id} {"name": "…"}` renames a key (blank names ignored); the Keys page Name cell has a ✎ inline editor (Enter saves, Esc cancels). Verified live: rename reflected in the key list, blank name ignored. |
 | F141 | P3 | 141 | scheduler | "Run now" button | COMPLETED | Each scheduled task row has a "Run" button triggering the existing `POST /api/v1/scheduler/{id}/run` (F084) immediately, with a toast and list refresh. Verified live: run returns 202 and the task executes. |
+| F142 | P3 | 142 | usage | Per-request cost in request log | COMPLETED | Every request-log entry now carries the estimated USD cost (from per-model pricing), shown as a "Cost" column on the Requests page, included in the CSV export, and printed as a COST $ column by `llmctl requests`. Verified live: 21/7-token request at $100/$200 per M → $0.0035 in API, CLI and CSV. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

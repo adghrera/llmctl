@@ -23,6 +23,7 @@ type RequestLogEntry struct {
 	TtftMs    float64   `json:"ttftMs,omitempty"` // streaming time-to-first-token (F112)
 	PromptTok int64     `json:"promptTok"`
 	CompTok   int64     `json:"compTok"`
+	Cost      float64   `json:"cost,omitempty"` // estimated USD (F142)
 	Stream    bool      `json:"stream,omitempty"`
 }
 

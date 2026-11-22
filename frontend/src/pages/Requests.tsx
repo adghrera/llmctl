@@ -14,7 +14,7 @@ function csvField(s: string): string {
 }
 
 function toCsv(entries: RequestLogEntry[]): string {
-  const head = ["id", "time", "model", "instance", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens"];
+  const head = ["id", "time", "model", "instance", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens", "cost_usd"];
   const rows = entries.map((e) =>
     [
       e.id || "",
@@ -27,6 +27,7 @@ function toCsv(entries: RequestLogEntry[]): string {
       String(Math.round(e.latencyMs)),
       String(e.promptTok),
       String(e.compTok),
+      e.cost ? e.cost.toFixed(6) : "",
     ]
       .map(csvField)
       .join(","),
@@ -166,6 +167,7 @@ export default function Requests() {
               <th>Status</th>
               <th>Latency</th>
               <th>Tokens</th>
+              <th>Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -205,6 +207,9 @@ export default function Requests() {
                 </td>
                 <td className="muted" style={{ fontSize: 12 }}>
                   {e.promptTok} + {e.compTok}
+                </td>
+                <td className="mono" style={{ fontSize: 12 }}>
+                  {e.cost ? `$${e.cost.toFixed(4)}` : "—"}
                 </td>
               </tr>
             ))}

@@ -383,6 +383,7 @@ export interface RequestLogEntry {
   ttftMs?: number;
   promptTok: number;
   compTok: number;
+  cost?: number;
   stream?: boolean;
 }
 

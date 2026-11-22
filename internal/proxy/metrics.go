@@ -216,6 +216,7 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 	if keyLabel == "" {
 		keyLabel = key
 	}
+	reqCost := float64(pTok)/1e6*m.pricingFor(model).InputPerM + float64(cTok)/1e6*m.pricingFor(model).OutputPerM
 	m.reqLog.add(RequestLogEntry{
 		ID:        rid,
 		Time:      time.Now(),
@@ -228,6 +229,7 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 		TtftMs:    ttftMs,
 		PromptTok: pTok,
 		CompTok:   cTok,
+		Cost:      reqCost, // estimated USD (F142)
 		Stream:    stream,
 	})
 
