@@ -32,6 +32,7 @@ type Spec struct {
 	KB         string    `json:"kb,omitempty"`          // optional knowledge base id(s), comma-separated: top chunks are injected as context (chat only, F365, multi F666)
 	Enabled    bool      `json:"enabled"`               // whether the task is active
 	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
+	Tags       []string  `json:"tags,omitempty"`        // free-form labels for grouping tasks (F681)
 	LastRun    time.Time `json:"last_run"`              // last execution time
 	NextRun    time.Time `json:"next_run"`              // next scheduled execution
 	CreatedAt  time.Time `json:"created_at"`            // creation time
@@ -203,6 +204,9 @@ func (s *Store) Update(id string, spec Spec) (*Record, error) {
 	if strings.TrimSpace(spec.CronExpr) == "" {
 		spec.CronExpr = rec.Spec.CronExpr // keep the existing schedule (F159)
 	}
+	if len(spec.Tags) == 0 {
+		spec.Tags = rec.Spec.Tags // keep tags when the update doesn't carry them (F681)
+	}
 	if err := ValidateCron(spec.CronExpr); err != nil {
 		return nil, err
 	}
@@ -225,6 +229,16 @@ func (s *Store) SetEnabled(id string, on bool) error {
 		return err
 	}
 	return nil
+}
+
+// SetTags replaces a task's free-form tags without bumping UpdatedAt (F681).
+func (s *Store) SetTags(id string, tags []string) error {
+	rec, err := s.Get(id)
+	if err != nil {
+		return err
+	}
+	rec.Spec.Tags = tags
+	return writeJSON(filepath.Join(rec.Dir, "spec.json"), rec.Spec)
 }
 
 // Delete removes the task directory.

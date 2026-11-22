@@ -140,6 +140,54 @@ func (s *Server) setScheduleEnabled(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// setScheduleTags handles PATCH /api/v1/scheduler/{id}/tags — replace a
+// task's free-form tag list, the scheduler twin of the other tag endpoints
+// (F681). Tags are trimmed, deduped and capped (20 tags, 40 chars each).
+func (s *Server) setScheduleTags(w http.ResponseWriter, r *http.Request) {
+	ts, err := s.schedStore()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	seen := map[string]bool{}
+	tags := []string{}
+	for _, t := range req.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+		seen[t] = true
+		tags = append(tags, t)
+	}
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	if len(tags) == 0 {
+		tags = nil
+	}
+	if err := ts.SetTags(r.PathValue("id"), tags); err != nil {
+		writeErr(w, statusForSched(err), err.Error())
+		return
+	}
+	out := tags
+	if out == nil {
+		out = []string{}
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "tags": out})
+}
+
 // schedulerRuns handles GET /api/v1/scheduler/runs — recent task executions,
 // newest first (F145).
 func (s *Server) schedulerRuns(w http.ResponseWriter, r *http.Request) {

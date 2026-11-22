@@ -182,6 +182,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("PUT /api/v1/scheduler/{id}", s.updateSchedule)
 	m.HandleFunc("DELETE /api/v1/scheduler/{id}", s.deleteSchedule)
 	m.HandleFunc("POST /api/v1/scheduler/{id}/enabled", s.setScheduleEnabled)
+	m.HandleFunc("PATCH /api/v1/scheduler/{id}/tags", s.setScheduleTags)
 	m.HandleFunc("POST /api/v1/scheduler/{id}/run", s.runScheduleNow)
 	// Prompt templates (F043, custom prompts F306)
 	m.HandleFunc("GET /api/v1/prompts", s.listPrompts)

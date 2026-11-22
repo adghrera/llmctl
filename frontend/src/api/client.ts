@@ -193,6 +193,7 @@ export interface ScheduleSpec {
   keep?: number; // backup kind: snapshots to retain
   enabled: boolean;
   webhook_url?: string;
+  tags?: string[]; // free-form labels (F681)
   last_run: string;
   next_run: string;
   created_at: string;
@@ -814,6 +815,11 @@ export const api = {
   schedulerRuns: () => req<ScheduleRun[]>("/scheduler/runs"),
   setScheduleEnabled: (id: string, enabled: boolean) =>
     req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
+  setScheduleTags: (id: string, tags: string[]) =>
+    req<{ ok: boolean; tags: string[] }>(`/scheduler/${encodeURIComponent(id)}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tags }),
+    }),
   prompts: () => req<PromptTemplate[]>("/prompts"),
   createPrompt: (body: { id: string; name: string; category?: string; description?: string; content: string }) =>
     req<PromptTemplate>("/prompts", { method: "POST", body: JSON.stringify(body) }),

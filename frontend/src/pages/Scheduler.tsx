@@ -176,6 +176,20 @@ export default function Scheduler() {
     }
   };
 
+  // free-form tags, comma-separated in the prompt (F681); empty clears.
+  const tagTask = async (s: ScheduleSpec) => {
+    const next = window.prompt(`Tags for task "${s.name}" (comma-separated, empty clears):`, (s.tags ?? []).join(", "));
+    if (next == null) return;
+    const tags = next.split(",").map((t) => t.trim()).filter(Boolean);
+    try {
+      await api.setScheduleTags(s.id, tags);
+      ok(tags.length ? `tags set: ${tags.join(", ")}` : "tags cleared");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   // Duplicate a task under a new name — UI twin of `llmctl scheduler duplicate` (F647).
   const dupTask = async (s: ScheduleSpec) => {
     const name = window.prompt("Name for the copy:", `${s.name} copy`);
@@ -347,13 +361,13 @@ export default function Scheduler() {
               // Same columns as `llmctl scheduler list --csv` (F391).
               const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
               const rows = [
-                "id,name,kind,cron,model,enabled,next_run,last_run_time,last_run_status",
+                "id,name,kind,cron,model,enabled,next_run,last_run_time,last_run_status,tags",
                 ...schedules.map((s) =>
                   [
                     s.id, s.name, s.kind || "chat", s.cron_expr, s.model,
                     String(!!s.enabled), s.next_run || "",
                     s.lastRun?.time || (s.last_run?.startsWith("0001") ? "" : s.last_run) || "",
-                    s.lastRun?.status || "",
+                    s.lastRun?.status || "", (s.tags ?? []).join(";"),
                   ]
                     .map(esc)
                     .join(",")
@@ -420,7 +434,12 @@ export default function Scheduler() {
             <tbody>
               {schedules.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.name}</td>
+                  <td>
+                    {s.name}
+                    {s.tags?.length ? (
+                      <span className="muted small" title={s.tags.join(", ")}> · {s.tags.join(", ")}</span>
+                    ) : null}
+                  </td>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>
                     {s.cron_expr}
                   </td>
@@ -488,6 +507,14 @@ export default function Scheduler() {
                       onClick={() => dupTask(s)}
                     >
                       Duplicate
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      title="edit tags (CLI: llmctl scheduler tag)"
+                      onClick={() => tagTask(s)}
+                    >
+                      Tag
                     </button>
                     <button
                       className="btn sm danger"

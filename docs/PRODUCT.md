@@ -511,6 +511,10 @@ toggle for a light theme (choice remembered). Tabs:
   (F365, multi-kb F666). Scheduled chats reach the gateway with a memory-only internal
   token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
+  Tasks carry free-form tags — `llmctl scheduler tag <id> a,b` (empty clears),
+  bulk `scheduler retag <old> <new>` / `retag -rm <tag>`, a `scheduler list
+  -tag T` filter and TAGS column (table and `--csv`), and a per-row Tag button
+  on the Scheduler page; tags survive task updates (F681).
   `llmctl scheduler add` prints a one-line confirmation with the new task id
   (`-json` for the raw record, F563). `llmctl scheduler duplicate <id>
   [-name N]` copies an existing task (cron, kind, model, prompt, kb, webhook,

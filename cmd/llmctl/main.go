@@ -267,10 +267,11 @@ Usage:
   llmctl autostart export [-out FILE] | autostart import <file.json> [-json]
   llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|duplicate <name> <new-name> [-json]|start <name> [-json]|delete <name> [-json]|export|import [-json]
   llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json] [--wait]
-  llmctl scheduler list [-json|-csv|-out FILE]
+  llmctl scheduler list [-json|-csv|-out FILE] [-tag T]
   llmctl scheduler show <id> [-json] [-out FILE]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
   llmctl scheduler duplicate <id> [-name N] [-json] | run|enable|disable <id> | delete <id> [-json]
+  llmctl scheduler tag <id> [a,b] [-json] | scheduler retag <old> <new> | retag -rm <tag> [-json]
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [-json] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
@@ -2466,7 +2467,7 @@ var llmSubCommands = map[string]string{
 	"models":    "list stats show add rename note tag retag probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save duplicate start delete export import",
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
-	"scheduler": "list show add duplicate update run runs enable disable delete export import",
+	"scheduler": "list show add duplicate update run runs enable disable tag retag delete export import",
 	"settings":  "set test-webhook",
 	"skills":    "list show add update export retag enable disable delete",
 	"tools":     "list show install enable disable sandbox run delete",
@@ -4679,6 +4680,7 @@ func cmdScheduler(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the raw scheduler JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the schedule table as CSV (F376)")
 		outFile := fs.String("out", "", "write the raw scheduler JSON to this file instead of stdout (F495)")
+		tagF := fs.String("tag", "", "only tasks carrying this tag (F681)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler")
 		if err != nil {
@@ -4686,6 +4688,26 @@ func cmdScheduler(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("scheduler list returned %d: %s", code, out)
+		}
+		if *tagF != "" { // F681: exact tag filter on the raw JSON so -json keeps every field
+			var raw []map[string]any
+			if err := json.Unmarshal(out, &raw); err != nil {
+				return err
+			}
+			keep := raw[:0]
+			for _, r := range raw {
+				spec, _ := r["spec"].(map[string]any)
+				ts, _ := spec["tags"].([]any)
+				for _, t := range ts {
+					if s, _ := t.(string); s == *tagF {
+						keep = append(keep, r)
+						break
+					}
+				}
+			}
+			if out, err = json.Marshal(keep); err != nil {
+				return err
+			}
 		}
 		if *outFile != "" { // F495: raw JSON to a file, stdout stays clean
 			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
@@ -4701,12 +4723,13 @@ func cmdScheduler(args []string) error {
 		var recs []struct {
 			ID   string `json:"id"`
 			Spec struct {
-				Name     string `json:"name"`
-				Kind     string `json:"kind"`
-				CronExpr string `json:"cron_expr"`
-				Model    string `json:"model"`
-				Enabled  bool   `json:"enabled"`
-				NextRun  string `json:"next_run"`
+				Name     string   `json:"name"`
+				Kind     string   `json:"kind"`
+				CronExpr string   `json:"cron_expr"`
+				Model    string   `json:"model"`
+				Enabled  bool     `json:"enabled"`
+				Tags     []string `json:"tags"` // free-form labels (F681)
+				NextRun  string   `json:"next_run"`
 			} `json:"spec"`
 			LastRun *struct {
 				Time   string `json:"time"`
@@ -4719,7 +4742,7 @@ func cmdScheduler(args []string) error {
 		if len(recs) == 0 {
 			if *csvOut { // keep the stream parseable (F376)
 				w := csv.NewWriter(os.Stdout)
-				_ = w.Write([]string{"id", "name", "kind", "cron", "model", "enabled", "next_run", "last_run_time", "last_run_status"})
+				_ = w.Write([]string{"id", "name", "kind", "cron", "model", "enabled", "next_run", "last_run_time", "last_run_status", "tags"})
 				w.Flush()
 				return w.Error()
 			}
@@ -4728,7 +4751,7 @@ func cmdScheduler(args []string) error {
 		}
 		if *csvOut { // F376
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "name", "kind", "cron", "model", "enabled", "next_run", "last_run_time", "last_run_status"})
+			_ = w.Write([]string{"id", "name", "kind", "cron", "model", "enabled", "next_run", "last_run_time", "last_run_status", "tags"})
 			for _, r := range recs {
 				kind := r.Spec.Kind
 				if kind == "" {
@@ -4739,12 +4762,12 @@ func cmdScheduler(args []string) error {
 					lt, ls = r.LastRun.Time, r.LastRun.Status
 				}
 				_ = w.Write([]string{r.ID, r.Spec.Name, kind, r.Spec.CronExpr, r.Spec.Model,
-					strconv.FormatBool(r.Spec.Enabled), r.Spec.NextRun, lt, ls})
+					strconv.FormatBool(r.Spec.Enabled), r.Spec.NextRun, lt, ls, strings.Join(r.Spec.Tags, ";")})
 			}
 			w.Flush()
 			return w.Error()
 		}
-		fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %s\n", "ID", "ON", "KIND", "CRON", "MODEL", "LAST", "NEXT", "NAME")
+		fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %-16s %s\n", "ID", "ON", "KIND", "CRON", "MODEL", "LAST", "NEXT", "TAGS", "NAME")
 		for _, r := range recs {
 			kind := r.Spec.Kind
 			if kind == "" {
@@ -4765,7 +4788,7 @@ func cmdScheduler(args []string) error {
 			if t, err := time.Parse(time.RFC3339, r.Spec.NextRun); err == nil {
 				next = untilStr(t)
 			}
-			fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, last, next, r.Spec.Name)
+			fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %-16s %s\n", r.ID, on, kind, r.Spec.CronExpr, r.Spec.Model, last, next, strings.Join(r.Spec.Tags, ","), r.Spec.Name)
 		}
 		return nil
 	case "add":
@@ -5252,6 +5275,103 @@ func cmdScheduler(args []string) error {
 			return err
 		}
 		return printOut(code, out, 200)
+	case "tag":
+		// Replace a task's tags (comma-separated); empty clears (F681).
+		tgfs := flag.NewFlagSet("scheduler tag", flag.ExitOnError)
+		tgjson := tgfs.Bool("json", false, "print the raw response JSON")
+		tgfs.Parse(reorderFlags(rest))
+		if tgfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl scheduler tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tgfs.NArg() > 1 {
+			for _, t := range strings.Split(tgfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/scheduler/"+url.PathEscape(tgfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler tag returned %d: %s", code, out)
+		}
+		if *tgjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("task %s tags cleared\n", tgfs.Arg(0))
+		} else {
+			fmt.Printf("task %s tags: %s\n", tgfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
+	case "retag":
+		// Bulk-rename or drop a tag across all tasks (F681), twin of `models retag`.
+		rtfs := flag.NewFlagSet("scheduler retag", flag.ExitOnError)
+		rtrm := rtfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rtjson := rtfs.Bool("json", false, "print the count as JSON")
+		rtfs.Parse(reorderFlags(rest))
+		if rtfs.NArg() < 1 || (!*rtrm && rtfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl scheduler retag <old-tag> <new-tag> | scheduler retag -rm <tag> [-json]")
+		}
+		oldTag, newTag := rtfs.Arg(0), rtfs.Arg(1)
+		code, out, err := cc.Get("/api/v1/scheduler")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("scheduler returned %d: %s", code, out)
+		}
+		var ts []struct {
+			ID   string `json:"id"`
+			Spec struct {
+				Tags []string `json:"tags"`
+			} `json:"spec"`
+		}
+		if err := json.Unmarshal(out, &ts); err != nil {
+			return err
+		}
+		changed := 0
+		for _, t := range ts {
+			found := false
+			var tags []string
+			for _, tag := range t.Spec.Tags {
+				if tag != oldTag {
+					tags = append(tags, tag)
+					continue
+				}
+				found = true
+				if !*rtrm {
+					tags = append(tags, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			code, out, err := cc.Do("PATCH", "/api/v1/scheduler/"+url.PathEscape(t.ID)+"/tags",
+				map[string]any{"tags": tags})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("scheduler retag on %s: %s", t.ID, out)
+			}
+			changed++
+		}
+		if *rtjson {
+			fmt.Printf("{\"changed\": %d}\n", changed)
+			return nil
+		}
+		if *rtrm {
+			fmt.Printf("removed tag %q from %d task(s)\n", oldTag, changed)
+		} else {
+			fmt.Printf("renamed tag %q -> %q on %d task(s)\n", oldTag, newTag, changed)
+		}
+		return nil
 	case "delete":
 		sdfs := flag.NewFlagSet("scheduler delete", flag.ExitOnError)
 		sdjson := sdfs.Bool("json", false, "print the raw response JSON (F571)")
