@@ -200,6 +200,7 @@ Usage:
   llmctl gpu [-json] [--csv] [-out FILE]
   llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
   llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]
+  llmctl jobs show <job-id> [-json]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
@@ -1254,6 +1255,9 @@ func cmdJobs(args []string) error {
 	if len(args) > 0 && args[0] == "wait" { // F575: block until a job finishes
 		return cmdJobsWait(args[1:])
 	}
+	if len(args) > 0 && args[0] == "show" { // F578: one job in detail
+		return cmdJobsShow(args[1:])
+	}
 	fs := flag.NewFlagSet("jobs", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the job list as CSV (F427)")
@@ -1408,6 +1412,60 @@ func cmdJobsWait(args []string) error {
 		}
 		time.Sleep(time.Duration(*interval) * time.Second)
 	}
+}
+
+// cmdJobsShow prints one tracked job in detail (F578), the human twin of the
+// F575 single-job endpoint.
+func cmdJobsShow(args []string) error {
+	fs := flag.NewFlagSet("jobs show", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw job JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: llmctl jobs show <job-id> [-json]")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/jobs/" + url.PathEscape(fs.Arg(0)))
+	if err != nil {
+		return err
+	}
+	if code == 404 {
+		return fmt.Errorf("no such job: %s (jobs live in daemon memory — see 'llmctl jobs')", fs.Arg(0))
+	}
+	if code != 200 {
+		return fmt.Errorf("jobs show returned %d: %s", code, out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var j struct {
+		ID       string    `json:"id"`
+		Kind     string    `json:"kind"`
+		Target   string    `json:"target"`
+		Status   string    `json:"status"`
+		Progress float64   `json:"progress"`
+		Message  string    `json:"message"`
+		Error    string    `json:"error"`
+		Created  time.Time `json:"created"`
+		Updated  time.Time `json:"updated"`
+	}
+	if err := json.Unmarshal(out, &j); err != nil {
+		return err
+	}
+	fmt.Printf("id:       %s\nkind:     %s\ntarget:   %s\nstatus:   %s\nprogress: %.0f%%\n",
+		j.ID, j.Kind, j.Target, j.Status, j.Progress*100)
+	if j.Message != "" {
+		fmt.Printf("message:  %s\n", j.Message)
+	}
+	if j.Error != "" {
+		fmt.Printf("error:    %s\n", j.Error)
+	}
+	fmt.Printf("created:  %s\nupdated:  %s\n",
+		j.Created.Local().Format(time.RFC3339), j.Updated.Local().Format(time.RFC3339))
+	return nil
 }
 
 // waitJob blocks on cmdJobsWait with default timing; used by the install
