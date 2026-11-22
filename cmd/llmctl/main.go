@@ -178,7 +178,7 @@ func usage() {
 Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
-  llmctl status [-json] [-watch N]
+  llmctl status [-json] [-watch N] [-out FILE]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE]
   llmctl jobs [-json] [--csv] [-watch N]
@@ -330,6 +330,7 @@ func cmdDown(args []string) error {
 func cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw status JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw status JSON to this file instead of stdout (F466)")
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -340,6 +341,15 @@ func cmdStatus(args []string) error {
 		code, out, err := cc.Get("/api/v1/status")
 		if err != nil {
 			return err
+		}
+		if *outFile != "" { // F466: latest snapshot to a file (each -watch refresh overwrites)
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			if *watch <= 0 {
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			}
+			return nil
 		}
 		if *jsonOut {
 			fmt.Println(string(out))

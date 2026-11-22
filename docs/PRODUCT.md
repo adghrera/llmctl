@@ -558,7 +558,7 @@ survives the periodic UI re-render.
 ```
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
 llmctl down
-llmctl status [-json] [-watch N]   (-watch N: live refresh; -json: raw; version, uptime, running instances with
+llmctl status [-json] [-watch N] [-out FILE]   (-watch N: live refresh; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F466; version, uptime, running instances with
                                     uptime, gateway auth, today's usage)
 llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-out FILE]  (--csv exports name,status,detail (F429); -quiet prints only warn/error lines + a summary; -check keeps matching checks, repeatable; -out writes the JSON to a file, F464)
 llmctl gpu [-json] [--csv] [-out FILE]             (GPU inventory: vendor, name, used/total; --csv adds raw bytes + used_pct, -out writes the raw JSON, F430, F463)
