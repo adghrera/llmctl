@@ -1616,37 +1616,91 @@ var llmTopCommands = []string{
 	"backup", "restore", "version", "help", "completion",
 }
 
+// llmSubCommands lists the subcommands of each top-level command that has
+// them, used by shell completion (F350). Keys must match llmTopCommands.
+var llmSubCommands = map[string]string{
+	"autostart": "list add remove export import",
+	"backends":  "list install uninstall add remove",
+	"backups":   "list create restore verify download delete",
+	"catalog":   "list install",
+	"chats":     "list show search export export-all fork rename pin unpin prune delete delete-all",
+	"files":     "list upload cat delete",
+	"kb":        "list show create update docs doc add-doc export search embed delete",
+	"key":       "generate show note enable disable rotate list revoke prune reset-usage",
+	"mcp":       "list add remove enable disable test export import",
+	"memory":    "list show add update search delete export import",
+	"models":    "list show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
+	"presets":   "list save start delete export import",
+	"prompts":   "list show render categories add update delete export import",
+	"scheduler": "list show add update run runs enable disable delete export import",
+	"settings":  "set test-webhook",
+	"skills":    "list show add export import enable disable delete",
+	"tools":     "list show install enable disable run delete",
+}
+
 // cmdCompletion prints a shell completion script (bash or zsh) for the
-// top-level llmctl commands (F341).
+// top-level llmctl commands and their subcommands (F341, F350).
 func cmdCompletion(args []string) error {
 	shell := "bash"
 	if len(args) > 0 {
 		shell = args[0]
 	}
 	cmds := strings.Join(llmTopCommands, " ")
+	// Sorted keys so the generated script is stable.
+	names := make([]string, 0, len(llmSubCommands))
+	for k := range llmSubCommands {
+		names = append(names, k)
+	}
+	sort.Strings(names)
 	switch shell {
 	case "bash":
+		var sb strings.Builder
+		for _, n := range names {
+			fmt.Fprintf(&sb, "    %s) subs=\"%s\" ;;\n", n, llmSubCommands[n])
+		}
 		fmt.Printf(`_llmctl_completions() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
-  local cmds="%s"
-  COMPREPLY=( $(compgen -W "$cmds" -- "$cur") )
+  if [ "$COMP_CWORD" -eq 1 ]; then
+    COMPREPLY=( $(compgen -W "%s" -- "$cur") )
+    return
+  fi
+  local subs=""
+  case "${COMP_WORDS[1]}" in
+%s  esac
+  COMPREPLY=( $(compgen -W "$subs" -- "$cur") )
 }
 complete -F _llmctl_completions llmctl
-`, cmds)
+`, cmds, sb.String())
 	case "zsh":
 		quoted := ""
 		for _, c := range llmTopCommands {
 			quoted += "  '" + c + "'\n"
+		}
+		var sb strings.Builder
+		for _, n := range names {
+			subs := strings.Fields(llmSubCommands[n])
+			var q []string
+			for _, s := range subs {
+				q = append(q, "'"+s+"'")
+			}
+			fmt.Fprintf(&sb, "      %s) subs=(%s) ;;\n", n, strings.Join(q, " "))
 		}
 		fmt.Printf(`#compdef llmctl
 _llmctl() {
   local -a cmds
   cmds=(
 %s  )
-  _describe 'command' cmds
+  if (( CURRENT == 2 )); then
+    _describe 'command' cmds
+    return
+  fi
+  local -a subs
+  case "${words[2]}" in
+%s  esac
+  (( ${#subs} > 0 )) && _describe 'subcommand' subs
 }
 compdef _llmctl llmctl
-`, quoted)
+`, quoted, sb.String())
 	default:
 		return fmt.Errorf("usage: llmctl completion [bash|zsh]")
 	}
