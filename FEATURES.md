@@ -137,6 +137,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F125 | P3 | 125 | instances | Uptime column | COMPLETED | The Instances page shows each running instance's uptime (from `startedAt`, e.g. `2h 13m`) between Status and Last used. Verified live: running instance reports its start time and the formatter buckets (s/m/h/d). |
 | F126 | P2 | 126 | usage | Per-key daily usage | COMPLETED | New rollup `UTC date → key id → {requests, errors, prompt, comp, cost}` tracked by the gateway, persisted with the usage flush loop, exposed as `GET /api/v1/usage/keys[?days=N][&key=ID]`. Verified live: keyed request appears, `?key=` filters, survives restart. |
 | F127 | P3 | 127 | usage | Keys page "Today" column | COMPLETED | The Keys page shows each key's current-UTC-day usage (tokens · requests · cost) from `/api/v1/usage/keys`, refreshed every 15 s. Verified live: endpoint returns today's per-key counters feeding the column. |
+| F128 | P3 | 128 | cli | `llmctl usage -key ID` | COMPLETED | `usage -key <id>` prints the per-key daily rollup (F126) instead of the per-model one. Verified live: known key shows its day row with cost, unknown key reports none, default output unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

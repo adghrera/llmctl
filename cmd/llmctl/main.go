@@ -126,7 +126,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--id ID] [-n 20]
   llmctl backups [list|create|delete <name>]
-  llmctl usage [-n 14]
+  llmctl usage [-n 14] [-key ID]
   llmctl metrics
   llmctl events [-n 20]
   llmctl chat [--model ID] [--key KEY]
@@ -905,10 +905,49 @@ func cmdMetrics(args []string) error {
 func cmdUsage(args []string) error {
 	fs := flag.NewFlagSet("usage", flag.ExitOnError)
 	n := fs.Int("n", 14, "number of days")
+	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
+	}
+	if *key != "" {
+		code, out, err := cc.Get("/api/v1/usage/keys?days=" + strconv.Itoa(*n) + "&key=" + url.QueryEscape(*key))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("usage returned %d: %s", code, out)
+		}
+		var kd map[string]map[string]struct {
+			Requests int64   `json:"requests"`
+			Errors   int64   `json:"errors"`
+			Prompt   int64   `json:"prompt"`
+			Comp     int64   `json:"comp"`
+			Cost     float64 `json:"cost"`
+		}
+		if err := json.Unmarshal(out, &kd); err != nil {
+			return err
+		}
+		if len(kd) == 0 {
+			fmt.Printf("no usage recorded for key %s\n", *key)
+			return nil
+		}
+		days := make([]string, 0, len(kd))
+		for d := range kd {
+			days = append(days, d)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(days)))
+		for _, day := range days {
+			for id, u := range kd[day] {
+				fmt.Printf("%s  key %s  %6d reqs %4d err %10d in %10d out", day, id, u.Requests, u.Errors, u.Prompt, u.Comp)
+				if u.Cost > 0 {
+					fmt.Printf("  $%.4f", u.Cost)
+				}
+				fmt.Println()
+			}
+		}
+		return nil
 	}
 	code, out, err := cc.Get("/api/v1/usage/daily?days=" + strconv.Itoa(*n))
 	if err != nil {
