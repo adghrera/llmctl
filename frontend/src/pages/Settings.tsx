@@ -7,6 +7,7 @@ export default function SettingsPage() {
   const [idleMin, setIdleMin] = useState(0);
   const [startupSec, setStartupSec] = useState(0);
   const [webhook, setWebhook] = useState("");
+  const [whSecret, setWhSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
@@ -23,6 +24,7 @@ export default function SettingsPage() {
       setIdleMin(s.idleUnloadMin || 0);
       setStartupSec(s.startupTimeoutSec || 0);
       setWebhook(s.notifyWebhook || "");
+      setWhSecret(s.notifyWebhookSecret || "");
     }).catch(() => {});
   }, []);
 
@@ -76,6 +78,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ notifyWebhook: webhook.trim() });
       setSettings(r);
       ok(r.notifyWebhook ? "notify webhook saved" : "notify webhook cleared");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveWhSecret = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ notifyWebhookSecret: whSecret.trim() });
+      setSettings(r);
+      ok(r.notifyWebhookSecret ? "webhook signing secret saved" : "webhook signing disabled");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -212,6 +228,23 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               Receives a JSON POST when an instance crashes or is idle-unloaded.
               Empty disables notifications.
+            </p>
+            <div className="row" style={{ marginTop: 8, alignItems: "center" }}>
+              <span className="muted small" style={{ width: 90 }}>secret</span>
+              <input
+                type="password"
+                style={{ width: 320 }}
+                placeholder="HMAC signing key (optional)"
+                value={whSecret}
+                onChange={(e) => setWhSecret(e.target.value)}
+              />
+              <button className="btn" disabled={busy} onClick={saveWhSecret}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: "6px 0 0" }}>
+              When set, every webhook POST carries X-LLMCtrl-Signature:
+              sha256=HMAC(secret, body) so receivers can verify it.
             </p>
           </div>
           <div>

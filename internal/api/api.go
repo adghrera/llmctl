@@ -25,24 +25,24 @@ import (
 	"llmctl/internal/agent"
 	"llmctl/internal/backend"
 	"llmctl/internal/chatstore"
-	"llmctl/internal/gguf"
-	"llmctl/internal/skills"
-	"llmctl/internal/toolstore"
-	"llmctl/internal/memory"
 	"llmctl/internal/cost"
+	"llmctl/internal/downloader"
 	"llmctl/internal/events"
 	"llmctl/internal/files"
-	"llmctl/internal/rag"
-	"llmctl/internal/scheduler"
+	"llmctl/internal/gguf"
 	"llmctl/internal/jobs"
+	"llmctl/internal/mcp"
+	"llmctl/internal/memory"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
+	"llmctl/internal/rag"
+	"llmctl/internal/scheduler"
+	"llmctl/internal/skills"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
+	"llmctl/internal/toolstore"
 	"llmctl/internal/webhook"
 	"llmctl/internal/websearch"
-	"llmctl/internal/downloader"
-	"llmctl/internal/mcp"
 )
 
 // Server is the management API.
@@ -52,24 +52,24 @@ type Server struct {
 	sv         *supervisor.Supervisor
 	jobs       *jobs.Manager
 	logger     *slog.Logger
-	gwPort     int                 // gateway port, for building client URLs
-	gw         *proxy.Server       // gateway handle, for runtime setting changes
-	searcher   *websearch.Searcher // keyless web search (F021)
-	agentTool  agent.Tool          // web_search tool override (tests); nil = WebSearchTool{searcher}
-	chats      *chatstore.Store    // persisted chat conversations (F025)
-	tools      *toolstore.Store    // installed agent tools (F033)
-	skills     *skills.Store       // user-defined skill templates (F036)
-	memory     *memory.Store       // persistent agent memory entries (F040)
-	files      *files.Store        // user-uploaded files (F044)
-	cost       *cost.Tracker       // token usage and cost tracking (F045)
-	sched      *scheduler.Store    // scheduled agent tasks (F046)
+	gwPort     int                    // gateway port, for building client URLs
+	gw         *proxy.Server          // gateway handle, for runtime setting changes
+	searcher   *websearch.Searcher    // keyless web search (F021)
+	agentTool  agent.Tool             // web_search tool override (tests); nil = WebSearchTool{searcher}
+	chats      *chatstore.Store       // persisted chat conversations (F025)
+	tools      *toolstore.Store       // installed agent tools (F033)
+	skills     *skills.Store          // user-defined skill templates (F036)
+	memory     *memory.Store          // persistent agent memory entries (F040)
+	files      *files.Store           // user-uploaded files (F044)
+	cost       *cost.Tracker          // token usage and cost tracking (F045)
+	sched      *scheduler.Store       // scheduled agent tasks (F046)
 	schedRun   func(scheduler.Record) // daemon-provided "run this task now" hook (F084)
 	events     *events.Ring           // recent daemon events feed (F099)
-	rag        *rag.Store          // knowledge bases for RAG (F047)
-	mcpSt      *mcp.Store          // MCP server configs (F054)
-	mcpReg     *mcp.Registry       // live MCP connections (F054)
-	approvals  *pendingApprovals   // tool calls awaiting user approval (F055)
-	shutdownFn func()              // triggers graceful daemon exit
+	rag        *rag.Store             // knowledge bases for RAG (F047)
+	mcpSt      *mcp.Store             // MCP server configs (F054)
+	mcpReg     *mcp.Registry          // live MCP connections (F054)
+	approvals  *pendingApprovals      // tool calls awaiting user approval (F055)
+	shutdownFn func()                 // triggers graceful daemon exit
 }
 
 func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
@@ -1286,9 +1286,9 @@ func (s *Server) jobEvents(w http.ResponseWriter, r *http.Request) {
 // ---- keys ----
 
 type keyView struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Prefix        string   `json:"prefix"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Prefix        string    `json:"prefix"`
 	CreatedAt     time.Time `json:"createdAt"`
 	TokenQuota    int64     `json:"tokenQuota,omitempty"`
 	UsedTok       int64     `json:"usedTokens"`              // tokens spent since daemon start (F074)
@@ -1437,12 +1437,13 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 // ---- settings ----
 
 type settingsView struct {
-	RequireAuth       bool   `json:"requireAuth"`
-	IdleUnloadMin     int    `json:"idleUnloadMin"`
-	NotifyWebhook     string `json:"notifyWebhook"`
-	AllowCORS         bool   `json:"allowCORS"`
-	StartupTimeoutSec int    `json:"startupTimeoutSec"`
-	StartOnDemand     bool   `json:"startOnDemand"`
+	RequireAuth         bool   `json:"requireAuth"`
+	IdleUnloadMin       int    `json:"idleUnloadMin"`
+	NotifyWebhook       string `json:"notifyWebhook"`
+	NotifyWebhookSecret string `json:"notifyWebhookSecret"`
+	AllowCORS           bool   `json:"allowCORS"`
+	StartupTimeoutSec   int    `json:"startupTimeoutSec"`
+	StartOnDemand       bool   `json:"startOnDemand"`
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1460,7 +1461,7 @@ func (s *Server) testNotifyWebhook(w http.ResponseWriter, r *http.Request) {
 		"message": "llmctl test notification",
 		"time":    time.Now().UTC().Format(time.RFC3339),
 	}
-	if err := webhook.Post(r.Context(), url, payload); err != nil {
+	if err := webhook.PostWithSecret(r.Context(), url, payload, st.Settings.NotifyWebhookSecret); err != nil {
 		writeJSON(w, 200, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
@@ -1470,22 +1471,24 @@ func (s *Server) testNotifyWebhook(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
-		RequireAuth:       st.Settings.RequireAuth,
-		IdleUnloadMin:     st.Settings.IdleUnloadMin,
-		NotifyWebhook:     st.Settings.NotifyWebhook,
-		AllowCORS:         st.Settings.AllowCORS,
-		StartupTimeoutSec: st.Settings.StartupTimeoutSec,
-		StartOnDemand:     st.Settings.StartOnDemand,
+		RequireAuth:         st.Settings.RequireAuth,
+		IdleUnloadMin:       st.Settings.IdleUnloadMin,
+		NotifyWebhook:       st.Settings.NotifyWebhook,
+		NotifyWebhookSecret: st.Settings.NotifyWebhookSecret,
+		AllowCORS:           st.Settings.AllowCORS,
+		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
+		StartOnDemand:       st.Settings.StartOnDemand,
 	})
 }
 
 type updateSettingsReq struct {
-	RequireAuth       *bool   `json:"requireAuth"`
-	IdleUnloadMin     *int    `json:"idleUnloadMin"`
-	NotifyWebhook     *string `json:"notifyWebhook"`
-	AllowCORS         *bool   `json:"allowCORS"`
-	StartupTimeoutSec *int    `json:"startupTimeoutSec"`
-	StartOnDemand     *bool   `json:"startOnDemand"`
+	RequireAuth         *bool   `json:"requireAuth"`
+	IdleUnloadMin       *int    `json:"idleUnloadMin"`
+	NotifyWebhook       *string `json:"notifyWebhook"`
+	NotifyWebhookSecret *string `json:"notifyWebhookSecret"`
+	AllowCORS           *bool   `json:"allowCORS"`
+	StartupTimeoutSec   *int    `json:"startupTimeoutSec"`
+	StartOnDemand       *bool   `json:"startOnDemand"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1508,6 +1511,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.IdleUnloadMin != nil {
 			st.Settings.IdleUnloadMin = *req.IdleUnloadMin
+		}
+		if req.NotifyWebhookSecret != nil {
+			st.Settings.NotifyWebhookSecret = strings.TrimSpace(*req.NotifyWebhookSecret)
 		}
 		if req.NotifyWebhook != nil {
 			st.Settings.NotifyWebhook = strings.TrimSpace(*req.NotifyWebhook)
@@ -1533,12 +1539,13 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	// Return updated settings.
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
-		RequireAuth:       st.Settings.RequireAuth,
-		IdleUnloadMin:     st.Settings.IdleUnloadMin,
-		NotifyWebhook:     st.Settings.NotifyWebhook,
-		AllowCORS:         st.Settings.AllowCORS,
-		StartupTimeoutSec: st.Settings.StartupTimeoutSec,
-		StartOnDemand:     st.Settings.StartOnDemand,
+		RequireAuth:         st.Settings.RequireAuth,
+		IdleUnloadMin:       st.Settings.IdleUnloadMin,
+		NotifyWebhook:       st.Settings.NotifyWebhook,
+		NotifyWebhookSecret: st.Settings.NotifyWebhookSecret,
+		AllowCORS:           st.Settings.AllowCORS,
+		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
+		StartOnDemand:       st.Settings.StartOnDemand,
 	})
 }
 

@@ -193,10 +193,10 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return err
 	}
-	go schedulerLoop(ctx, sch, sv, gw, logger)
+	go schedulerLoop(ctx, sch, sv, gw, st, logger)
 	// Let the API trigger immediate task runs (F084).
 	mgmt.SetScheduleRunner(func(rec scheduler.Record) {
-		runScheduledTask(ctx, sch, sv, rec, gw, logger)
+		runScheduledTask(ctx, sch, sv, rec, gw, st, logger)
 	})
 
 	// Instance-event webhook (settings.notifyWebhook) + events feed (F073, F099).
@@ -393,7 +393,7 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 		"model":    inst.ModelID,
 		"time":     time.Now().UTC().Format(time.RFC3339),
 	}
-	if err := webhook.Post(ctx, s.Settings.NotifyWebhook, payload); err != nil {
+	if err := webhook.PostWithSecret(ctx, s.Settings.NotifyWebhook, payload, s.Settings.NotifyWebhookSecret); err != nil {
 		logger.Error("notify webhook failed", "event", event, "instance", inst.ID, "error", err)
 	}
 }
@@ -502,7 +502,7 @@ func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervi
 }
 
 // schedulerLoop runs scheduled tasks at their configured times.
-func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, gw *proxy.Server, logger *slog.Logger) {
+func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, gw *proxy.Server, st *store.Store, logger *slog.Logger) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
@@ -517,7 +517,7 @@ func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Sup
 				continue
 			}
 			for _, rec := range due {
-				go runScheduledTask(ctx, sch, sv, rec, gw, logger)
+				go runScheduledTask(ctx, sch, sv, rec, gw, st, logger)
 			}
 		}
 	}
@@ -527,7 +527,7 @@ func schedulerLoop(ctx context.Context, sch *scheduler.Store, sv *supervisor.Sup
 // completion request and save the result as a conversation; instance tasks
 // start or stop an instance (F076). If the task has a webhook_url, the
 // outcome (ok/error) is POSTed there afterwards.
-func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, gw *proxy.Server, logger *slog.Logger) {
+func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.Supervisor, rec scheduler.Record, gw *proxy.Server, st *store.Store, logger *slog.Logger) {
 	content, err := doScheduledTask(ctx, sch, sv, rec, logger)
 	status := "ok"
 	errMsg := ""
@@ -539,6 +539,10 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.
 		logger.Info("scheduler: task executed", "task", rec.ID, "name", rec.Spec.Name)
 	}
 	if rec.Spec.WebhookURL != "" {
+		secret := ""
+		if cur, err := st.Load(); err == nil && cur.Settings != nil {
+			secret = cur.Settings.NotifyWebhookSecret
+		}
 		payload := map[string]any{
 			"event":       "llmctl.scheduler.task",
 			"task_id":     rec.ID,
@@ -552,7 +556,7 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.
 		} else {
 			payload["error"] = errMsg
 		}
-		if werr := webhook.Post(ctx, rec.Spec.WebhookURL, payload); werr != nil {
+		if werr := webhook.PostWithSecret(ctx, rec.Spec.WebhookURL, payload, secret); werr != nil {
 			logger.Error("scheduler: webhook failed", "task", rec.ID, "error", werr)
 		}
 	}

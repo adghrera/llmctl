@@ -262,7 +262,10 @@ toggle for a light theme (choice remembered). Tabs:
   Raise for very large models on slow storage.
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
-  silent). A "Test" button sends a test event to verify the endpoint.
+  silent). A "Test" button sends a test event to verify the endpoint. An
+  optional signing secret makes every webhook POST (events, test, scheduler
+  task results) carry `X-LLMCtrl-Signature: sha256=HMAC(secret, body)` so
+  receivers can verify the sender (F111).
 - **CORS** — Settings → "CORS (gateway)": when ON, the gateway answers
   cross-origin preflights (OPTIONS → 204) and sends Access-Control-Allow-*
   headers so browser apps can call /v1/* directly.

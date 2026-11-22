@@ -112,6 +112,9 @@ type Settings struct {
 	// NotifyWebhook receives JSON POSTs for instance events (crashed,
 	// idle-unloaded). Empty = disabled (F073).
 	NotifyWebhook string `json:"notifyWebhook,omitempty"`
+	// NotifyWebhookSecret, when set, makes every webhook POST carry an
+	// HMAC-SHA256 signature header X-LLMCtrl-Signature (F111).
+	NotifyWebhookSecret string `json:"notifyWebhookSecret,omitempty"`
 	// AllowCORS makes the gateway answer OPTIONS preflights and send
 	// Access-Control-Allow-* headers so browser apps can call it directly.
 	AllowCORS bool `json:"allowCORS"`
