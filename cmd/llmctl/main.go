@@ -208,7 +208,7 @@ Usage:
   llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [--csv] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
-  llmctl bench -model ID [-n N] [-conc C]
+  llmctl bench -model ID [-n N] [-conc C] [-json|--csv] [-out FILE]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv] [-out FILE] [-watch N]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
@@ -261,7 +261,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
   llmctl scheduler run|enable|disable <id> | delete <id> [-json]
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
-  llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE] [-stats]
+  llmctl scheduler runs [-n 20] [-json] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]

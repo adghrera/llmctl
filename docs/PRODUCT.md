@@ -464,7 +464,8 @@ toggle for a light theme (choice remembered). Tabs:
   prompt and PUTs the updated spec, F293) and a "Recent Runs" history of the last 50
   executions — status, duration and error/result excerpt
   (GET /api/v1/scheduler/runs, F145) with an Export CSV button matching
-  `scheduler runs --csv` (F418, F419); `scheduler runs -out FILE` writes the
+  `scheduler runs --csv` (F418, F419); `scheduler runs -json` prints the raw
+  run log, `scheduler runs -out FILE` writes the
   run-log JSON to a file (F476); `scheduler runs -watch N` live-tails new runs
   every N seconds (F555); `scheduler runs -stats` rolls the log up per task —
   count, ok/errors, average duration, last run (F601), with a matching Stats
@@ -612,7 +613,7 @@ llmctl embed -model ID [-key K] [-json] [-out FILE] <text>     (gateway embeddin
 llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [--csv] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454; --csv one row per model, F606)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]  (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336; -out writes the counts JSON to a file, F461)
-llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
+llmctl bench -model ID [-key K] [-n N] [-conc C] [-json|--csv] [-out FILE]  (latency/throughput benchmark, F282; single-model also supports the JSON/CSV/-out shapes, F623)
 llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]  (multi-model comparison table; --csv one row per model, -out writes the stats JSON to a file, F426, F303, F315, F460)
 llmctl disk [-json] [--csv] [-out FILE] [-watch N]            (model dir + volume disk usage; --csv one row, raw bytes, -out writes the raw JSON, -watch N reprints every N seconds, F451, F465, F590)
                                     health sweep: state dir, backends, models,
