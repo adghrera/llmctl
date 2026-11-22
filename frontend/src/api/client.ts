@@ -657,6 +657,10 @@ export const api = {
   getChat: (id: string) => req<ChatConversation>(`/chats/${encodeURIComponent(id)}`),
   createChat: (c: { title?: string; model?: string; agentMode?: boolean; system?: string; messages: unknown[] }) =>
     req<ChatConversation>("/chats", { method: "POST", body: JSON.stringify(c) }),
+  // Import an exported chat file verbatim (id/context stripped by caller):
+  // the store mints a fresh id (F369, CLI twin F368).
+  importChat: (c: Record<string, unknown>) =>
+    req<ChatConversation>("/chats", { method: "POST", body: JSON.stringify(c) }),
   saveChat: (id: string, c: { title?: string; model?: string; agentMode?: boolean; system?: string; messages: unknown[] }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(c) }),
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),

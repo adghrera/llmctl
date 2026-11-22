@@ -135,6 +135,26 @@ export default function Chat() {
     setSystemPrompt("");
   };
 
+  // Import an exported chat JSON file as a new conversation (F369).
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const importChat = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!Array.isArray(parsed.messages) || parsed.messages.length === 0) {
+        err("file has no messages — expected a chats export JSON");
+        return;
+      }
+      delete parsed.id; // fresh id server-side
+      delete parsed.context;
+      const saved = await api.importChat(parsed);
+      await loadChats();
+      ok(`imported "${saved.title || saved.id}"`);
+      openChat(saved.id);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const openChat = async (id: string) => {
     if (streaming) return;
     try {
@@ -431,9 +451,30 @@ export default function Chat() {
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Conversations</h2>
-          <button className="btn sm primary" onClick={newChat} disabled={streaming}>
-            + New chat
-          </button>
+          <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              disabled={streaming}
+              title="import a chat exported as JSON (CLI: llmctl chats import)"
+              onClick={() => importFileRef.current?.click()}
+            >
+              Import
+            </button>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importChat(f);
+                e.target.value = "";
+              }}
+            />
+            <button className="btn sm primary" onClick={newChat} disabled={streaming}>
+              + New chat
+            </button>
+          </div>
         </div>
         <div className="row" style={{ marginTop: 8 }}>
           <input
@@ -564,39 +605,8 @@ export default function Chat() {
             </tbody>
           </table>
         )}
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border, #333)" }}>
-          <h3 style={{ margin: "0 0 8px 0", fontSize: 14 }}>Import conversation</h3>
-          <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-            Upload a JSON conversation file to import it.
-          </p>
-          <input
-            type="file"
-            accept=".json"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              try {
-                const text = await file.text();
-                const data = JSON.parse(text);
-                if (!data.messages || !Array.isArray(data.messages)) {
-                  err("invalid conversation file: missing messages array");
-                  return;
-                }
-                const created = await api.createChat({
-                  title: data.title || file.name.replace(".json", ""),
-                  model: data.model,
-                  agentMode: data.agentMode || false,
-                  messages: data.messages,
-                });
-                ok("imported as \"" + created.title + "\"");
-                await loadChats();
-              } catch (err_) {
-                err(err_ instanceof Error ? err_.message : "failed to import");
-              }
-              e.target.value = "";
-            }}
-          />
-        </div>
+        {/* The low-fidelity F042 import section is replaced by the full-fidelity
+            "Import" button in the card header (F369). */}
       </div>
       <div className="card">
         <div className="row">
