@@ -747,6 +747,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F734 | P3 | 734 | ui | Batch + Structured Save key | COMPLETED | The Batch and Structured pages gained a "Save key" button beside the API-key input — same browser-local key persistence (llmctl.chat.key) the Chat/Bench/Compare pages use, so a key entered once is pre-filled everywhere. Verified live: served bundle carries both buttons. |
 | F735 | P3 | 735 | requests | Requests key-name dropdown | COMPLETED | The Requests page gained a key dropdown beside the key-prefix input — lists keys by name and sets the exact key-id filter (server matches id or prefix, F120). Same dropdown family as F707. Verified live: served bundle carries the dropdown. |
 | F736 | P3 | 736 | requests | Requests model + instance dropdowns | COMPLETED | The Requests page gained model and instance dropdowns beside their text inputs — lists known model ids and running instance ids and sets the exact filter (CLI twins `-model`/`-instance`). Same dropdown family as F735. Verified live: served bundle carries both dropdowns. |
+| F737 | P3 | 737 | instances | Instances port cell copy-to-clipboard | COMPLETED | The Instances page's Port cell is now click-to-copy, putting the direct endpoint URL (http://localhost:<port>) on the clipboard — same click-to-copy pattern as the Requests id column (F161). Verified live: served bundle carries the handler. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

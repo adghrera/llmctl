@@ -799,7 +799,18 @@ export default function Instances() {
                   <td className="mono">{i.modelId}</td>
                   <td>{i.backendId}</td>
                   <td>{i.transport}</td>
-                  <td>{i.port || "—"}</td>
+                  <td
+                    style={{ cursor: i.port ? "pointer" : "default" }}
+                    title={i.port ? "click to copy the direct endpoint URL" : undefined}
+                    onClick={() => {
+                      if (i.port && navigator.clipboard) {
+                        const url = `http://localhost:${i.port}`;
+                        void navigator.clipboard.writeText(url).then(() => ok(`copied ${url}`));
+                      }
+                    }}
+                  >
+                    {i.port || "—"}
+                  </td>
                   <td>
                     {i.status === "running" ? (
                       <span className="badge run">running</span>
