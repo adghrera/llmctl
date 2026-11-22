@@ -323,7 +323,9 @@ toggle for a light theme (choice remembered). Tabs:
   (F127), and links each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed
   inline (F140) and carry a free-text note edited inline or via
-  `llmctl key note <id> <text>` (F186). Optional per-key model
+  `llmctl key note <id> <text>` (F186). `llmctl key update <id>` edits any
+  of those later — name, note, models, quota, caps, rate, expiry, budget (F254).
+  Optional per-key model
   allowlist (editable via an inline checkbox editor on the Keys page, F154)
   (403 for other models; aliases resolved before checking; restricted keys
    also only see allowed models in `/v1/models`, F177) and concurrency
@@ -426,7 +428,7 @@ llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
-llmctl key generate|show|note|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
+llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
                                         generate/rotate -json prints the raw JSON incl. the secret;
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;
                                         list shows usage, cost,

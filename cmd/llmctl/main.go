@@ -155,6 +155,7 @@ Usage:
   llmctl key generate [name] [-json]
   llmctl key show <id> [-json]
   llmctl key note <id> <text...>
+  llmctl key update <id> [-name X] [-quota N] [-models a,b] …
   llmctl key disable <id> / llmctl key enable <id>
   llmctl key rotate <id> [-json]
   llmctl key list
@@ -3790,6 +3791,65 @@ func cmdKey(args []string) error {
 		if kv.Note != "" {
 			fmt.Printf("note:     %s\n", kv.Note)
 		}
+		return nil
+	case "update":
+		ufs := flag.NewFlagSet("key update", flag.ExitOnError)
+		name := ufs.String("name", "", "rename the key")
+		note := ufs.String("note", "", "free-text annotation")
+		models := ufs.String("models", "", "comma-separated allowed model ids (empty string = all)")
+		quota := ufs.Int64("quota", -1, "token quota (0 = unlimited)")
+		maxReq := ufs.Int64("maxreq", -1, "total request cap (0 = unlimited)")
+		rps := ufs.Float64("rps", -1, "per-key rate limit, req/s (0 = gateway default)")
+		burst := ufs.Int("burst", -1, "rate-limit burst (0 = gateway default)")
+		expires := ufs.Int("expires", -1, "expire after N days (0 = never)")
+		budget := ufs.Float64("budget", -1, "daily USD budget (0 = unlimited)")
+		maxConc := ufs.Int("max-concurrent", -1, "concurrent request cap (0 = unlimited)")
+		ufs.Parse(reorderFlags(rest))
+		if ufs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl key update <id> [-name X] [-note X] [-models a,b] [-quota N] [-maxreq N] [-rps X] [-burst N] [-expires D] [-budget X] [-max-concurrent N]")
+		}
+		body := map[string]any{}
+		ufs.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "name":
+				body["name"] = *name
+			case "note":
+				body["note"] = *note
+			case "models":
+				list := []string{}
+				for _, m := range strings.Split(*models, ",") {
+					if m = strings.TrimSpace(m); m != "" {
+						list = append(list, m)
+					}
+				}
+				body["allowedModels"] = list
+			case "quota":
+				body["tokenQuota"] = *quota
+			case "maxreq":
+				body["maxRequests"] = *maxReq
+			case "rps":
+				body["rateRPS"] = *rps
+			case "burst":
+				body["rateBurst"] = *burst
+			case "expires":
+				body["expiresInDays"] = *expires
+			case "budget":
+				body["dailyCostBudgetUSD"] = *budget
+			case "max-concurrent":
+				body["maxConcurrent"] = *maxConc
+			}
+		})
+		if len(body) == 0 {
+			return fmt.Errorf("nothing to update (pass at least one flag)")
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(ufs.Arg(0)), body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("key update returned %d: %s", code, out)
+		}
+		fmt.Printf("updated key %s\n", ufs.Arg(0))
 		return nil
 	case "note":
 		if len(rest) == 0 {
