@@ -1900,8 +1900,9 @@ type createKeyReq struct {
 	ExpiresInDays int      `json:"expiresInDays"` // key dies after N days, 0 = never (F135)
 	// DailyCostBudgetUSD caps estimated USD per UTC day for this key;
 	// 0 = unlimited (F138).
-	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD"`
-	Note               string  `json:"note"` // free-text annotation (F186)
+	DailyCostBudgetUSD float64  `json:"dailyCostBudgetUSD"`
+	Note               string   `json:"note"` // free-text annotation (F186)
+	Tags               []string `json:"tags"` // free-form labels at creation (F701)
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -2148,6 +2149,7 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt:          expiresAt,              // nil = never (F135)
 			DailyCostBudgetUSD: req.DailyCostBudgetUSD, // 0 = unlimited (F138)
 			Note:               strings.TrimSpace(req.Note),
+			Tags:               cleanTags(req.Tags), // tag at creation (F701)
 		}
 		return nil
 	})

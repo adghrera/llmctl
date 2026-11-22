@@ -16,6 +16,7 @@ export default function Keys() {
   const [burst, setBurst] = useState(0);
   const [expiresDays, setExpiresDays] = useState(0);
   const [budget, setBudget] = useState(0);
+  const [newTags, setNewTags] = useState(""); // tags at creation (F701)
   const [renameFor, setRenameFor] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [noteFor, setNoteFor] = useState<string | null>(null);
@@ -52,7 +53,8 @@ export default function Keys() {
     setBusy(true);
     try {
       const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst, expiresDays, budget);
+      const tags = newTags.split(",").map((s) => s.trim()).filter(Boolean);
+      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst, expiresDays, budget, undefined, tags);
       setCreated(r.key);
       setName("");
       setQuota(0);
@@ -63,6 +65,7 @@ export default function Keys() {
       setBurst(0);
       setExpiresDays(0);
       setBudget(0);
+      setNewTags("");
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -342,6 +345,13 @@ export default function Keys() {
             title="Daily cost budget in USD (0 = unlimited)"
             value={budget || ""}
             onChange={(e) => setBudget(Math.max(0, Number(e.target.value) || 0))}
+          />
+          <input
+            style={{ width: 140 }}
+            placeholder="tags (a,b,c)"
+            title="comma-separated tags (CLI: llmctl key generate -tags, F701)"
+            value={newTags}
+            onChange={(e) => setNewTags(e.target.value)}
           />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create

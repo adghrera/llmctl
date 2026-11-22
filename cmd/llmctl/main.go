@@ -11904,6 +11904,7 @@ func cmdKey(args []string) error {
 		budget := fs.Float64("budget", 0, "daily USD budget (0 = unlimited)")
 		rps := fs.Float64("rps", 0, "per-key rate limit, req/s (0 = gateway default)")
 		note := fs.String("note", "", "free-text annotation")
+		tags := fs.String("tags", "", "comma-separated tags (F701)")
 		jsonOut := fs.Bool("json", false, "print the raw creation JSON, including the secret (for scripts)")
 		outFile := fs.String("out", "", "write the raw creation JSON, including the secret, to this file instead of stdout (F507)")
 		fs.Parse(reorderFlags(rest))
@@ -11938,6 +11939,15 @@ func cmdKey(args []string) error {
 		}
 		if *rps > 0 {
 			body["rateRPS"] = *rps
+		}
+		if *tags != "" { // tag at creation (F701)
+			tagList := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tagList = append(tagList, t)
+				}
+			}
+			body["tags"] = tagList
 		}
 		code, out, err := cc.Post("/api/v1/keys", body)
 		if err != nil {
