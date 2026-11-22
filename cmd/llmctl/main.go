@@ -230,7 +230,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
-  llmctl metrics [-watch N] [-json]
+  llmctl metrics [-watch N] [-model M] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
@@ -3536,6 +3536,7 @@ func cmdBackups(args []string) error {
 func cmdMetrics(args []string) error {
 	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
+	modelF := fs.String("model", "", "show only this model id in the table (F348)")
 	jsonOut := fs.Bool("json", false, "print the raw metrics JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -3554,7 +3555,7 @@ func cmdMetrics(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		return printMetrics(out)
+		return printMetrics(out, *modelF)
 	}
 	if *watch <= 0 {
 		return printOnce()
@@ -3570,14 +3571,14 @@ func cmdMetrics(args []string) error {
 		}
 		fmt.Print("\x1b[2J\x1b[H") // clear screen
 		fmt.Printf("live metrics — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
-		if err := printMetrics(out); err != nil {
+		if err := printMetrics(out, *modelF); err != nil {
 			return err
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
 	}
 }
 
-func printMetrics(out []byte) error {
+func printMetrics(out []byte, modelFilter string) error {
 	var m struct {
 		RequestsTotal int64 `json:"requests_total"`
 		Tokens        struct {
@@ -3616,6 +3617,19 @@ func printMetrics(out []byte) error {
 		names = append(names, k)
 	}
 	sort.Strings(names)
+	if modelFilter != "" {
+		var kept []string
+		for _, n := range names {
+			if strings.EqualFold(n, modelFilter) {
+				kept = append(kept, n)
+			}
+		}
+		if len(kept) == 0 {
+			fmt.Printf("no traffic for model %s yet\n", modelFilter)
+			return nil
+		}
+		names = kept
+	}
 	fmt.Printf("\n%-16s %8s %6s %9s %9s %8s %8s %8s\n", "MODEL", "REQS", "ERRS", "IN", "OUT", "P50 MS", "P95 MS", "TOK/S")
 	for _, n := range names {
 		v := m.Models[n]
