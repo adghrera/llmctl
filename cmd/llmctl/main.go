@@ -197,7 +197,7 @@ Usage:
   llmctl restart <instance>
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
-  llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE]
+  llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N]
   llmctl key generate [name] [-json]
   llmctl key show <id> [-json]
@@ -2303,6 +2303,8 @@ func cmdLogs(args []string) error {
 	tail := fs.Int("tail", 4000, "bytes to show from the end")
 	daemonFlag := fs.Bool("daemon", false, "show the daemon's own log instead of an instance")
 	outFile := fs.String("out", "", "with an instance: download the full log file to this path (F292)")
+	follow := fs.Bool("f", false, "keep printing new log bytes until Ctrl-C (F316)")
+	interval := fs.Int("interval", 1, "with -f: poll every N seconds")
 	fs.Parse(reorderFlags(args))
 	if *daemonFlag {
 		cc, err := daemon.NewControlClient()
@@ -2326,7 +2328,7 @@ func cmdLogs(args []string) error {
 		return nil
 	}
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] | llmctl logs -daemon [--tail N]")
+		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f] | llmctl logs -daemon [--tail N]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -2358,12 +2360,48 @@ func cmdLogs(args []string) error {
 	}
 	var v struct {
 		Logs string `json:"logs"`
+		Size int64  `json:"size"`
 	}
 	if err := json.Unmarshal(out, &v); err != nil {
 		return err
 	}
 	fmt.Print(v.Logs)
-	return nil
+	if !*follow {
+		return nil
+	}
+	// Follow: the API reports the total file size, so we only print the
+	// bytes that appeared since the last poll (F316).
+	seen := v.Size
+	for {
+		time.Sleep(time.Duration(*interval) * time.Second)
+		code, out, err := cc.Get(fmt.Sprintf("/api/v1/instances/%s/logs?stream=%s&bytes=%d",
+			fs.Arg(0), url.QueryEscape(*stream), 1<<20))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("logs returned %d: %s", code, out)
+		}
+		var nv struct {
+			Logs string `json:"logs"`
+			Size int64  `json:"size"`
+		}
+		if err := json.Unmarshal(out, &nv); err != nil {
+			return err
+		}
+		if nv.Size < seen {
+			seen = 0 // log truncated or rotated: reprint from the start
+		}
+		if nv.Size > seen {
+			n := nv.Size - seen
+			if int64(len(nv.Logs)) >= n {
+				fmt.Print(nv.Logs[int64(len(nv.Logs))-n:])
+			} else {
+				fmt.Print(nv.Logs) // grew faster than one fetch window
+			}
+			seen = nv.Size
+		}
+	}
 }
 
 // cmdScheduler manages cron-scheduled tasks (list/add/run/enable/disable/delete).
