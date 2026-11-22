@@ -266,7 +266,21 @@ func CreateSnapshot(dir string, keep int, label string) (string, int64, error) {
 		return "", 0, fmt.Errorf("close backup: %w", err)
 	}
 	matches, _ := filepath.Glob(filepath.Join(dir, "llmctl-*.tar.gz"))
-	sort.Strings(matches)
+	// Oldest-first by mtime: labels make names non-chronological (F558).
+	sort.Slice(matches, func(i, j int) bool {
+		fi, err := os.Stat(matches[i])
+		if err != nil {
+			return true
+		}
+		fj, err := os.Stat(matches[j])
+		if err != nil {
+			return false
+		}
+		if !fi.ModTime().Equal(fj.ModTime()) {
+			return fi.ModTime().Before(fj.ModTime())
+		}
+		return matches[i] < matches[j]
+	})
 	for len(matches) > keep {
 		if err := os.Remove(matches[0]); err == nil {
 			matches = matches[1:]

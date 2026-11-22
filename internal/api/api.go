@@ -202,6 +202,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/disk", s.diskUsage)
 	m.HandleFunc("GET /api/v1/backups", s.listBackups)
 	m.HandleFunc("POST /api/v1/backups", s.createBackupNow)
+	m.HandleFunc("POST /api/v1/backups/prune", s.pruneBackups)
 	m.HandleFunc("GET /api/v1/backups/{name}", s.downloadBackupFile)
 	m.HandleFunc("POST /api/v1/backups/{name}/restore", s.restoreBackupByName)
 	m.HandleFunc("POST /api/v1/backups/{name}/verify", s.verifyBackupByName)

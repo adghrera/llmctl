@@ -24,12 +24,31 @@ type backupView struct {
 	Created string `json:"created"`
 }
 
+// snapshotFiles returns the snapshot paths newest-first. Sorted by mtime
+// because labels make names non-chronological (F558).
+func snapshotFiles() []string {
+	matches, _ := filepath.Glob(filepath.Join(paths.BackupsDir(), "llmctl-*.tar.gz"))
+	sort.Slice(matches, func(i, j int) bool {
+		fi, err := os.Stat(matches[i])
+		if err != nil {
+			return false
+		}
+		fj, err := os.Stat(matches[j])
+		if err != nil {
+			return true
+		}
+		if !fi.ModTime().Equal(fj.ModTime()) {
+			return fi.ModTime().After(fj.ModTime())
+		}
+		return matches[i] > matches[j]
+	})
+	return matches
+}
+
 // listBackups handles GET /api/v1/backups — snapshots in $LLMCTL_HOME/backups.
 func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
 	out := []backupView{}
-	matches, _ := filepath.Glob(filepath.Join(paths.BackupsDir(), "llmctl-*.tar.gz"))
-	sort.Sort(sort.Reverse(sort.StringSlice(matches)))
-	for _, m := range matches {
+	for _, m := range snapshotFiles() {
 		fi, err := os.Stat(m)
 		if err != nil {
 			continue
@@ -137,4 +156,33 @@ func (s *Server) deleteBackupFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// pruneBackups handles POST /api/v1/backups/prune — delete all but the newest
+// keep snapshots (body {"keep":N}; 0 = settings.backupKeep or 7). F558.
+func (s *Server) pruneBackups(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Keep int `json:"keep"`
+	}
+	if r.ContentLength > 0 {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	keep := body.Keep
+	if keep <= 0 {
+		if st, err := s.store.Load(); err == nil && st.Settings != nil && st.Settings.BackupKeep > 0 {
+			keep = st.Settings.BackupKeep
+		} else {
+			keep = 7
+		}
+	}
+	matches := snapshotFiles()
+	deleted := []string{}
+	if len(matches) > keep {
+		for _, m := range matches[keep:] {
+			if err := os.Remove(m); err == nil {
+				deleted = append(deleted, filepath.Base(m))
+			}
+		}
+	}
+	writeJSON(w, 200, map[string]any{"keep": keep, "deleted": deleted})
 }

@@ -546,7 +546,8 @@ toggle for a light theme (choice remembered). Tabs:
   check any local archive offline (F262). Binaries/models/logs are excluded.
   A scheduler task of kind "backup" can snapshot the state automatically on a
   cron (kept in `~/.llmctl/backups`, pruned to the newest N — per-task `keep`
-   or the global `settings.backupKeep`, default 7, F181); the Settings
+   or the global `settings.backupKeep`, default 7, F181; `llmctl backups prune
+   -keep N` prunes the existing set on demand, F558); the Settings
   page lists those snapshots for download, restore-in-place, integrity
   verification (`llmctl backups verify <name>` / Verify button, F242), download to a file
   (`llmctl backups download <name> [-out f]`, F276) or deletion,
@@ -632,7 +633,7 @@ llmctl scheduler list|show|add|update|run|runs|enable|disable|delete   (list/run
                                     add: -name -cron -kind -model -prompt -instance -webhook -keep -kb;
                                     update: same flags, changes only what you pass, F290)
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …] [-watch N] [-stats [-by model|key|instance]] [-out FILE]   (--csv also exports -stats rows, F420; -out writes the raw JSON, also with -id, F473)
-llmctl backups [list|create [-name LABEL]|restore <name>|delete <name]]   (list: human sizes + total, --json, -out FILE writes the list JSON, F475)
+llmctl backups [list|create [-name LABEL]|restore <name>|prune [-keep N]|delete <name]]   (list: human sizes + total, --json, -out FILE writes the list JSON, F475; prune deletes all but the newest N snapshots, F558)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE]   (-out writes the usage JSON — raw, or the -model-filtered one — to a file, F474)
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -out writes the raw JSON to a file, refreshed each -watch tick, F469)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE]   (-out writes the raw JSON to a file, F468)

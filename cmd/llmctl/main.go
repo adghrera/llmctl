@@ -257,7 +257,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|status]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name> [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
+  llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
@@ -1996,7 +1996,7 @@ var llmTopCommands = []string{
 var llmSubCommands = map[string]string{
 	"autostart": "list add remove export import",
 	"backends":  "list install uninstall add remove",
-	"backups":   "list create restore verify download delete",
+	"backups":   "list create restore verify prune download delete",
 	"catalog":   "list install",
 	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
 	"files":     "list upload cat delete",
@@ -4701,8 +4701,40 @@ func cmdBackups(args []string) error {
 		}
 		fmt.Printf("backup %s ok — %d entries, state.json valid\n", vfs.Arg(0), r.Entries)
 		return nil
+	case "prune":
+		pfs := flag.NewFlagSet("backups prune", flag.ExitOnError)
+		keep := pfs.Int("keep", 0, "snapshots to keep (0 = settings.backupKeep or 7)")
+		pjson := pfs.Bool("json", false, "print the raw prune-result JSON (F558)")
+		pfs.Parse(reorderFlags(rest))
+		code, out, err := cc.Post("/api/v1/backups/prune", map[string]any{"keep": *keep})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("backups prune returned %d: %s", code, out)
+		}
+		if *pjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var r struct {
+			Keep    int      `json:"keep"`
+			Deleted []string `json:"deleted"`
+		}
+		if err := json.Unmarshal(out, &r); err != nil {
+			return err
+		}
+		if len(r.Deleted) == 0 {
+			fmt.Printf("nothing to prune (keeping newest %d)\n", r.Keep)
+			return nil
+		}
+		fmt.Printf("pruned %d snapshot(s), keeping newest %d:\n", len(r.Deleted), r.Keep)
+		for _, n := range r.Deleted {
+			fmt.Println("  -", n)
+		}
+		return nil
 	default:
-		return fmt.Errorf("unknown backups subcommand %q (list|create|restore|verify|delete)", sub)
+		return fmt.Errorf("unknown backups subcommand %q (list|create|restore|verify|prune|delete)", sub)
 	}
 }
 
