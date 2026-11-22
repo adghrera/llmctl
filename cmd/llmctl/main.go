@@ -182,7 +182,7 @@ Usage:
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]...
   llmctl gpu [-json] [--csv]
   llmctl jobs [-json] [--csv] [-watch N]
-  llmctl search <query> [-max N] [-json] [--csv]
+  llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
   llmctl complete -model ID [-json] [-out FILE] <prompt>
@@ -1115,6 +1115,7 @@ func cmdWebSearch(args []string) error {
 	max := fs.Int("max", 5, "max results")
 	jsonOut := fs.Bool("json", false, "print the raw search JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the results as CSV (F428)")
+	outFile := fs.String("out", "", "write the raw search JSON to this file instead of stdout (F462)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 {
 		return fmt.Errorf("usage: llmctl search <query> [-max N] [-json]")
@@ -1130,6 +1131,13 @@ func cmdWebSearch(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("search: %s", out)
+	}
+	if *outFile != "" { // F462: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
 	}
 	if *jsonOut {
 		fmt.Print(string(out))
