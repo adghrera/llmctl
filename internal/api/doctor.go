@@ -28,6 +28,16 @@ type doctorCheck struct {
 // its state dir, backends, models, instances, gateway and backups. The CLI
 // (llmctl doctor) renders it; the payload's ok flag is false when any check
 // errored (F146).
+// stateSpaceCheck turns the state-dir free-space reading into a doctor
+// result; warns below 1 GiB free (F236).
+func stateSpaceCheck(home string, sp disk.Space) (string, string) {
+	free := float64(sp.FreeBytes) / (1 << 30)
+	if sp.FreeBytes < 1<<30 {
+		return "warn", fmt.Sprintf("%s, only %.2f GiB free — downloads may fail", home, free)
+	}
+	return "ok", fmt.Sprintf("%s, %.1f GiB free", home, free)
+}
+
 func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 	st, err := s.store.Load()
 	if err != nil {
@@ -47,7 +57,8 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 	} else {
 		os.Remove(probe)
 		if sp, ferr := disk.Free(home); ferr == nil {
-			add("state", "ok", fmt.Sprintf("%s, %.1f GiB free", home, float64(sp.FreeBytes)/1e9))
+			status, detail := stateSpaceCheck(home, sp)
+			add("state", status, detail)
 		} else {
 			add("state", "ok", home)
 		}

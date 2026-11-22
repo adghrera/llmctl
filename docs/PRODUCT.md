@@ -385,7 +385,8 @@ llmctl doctor [-json]              (health sweep: state dir, backends, models,
                                     newest snapshot is >7 days old, F207); security also warns when auth
                                     is on but no usable key exists (F223), aliases (warns when an
                                     alias targets a deleted model, F228), webhook (warns when recent
-                                    notify-webhook deliveries failed, F232); exit ≠0 on errors)
+                                    notify-webhook deliveries failed, F232), low disk (state check
+                                    warns below 1 GiB free, F236); exit ≠0 on errors)
 llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove

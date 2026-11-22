@@ -245,6 +245,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F233 | P3 | 233 | gateway | `X-LLMCtrl-Key` header | COMPLETED | Gateway responses now echo the authenticating key's id as `X-LLMCtrl-Key` (alongside `X-LLMCtrl-Instance`), making it easy to tell which key served a request. Verified live: header present with the key id. |
 | F234 | P3 | 234 | cli | `key generate`/`key rotate` `-json` | COMPLETED | The two one-time-secret commands gained `-json`, printing the raw API JSON (including the secret) for scripts; table output unchanged. Verified live: both JSON modes parse, both human modes unchanged. |
 | F235 | P3 | 235 | cli | `requests -stats -by` | COMPLETED | `requests -stats -by model\|key\|instance` prints one stats row per group (reqs, errors+rate, p50/p95, tokens, cost); `-by … -json` emits `{by, groups:{…}}`. The plain `-stats -json` payload is now flat (avgMs/p50Ms/p95Ms/maxMs). Verified live: all three groupings, JSON, and both validation errors. |
+| F236 | P3 | 236 | doctor | Low-disk-space warning | COMPLETED | The doctor state check now warns when the state-dir filesystem has <1 GiB free ("downloads may fail") instead of always reporting ok. Verified live (ok path) plus unit tests for both branches and the threshold boundary. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
