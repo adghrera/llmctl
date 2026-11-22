@@ -229,7 +229,7 @@ Usage:
   llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance> | llmctl restart --all
   llmctl maxparallel <instance> <n>   (0 = unlimited)
-  llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…]
+  llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
@@ -1103,11 +1103,12 @@ func cmdAutoRestartToggle(args []string) error {
 // cmdSetVars replaces the stored start vars of an instance (PUT vars, F091).
 func cmdSetVars(args []string) error {
 	fs := flag.NewFlagSet("setvars", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw response JSON (F531)")
 	var vars stringList
 	fs.Var(&vars, "var", "parameter k=v (repeatable)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl setvars <instance-id> [-var k=v ...]")
+		return fmt.Errorf("usage: llmctl setvars <instance-id> [-var k=v ...] [-json]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1120,6 +1121,10 @@ func cmdSetVars(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("setvars: %s", out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
 	}
 	fmt.Printf("instance %s vars updated (restart to apply)\n", fs.Arg(0))
 	return nil

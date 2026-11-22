@@ -614,7 +614,7 @@ llmctl restart <instance> | llmctl restart --all   (--all restarts each running 
 llmctl maxparallel <instance> <n>   (concurrent-request cap, 0 = unlimited, F270)
 llmctl note <instance> <text> [-json]        (free-text annotation, F271; -json prints the raw response, F529)
 llmctl autorestart <instance> <on|off> [-json]  (crash auto-restart toggle, F271; -json prints the raw response, F530)
-llmctl setvars <instance> [-var k=v…]    (replace stored start vars, F271)
+llmctl setvars <instance> [-var k=v…] [-json]  (replace stored start vars, F271; -json prints the raw response, F531)
 llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
                                     (-out FILE: download the full log file, F292)
 llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]  (daemon's own log, ~/.llmctl/llmctl.log; -f follows it, F355; -out writes the tail to a file, F516; -json prints the raw {size,logs}, F517)
