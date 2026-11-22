@@ -166,7 +166,8 @@ toggle for a light theme (choice remembered). Tabs:
   persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103)
   and can be exported as CSV (F117). A parallel per-key rollup
   (`GET /api/v1/usage/keys[?days=N][&key=ID]`) attributes daily requests,
-  tokens and cost to each API key (F126).
+  tokens and cost to each API key (F126); the Usage page shows it as a
+  "Daily by Key" table with its own CSV export (F129).
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
   key, status, latency, tokens) in an auto-refreshing table, with one-click
   CSV export and combinable filters (model, status class, min latency,

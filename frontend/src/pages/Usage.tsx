@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type GatewayMetrics } from "../api/client";
+import { api, type GatewayMetrics, type ApiKey } from "../api/client";
 import { err } from "../ui/toast";
 
 function csvField(s: string): string {
@@ -21,21 +21,42 @@ export function dailyToCsv(daily: NonNullable<Awaited<ReturnType<typeof api.dail
   return [head.join(","), ...rows].join("\n") + "\n";
 }
 
+export function dailyKeyToCsv(daily: NonNullable<Awaited<ReturnType<typeof api.dailyKeyUsage>>>): string {
+  const head = ["date", "key_id", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"];
+  const rows: string[] = [];
+  for (const [date, keys] of Object.entries(daily).sort((a, b) => b[0].localeCompare(a[0]))) {
+    for (const [key, u] of Object.entries(keys)) {
+      rows.push(
+        [date, key, String(u.requests), String(u.errors), String(u.prompt), String(u.comp), (u.cost ?? 0).toFixed(6)]
+          .map(csvField)
+          .join(","),
+      );
+    }
+  }
+  return [head.join(","), ...rows].join("\n") + "\n";
+}
+
 export default function Usage() {
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [chats, setChats] = useState<any[]>([]);
   const [daily, setDaily] = useState<Awaited<ReturnType<typeof api.dailyUsage>> | null>(null);
+  const [dailyKeys, setDailyKeys] = useState<Awaited<ReturnType<typeof api.dailyKeyUsage>> | null>(null);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
 
   const load = async () => {
     try {
-      const [m, c, d] = await Promise.all([
+      const [m, c, d, dk, ks] = await Promise.all([
         api.metrics().catch(() => null as GatewayMetrics | null),
         api.chats().catch(() => [] as any[]),
         api.dailyUsage().catch(() => null),
+        api.dailyKeyUsage().catch(() => null),
+        api.keys().catch(() => [] as ApiKey[]),
       ]);
       setMetrics(m);
       setChats(c);
       setDaily(d);
+      setDailyKeys(dk);
+      setKeys(ks);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     }
@@ -251,6 +272,70 @@ export default function Usage() {
                 })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {dailyKeys && Object.keys(dailyKeys).length > 0 && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Daily by Key</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                const blob = new Blob([dailyKeyToCsv(dailyKeys)], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-daily-key-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
+          <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+            Gateway usage per UTC day attributed to each API key.
+          </p>
+          <div className="oc-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Key</th>
+                  <th>Requests</th>
+                  <th>Errors</th>
+                  <th>Prompt</th>
+                  <th>Completion</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(dailyKeys)
+                  .sort((a, b) => b[0].localeCompare(a[0]))
+                  .flatMap(([date, keysOnDay]) =>
+                    Object.entries(keysOnDay)
+                      .sort((a, b) => b[1].requests - a[1].requests)
+                      .map(([keyId, u]) => {
+                        const k = keys.find((x) => x.id === keyId);
+                        return (
+                          <tr key={date + keyId}>
+                            <td style={{ fontFamily: "monospace", fontSize: 12 }}>{date}</td>
+                            <td>
+                              {k ? k.name : <span className="muted">(deleted)</span>}{" "}
+                              <span className="muted mono" style={{ fontSize: 11 }}>{keyId.slice(0, 8)}</span>
+                            </td>
+                            <td className="oc-num">{u.requests.toLocaleString()}</td>
+                            <td className="oc-num">{u.errors}</td>
+                            <td className="oc-num">{u.prompt.toLocaleString()}</td>
+                            <td className="oc-num">{u.comp.toLocaleString()}</td>
+                            <td className="oc-num">{u.cost ? `$${u.cost.toFixed(4)}` : "—"}</td>
+                          </tr>
+                        );
+                      }),
+                  )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
