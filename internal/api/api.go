@@ -1182,8 +1182,8 @@ type keyView struct {
 	Name          string   `json:"name"`
 	Prefix        string   `json:"prefix"`
 	CreatedAt     time.Time `json:"createdAt"`
-	TokenQuota    int64    `json:"tokenQuota,omitempty"`
-	UsedTok       int64    `json:"usedTokens"` // tokens spent since daemon start (F074)
+	TokenQuota    int64     `json:"tokenQuota,omitempty"`
+	UsedTok       int64     `json:"usedTokens"`              // tokens spent since daemon start (F074)
 	AllowedModels []string  `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
 	MaxConcurrent int       `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
 }
