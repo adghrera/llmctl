@@ -417,21 +417,46 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	}
 	seen := map[string]bool{}
 	data := []modelObj{}
+	// Per-key allowlist (F089): a restricted key only sees the models it may
+	// call (plus aliases resolving to them), mirroring the request check (F177).
+	var allowed []string
+	if ref := modelRefFrom(r.Context()); ref != nil {
+		allowed = ref.AllowedModels
+	}
+	aliasTargets := s.router.Aliases()
+	permits := func(name string) bool {
+		if len(allowed) == 0 {
+			return true
+		}
+		if target, ok := aliasTargets[strings.ToLower(name)]; ok {
+			name = target
+		}
+		for _, m := range allowed {
+			if strings.EqualFold(m, name) {
+				return true
+			}
+		}
+		return false
+	}
 	for _, inst := range s.router.RunningInstances() {
 		// Clean alias first (what users should send as "model").
 		if !seen[inst.ModelID] {
 			seen[inst.ModelID] = true
-			data = append(data, modelObj{inst.ModelID, "model", "llmctl"})
+			if permits(inst.ModelID) {
+				data = append(data, modelObj{inst.ModelID, "model", "llmctl"})
+			}
 		}
 		for _, m := range upstreamModels(inst) {
 			if !seen[m] {
 				seen[m] = true
-				data = append(data, modelObj{m, "model", "llmctl"})
+				if permits(m) {
+					data = append(data, modelObj{m, "model", "llmctl"})
+				}
 			}
 		}
 	}
 	// Gateway aliases resolve on any request, so advertise them too (F065).
-	aliases := s.router.Aliases()
+	aliases := aliasTargets
 	names := make([]string, 0, len(aliases))
 	for a := range aliases {
 		names = append(names, a)

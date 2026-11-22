@@ -186,6 +186,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F174 | P3 | 174 | cli | `scheduler runs` | COMPLETED | `llmctl scheduler runs [-n 20]` prints the recent scheduler run ring (time, task, kind, status, duration, detail excerpt) — CLI parity with the Scheduler page's Recent Runs table. Verified live: a backup run showed ok + detail. |
 | F175 | P3 | 175 | backups | Restore by name | COMPLETED | `POST /api/v1/backups/{name}/restore` + `llmctl backups restore <name>` import a stored snapshot (e.g. from a scheduled backup) without downloading it first; the CLI notes that a daemon restart loads the restored state. Verified live: restore of a fresh snapshot returned 6 files, unknown name → 404, path-traversal name → 400. |
 | F176 | P3 | 176 | ui | Backup restore button | COMPLETED | The Settings "Scheduled backups" list gained a Restore button (confirm dialog + restart hint) wired to the F175 endpoint. Verified: type-check + build clean, served bundle contains the control. |
+| F177 | P3 | 177 | gateway | `/v1/models` respects key allowlist | COMPLETED | A key with a model allowlist (F089) now only sees the models it may call in `GET /v1/models` — aliases are resolved before checking, so an alias pointing at an allowed model stays visible. Verified live: key allowed=[so] sees so + its fast alias; key allowed=[other] sees only fast (→ so) and not so. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
