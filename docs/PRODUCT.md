@@ -473,7 +473,7 @@ toggle for a light theme (choice remembered). Tabs:
   (`-json` for the raw record, F563). `llmctl scheduler duplicate <id>
   [-name N]` copies an existing task (cron, kind, model, prompt, kb, webhook,
   enabled state all carried over) under a new name — default `<old name> copy`
-  (F646).
+  (F646); the Scheduler page has a matching Duplicate button on each row (F647).
   `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
   specs between instances (fresh ids on import, F326); the Scheduler page has
   matching Export JSON / Import JSON buttons (F412).

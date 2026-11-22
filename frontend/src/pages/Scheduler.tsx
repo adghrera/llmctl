@@ -176,6 +176,34 @@ export default function Scheduler() {
     }
   };
 
+  // Duplicate a task under a new name — UI twin of `llmctl scheduler duplicate` (F647).
+  const dupTask = async (s: ScheduleSpec) => {
+    const name = window.prompt("Name for the copy:", `${s.name} copy`);
+    if (name === null) return;
+    const finalName = name.trim() || `${s.name} copy`;
+    setBusy(true);
+    try {
+      await api.createSchedule({
+        name: finalName,
+        cron_expr: s.cron_expr,
+        kind: s.kind,
+        model: s.model,
+        prompt: s.prompt,
+        instance: s.instance,
+        kb: s.kb,
+        keep: s.keep,
+        webhook_url: s.webhook_url,
+        enabled: s.enabled,
+      });
+      ok(`task "${finalName}" created`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const toggleEnabled = async (s: ScheduleSpec) => {
     const next = !s.enabled;
     setBusy(true);
@@ -451,6 +479,14 @@ export default function Scheduler() {
                       onClick={() => editTask(s)}
                     >
                       Edit
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      title="duplicate this task under a new name (CLI: llmctl scheduler duplicate)"
+                      onClick={() => dupTask(s)}
+                    >
+                      Duplicate
                     </button>
                     <button
                       className="btn sm danger"
