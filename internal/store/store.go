@@ -127,6 +127,8 @@ type APIKeyRecord struct {
 	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD,omitempty"`
 	// Note is a free-text user annotation (F186).
 	Note string `json:"note,omitempty"`
+	// Tags are free-form labels for grouping keys (F680).
+	Tags []string `json:"tags,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

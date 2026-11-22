@@ -454,6 +454,7 @@ export interface ApiKey {
   lifetimeCompletionTokens?: number;
   lifetimeCost?: number;
   note?: string;
+  tags?: string[]; // free-form labels (F680)
   disabled?: boolean;
 }
 
@@ -847,6 +848,11 @@ export const api = {
     req<{ ok: boolean; allowedModels: string[] }>(`/keys/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(body),
+    }),
+  setKeyTags: (id: string, tags: string[]) =>
+    req<{ ok: boolean; tags: string[] }>(`/keys/${encodeURIComponent(id)}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tags }),
     }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   resetKeyUsage: (id: string) =>

@@ -568,7 +568,11 @@ toggle for a light theme (choice remembered). Tabs:
   each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed
   inline (F140) and carry a free-text note edited inline or via
-  `llmctl key note <id> <text>` (F186). `llmctl key update <id>` edits any
+  `llmctl key note <id> <text>` (F186). Keys also carry free-form tags —
+  `llmctl key tag <id> a,b` (empty clears), bulk `key retag <old> <new>` /
+  `retag -rm <tag>`, a `key list -tag T` filter and TAGS column (table and
+  `--csv`), and a per-row tag editor on the Keys page (F680).
+  `llmctl key update <id>` edits any
   of those later — name, note, models, quota, caps, rate, expiry, budget (F254).
   `llmctl key duplicate <id> [name]` issues a fresh key with the same
   restrictions (default name `<old name> copy`, F650); the Keys page has a
@@ -741,7 +745,7 @@ llmctl setvars <instance> [-var k=v…] [-json]  (replace stored start vars, F27
 llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
                                     (-out FILE: download the full log file, F292)
 llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]  (daemon's own log, ~/.llmctl/llmctl.log; -f follows it, F355; -out writes the tail to a file, F516; -json prints the raw {size,logs}, F517)
-llmctl key generate|duplicate|show|note|update|enable|disable|rotate|list|revoke|prune|reset-usage   (generate: -quota -maxreq -models -expires -budget -rps -note; duplicate <id> [name] creates a fresh key with the same restrictions — quota, models, caps, rate, budget, note, expiry rounded up to whole days (F650); generate -out FILE writes the creation JSON (incl. the secret) to a 0600 file, F507; rotate -out FILE likewise for the new secret, F508; list -out FILE writes the raw JSON, F481; show -out FILE writes the raw key JSON, F506; prune -out FILE writes the result JSON, F509; note/enable/disable -json print the raw response, F528, F535; revoke prints a one-line confirmation, -json for raw, F565; rotate prints the new secret with a save-it-now reminder and reset-usage confirms the reset, -json for raw, F572;
+llmctl key generate|duplicate|show|note|tag|retag|update|enable|disable|rotate|list|revoke|prune|reset-usage   (generate: -quota -maxreq -models -expires -budget -rps -note; tag <id> [a,b] sets free-form tags (empty clears) and retag <old> <new> / retag -rm <tag> renames or drops one across all keys (F680); list -tag T filters by tag; duplicate <id> [name] creates a fresh key with the same restrictions — quota, models, caps, rate, budget, note, expiry rounded up to whole days (F650); generate -out FILE writes the creation JSON (incl. the secret) to a 0600 file, F507; rotate -out FILE likewise for the new secret, F508; list -out FILE writes the raw JSON, F481; show -out FILE writes the raw key JSON, F506; prune -out FILE writes the result JSON, F509; note/enable/disable -json print the raw response, F528, F535; revoke prints a one-line confirmation, -json for raw, F565; rotate prints the new secret with a save-it-now reminder and reset-usage confirms the reset, -json for raw, F572;
                                         list --csv exports the audit table (F374);
                                         generate/rotate -json prints the raw JSON incl. the secret;
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;

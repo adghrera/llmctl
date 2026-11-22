@@ -254,10 +254,11 @@ Usage:
   llmctl key duplicate <id> [name] [-json]   (fresh key with the same restrictions)
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...> [-json]
+  llmctl key tag <id> [a,b] [-json] | llmctl key retag <old> <new> | retag -rm <tag> [-json]
   llmctl key update <id> [-name X] [-quota N] [-models a,b] … [-json]
   llmctl key disable <id> [-json] / llmctl key enable <id> [-json]
   llmctl key rotate <id> [-json] [-out FILE]
-  llmctl key list [-json] [--csv] [-out FILE]
+  llmctl key list [-json] [--csv] [-tag T] [-out FILE]
   llmctl key revoke <id> [-json]
   llmctl key reset-usage <id> [-json]
   llmctl autostart list [-json] [--csv] [-out FILE]
@@ -2459,7 +2460,7 @@ var llmSubCommands = map[string]string{
 	"files":     "list upload cat delete",
 	"jobs":      "wait show clear",
 	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete",
-	"key":       "generate duplicate show note update enable disable rotate list revoke prune reset-usage",
+	"key":       "generate duplicate show note tag retag update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
 	"models":    "list stats show add rename note tag retag probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
@@ -11599,7 +11600,7 @@ func cmdBatch(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|duplicate|show|note|enable|disable|rotate|list|revoke|prune|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|duplicate|show|note|tag|retag|enable|disable|rotate|list|revoke|prune|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -11921,6 +11922,101 @@ func cmdKey(args []string) error {
 			fmt.Printf("note set: %s\n", note)
 		}
 		return nil
+	case "tag":
+		// Replace a key's tags (comma-separated); empty clears (F680).
+		tgfs := flag.NewFlagSet("key tag", flag.ExitOnError)
+		tgjson := tgfs.Bool("json", false, "print the raw response JSON")
+		tgfs.Parse(reorderFlags(rest))
+		if tgfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl key tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tgfs.NArg() > 1 {
+			for _, t := range strings.Split(tgfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(tgfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("key tag returned %d: %s", code, out)
+		}
+		if *tgjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("key %s tags cleared\n", tgfs.Arg(0))
+		} else {
+			fmt.Printf("key %s tags: %s\n", tgfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
+	case "retag":
+		// Bulk-rename or drop a tag across all keys (F680), twin of `models retag`.
+		rtfs := flag.NewFlagSet("key retag", flag.ExitOnError)
+		rtrm := rtfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rtjson := rtfs.Bool("json", false, "print the count as JSON")
+		rtfs.Parse(reorderFlags(rest))
+		if rtfs.NArg() < 1 || (!*rtrm && rtfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl key retag <old-tag> <new-tag> | key retag -rm <tag> [-json]")
+		}
+		oldTag, newTag := rtfs.Arg(0), rtfs.Arg(1)
+		code, out, err := cc.Get("/api/v1/keys")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("keys returned %d: %s", code, out)
+		}
+		var ks []struct {
+			ID   string   `json:"id"`
+			Tags []string `json:"tags"`
+		}
+		if err := json.Unmarshal(out, &ks); err != nil {
+			return err
+		}
+		changed := 0
+		for _, k := range ks {
+			found := false
+			var tags []string
+			for _, t := range k.Tags {
+				if t != oldTag {
+					tags = append(tags, t)
+					continue
+				}
+				found = true
+				if !*rtrm {
+					tags = append(tags, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(k.ID)+"/tags",
+				map[string]any{"tags": tags})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("key retag on %s: %s", k.ID, out)
+			}
+			changed++
+		}
+		if *rtjson {
+			fmt.Printf("{\"changed\": %d}\n", changed)
+			return nil
+		}
+		if *rtrm {
+			fmt.Printf("removed tag %q from %d key(s)\n", oldTag, changed)
+		} else {
+			fmt.Printf("renamed tag %q -> %q on %d key(s)\n", oldTag, newTag, changed)
+		}
+		return nil
 	case "disable", "enable":
 		keds := flag.NewFlagSet("key "+sub, flag.ExitOnError)
 		kejson := keds.Bool("json", false, "print the raw response JSON (F535)")
@@ -11947,10 +12043,30 @@ func cmdKey(args []string) error {
 		jsonOut := fs.Bool("json", false, "print the raw keys JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the key table as CSV (F374)")
 		outFile := fs.String("out", "", "write the raw keys JSON to this file instead of stdout (F481)")
+		tagF := fs.String("tag", "", "only keys carrying this tag (F680)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/keys")
 		if err != nil {
 			return err
+		}
+		if *tagF != "" { // F680: exact tag filter; filter the raw JSON so -json keeps every field
+			var raw []map[string]any
+			if err := json.Unmarshal(out, &raw); err != nil {
+				return err
+			}
+			keep := raw[:0]
+			for _, k := range raw {
+				ts, _ := k["tags"].([]any)
+				for _, t := range ts {
+					if s, _ := t.(string); s == *tagF {
+						keep = append(keep, k)
+						break
+					}
+				}
+			}
+			if out, err = json.Marshal(keep); err != nil {
+				return err
+			}
 		}
 		if *outFile != "" { // F481: raw JSON to a file, stdout stays clean
 			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
@@ -11977,6 +12093,7 @@ func cmdKey(args []string) error {
 			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
 			TodayCost          float64    `json:"todayCost"`
 			Note               string     `json:"note"`
+			Tags               []string   `json:"tags"` // free-form labels (F680)
 			Disabled           bool       `json:"disabled"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
@@ -11985,7 +12102,7 @@ func cmdKey(args []string) error {
 		if len(list) == 0 {
 			if *csvOut { // keep the stream parseable (F374)
 				w := csv.NewWriter(os.Stdout)
-				_ = w.Write([]string{"id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note"})
+				_ = w.Write([]string{"id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note", "tags"})
 				w.Flush()
 				return w.Error()
 			}
@@ -12000,19 +12117,19 @@ func cmdKey(args []string) error {
 				return t.UTC().Format(time.RFC3339)
 			}
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note"})
+			_ = w.Write([]string{"id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note", "tags"})
 			for _, k := range list {
 				_ = w.Write([]string{k.ID, k.Name, k.Prefix, strconv.FormatBool(k.Disabled),
 					rfc(k.ExpiresAt), rfc(k.LastUsed),
 					strconv.FormatInt(k.UsedTok, 10), strconv.FormatInt(k.TokenQuota, 10),
 					strconv.FormatInt(k.UsedReqs, 10), strconv.FormatInt(k.MaxRequests, 10),
 					strconv.FormatFloat(k.UsedCost, 'f', 4, 64), strconv.FormatFloat(k.TodayCost, 'f', 4, 64),
-					strconv.FormatFloat(k.DailyCostBudgetUSD, 'f', 4, 64), k.Note})
+					strconv.FormatFloat(k.DailyCostBudgetUSD, 'f', 4, 64), k.Note, strings.Join(k.Tags, ";")})
 			}
 			w.Flush()
 			return w.Error()
 		}
-		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %-12s %-12s %-9s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "EXPIRES", "LAST USED", "QUOTA", "NOTE")
+		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %-12s %-12s %-9s %-20s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "EXPIRES", "LAST USED", "QUOTA", "TAGS", "NOTE")
 		for _, k := range list {
 			quota := ""
 			if k.TokenQuota > 0 {
@@ -12049,8 +12166,8 @@ func cmdKey(args []string) error {
 			if len(note) > 28 {
 				note = note[:25] + "..."
 			}
-			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %-12s %-12s %-9s %s\n",
-				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, expires, last, quota, note)
+			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %-12s %-12s %-9s %-20s %s\n",
+				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, expires, last, quota, strings.Join(k.Tags, ","), note)
 		}
 		return nil
 	case "revoke":

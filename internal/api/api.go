@@ -247,6 +247,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
 	m.HandleFunc("POST /api/v1/keys/prune", s.pruneKeys)
 	m.HandleFunc("PATCH /api/v1/keys/{id}", s.updateKey)
+	m.HandleFunc("PATCH /api/v1/keys/{id}/tags", s.setKeyTags)
 	m.HandleFunc("POST /api/v1/keys/{id}/reset-usage", s.resetKeyUsage)
 	m.HandleFunc("POST /api/v1/keys/{id}/rotate", s.rotateKey)
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
@@ -1818,6 +1819,8 @@ type keyView struct {
 	LifetimeCost   float64 `json:"lifetimeCost"`
 	// Note is a free-text user annotation (F186).
 	Note string `json:"note,omitempty"`
+	// Tags are free-form labels for grouping keys (F680).
+	Tags []string `json:"tags,omitempty"`
 	// Disabled: key is temporarily blocked (F195).
 	Disabled bool `json:"disabled,omitempty"`
 }
@@ -1825,7 +1828,7 @@ type keyView struct {
 // keyViewFor builds the API view of one key, merging live gateway counters
 // (falling back to the persisted usage record for lastUsed).
 func (s *Server) keyViewFor(st *store.State, k *store.APIKeyRecord, live map[string]proxy.KeyUsage) keyView {
-	v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD, Note: k.Note, Disabled: k.Disabled}
+	v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD, Note: k.Note, Tags: k.Tags, Disabled: k.Disabled}
 	if s.gw != nil {
 		v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
 		life := s.gw.KeyLifetime(k.ID)        // retained-history totals (F182)
@@ -1986,6 +1989,54 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true, "allowedModels": list})
+}
+
+// setKeyTags handles PATCH /api/v1/keys/{id}/tags — replace a key's
+// free-form tag list, the key twin of model/chat/instance tags (F680).
+// Tags are trimmed, deduped and capped (20 tags, 40 chars each).
+func (s *Server) setKeyTags(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	seen := map[string]bool{}
+	tags := []string{}
+	for _, t := range req.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+		seen[t] = true
+		tags = append(tags, t)
+	}
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.APIKeys[id] == nil {
+		writeErr(w, 404, "unknown key: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if k := st.APIKeys[id]; k != nil {
+			if len(tags) == 0 {
+				k.Tags = nil
+			} else {
+				k.Tags = tags
+			}
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "tags": tags})
 }
 
 // resetKeyUsage handles POST /api/v1/keys/{id}/reset-usage — zero the

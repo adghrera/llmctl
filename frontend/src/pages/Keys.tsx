@@ -209,6 +209,20 @@ export default function Keys() {
     }
   };
 
+  // free-form tags, comma-separated in the prompt (F680); empty clears.
+  const tagKey = async (k: ApiKey) => {
+    const next = window.prompt(`Tags for key ${k.name || k.id} (comma-separated, empty clears):`, (k.tags ?? []).join(", "));
+    if (next == null) return;
+    const tags = next.split(",").map((t) => t.trim()).filter(Boolean);
+    try {
+      await api.setKeyTags(k.id, tags);
+      ok(tags.length ? `tags set: ${tags.join(", ")}` : "tags cleared");
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const saveQuota = async (k: ApiKey) => {
     if (busy) return;
     const tok = quotaTok.trim() === "" ? 0 : Number(quotaTok);
@@ -356,7 +370,7 @@ export default function Keys() {
             onClick={() => {
               // Same columns as `llmctl key list --csv` (F374/F375).
               const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-              const head = ["id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note"];
+              const head = ["id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note", "tags"];
               const rows = [
                 head.join(","),
                 ...shownKeys.map((k) =>
@@ -367,7 +381,7 @@ export default function Keys() {
                     String(k.usedTokens ?? 0), String(k.tokenQuota ?? 0),
                     String(k.usedRequests ?? 0), String(k.maxRequests ?? 0),
                     (k.usedCost ?? 0).toFixed(4), (k.todayCost ?? 0).toFixed(4),
-                    (k.dailyCostBudgetUSD ?? 0).toFixed(4), k.note || "",
+                    (k.dailyCostBudgetUSD ?? 0).toFixed(4), k.note || "", (k.tags ?? []).join(";"),
                   ]
                     .map(esc)
                     .join(",")
@@ -494,6 +508,19 @@ export default function Keys() {
                           </button>
                         </span>
                       )}
+                    </div>
+                    <div style={{ marginTop: 2 }}>
+                      <span className="muted small" title="key tags (CLI: llmctl key tag)">
+                        {k.tags?.length ? k.tags.join(", ") : <span style={{ opacity: 0.5 }}>no tags</span>}{" "}
+                        <button
+                          className="btn sm"
+                          title="edit tags"
+                          style={{ opacity: 0.6 }}
+                          onClick={() => tagKey(k)}
+                        >
+                          ✎
+                        </button>
+                      </span>
                     </div>
                   </td>
                   <td className="mono">{k.prefix}…</td>
