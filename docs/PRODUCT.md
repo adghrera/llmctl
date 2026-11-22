@@ -291,7 +291,9 @@ toggle for a light theme (choice remembered). Tabs:
   requests count; F105). Optional per-key rate limit (`rateRPS` sustained
    + `rateBurst`, set at create or PATCH; 0 = gateway default; 429 on excess;
    F130). Keys may expire (`expiresInDays` at create/PATCH, 0 = never; expired
-   keys get 403 `key_expired`; F135). A per-key daily cost budget
+   keys get 403 `key_expired`; F135). Expired keys can be bulk-deleted with
+   `llmctl key prune` / `POST /api/v1/keys/prune` or the Keys page "Prune
+   expired" button (F167). A per-key daily cost budget
    (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once
    the key's estimated USD spend for the UTC day reaches it (F138). Per-key usage counters (tokens, requests, cost) can
   be zeroed with a "Reset" button, `llmctl key reset-usage <id>` or
@@ -353,9 +355,9 @@ llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
-llmctl key generate|show|list|revoke   (generate: -quota -maxreq -models -expires -budget -rps;
+llmctl key generate|show|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps;
                                         show: one key's full view; list shows usage, cost,
-                                        quota, expiry, daily budget)
+                                        quota, expiry, daily budget; prune deletes expired keys)
 llmctl scheduler list|add|run|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
 llmctl backups [list|create|delete <name>]

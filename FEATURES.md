@@ -176,6 +176,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F164 | P3 | 164 | cli | `requests --csv` | COMPLETED | `llmctl requests --csv` prints the (filtered) request log as CSV with the same columns as the UI export plus `error`; the UI CSV gained the error column too. Verified live: quoting/escaping of embedded quotes correct, `--status 404` filter honored. |
 | F165 | P3 | 165 | keys | Single-key lookup | COMPLETED | `GET /api/v1/keys/{id}` returns one key's full view (usage, quota, expiry, today cost) and `llmctl key show <id>` pretty-prints it — scripts no longer need to scan the whole list. Verified live: CLI show displayed quota usage, expiry, last-used and today's cost for a freshly used key; unknown id → 404. |
 | F166 | P3 | 166 | models | Single-model lookup | COMPLETED | `GET /api/v1/models/{id}` returns one model's view (backend, path, ctx, price, idle-unload, instances, running) and `llmctl models show <id>` pretty-prints it. Verified live: show for the running `so` model, unknown id → 404, `/models/{id}/metadata` route unaffected. |
+| F167 | P3 | 167 | keys | Expired-key pruning | COMPLETED | `POST /api/v1/keys/prune` deletes every key past its expiry (F135) plus its usage record; `llmctl key prune` and a "Prune expired" button (shown only when expired keys exist) expose it. Verified live: backdated key removed, unexpired key kept, second prune is a no-op. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

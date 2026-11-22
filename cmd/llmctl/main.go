@@ -1314,7 +1314,7 @@ func cmdEvents(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|show|list|revoke|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|show|list|revoke|prune|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1501,6 +1501,25 @@ func cmdKey(args []string) error {
 		fmt.Println(string(out))
 		if code != 200 {
 			return fmt.Errorf("revoke returned %d", code)
+		}
+		return nil
+	case "prune":
+		code, out, err := cc.Post("/api/v1/keys/prune", nil)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prune returned %d: %s", code, out)
+		}
+		var r struct {
+			Removed []string `json:"removed"`
+		}
+		if err := json.Unmarshal(out, &r); err != nil {
+			return err
+		}
+		fmt.Printf("removed %d expired key(s)\n", len(r.Removed))
+		for _, id := range r.Removed {
+			fmt.Println(" ", id)
 		}
 		return nil
 	case "reset-usage":

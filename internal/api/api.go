@@ -226,6 +226,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
 	m.HandleFunc("GET /api/v1/keys/{id}", s.getKey)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
+	m.HandleFunc("POST /api/v1/keys/prune", s.pruneKeys)
 	m.HandleFunc("PATCH /api/v1/keys/{id}", s.updateKey)
 	m.HandleFunc("POST /api/v1/keys/{id}/reset-usage", s.resetKeyUsage)
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
@@ -1753,6 +1754,24 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// pruneKeys handles POST /api/v1/keys/prune — delete every key whose expiry
+// has passed (F135), plus its persisted usage record. Returns the removed ids.
+func (s *Server) pruneKeys(w http.ResponseWriter, r *http.Request) {
+	now := time.Now().UTC()
+	removed := []string{}
+	s.store.Update(func(st *store.State) error {
+		for id, k := range st.APIKeys {
+			if k.ExpiresAt != nil && k.ExpiresAt.Before(now) {
+				delete(st.APIKeys, id)
+				delete(st.KeyUsage, id)
+				removed = append(removed, id)
+			}
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "removed": removed})
 }
 
 // ---- settings ----

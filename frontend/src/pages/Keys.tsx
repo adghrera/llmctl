@@ -95,6 +95,19 @@ export default function Keys() {
     }
   };
 
+  const pruneExpired = async () => {
+    setBusy(true);
+    try {
+      const r = await api.pruneKeys();
+      ok(`removed ${r.removed.length} expired key(s)`);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const resetUsage = async (id: string) => {
     setBusy(true);
     try {
@@ -254,6 +267,16 @@ export default function Keys() {
       </div>
       <div className="card">
         <h2>API keys</h2>
+        {keys.some((k) => k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()) && (
+          <p style={{ margin: "0 0 10px" }}>
+            <button className="btn sm danger" disabled={busy} onClick={pruneExpired}>
+              Prune expired
+            </button>{" "}
+            <span className="muted small">
+              {keys.filter((k) => k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()).length} key(s) past expiry
+            </span>
+          </p>
+        )}
         {keys.length ? (
           <table>
             <thead>
