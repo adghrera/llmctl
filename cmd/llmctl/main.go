@@ -204,7 +204,7 @@ Usage:
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv] [-out FILE]
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
-  llmctl models add <id> <file> [-backend ID]
+  llmctl models add <id> <file> [-backend ID] [-out FILE]
   llmctl models aliases [--csv] [-out FILE]
   llmctl models alias <name> <model-id>
   llmctl models unalias <name>
@@ -2450,9 +2450,10 @@ func cmdModels(args []string) error {
 	case "add":
 		afs := flag.NewFlagSet("models add", flag.ExitOnError)
 		backendID := afs.String("backend", "", "backend id (default: llama.cpp)")
+		aout := afs.String("out", "", "write the raw created-model JSON to this file instead of stdout (F513)")
 		afs.Parse(reorderFlags(rest))
 		if afs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl models add <id> <file> [-backend ID]")
+			return fmt.Errorf("usage: llmctl models add <id> <file> [-backend ID] [-out FILE]")
 		}
 		body := map[string]any{"id": afs.Arg(0), "path": afs.Arg(1)}
 		if *backendID != "" {
@@ -2464,6 +2465,13 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 && code != 201 {
 			return fmt.Errorf("models add: %s", out)
+		}
+		if *aout != "" { // F513: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*aout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *aout, len(out))
+			return nil
 		}
 		fmt.Printf("model %s registered from %s\n", afs.Arg(0), afs.Arg(1))
 		return nil
