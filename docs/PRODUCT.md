@@ -316,12 +316,12 @@ llmctl down
 llmctl status
 llmctl ps                          (shows uptime and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
-llmctl models list|install|remove|hf-search|hf-files
+llmctl models list|install|remove|hf-search|hf-files   (list shows price and idle-unload)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
-llmctl key generate|list|revoke   (list shows usage, cost and quota progress)
+llmctl key generate|list|revoke   (list shows usage, cost, quota, expiry, daily budget)
 llmctl scheduler list|add|run|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
 llmctl backups [list|create|delete <name>]

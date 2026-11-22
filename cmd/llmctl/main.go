@@ -385,19 +385,41 @@ func cmdModels(args []string) error {
 		if err != nil {
 			return err
 		}
-		var list []map[string]any
-		json.Unmarshal(out, &list)
+		var list []struct {
+			ID        string  `json:"id"`
+			BackendID string  `json:"backendId"`
+			SizeBytes int64   `json:"sizeBytes"`
+			CtxSize   int     `json:"ctxSize"`
+			Running   bool    `json:"running"`
+			PriceIn   float64 `json:"priceInPerM"`
+			PriceOut  float64 `json:"priceOutPerM"`
+			IdleMin   int     `json:"idleUnloadMin"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
 		if len(list) == 0 {
 			fmt.Println("no models downloaded")
 			return nil
 		}
-		fmt.Printf("%-40s %-12s %-10s %-9s %s\n", "ID", "BACKEND", "SIZE", "CTX", "RUNNING")
+		fmt.Printf("%-40s %-12s %-10s %-9s %-14s %-7s %s\n", "ID", "BACKEND", "SIZE", "CTX", "PRICE $/M", "IDLE", "RUNNING")
 		for _, m := range list {
 			ctxv := "-"
-			if v, ok := m["ctxSize"].(float64); ok && v > 0 {
-				ctxv = fmt.Sprintf("%d", int(v))
+			if m.CtxSize > 0 {
+				ctxv = fmt.Sprintf("%d", m.CtxSize)
 			}
-			fmt.Printf("%-40s %-12s %-10v %-9s %v\n", m["id"], m["backendId"], m["sizeBytes"], ctxv, m["running"])
+			price := "free"
+			if m.PriceIn > 0 || m.PriceOut > 0 {
+				price = fmt.Sprintf("%.2f/%.2f", m.PriceIn, m.PriceOut)
+			}
+			idle := "-"
+			switch {
+			case m.IdleMin < 0:
+				idle = "pinned"
+			case m.IdleMin > 0:
+				idle = fmt.Sprintf("%dm", m.IdleMin)
+			}
+			fmt.Printf("%-40s %-12s %-10v %-9s %-14s %-7s %v\n", m.ID, m.BackendID, m.SizeBytes, ctxv, price, idle, m.Running)
 		}
 		return nil
 	case "install":
@@ -1113,14 +1135,17 @@ func cmdKey(args []string) error {
 			return err
 		}
 		var list []struct {
-			ID          string  `json:"id"`
-			Name        string  `json:"name"`
-			Prefix      string  `json:"prefix"`
-			TokenQuota  int64   `json:"tokenQuota"`
-			UsedTok     int64   `json:"usedTokens"`
-			UsedCost    float64 `json:"usedCost"`
-			MaxRequests int64   `json:"maxRequests"`
-			UsedReqs    int64   `json:"usedRequests"`
+			ID                 string     `json:"id"`
+			Name               string     `json:"name"`
+			Prefix             string     `json:"prefix"`
+			TokenQuota         int64      `json:"tokenQuota"`
+			UsedTok            int64      `json:"usedTokens"`
+			UsedCost           float64    `json:"usedCost"`
+			MaxRequests        int64      `json:"maxRequests"`
+			UsedReqs           int64      `json:"usedRequests"`
+			ExpiresAt          *time.Time `json:"expiresAt"`
+			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
+			TodayCost          float64    `json:"todayCost"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
@@ -1129,7 +1154,7 @@ func cmdKey(args []string) error {
 			fmt.Println("no keys")
 			return nil
 		}
-		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "QUOTA")
+		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %-12s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "EXPIRES", "QUOTA")
 		for _, k := range list {
 			quota := ""
 			if k.TokenQuota > 0 {
@@ -1141,8 +1166,22 @@ func cmdKey(args []string) error {
 				}
 				quota += fmt.Sprintf("req %d/%d", k.UsedReqs, k.MaxRequests)
 			}
-			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %s\n",
-				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, quota)
+			if k.DailyCostBudgetUSD > 0 {
+				if quota != "" {
+					quota += ", "
+				}
+				quota += fmt.Sprintf("$%.4f/%.2f/day", k.TodayCost, k.DailyCostBudgetUSD)
+			}
+			expires := "-"
+			if k.ExpiresAt != nil {
+				if time.Now().After(*k.ExpiresAt) {
+					expires = "expired"
+				} else {
+					expires = k.ExpiresAt.Local().Format("2006-01-02")
+				}
+			}
+			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %-12s %s\n",
+				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, expires, quota)
 		}
 		return nil
 	case "revoke":
