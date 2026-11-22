@@ -232,7 +232,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -5859,6 +5859,7 @@ func cmdChat(args []string) error {
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
+	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -5993,7 +5994,33 @@ func cmdChat(args []string) error {
 	}
 	if oneShot != "" {
 		hist := []map[string]any{}
-		if strings.TrimSpace(*system) != "" {
+		var contMsgs []map[string]string
+		var contTitle string
+		if *contChat != "" {
+			code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(*contChat))
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("chat %s: %s", *contChat, out)
+			}
+			var ch struct {
+				Title    string `json:"title"`
+				Messages []struct {
+					Role    string `json:"role"`
+					Content string `json:"content"`
+				} `json:"messages"`
+			}
+			if err := json.Unmarshal(out, &ch); err != nil {
+				return err
+			}
+			contTitle = ch.Title
+			for _, m := range ch.Messages {
+				hist = append(hist, map[string]any{"role": m.Role, "content": m.Content})
+				contMsgs = append(contMsgs, map[string]string{"role": m.Role, "content": m.Content})
+			}
+		}
+		if strings.TrimSpace(*system) != "" && len(contMsgs) == 0 {
 			hist = append(hist, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 		}
 		hist = append(hist, map[string]any{"role": "user", "content": oneShot})
@@ -6045,7 +6072,23 @@ func cmdChat(args []string) error {
 			}
 		}
 		fmt.Println()
-		if *saveChat != "" {
+		if *contChat != "" {
+			msgs := append(contMsgs,
+				map[string]string{"role": "user", "content": oneShot},
+				map[string]string{"role": "assistant", "content": reply.String()})
+			code, out, err := cc.Put("/api/v1/chats/"+url.PathEscape(*contChat), map[string]any{
+				"title":    contTitle,
+				"model":    model,
+				"messages": msgs,
+			})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("chat update: %s", out)
+			}
+			fmt.Printf("[appended to chat %s]\n", *contChat)
+		} else if *saveChat != "" {
 			msgs := []map[string]string{}
 			for _, h := range hist {
 				msgs = append(msgs, map[string]string{"role": fmt.Sprint(h["role"]), "content": fmt.Sprint(h["content"])})
