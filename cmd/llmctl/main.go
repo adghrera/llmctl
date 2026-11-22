@@ -278,7 +278,7 @@ Usage:
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
-  llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
+  llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
@@ -9154,9 +9154,12 @@ func cmdMcp(args []string) error {
 		afs := flag.NewFlagSet("mcp add", flag.ExitOnError)
 		sargs := afs.String("args", "", "space-separated server arguments")
 		aout := afs.String("out", "", "write the raw created-server JSON to this file instead of stdout (F511)")
+		ajson := afs.Bool("json", false, "print the raw created-server JSON (F655)")
+		var aenv stringList
+		afs.Var(&aenv, "env", "server environment variable k=v (repeatable, F655)")
 		afs.Parse(reorderFlags(rest))
 		if afs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl mcp add <name> <command> [-args 'a b'] [-out FILE]")
+			return fmt.Errorf("usage: llmctl mcp add <name> <command> [-args 'a b'] [-env k=v ...] [-json] [-out FILE]")
 		}
 		body := map[string]any{"name": afs.Arg(0), "command": afs.Arg(1)}
 		if *sargs != "" {
@@ -9165,6 +9168,9 @@ func cmdMcp(args []string) error {
 				list = append(list, a)
 			}
 			body["args"] = list
+		}
+		if m := aenv.Map(); len(m) > 0 {
+			body["env"] = m
 		}
 		code, out, err := cc.Post("/api/v1/mcp", body)
 		if err != nil {
@@ -9178,6 +9184,10 @@ func cmdMcp(args []string) error {
 				return err
 			}
 			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *aout, len(out))
+			return nil
+		}
+		if *ajson {
+			fmt.Print(string(out))
 			return nil
 		}
 		var rec struct {
