@@ -223,6 +223,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/chat/agent", s.chatAgent)
 	// Keys
 	m.HandleFunc("GET /api/v1/keys", s.listKeys)
+	m.HandleFunc("GET /api/v1/keys/{id}", s.getKey)
 	m.HandleFunc("POST /api/v1/keys", s.createKey)
 	m.HandleFunc("PATCH /api/v1/keys/{id}", s.updateKey)
 	m.HandleFunc("POST /api/v1/keys/{id}/reset-usage", s.resetKeyUsage)
@@ -1490,6 +1491,31 @@ type keyView struct {
 	LastUsed           *time.Time `json:"lastUsed,omitempty"` // last billed request (F149)
 }
 
+// keyViewFor builds the API view of one key, merging live gateway counters
+// (falling back to the persisted usage record for lastUsed).
+func (s *Server) keyViewFor(st *store.State, k *store.APIKeyRecord, live map[string]proxy.KeyUsage) keyView {
+	v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD}
+	if s.gw != nil {
+		v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
+	}
+	if ku, ok := live[k.ID]; ok { // counters key on the key id (F109)
+		v.UsedTok = ku.TotalTok
+		v.UsedCost = ku.Cost
+		v.UsedReqs = ku.Requests
+		if !ku.LastUsed.IsZero() {
+			t := ku.LastUsed
+			v.LastUsed = &t
+		}
+	}
+	if v.LastUsed == nil {
+		if rec := st.KeyUsage[k.ID]; rec != nil && !rec.LastUsed.IsZero() {
+			t := rec.LastUsed // persisted across restarts (F149)
+			v.LastUsed = &t
+		}
+	}
+	return v
+}
+
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	var live map[string]proxy.KeyUsage
@@ -1498,28 +1524,25 @@ func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD}
-		if s.gw != nil {
-			v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
-		}
-		if ku, ok := live[k.ID]; ok { // counters key on the key id (F109)
-			v.UsedTok = ku.TotalTok
-			v.UsedCost = ku.Cost
-			v.UsedReqs = ku.Requests
-			if !ku.LastUsed.IsZero() {
-				t := ku.LastUsed
-				v.LastUsed = &t
-			}
-		}
-		if v.LastUsed == nil {
-			if rec := st.KeyUsage[k.ID]; rec != nil && !rec.LastUsed.IsZero() {
-				t := rec.LastUsed // persisted across restarts (F149)
-				v.LastUsed = &t
-			}
-		}
-		out = append(out, v)
+		out = append(out, s.keyViewFor(st, k, live))
 	}
 	writeJSON(w, 200, out)
+}
+
+// getKey handles GET /api/v1/keys/{id} — one key's view for scripts (F165).
+func (s *Server) getKey(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	k := st.APIKeys[id]
+	if k == nil {
+		writeErr(w, 404, "unknown key: "+id)
+		return
+	}
+	var live map[string]proxy.KeyUsage
+	if s.gw != nil {
+		live = s.gw.KeyUsage()
+	}
+	writeJSON(w, 200, s.keyViewFor(st, k, live))
 }
 
 type createKeyReq struct {

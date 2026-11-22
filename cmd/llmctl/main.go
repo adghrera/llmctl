@@ -1263,7 +1263,7 @@ func cmdEvents(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|list|revoke|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|show|list|revoke|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1321,6 +1321,63 @@ func cmdKey(args []string) error {
 		fmt.Println("key:", r["key"])
 		fmt.Println("name:", r["name"])
 		fmt.Println("NOTE: shown only once — store it now.")
+		return nil
+	case "show":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl key show <id>")
+		}
+		code, out, err := cc.Get("/api/v1/keys/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("key show returned %d: %s", code, out)
+		}
+		var kv struct {
+			ID                 string     `json:"id"`
+			Name               string     `json:"name"`
+			Prefix             string     `json:"prefix"`
+			CreatedAt          time.Time  `json:"createdAt"`
+			TokenQuota         int64      `json:"tokenQuota"`
+			UsedTok            int64      `json:"usedTokens"`
+			UsedCost           float64    `json:"usedCost"`
+			UsedReqs           int64      `json:"usedRequests"`
+			MaxRequests        int64      `json:"maxRequests"`
+			AllowedModels      []string   `json:"allowedModels"`
+			ExpiresAt          *time.Time `json:"expiresAt"`
+			LastUsed           *time.Time `json:"lastUsed"`
+			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
+			TodayCost          float64    `json:"todayCost"`
+		}
+		if err := json.Unmarshal(out, &kv); err != nil {
+			return err
+		}
+		fmt.Printf("id:       %s\nname:     %s\nprefix:   %s…\ncreated:  %s\n", kv.ID, kv.Name, kv.Prefix, kv.CreatedAt.Local().Format("2006-01-02 15:04"))
+		fmt.Printf("usage:    %d tok · %d reqs · $%.4f\n", kv.UsedTok, kv.UsedReqs, kv.UsedCost)
+		if kv.TokenQuota > 0 || kv.MaxRequests > 0 {
+			fmt.Printf("quota:    ")
+			if kv.TokenQuota > 0 {
+				fmt.Printf("%d/%d tok ", kv.UsedTok, kv.TokenQuota)
+			}
+			if kv.MaxRequests > 0 {
+				fmt.Printf("%d/%d reqs", kv.UsedReqs, kv.MaxRequests)
+			}
+			fmt.Println()
+		}
+		if len(kv.AllowedModels) > 0 {
+			fmt.Printf("models:   %s\n", strings.Join(kv.AllowedModels, ", "))
+		}
+		if kv.ExpiresAt != nil {
+			fmt.Printf("expires:  %s\n", kv.ExpiresAt.Local().Format("2006-01-02 15:04"))
+		}
+		if kv.LastUsed != nil {
+			fmt.Printf("last used:%s\n", kv.LastUsed.Local().Format("2006-01-02 15:04"))
+		}
+		fmt.Printf("today:    $%.4f", kv.TodayCost)
+		if kv.DailyCostBudgetUSD > 0 {
+			fmt.Printf(" / $%.2f budget", kv.DailyCostBudgetUSD)
+		}
+		fmt.Println()
 		return nil
 	case "list":
 		_, out, err := cc.Get("/api/v1/keys")
