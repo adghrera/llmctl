@@ -296,7 +296,9 @@ toggle for a light theme (choice remembered). Tabs:
   silent). A "Test" button sends a test event to verify the endpoint. An
   optional signing secret makes every webhook POST (events, test, scheduler
   task results) carry `X-LLMCtrl-Signature: sha256=HMAC(secret, body)` so
-  receivers can verify the sender (F111).
+  receivers can verify the sender (F111). An "events" filter (comma-separated
+  kinds, empty = all) restricts which events are POSTed, e.g. only
+  `instance.crashed` (F143).
 - **CORS** — Settings → "CORS (gateway)": when ON, the gateway answers
   cross-origin preflights (OPTIONS → 204) and sends Access-Control-Allow-*
   headers so browser apps can call /v1/* directly.

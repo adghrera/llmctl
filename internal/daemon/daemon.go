@@ -300,6 +300,7 @@ func Run(ctx context.Context, opts Options) error {
 // loopback). We record a loopback address for the same port instead:
 //   - IPv6 dual-stack bind ("::")  → "[::1]:port"  (always accepted)
 //   - IPv4-only bind ("0.0.0.0")   → "127.0.0.1:port"
+//
 // An explicit host (e.g. "127.0.0.1:8080" or "10.0.0.5:8080") is kept as-is.
 func dialableAddr(ln net.Listener, requested string) string {
 	bind := ln.Addr().String()
@@ -393,6 +394,19 @@ func postEventWebhook(ctx context.Context, st *store.Store, event string, inst *
 	s, err := st.Load()
 	if err != nil || s.Settings == nil || s.Settings.NotifyWebhook == "" {
 		return
+	}
+	// Per-kind filter: empty list forwards everything (F143).
+	if len(s.Settings.NotifyEvents) > 0 {
+		keep := false
+		for _, k := range s.Settings.NotifyEvents {
+			if k == event {
+				keep = true
+				break
+			}
+		}
+		if !keep {
+			return
+		}
 	}
 	payload := map[string]any{
 		"event":    event,

@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const [startupSec, setStartupSec] = useState(0);
   const [maxBodyMB, setMaxBodyMB] = useState(0);
   const [webhook, setWebhook] = useState("");
+  const [whEvents, setWhEvents] = useState("");
   const [whSecret, setWhSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
@@ -26,6 +27,7 @@ export default function SettingsPage() {
       setStartupSec(s.startupTimeoutSec || 0);
       setMaxBodyMB(s.maxBodyMB || 0);
       setWebhook(s.notifyWebhook || "");
+      setWhEvents((s.notifyEvents || []).join(", "));
       setWhSecret(s.notifyWebhookSecret || "");
     }).catch(() => {});
   }, []);
@@ -94,6 +96,24 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ notifyWebhook: webhook.trim() });
       setSettings(r);
       ok(r.notifyWebhook ? "notify webhook saved" : "notify webhook cleared");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveWhEvents = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const list = whEvents
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const r = await api.updateSettings({ notifyEvents: list });
+      setSettings(r);
+      ok(r.notifyEvents?.length ? `webhook filter: ${r.notifyEvents.join(", ")}` : "webhook forwards all events");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -267,6 +287,18 @@ export default function SettingsPage() {
               Receives a JSON POST when an instance crashes or is idle-unloaded.
               Empty disables notifications.
             </p>
+            <div className="row" style={{ marginTop: 8, alignItems: "center" }}>
+              <span className="muted small" style={{ width: 90 }}>events</span>
+              <input
+                style={{ width: 320 }}
+                placeholder="instance.crashed, instance.idle-unloaded (empty = all)"
+                value={whEvents}
+                onChange={(e) => setWhEvents(e.target.value)}
+              />
+              <button className="btn" disabled={busy} onClick={saveWhEvents}>
+                Save
+              </button>
+            </div>
             <div className="row" style={{ marginTop: 8, alignItems: "center" }}>
               <span className="muted small" style={{ width: 90 }}>secret</span>
               <input

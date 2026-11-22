@@ -128,6 +128,9 @@ type Settings struct {
 	// NotifyWebhookSecret, when set, makes every webhook POST carry an
 	// HMAC-SHA256 signature header X-LLMCtrl-Signature (F111).
 	NotifyWebhookSecret string `json:"notifyWebhookSecret,omitempty"`
+	// NotifyEvents filters which event kinds reach the notify webhook
+	// (e.g. ["instance.crashed"]); empty = forward all (F143).
+	NotifyEvents []string `json:"notifyEvents,omitempty"`
 	// AllowCORS makes the gateway answer OPTIONS preflights and send
 	// Access-Control-Allow-* headers so browser apps can call it directly.
 	AllowCORS bool `json:"allowCORS"`

@@ -422,6 +422,7 @@ export interface Settings {
   idleUnloadMin: number;
   notifyWebhook?: string;
   notifyWebhookSecret?: string;
+  notifyEvents?: string[];
   allowCORS?: boolean;
   startupTimeoutSec?: number;
   maxBodyMB?: number;
@@ -747,7 +748,7 @@ export const api = {
   resetKeyUsage: (id: string) =>
     req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}/reset-usage`, { method: "POST" }),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   testNotifyWebhook: () =>
     req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),

@@ -1657,14 +1657,15 @@ func (s *Server) revokeKey(w http.ResponseWriter, r *http.Request) {
 // ---- settings ----
 
 type settingsView struct {
-	RequireAuth         bool   `json:"requireAuth"`
-	IdleUnloadMin       int    `json:"idleUnloadMin"`
-	NotifyWebhook       string `json:"notifyWebhook"`
-	NotifyWebhookSecret string `json:"notifyWebhookSecret"`
-	AllowCORS           bool   `json:"allowCORS"`
-	StartupTimeoutSec   int    `json:"startupTimeoutSec"`
-	StartOnDemand       bool   `json:"startOnDemand"`
-	MaxBodyMB           int    `json:"maxBodyMB"`
+	RequireAuth         bool     `json:"requireAuth"`
+	IdleUnloadMin       int      `json:"idleUnloadMin"`
+	NotifyWebhook       string   `json:"notifyWebhook"`
+	NotifyWebhookSecret string   `json:"notifyWebhookSecret"`
+	NotifyEvents        []string `json:"notifyEvents,omitempty"` // event-kind filter, empty = all (F143)
+	AllowCORS           bool     `json:"allowCORS"`
+	StartupTimeoutSec   int      `json:"startupTimeoutSec"`
+	StartOnDemand       bool     `json:"startOnDemand"`
+	MaxBodyMB           int      `json:"maxBodyMB"`
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1696,6 +1697,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		IdleUnloadMin:       st.Settings.IdleUnloadMin,
 		NotifyWebhook:       st.Settings.NotifyWebhook,
 		NotifyWebhookSecret: st.Settings.NotifyWebhookSecret,
+		NotifyEvents:        st.Settings.NotifyEvents,
 		AllowCORS:           st.Settings.AllowCORS,
 		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
 		StartOnDemand:       st.Settings.StartOnDemand,
@@ -1704,14 +1706,15 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateSettingsReq struct {
-	RequireAuth         *bool   `json:"requireAuth"`
-	IdleUnloadMin       *int    `json:"idleUnloadMin"`
-	NotifyWebhook       *string `json:"notifyWebhook"`
-	NotifyWebhookSecret *string `json:"notifyWebhookSecret"`
-	AllowCORS           *bool   `json:"allowCORS"`
-	StartupTimeoutSec   *int    `json:"startupTimeoutSec"`
-	StartOnDemand       *bool   `json:"startOnDemand"`
-	MaxBodyMB           *int    `json:"maxBodyMB"`
+	RequireAuth         *bool     `json:"requireAuth"`
+	IdleUnloadMin       *int      `json:"idleUnloadMin"`
+	NotifyWebhook       *string   `json:"notifyWebhook"`
+	NotifyWebhookSecret *string   `json:"notifyWebhookSecret"`
+	NotifyEvents        *[]string `json:"notifyEvents"` // event-kind filter, [] = all (F143)
+	AllowCORS           *bool     `json:"allowCORS"`
+	StartupTimeoutSec   *int      `json:"startupTimeoutSec"`
+	StartOnDemand       *bool     `json:"startOnDemand"`
+	MaxBodyMB           *int      `json:"maxBodyMB"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1745,6 +1748,15 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.NotifyWebhook != nil {
 			st.Settings.NotifyWebhook = strings.TrimSpace(*req.NotifyWebhook)
 		}
+		if req.NotifyEvents != nil {
+			clean := []string{}
+			for _, e := range *req.NotifyEvents {
+				if e = strings.TrimSpace(e); e != "" {
+					clean = append(clean, e)
+				}
+			}
+			st.Settings.NotifyEvents = clean // empty = forward all (F143)
+		}
 		if req.AllowCORS != nil {
 			st.Settings.AllowCORS = *req.AllowCORS
 		}
@@ -1776,6 +1788,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		IdleUnloadMin:       st.Settings.IdleUnloadMin,
 		NotifyWebhook:       st.Settings.NotifyWebhook,
 		NotifyWebhookSecret: st.Settings.NotifyWebhookSecret,
+		NotifyEvents:        st.Settings.NotifyEvents,
 		AllowCORS:           st.Settings.AllowCORS,
 		StartupTimeoutSec:   st.Settings.StartupTimeoutSec,
 		StartOnDemand:       st.Settings.StartOnDemand,
