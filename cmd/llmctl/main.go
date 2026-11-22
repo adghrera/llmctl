@@ -233,7 +233,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json]   recent webhook delivery attempts
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
@@ -7018,19 +7018,22 @@ func cmdPrompts(args []string) error {
 		return nil
 	}
 	if len(args) > 0 && args[0] == "show" {
-		if len(args) < 2 {
-			return fmt.Errorf("usage: llmctl prompts show <id>")
+		sfs := flag.NewFlagSet("prompts show", flag.ExitOnError)
+		outFile := sfs.String("out", "", "write the prompt content to this file instead of stdout (F438)")
+		sfs.Parse(reorderFlags(args[1:]))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl prompts show <id> [-out file]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Get("/api/v1/prompts/" + url.PathEscape(args[1]))
+		code, out, err := cc.Get("/api/v1/prompts/" + url.PathEscape(sfs.Arg(0)))
 		if err != nil {
 			return err
 		}
 		if code != 200 {
-			return fmt.Errorf("prompt %q not found (%d)", args[1], code)
+			return fmt.Errorf("prompt %q not found (%d)", sfs.Arg(0), code)
 		}
 		var p struct {
 			ID      string `json:"id"`
@@ -7039,6 +7042,13 @@ func cmdPrompts(args []string) error {
 		}
 		if err := json.Unmarshal(out, &p); err != nil {
 			return err
+		}
+		if *outFile != "" { // F438: raw content only, for scripts
+			if err := os.WriteFile(*outFile, []byte(p.Content+"\n"), 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("wrote %s (%d bytes)\n", *outFile, len(p.Content)+1)
+			return nil
 		}
 		fmt.Printf("%s (%s)\n\n%s\n", p.Name, p.ID, p.Content)
 		return nil

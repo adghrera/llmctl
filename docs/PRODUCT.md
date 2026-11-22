@@ -333,7 +333,7 @@ toggle for a light theme (choice remembered). Tabs:
    word is accepted as an explicit subcommand, and `--csv` exports the
    filtered list as id,category,name,description, header-only when empty, F382)
    and
-   `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
+   `llmctl prompts show <id> [-out file]` and `llmctl prompts render <id> [-input TEXT |
    piped stdin] [-var k=v …]` (renders the template with {{input}} and any
    {{k}} placeholders filled, for scripts)
    and `llmctl prompts categories` (lists categories, one per line)
@@ -615,7 +615,7 @@ llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-model M] [--csv] [-json]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
 llmctl webhooks [-n 20] [-event E] [--csv] [-json]    recent webhook delivery attempts
-llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…]
+llmctl prompts [filter] [-category X] [-json] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
