@@ -7,6 +7,7 @@ export default function Files() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [contentView, setContentView] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
 
   const load = () =>
     api
@@ -71,6 +72,11 @@ export default function Files() {
     }
   };
 
+  // Filename text filter (case-insensitive substring) for the files table,
+  // matching the other list-page filters (F356).
+  const low = filter.trim().toLowerCase();
+  const shown = low ? files.filter((f) => f.entry.filename.toLowerCase().includes(low)) : files;
+
   return (
     <>
       <div className="card">
@@ -101,7 +107,21 @@ export default function Files() {
       </div>
 
       <div className="card">
-        <h2>Uploaded files ({files.length})</h2>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>
+            Uploaded files ({shown.length}
+            {low ? ` of ${files.length}` : ""})
+          </h2>
+          {files.length > 0 && (
+            <input
+              className="oc-input"
+              style={{ width: 180 }}
+              placeholder="filter filename…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          )}
+        </div>
         {files.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>
             No files uploaded yet.
@@ -118,7 +138,7 @@ export default function Files() {
               </tr>
             </thead>
             <tbody>
-              {files.map((f) => (
+              {shown.map((f) => (
                 <tr key={f.id}>
                   <td>
                     <b>{f.entry.filename}</b>
@@ -149,6 +169,11 @@ export default function Files() {
               ))}
             </tbody>
           </table>
+        )}
+        {files.length > 0 && shown.length === 0 && (
+          <div className="empty muted" style={{ padding: "10px 0" }}>
+            No files match “{filter.trim()}”.
+          </div>
         )}
       </div>
 

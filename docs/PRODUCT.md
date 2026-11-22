@@ -347,7 +347,8 @@ toggle for a light theme (choice remembered). Tabs:
   `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
   In chat, `/file <filename>` injects file content as a user message.
-  Dedicated Files page for upload/list/delete. Text files are stored as-is;
+  Dedicated Files page for upload/list/delete, with a filename text filter
+  (F356). Text files are stored as-is;
   PDF and DOCX uploads have their text extracted automatically (F053).
 - **Cost tracking** — track token usage and estimate costs per API key and per
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
