@@ -271,7 +271,9 @@ toggle for a light theme (choice remembered). Tabs:
   requests count; F105). Optional per-key rate limit (`rateRPS` sustained
    + `rateBurst`, set at create or PATCH; 0 = gateway default; 429 on excess;
    F130). Keys may expire (`expiresInDays` at create/PATCH, 0 = never; expired
-   keys get 403 `key_expired`; F135). Per-key usage counters (tokens, requests, cost) can
+   keys get 403 `key_expired`; F135). A per-key daily cost budget
+   (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once
+   the key's estimated USD spend for the UTC day reaches it (F138). Per-key usage counters (tokens, requests, cost) can
   be zeroed with a "Reset" button, `llmctl key reset-usage <id>` or
   `POST /api/v1/keys/{id}/reset-usage` (F107).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):

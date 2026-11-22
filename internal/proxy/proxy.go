@@ -313,6 +313,13 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 				fmt.Sprintf("API key %q has used its request quota (%d requests)", keyRecord.Name, keyRecord.MaxRequests))
 			return
 		}
+		// Per-key daily cost budget (F138): estimated USD spent today.
+		if keyRecord != nil && keyRecord.DailyCostBudgetUSD > 0 &&
+			s.KeyDailyCost(ckey) >= keyRecord.DailyCostBudgetUSD {
+			writeErr(w, http.StatusTooManyRequests, "budget_exceeded",
+				fmt.Sprintf("API key %q has spent its daily cost budget ($%.4f)", keyRecord.Name, keyRecord.DailyCostBudgetUSD))
+			return
+		}
 		// Per-key concurrency cap (F095): reject when the key already has
 		// MaxConcurrent requests in flight.
 		if keyRecord != nil && keyRecord.MaxConcurrent > 0 {
@@ -943,6 +950,11 @@ func (s *Server) SeedDaily(daily map[string]map[string]*store.DailyModelUsage) {
 // DailyKeyUsage returns the UTC-date -> key id usage rollup (F126).
 func (s *Server) DailyKeyUsage() map[string]map[string]*store.DailyModelUsage {
 	return s.collector.dailyKeyUsage()
+}
+
+// KeyDailyCost returns a key's accumulated estimated USD today (F138).
+func (s *Server) KeyDailyCost(keyID string) float64 {
+	return s.collector.keyDailyCost(keyID)
 }
 
 // SeedDailyKeys restores the per-key daily rollup at startup (F126).

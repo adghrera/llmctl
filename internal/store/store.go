@@ -107,6 +107,9 @@ type APIKeyRecord struct {
 	MaxRequests int64 `json:"maxRequests,omitempty"`
 	// ExpiresAt is when the key stops working; nil = never (F135).
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	// DailyCostBudgetUSD caps the estimated USD a key may spend per UTC
+	// day; 0 = unlimited (F138).
+	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD,omitempty"`
 }
 
 // Settings holds daemon-wide configuration.

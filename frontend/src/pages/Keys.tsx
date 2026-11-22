@@ -14,6 +14,7 @@ export default function Keys() {
   const [rps, setRps] = useState(0);
   const [burst, setBurst] = useState(0);
   const [expiresDays, setExpiresDays] = useState(0);
+  const [budget, setBudget] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
@@ -39,7 +40,7 @@ export default function Keys() {
     setBusy(true);
     try {
       const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst, expiresDays);
+      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst, expiresDays, budget);
       setCreated(r.key);
       setName("");
       setQuota(0);
@@ -49,6 +50,7 @@ export default function Keys() {
       setRps(0);
       setBurst(0);
       setExpiresDays(0);
+      setBudget(0);
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -177,6 +179,16 @@ export default function Keys() {
             value={expiresDays || ""}
             onChange={(e) => setExpiresDays(Math.max(0, Number(e.target.value) || 0))}
           />
+          <input
+            type="number"
+            min={0}
+            step={0.01}
+            style={{ width: 90 }}
+            placeholder="$ / day"
+            title="Daily cost budget in USD (0 = unlimited)"
+            value={budget || ""}
+            onChange={(e) => setBudget(Math.max(0, Number(e.target.value) || 0))}
+          />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create
           </button>
@@ -243,9 +255,10 @@ export default function Keys() {
                   <td className="mono">
                     {(() => {
                       const u = today[k.id];
-                      return u
-                        ? `${(u.prompt + u.comp).toLocaleString()} tok · ${u.requests} req${u.cost ? ` · $${u.cost.toFixed(4)}` : ""}`
-                        : "—";
+                      const cost = u?.cost ?? 0;
+                      const budgetStr = k.dailyCostBudgetUSD ? ` / $${k.dailyCostBudgetUSD}` : "";
+                      if (!u) return k.dailyCostBudgetUSD ? `$0${budgetStr}` : "—";
+                      return `${(u.prompt + u.comp).toLocaleString()} tok · ${u.requests} req${cost ? ` · $${cost.toFixed(4)}${budgetStr}` : ""}`;
                     })()}
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>

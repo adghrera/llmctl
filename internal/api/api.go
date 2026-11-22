@@ -1449,13 +1449,19 @@ type keyView struct {
 	RateRPS       float64    `json:"rateRPS,omitempty"`       // sustained req/s, 0 = default (F130)
 	RateBurst     int        `json:"rateBurst,omitempty"`     // burst size, 0 = default (F130)
 	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`     // nil = never (F135)
+	// DailyCostBudgetUSD: estimated USD cap per UTC day, 0 = unlimited (F138).
+	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD,omitempty"`
+	TodayCost          float64 `json:"todayCost"` // estimated USD spent today (F138)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt}
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD}
+		if s.gw != nil {
+			v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
+		}
 		if s.gw != nil {
 			if ku, ok := s.gw.KeyUsage()[k.ID]; ok { // counters key on the key id (F109)
 				v.UsedTok = ku.TotalTok
@@ -1477,6 +1483,9 @@ type createKeyReq struct {
 	RateRPS       float64  `json:"rateRPS"`       // sustained req/s, 0 = gateway default (F130)
 	RateBurst     int      `json:"rateBurst"`     // burst size, 0 = gateway default (F130)
 	ExpiresInDays int      `json:"expiresInDays"` // key dies after N days, 0 = never (F135)
+	// DailyCostBudgetUSD caps estimated USD per UTC day for this key;
+	// 0 = unlimited (F138).
+	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD"`
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -1484,11 +1493,12 @@ type createKeyReq struct {
 func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var req struct {
-		AllowedModels []string `json:"allowedModels"`
-		MaxConcurrent *int     `json:"maxConcurrent"`
-		RateRPS       *float64 `json:"rateRPS"`       // 0 = gateway default (F130)
-		RateBurst     *int     `json:"rateBurst"`     // 0 = gateway default (F130)
-		ExpiresInDays *int     `json:"expiresInDays"` // 0 = never expires (F135)
+		AllowedModels      []string `json:"allowedModels"`
+		MaxConcurrent      *int     `json:"maxConcurrent"`
+		RateRPS            *float64 `json:"rateRPS"`            // 0 = gateway default (F130)
+		RateBurst          *int     `json:"rateBurst"`          // 0 = gateway default (F130)
+		ExpiresInDays      *int     `json:"expiresInDays"`      // 0 = never expires (F135)
+		DailyCostBudgetUSD *float64 `json:"dailyCostBudgetUSD"` // 0 = unlimited (F138)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")
@@ -1504,6 +1514,10 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.ExpiresInDays != nil && *req.ExpiresInDays < 0 {
 		writeErr(w, 400, "expiresInDays must be >= 0")
+		return
+	}
+	if req.DailyCostBudgetUSD != nil && *req.DailyCostBudgetUSD < 0 {
+		writeErr(w, 400, "dailyCostBudgetUSD must be >= 0")
 		return
 	}
 	var expiresAt *time.Time
@@ -1531,6 +1545,9 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 			}
 			if req.ExpiresInDays != nil {
 				k.ExpiresAt = expiresAt // nil when 0 (F135)
+			}
+			if req.DailyCostBudgetUSD != nil {
+				k.DailyCostBudgetUSD = *req.DailyCostBudgetUSD
 			}
 		}
 		return nil
@@ -1574,6 +1591,10 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "expiresInDays must be >= 0")
 		return
 	}
+	if req.DailyCostBudgetUSD < 0 {
+		writeErr(w, 400, "dailyCostBudgetUSD must be >= 0")
+		return
+	}
 	var expiresAt *time.Time
 	if req.ExpiresInDays > 0 {
 		t := time.Now().AddDate(0, 0, req.ExpiresInDays)
@@ -1588,18 +1609,19 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 	}
 	s.store.Update(func(st *store.State) error {
 		st.APIKeys[id] = &store.APIKeyRecord{
-			ID:            id,
-			Name:          req.Name,
-			Hash:          hex.EncodeToString(sum[:]),
-			Prefix:        prefix,
-			CreatedAt:     time.Now(),
-			RateRPS:       req.RateRPS,   // 0 = gateway default (F130)
-			RateBurst:     req.RateBurst, // 0 = gateway default (F130)
-			TokenQuota:    req.TokenQuota,
-			AllowedModels: normalizeModelList(req.AllowedModels),
-			MaxConcurrent: req.MaxConcurrent,
-			MaxRequests:   req.MaxRequests,
-			ExpiresAt:     expiresAt, // nil = never (F135)
+			ID:                 id,
+			Name:               req.Name,
+			Hash:               hex.EncodeToString(sum[:]),
+			Prefix:             prefix,
+			CreatedAt:          time.Now(),
+			RateRPS:            req.RateRPS,   // 0 = gateway default (F130)
+			RateBurst:          req.RateBurst, // 0 = gateway default (F130)
+			TokenQuota:         req.TokenQuota,
+			AllowedModels:      normalizeModelList(req.AllowedModels),
+			MaxConcurrent:      req.MaxConcurrent,
+			MaxRequests:        req.MaxRequests,
+			ExpiresAt:          expiresAt,              // nil = never (F135)
+			DailyCostBudgetUSD: req.DailyCostBudgetUSD, // 0 = unlimited (F138)
 		}
 		return nil
 	})

@@ -412,6 +412,8 @@ export interface ApiKey {
   rateRPS?: number;
   rateBurst?: number;
   expiresAt?: string;
+  dailyCostBudgetUSD?: number;
+  todayCost?: number;
 }
 
 export interface Settings {
@@ -729,15 +731,15 @@ export const api = {
     req<{ ok: boolean }>(`/autostart/${encodeURIComponent(model)}`, { method: "DELETE" }),
   jobs: () => req<Job[]>("/jobs"),
   keys: () => req<ApiKey[]>("/keys"),
-  createKey: (name: string, tokenQuota?: number, allowedModels?: string[], maxConcurrent?: number, maxRequests?: number, rateRPS?: number, rateBurst?: number, expiresInDays?: number) =>
+  createKey: (name: string, tokenQuota?: number, allowedModels?: string[], maxConcurrent?: number, maxRequests?: number, rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number) =>
     req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, {
       method: "POST",
-      body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0, allowedModels: allowedModels ?? [], maxConcurrent: maxConcurrent ?? 0, maxRequests: maxRequests ?? 0, rateRPS: rateRPS ?? 0, rateBurst: rateBurst ?? 0, expiresInDays: expiresInDays ?? 0 }),
+      body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0, allowedModels: allowedModels ?? [], maxConcurrent: maxConcurrent ?? 0, maxRequests: maxRequests ?? 0, rateRPS: rateRPS ?? 0, rateBurst: rateBurst ?? 0, expiresInDays: expiresInDays ?? 0, dailyCostBudgetUSD: dailyCostBudgetUSD ?? 0 }),
     }),
-  updateKey: (id: string, allowedModels: string[], rateRPS?: number, rateBurst?: number, expiresInDays?: number) =>
+  updateKey: (id: string, allowedModels: string[], rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number) =>
     req<{ ok: boolean; allowedModels: string[] }>(`/keys/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ allowedModels, rateRPS, rateBurst, expiresInDays }),
+      body: JSON.stringify({ allowedModels, rateRPS, rateBurst, expiresInDays, dailyCostBudgetUSD }),
     }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   resetKeyUsage: (id: string) =>

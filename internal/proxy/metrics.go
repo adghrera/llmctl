@@ -206,8 +206,8 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 		if status < 400 {
 			kc.Requests++ // only served requests count toward per-key quotas (F105)
 		}
-		kc.Cost += float64(pTok)/1e6 * m.pricingFor(model).InputPerM
-		kc.Cost += float64(cTok)/1e6 * m.pricingFor(model).OutputPerM
+		kc.Cost += float64(pTok) / 1e6 * m.pricingFor(model).InputPerM
+		kc.Cost += float64(cTok) / 1e6 * m.pricingFor(model).OutputPerM
 		kc.UpdatedAt = time.Now().UTC()
 		kc.mu.Unlock()
 	}
@@ -342,6 +342,18 @@ func (m *metricsCollector) dailyKeyUsage() map[string]map[string]*store.DailyMod
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return copyDaily(m.dailyKeys)
+}
+
+// keyDailyCost returns the cost a key has accumulated today (UTC) from the
+// per-key daily rollup (F138).
+func (m *metricsCollector) keyDailyCost(keyID string) float64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	day := time.Now().UTC().Format("2006-01-02")
+	if u := m.dailyKeys[day][keyID]; u != nil {
+		return u.Cost
+	}
+	return 0
 }
 
 func copyDaily(in map[string]map[string]*store.DailyModelUsage) map[string]map[string]*store.DailyModelUsage {
