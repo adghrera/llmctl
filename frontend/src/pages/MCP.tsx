@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type MCPServer, type MCPToolDef } from "../api/client";
 import { ok, err } from "../ui/toast";
 
@@ -19,6 +19,43 @@ export default function MCP() {
   useEffect(() => {
     load();
   }, []);
+
+  // JSON export/import, same shapes as `llmctl mcp export|import` (F411).
+  // NOTE: the file may contain env values that hold secrets.
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(servers, null, 2) + "\n"], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-mcp-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const importJson = async (f: File) => {
+    try {
+      const list = JSON.parse(await f.text()) as Array<Record<string, unknown>>;
+      if (!Array.isArray(list)) throw new Error("expected a JSON array");
+      let created = 0;
+      let skipped = 0;
+      for (const s of list) {
+        const { id: _id, enabled, ...body } = s; // the store mints its own ids
+        try {
+          const rec = await api.createMCPServer(body as Parameters<typeof api.createMCPServer>[0]);
+          if (enabled === false && rec?.id) {
+            // create forces enabled=true; re-disable to match the file
+            await api.setMCPEnabled(rec.id, false).catch(() => {});
+          }
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} MCP servers (${skipped} skipped)`);
+      load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const create = async () => {
     if (!name.trim() || !command.trim()) {
@@ -79,6 +116,7 @@ export default function MCP() {
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>MCP Servers</h2>
+          <div className="row" style={{ gap: 6 }}>
           <button
             className="btn sm"
             disabled={servers.length === 0}
@@ -103,6 +141,33 @@ export default function MCP() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={servers.length === 0}
+            title="download servers as JSON — may contain env secrets (CLI: llmctl mcp export)"
+            onClick={exportJson}
+          >
+            Export JSON
+          </button>
+          <button
+            className="btn sm"
+            title="import an MCP JSON file (CLI: llmctl mcp import)"
+            onClick={() => importFileRef.current?.click()}
+          >
+            Import JSON
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importJson(f);
+              e.target.value = "";
+            }}
+          />
+          </div>
         </div>
         <p className="muted small" style={{ margin: "4px 0 12px" }}>
           Model Context Protocol servers launched as local processes. Their

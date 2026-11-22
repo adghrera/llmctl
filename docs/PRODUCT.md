@@ -308,7 +308,8 @@ toggle for a light theme (choice remembered). Tabs:
   plus a live text filter with `?q=` deep links from Search (F322) and an
   Export CSV button on the template list (F394);
   `prompts export [-out F]` / `prompts import FILE` move custom templates
-  between instances (F323).
+  between instances (F323); the Prompts page has matching Export JSON /
+  Import JSON buttons (F409).
   REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering, copy-to-clipboard, an "Insert into chat"
@@ -351,7 +352,8 @@ toggle for a light theme (choice remembered). Tabs:
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
    [-tags a,b]`, `memory show <id>`, `memory search <query> [-json]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
-   move entries between instances (F246, F267, F289, F321).
+   move entries between instances (F246, F267, F289, F321); the Memory page
+   has matching Export JSON / Import JSON buttons (F410).
  - **KB CLI** — `llmctl kb [filter] [--csv] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
    `kb show <id> [-json]` (human view: description, doc list, search mode —
@@ -372,7 +374,8 @@ toggle for a light theme (choice remembered). Tabs:
    `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`,
    `mcp test <id>` (connect and list advertised tools) and
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
-   enabled state preserved, F330) (F249).
+   enabled state preserved, F330) (F249); the MCP page has matching
+   Export JSON / Import JSON buttons (F411).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
    per-model table; `-keys` shows per-key costs with names, `-model M` /
    `-key K` filter the table to one id, `--csv` exports the table, `-json` emits

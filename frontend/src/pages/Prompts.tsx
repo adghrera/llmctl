@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, PromptTemplate } from "../api/client";
 import { ok, err } from "../ui/toast";
@@ -102,6 +102,43 @@ export default function Prompts() {
   useEffect(() => {
     load();
   }, []);
+
+  // JSON export/import, same shapes as `llmctl prompts export|import` (F409).
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const exportJson = () => {
+    const recs = templates
+      .filter((t) => t.custom)
+      .map((t) => ({ id: t.id, name: t.name, description: t.description, category: t.category, content: t.content }));
+    const blob = new Blob([JSON.stringify(recs, null, 2) + "\n"], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-prompts-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const importJson = async (f: File) => {
+    try {
+      const entries = JSON.parse(await f.text()) as Array<Record<string, string>>;
+      if (!Array.isArray(entries)) throw new Error("expected a JSON array");
+      let created = 0;
+      let skipped = 0;
+      for (const e of entries) {
+        try {
+          await api.createPrompt({
+            id: String(e.id ?? ""), name: String(e.name ?? ""),
+            description: e.description, category: e.category, content: String(e.content ?? ""),
+          });
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} prompts (${skipped} skipped)`);
+      load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const filtered = templates.filter((t) => {
     if (selectedCategory && t.category !== selectedCategory) return false;
@@ -224,6 +261,7 @@ export default function Prompts() {
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Templates ({filtered.length})</h2>
+          <div className="row" style={{ gap: 6 }}>
           <button
             className="btn sm"
             disabled={filtered.length === 0}
@@ -246,6 +284,33 @@ export default function Prompts() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={!templates.some((t) => t.custom)}
+            title="download custom templates as JSON (CLI: llmctl prompts export)"
+            onClick={exportJson}
+          >
+            Export JSON
+          </button>
+          <button
+            className="btn sm"
+            title="import a prompts JSON file (CLI: llmctl prompts import)"
+            onClick={() => importFileRef.current?.click()}
+          >
+            Import JSON
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importJson(f);
+              e.target.value = "";
+            }}
+          />
+          </div>
         </div>
         {filtered.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>

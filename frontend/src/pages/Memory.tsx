@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, MemoryEntry } from "../api/client";
 import { ok, err } from "../ui/toast";
 
@@ -21,6 +21,51 @@ export default function Memory() {
   useEffect(() => {
     load();
   }, []);
+
+  // JSON export/import, same shapes as `llmctl memory export|import` (F410).
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const exportJson = () => {
+    const recs = entries.map((e) => ({
+      content: e.entry.content,
+      tags: e.entry.tags,
+      source: e.entry.source,
+    }));
+    const blob = new Blob([JSON.stringify(recs, null, 2) + "\n"], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-memory-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const importJson = async (f: File) => {
+    try {
+      const list = JSON.parse(await f.text()) as Array<Record<string, unknown>>;
+      if (!Array.isArray(list)) throw new Error("expected a JSON array");
+      let created = 0;
+      let skipped = 0;
+      for (const e of list) {
+        const content = typeof e.content === "string" ? e.content : "";
+        if (!content.trim()) {
+          skipped++;
+          continue;
+        }
+        try {
+          await api.createMemory({
+            content,
+            tags: Array.isArray(e.tags) ? (e.tags as string[]) : undefined,
+            source: typeof e.source === "string" ? e.source : undefined,
+          });
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} entries (${skipped} skipped)`);
+      load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const create = async () => {
     if (!content.trim()) {
@@ -183,6 +228,7 @@ export default function Memory() {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0 8px 0" }}>
               <h2 style={{ margin: 0 }}>All memory entries ({entries.length})</h2>
+              <div className="row" style={{ gap: 6 }}>
               <button
                 className="btn sm"
                 disabled={entries.length === 0}
@@ -207,6 +253,33 @@ export default function Memory() {
               >
                 Export CSV
               </button>
+              <button
+                className="btn sm"
+                disabled={entries.length === 0}
+                title="download entries as JSON (CLI: llmctl memory export)"
+                onClick={exportJson}
+              >
+                Export JSON
+              </button>
+              <button
+                className="btn sm"
+                title="import a memory JSON file (CLI: llmctl memory import)"
+                onClick={() => importFileRef.current?.click()}
+              >
+                Import JSON
+              </button>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept="application/json,.json"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) importJson(f);
+                  e.target.value = "";
+                }}
+              />
+              </div>
             </div>
             {entries.length === 0 && (
               <div className="empty muted" style={{ padding: "10px 0" }}>
