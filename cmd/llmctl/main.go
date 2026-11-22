@@ -227,7 +227,7 @@ Usage:
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
   llmctl key disable <id> / llmctl key enable <id>
   llmctl key rotate <id> [-json]
-  llmctl key list [--csv]
+  llmctl key list [--csv] [-out FILE]
   llmctl key revoke <id>
   llmctl key reset-usage <id>
   llmctl autostart list [--csv]
@@ -8103,10 +8103,18 @@ func cmdKey(args []string) error {
 		fs := flag.NewFlagSet("key list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw keys JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the key table as CSV (F374)")
+		outFile := fs.String("out", "", "write the raw keys JSON to this file instead of stdout (F481)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/keys")
 		if err != nil {
 			return err
+		}
+		if *outFile != "" { // F481: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
