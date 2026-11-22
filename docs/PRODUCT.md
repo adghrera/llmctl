@@ -483,7 +483,9 @@ llmctl disk [-json]                                (model dir + volume disk usag
                                     is on but no usable key exists (F223), aliases (warns when an
                                     alias targets a deleted model, F228), webhook (warns when recent
                                     notify-webhook deliveries failed, F232), low disk (state check
-                                    warns below 1 GiB free, F236); exit ≠0 on errors)
+                                    warns below 1 GiB free, F236), scheduler (warns when a schedule
+                                    references a missing model or recent runs failed, F334);
+                                    exit ≠0 on errors)
 llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove

@@ -13,6 +13,7 @@ import (
 
 	"llmctl/internal/disk"
 	"llmctl/internal/paths"
+	"llmctl/internal/scheduler"
 	"llmctl/internal/store"
 	"llmctl/internal/webhook"
 )
@@ -273,6 +274,42 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		add("backups", status, detail)
 	} else {
 		add("backups", "warn", "no snapshots yet")
+	}
+
+	// Scheduler: schedules pointing at missing models, and recent run failures (F334).
+	if ts, err := s.schedStore(); err == nil {
+		if recs, err := ts.List(); err == nil {
+			known := map[string]bool{}
+			for id := range st.Models {
+				known[strings.ToLower(id)] = true
+			}
+			for a := range st.Aliases {
+				known[strings.ToLower(a)] = true
+			}
+			var bad []string
+			for _, r := range recs {
+				k := r.Spec.KindOrDefault()
+				if (k == "chat" || k == "instance.start") && r.Spec.Model != "" &&
+					!known[strings.ToLower(r.Spec.Model)] {
+					bad = append(bad, r.Spec.Name)
+				}
+			}
+			runs := scheduler.Runs(50)
+			fails := 0
+			for _, run := range runs {
+				if run.Status == "error" {
+					fails++
+				}
+			}
+			switch {
+			case len(bad) > 0:
+				add("scheduler", "warn", fmt.Sprintf("%d schedule(s) reference unknown model(s): %v", len(bad), bad))
+			case fails > 0:
+				add("scheduler", "warn", fmt.Sprintf("%d schedule(s), %d/%d recent run(s) failed", len(recs), fails, len(runs)))
+			default:
+				add("scheduler", "ok", fmt.Sprintf("%d schedule(s), recent runs ok", len(recs)))
+			}
+		}
 	}
 
 	ok := true
