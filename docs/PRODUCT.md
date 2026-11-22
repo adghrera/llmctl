@@ -306,7 +306,7 @@ survives the periodic UI re-render.
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
 llmctl down
 llmctl status
-llmctl ps
+llmctl ps                          (shows uptime and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
 llmctl models list|install|remove|hf-search|hf-files
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]

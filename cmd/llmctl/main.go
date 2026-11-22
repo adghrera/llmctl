@@ -222,18 +222,52 @@ func cmdPS(args []string) error {
 	if err != nil {
 		return err
 	}
-	var list []map[string]any
-	json.Unmarshal(out, &list)
+	var list []struct {
+		ID        string    `json:"id"`
+		ModelID   string    `json:"modelId"`
+		BackendID string    `json:"backendId"`
+		Transport string    `json:"transport"`
+		Port      int       `json:"port"`
+		Status    string    `json:"status"`
+		StartedAt time.Time `json:"startedAt"`
+		Note      string    `json:"note"`
+	}
+	if err := json.Unmarshal(out, &list); err != nil {
+		return err
+	}
 	if len(list) == 0 {
 		fmt.Println("no instances (start one: llmctl start <model-id>)")
 		return nil
 	}
-	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS")
+	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %-9s %-8s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS", "UPTIME", "NOTE")
 	for _, i := range list {
-		fmt.Printf("%-28s %-24s %-12s %-8s %-7v %s\n",
-			i["id"], i["modelId"], i["backendId"], i["transport"], i["port"], i["status"])
+		up := ""
+		if i.Status == "running" && !i.StartedAt.IsZero() {
+			up = uptimeShort(time.Since(i.StartedAt))
+		}
+		note := i.Note
+		if len(note) > 40 {
+			note = note[:37] + "..."
+		}
+		fmt.Printf("%-28s %-24s %-12s %-8s %-7v %-9s %-8s %s\n",
+			i.ID, i.ModelID, i.BackendID, i.Transport, i.Port, i.Status, up, note)
 	}
 	return nil
+}
+
+// uptimeShort formats a duration compactly: 45s, 12m, 3h05m, 2d04h.
+func uptimeShort(d time.Duration) string {
+	s := int(d.Seconds())
+	switch {
+	case s < 60:
+		return fmt.Sprintf("%ds", s)
+	case s < 3600:
+		return fmt.Sprintf("%dm", s/60)
+	case s < 86400:
+		return fmt.Sprintf("%dh%02dm", s/3600, (s%3600)/60)
+	default:
+		return fmt.Sprintf("%dd%02dh", s/86400, (s%86400)/3600)
+	}
 }
 
 func cmdBackends(args []string) error {
