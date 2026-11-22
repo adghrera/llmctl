@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -715,20 +716,36 @@ func defaultBackupKeep() int {
 // doScheduledTask runs the chat completion and saves the conversation.
 // kbContextForTask builds the KB context turn for a scheduled chat task
 // (F365) — same wording as the CLI's kbContextFor so replies look identical.
-func kbContextForTask(kbID, query string) (string, error) {
+func kbContextForTask(kbIDs, query string) (string, error) {
 	ts, err := rag.Open()
 	if err != nil {
 		return "", err
 	}
-	hits, err := ts.Search(kbID, query, 3)
-	if err != nil {
-		return "", err
+	// kbIDs may be a comma-separated list: search each and merge the top
+	// hits by score (F666).
+	var names []string
+	var hits []rag.SearchResult
+	for _, id := range strings.Split(kbIDs, ",") {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		res, err := ts.Search(id, query, 3)
+		if err != nil {
+			return "", err
+		}
+		names = append(names, id)
+		hits = append(hits, res...)
 	}
 	if len(hits) == 0 {
 		return "", nil
 	}
+	sort.Slice(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
+	if len(hits) > 3 {
+		hits = hits[:3]
+	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", kbID)
+	fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", strings.Join(names, ", "))
 	for i, h := range hits {
 		if i > 0 {
 			sb.WriteString("\n\n---\n\n")

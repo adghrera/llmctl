@@ -488,9 +488,11 @@ toggle for a light theme (choice remembered). Tabs:
   prompt to a model, result saved as a conversation), `instance.start` and
   `instance.stop` (start/stop an instance on schedule — e.g. load a model
   every morning, unload it at night), plus `backup` (state snapshot).
-  Chat tasks can name a knowledge base (`-kb`, Scheduler page dropdown):
-  the top matching chunks are injected as context, same as `chat -kb`
-  (F365). Scheduled chats reach the gateway with a memory-only internal
+  Chat tasks can name knowledge bases (`-kb`, comma-separated ids in the CLI;
+  the Scheduler page dropdown picks one): the top matching chunks are
+  injected as context, same as
+  `chat -kb`
+  (F365, multi-kb F666). Scheduled chats reach the gateway with a memory-only internal
   token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
   `llmctl scheduler add` prints a one-line confirmation with the new task id
@@ -526,7 +528,9 @@ toggle for a light theme (choice remembered). Tabs:
   ~/.llmctl/knowledge/<kb_id>/ with kb.json manifest. Add/remove documents
   (text stored as-is; PDF/DOCX text extracted automatically, F053) via REST
   API. In chat, /file <filename> or KB selection injects
-  document content as context. Dedicated Knowledge Bases page with an
+  document content as context; several KBs can be selected at once (multi-select
+  on the Chat page, comma-separated `-kb A,B` in the CLI) and the merged top
+  chunks are injected (F666). Dedicated Knowledge Bases page with an
   Export CSV button on the KB list (F393) and per-KB Export/Import JSON
   (all documents as a [{filename, content}] array, the UI counterpart of
   `llmctl kb export`, F435); dropping a file onto the KB detail card uploads
@@ -762,7 +766,7 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -continue to append to the most recently updated saved chat, F312;
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
-                                     add -kb ID to prepend the top knowledge-base matches as context, F302;
+                                     add -kb ID[,ID2…] to prepend the top knowledge-base matches as context, F302, comma-separated ids merge across KBs F666;
                                      add -out FILE to write the reply text to a file instead of stdout, F448)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)

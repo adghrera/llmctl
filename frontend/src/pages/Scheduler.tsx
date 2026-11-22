@@ -12,7 +12,7 @@ export default function Scheduler() {
   const [keep, setKeep] = useState(7);
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [kb, setKb] = useState("");
+  const [kb, setKb] = useState<string[]>([]);
   const [kbs, setKbs] = useState<KB[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -109,7 +109,7 @@ export default function Scheduler() {
         kind,
         model,
         prompt: kind === "chat" ? prompt : "",
-        kb: kind === "chat" && kb ? kb : undefined,
+        kb: kind === "chat" && kb.length ? kb.join(",") : undefined,
         instance: instance.trim() || undefined,
         keep: kind === "backup" ? keep : undefined,
         webhook_url: webhookUrl.trim() || undefined,
@@ -122,7 +122,7 @@ export default function Scheduler() {
       setInstance("");
       setKeep(7);
       setWebhookUrl("");
-      setKb("");
+      setKb([]);
       await load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -300,11 +300,12 @@ export default function Scheduler() {
           {kind === "chat" && kbs.length > 0 && (
             <select
               style={{ minWidth: 150 }}
-              title="inject top knowledge-base chunks as context (F365)"
+              multiple
+              size={Math.min(4, kbs.length)}
+              title="inject top knowledge-base chunks as context; several KBs merge (F365, F666)"
               value={kb}
-              onChange={(e) => setKb(e.target.value)}
+              onChange={(e) => setKb(Array.from(e.target.selectedOptions).map((o) => o.value))}
             >
-              <option value="">no knowledge base</option>
               {kbs.map((k) => (
                 <option key={k.id} value={k.id}>
                   kb: {k.kb.name || k.id}

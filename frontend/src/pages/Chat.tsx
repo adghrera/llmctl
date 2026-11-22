@@ -42,7 +42,7 @@ export default function Chat() {
 
   // ---- knowledge bases (F047) ----
   const [kbs, setKBs] = useState<KB[]>([]);
-  const [selectedKB, setSelectedKB] = useState<KB | null>(null);
+  const [selectedKBs, setSelectedKBs] = useState<Set<string>>(new Set());
 
   // ---- saved conversations (F025) ----
   const [convId, setConvId] = useState<string | null>(null);
@@ -347,18 +347,31 @@ export default function Chat() {
       }
     }
 
-    // KB context retrieval via vector search
+    // KB context retrieval via vector search; multiple KBs are searched and
+    // the merged top hits are used (F666).
     let kbMsg: Msg | null = null;
-    if (selectedKB && text.trim()) {
+    if (selectedKBs.size > 0 && text.trim()) {
       try {
-        const kbResults = await api.searchKBDocs(selectedKB.id, { q: text, limit: 3 });
-        if (kbResults.length > 0) {
-          const kbContext = kbResults
+        const per = await Promise.all(
+          kbs
+            .filter((k) => selectedKBs.has(k.id))
+            .map(async (k) => {
+              const rs = await api.searchKBDocs(k.id, { q: text, limit: 3 });
+              return rs.map((r) => ({ ...r, kbName: k.kb.name }));
+            })
+        );
+        const merged = per
+          .flat()
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+        if (merged.length > 0) {
+          const names = [...new Set(merged.map((r) => r.kbName))].join(", ");
+          const kbContext = merged
             .map((r) => `Document: ${r.filename} (relevance: ${(r.score * 100).toFixed(1)}%)\n${r.chunk_text}`)
             .join("\n\n---\n\n");
           kbMsg = {
             role: "user",
-            content: `Relevant context from knowledge base "${selectedKB.kb.name}":\n\n${kbContext}`,
+            content: `Relevant context from knowledge base "${names}":\n\n${kbContext}`,
           };
         }
       } catch (e) {
@@ -769,23 +782,26 @@ export default function Chat() {
             </label>
           </div>
           <div style={{ alignSelf: "flex-end", marginTop: 8 }}>
-            <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <input type="checkbox" checked={!!selectedKB} onChange={() => setSelectedKB(selectedKB ? null : kbs[0])} />
-              Knowledge base
-            </label>{" "}
-            {kbs.length > 0 && (
-              <select
-                value={selectedKB?.id || ""}
-                onChange={(e) => setSelectedKB(kbs.find((k) => k.id === e.target.value) || null)}
-                disabled={kbs.length === 0}
-              >
-                <option value="">— select KB —</option>
-                {kbs.map((kb) => (
-                  <option key={kb.id} value={kb.id}>
-                    {kb.kb.name}
-                  </option>
-                ))}
-              </select>
+            {kbs.length > 0 ? (
+              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
+                <span className="muted">
+                  Knowledge base context{selectedKBs.size > 0 ? ` (${selectedKBs.size} selected)` : ""}
+                </span>
+                <select
+                  multiple
+                  size={Math.min(4, kbs.length)}
+                  value={[...selectedKBs]}
+                  onChange={(e) => setSelectedKBs(new Set(Array.from(e.target.selectedOptions).map((o) => o.value)))}
+                >
+                  {kbs.map((kb) => (
+                    <option key={kb.id} value={kb.id}>
+                      {kb.kb.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <span style={{ opacity: 0.6, fontSize: 12 }}>no knowledge bases</span>
             )}
           </div>
           <details style={{ alignSelf: "stretch", marginTop: 8 }}>

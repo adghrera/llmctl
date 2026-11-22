@@ -4628,7 +4628,7 @@ func cmdScheduler(args []string) error {
 		instance := fs.String("instance", "", "instance id (instance.stop)")
 		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
 		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
-		kb := fs.String("kb", "", "knowledge base id: top matching chunks are injected as context (chat kind)")
+		kb := fs.String("kb", "", "knowledge base id(s), comma-separated: top matching chunks are injected as context (chat kind, F666)")
 		ajson := fs.Bool("json", false, "print the raw created-task JSON (F563)")
 		fs.Parse(reorderFlags(rest))
 		body := map[string]any{
@@ -4828,7 +4828,7 @@ func cmdScheduler(args []string) error {
 		webhook := ufs.String("webhook", "", "webhook URL (empty string clears)")
 		keep := ufs.Int("keep", -1, "snapshots to retain (backup kind)")
 		enabled := ufs.String("enabled", "", "true | false")
-		kb := ufs.String("kb", "", "knowledge base id (chat kind)")
+		kb := ufs.String("kb", "", "knowledge base id(s), comma-separated (chat kind, F666)")
 		sujson := ufs.Bool("json", false, "print the raw response JSON (F540)")
 		ufs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(id))
@@ -12040,28 +12040,48 @@ func cmdAutoStart(args []string) error {
 // kbContextFor searches a knowledge base for the query and builds the
 // context block shared by the one-shot -kb flag and the REPL /kb command (F342).
 // Returns "" when nothing matches.
-func kbContextFor(cc *daemon.ControlClient, kbID, query string) (string, error) {
-	code, out, err := cc.Post("/api/v1/knowledge-bases/"+url.PathEscape(kbID)+"/search",
-		map[string]any{"q": query, "limit": 3})
-	if err != nil {
-		return "", err
-	}
-	if code != 200 {
-		return "", fmt.Errorf("kb search: %s", out)
-	}
+func kbContextFor(cc *daemon.ControlClient, kbIDs, query string) (string, error) {
+	// kbIDs may be a comma-separated list: search each KB and merge the
+	// top hits by score (F666), same as the scheduler's -kb.
+	var names []string
 	var hits []struct {
 		Filename  string  `json:"filename"`
 		Score     float64 `json:"score"`
 		ChunkText string  `json:"chunk_text"`
 	}
-	if err := json.Unmarshal(out, &hits); err != nil {
-		return "", err
+	for _, id := range strings.Split(kbIDs, ",") {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		code, out, err := cc.Post("/api/v1/knowledge-bases/"+url.PathEscape(id)+"/search",
+			map[string]any{"q": query, "limit": 3})
+		if err != nil {
+			return "", err
+		}
+		if code != 200 {
+			return "", fmt.Errorf("kb search: %s", out)
+		}
+		var res []struct {
+			Filename  string  `json:"filename"`
+			Score     float64 `json:"score"`
+			ChunkText string  `json:"chunk_text"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return "", err
+		}
+		names = append(names, id)
+		hits = append(hits, res...)
 	}
 	if len(hits) == 0 {
 		return "", nil
 	}
+	sort.Slice(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
+	if len(hits) > 3 {
+		hits = hits[:3]
+	}
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", kbID)
+	fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", strings.Join(names, ", "))
 	for i, h := range hits {
 		if i > 0 {
 			sb.WriteString("\n\n---\n\n")
@@ -12081,7 +12101,7 @@ func cmdChat(args []string) error {
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
 	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
 	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
-	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI)")
+	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI); comma-separated ids search all and merge (F666)")
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
 	temp := fs.Float64("temperature", -1, "with -prompt: sampling temperature (-1 = model default, F319)")
 	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")

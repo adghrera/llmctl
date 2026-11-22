@@ -29,7 +29,7 @@ type Spec struct {
 	Instance   string    `json:"instance,omitempty"`    // instance id for instance.stop (default: model id)
 	Keep       int       `json:"keep,omitempty"`        // backup kind: snapshots to retain (0 = 7)
 	Prompt     string    `json:"prompt"`                // prompt to send (chat only)
-	KB         string    `json:"kb,omitempty"`          // optional knowledge base id: top chunks are injected as context (chat only, F365)
+	KB         string    `json:"kb,omitempty"`          // optional knowledge base id(s), comma-separated: top chunks are injected as context (chat only, F365, multi F666)
 	Enabled    bool      `json:"enabled"`               // whether the task is active
 	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
 	LastRun    time.Time `json:"last_run"`              // last execution time
