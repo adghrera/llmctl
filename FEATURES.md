@@ -543,6 +543,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F530 | P3 | 530 | cli | `autorestart -json` | COMPLETED | `llmctl autorestart <instance> <on|off> -json` prints the raw response JSON (`{"autoRestart":…,"ok":true}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
 | F531 | P3 | 531 | cli | `setvars -json` | COMPLETED | `llmctl setvars <instance> [-var k=v …] -json` prints the raw response JSON (`{"ok","restartRequired","vars"}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
 | F532 | P3 | 532 | cli | `maxparallel -json` | COMPLETED | `llmctl maxparallel <instance> <n> -json` prints the raw response JSON (`{"maxParallel":…,"ok":true}`) for scripting; the human line is unchanged. Verified live on the `so` instance: -json returned the exact payload, plain unchanged. |
+| F533 | P3 | 533 | cli | `restart --all -json` | COMPLETED | `llmctl restart --all -json` prints one aggregate `{"restarted":[{"id","ok","error"}]}` object for scripting (per-instance failures included); the plain per-line output and single-instance restart are unchanged. Verified live: the attached `so` instance returned `ok:false` with the 409 error in both modes. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

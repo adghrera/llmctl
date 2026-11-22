@@ -227,7 +227,7 @@ Usage:
   llmctl models hf-files <repo> [-json] [-out FILE]
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force] | llmctl stop --all
-  llmctl restart <instance> | llmctl restart --all
+  llmctl restart <instance> | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
   llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
@@ -3221,9 +3221,10 @@ func cmdStop(args []string) error {
 func cmdRestart(args []string) error {
 	fs := flag.NewFlagSet("restart", flag.ExitOnError)
 	all := fs.Bool("all", false, "restart every running instance (F445)")
+	jsonOut := fs.Bool("json", false, "with --all: print one aggregate JSON object (F533)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 && !*all {
-		return fmt.Errorf("usage: llmctl restart <instance> | llmctl restart --all")
+		return fmt.Errorf("usage: llmctl restart <instance> | llmctl restart --all [--json]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -3245,6 +3246,12 @@ func cmdRestart(args []string) error {
 			return err
 		}
 		var attempted int
+		type restartRow struct {
+			ID    string `json:"id"`
+			OK    bool   `json:"ok"`
+			Error string `json:"error,omitempty"`
+		}
+		var rows []restartRow
 		for _, inst := range list {
 			if inst.Status != "running" {
 				continue
@@ -3255,10 +3262,24 @@ func cmdRestart(args []string) error {
 				return err
 			}
 			if code != 200 {
-				fmt.Printf("restart %s failed: %s\n", inst.ID, strings.TrimSpace(string(out)))
+				if !*jsonOut {
+					fmt.Printf("restart %s failed: %s\n", inst.ID, strings.TrimSpace(string(out)))
+				}
+				rows = append(rows, restartRow{ID: inst.ID, OK: false, Error: strings.TrimSpace(string(out))})
 				continue
 			}
-			fmt.Printf("restarted %s\n", inst.ID)
+			rows = append(rows, restartRow{ID: inst.ID, OK: true})
+			if !*jsonOut {
+				fmt.Printf("restarted %s\n", inst.ID)
+			}
+		}
+		if *jsonOut { // F533: one aggregate object for scripts
+			b, err := json.Marshal(map[string]any{"restarted": rows})
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
 		}
 		if attempted == 0 {
 			fmt.Println("no running instances")
