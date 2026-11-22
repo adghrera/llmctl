@@ -272,7 +272,9 @@ toggle for a light theme (choice remembered). Tabs:
   `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts update <id>
   [-name N …]` / `prompts delete <id>`;
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)
-  plus a live text filter with `?q=` deep links from Search (F322).
+  plus a live text filter with `?q=` deep links from Search (F322);
+  `prompts export [-out F]` / `prompts import FILE` move custom templates
+  between instances (F323).
   REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering, copy-to-clipboard, and an "Insert into chat"

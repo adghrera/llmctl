@@ -228,7 +228,7 @@ Usage:
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
-  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id>
+  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|pin|unpin|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
@@ -5580,6 +5580,103 @@ func cmdPrompts(args []string) error {
 			return fmt.Errorf("prompts delete: %s", out)
 		}
 		fmt.Printf("deleted prompt %s\n", args[1])
+		return nil
+	}
+	if len(args) > 0 && args[0] == "export" {
+		// Dump custom templates as a JSON array (feed to `prompts import`, F323).
+		efs := flag.NewFlagSet("prompts export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(args[1:]))
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/prompts")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompts export: %s", out)
+		}
+		var all []struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Category    string `json:"category"`
+			Content     string `json:"content"`
+			Custom      bool   `json:"custom"`
+		}
+		if err := json.Unmarshal(out, &all); err != nil {
+			return err
+		}
+		type pOut struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Description string `json:"description,omitempty"`
+			Category    string `json:"category,omitempty"`
+			Content     string `json:"content"`
+		}
+		recs := []pOut{}
+		for _, p := range all {
+			if p.Custom {
+				recs = append(recs, pOut{ID: p.ID, Name: p.Name, Description: p.Description, Category: p.Category, Content: p.Content})
+			}
+		}
+		data, err := json.MarshalIndent(recs, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d custom prompts to %s\n", len(recs), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	}
+	if len(args) > 0 && args[0] == "import" {
+		// Bulk-create templates from a `prompts export` file (F323).
+		if len(args) < 2 {
+			return fmt.Errorf("usage: llmctl prompts import <file.json>")
+		}
+		data, err := os.ReadFile(args[1])
+		if err != nil {
+			return err
+		}
+		var entries []struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Category    string `json:"category"`
+			Content     string `json:"content"`
+		}
+		if err := json.Unmarshal(data, &entries); err != nil {
+			return fmt.Errorf("import file: %w", err)
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		var created, skipped int
+		for _, e := range entries {
+			code, out, err := cc.Post("/api/v1/prompts", map[string]any{
+				"id": e.ID, "name": e.Name, "description": e.Description,
+				"category": e.Category, "content": e.Content,
+			})
+			if err != nil {
+				return err
+			}
+			if code != 201 {
+				fmt.Printf("  skip %s: %s\n", e.ID, out)
+				skipped++
+				continue
+			}
+			created++
+		}
+		fmt.Printf("imported %d prompts (%d skipped)\n", created, skipped)
 		return nil
 	}
 	if len(args) > 0 && args[0] == "categories" {
