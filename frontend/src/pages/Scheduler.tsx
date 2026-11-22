@@ -619,6 +619,21 @@ export default function Scheduler() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              title="download the run log as JSON (CLI: llmctl scheduler runs -json)"
+              onClick={() => {
+                const shown = runTask ? runs.filter((r) => r.name === runTask) : runs;
+                const blob = new Blob([JSON.stringify(shown, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-scheduler-runs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
             </div>
           </div>
           {runStats ? (

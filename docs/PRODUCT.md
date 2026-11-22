@@ -581,7 +581,8 @@ toggle for a light theme (choice remembered). Tabs:
   the ring every 5s while on (F608). `scheduler runs -task T` keeps only the
   runs of one task (id or name; the CSV gained a task_id column; the filter and
   `-n` now run server-side via ?task= and ?limit=, F699), and the
-  Scheduler page's Recent Runs card has a matching task dropdown (F688). Each task row also shows its most
+  Scheduler page's Recent Runs card has a matching task dropdown (F688) and an
+  Export JSON button (twin of `scheduler runs -json`, F728). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
    and `llmctl scheduler list` (F184), plus an "Export CSV" button on the
    task list with the same columns as `scheduler list --csv` (F391).
