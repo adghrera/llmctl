@@ -191,6 +191,21 @@ export default function Models() {
 
   // per-model USD price per 1M tokens (in/out); empty = not set
   const [priceDraft, setPriceDraft] = useState<Record<string, { i: string; o: string }>>({});
+  const rename = async (id: string) => {
+    const next = window.prompt(`Rename model "${id}" to:`, id);
+    if (!next || next === id) return;
+    setBusy(true);
+    try {
+      await api.renameModel(id, next.trim());
+      ok(`renamed ${id} → ${next.trim()}`);
+      await refreshOne("models");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const savePrice = async (id: string) => {
     const d = priceDraft[id] ?? { i: "", o: "" };
     const pi = d.i === "" ? 0 : Number(d.i);
@@ -533,6 +548,9 @@ export default function Models() {
                   <td style={{ textAlign: "right" }}>
                     <button className="btn sm" disabled={busy || !m.downloaded} onClick={() => viewMeta(m.id)}>
                       {metaFor === m.id ? "Hide meta" : "Meta"}
+                    </button>{" "}
+                    <button className="btn sm" disabled={busy} title="rename this model (aliases follow)" onClick={() => rename(m.id)}>
+                      Rename
                     </button>{" "}
                     <button
                       className="btn sm"

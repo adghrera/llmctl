@@ -517,6 +517,8 @@ export const api = {
     req<{ ok: boolean; idleUnloadMin: number }>(`/models/${encodeURIComponent(id)}/idle`, { method: "PATCH", body: JSON.stringify({ idleUnloadMin }) }),
   setModelPrice: (id: string, priceInPerM: number, priceOutPerM: number) =>
     req<{ ok: boolean; priceInPerM: number; priceOutPerM: number }>(`/models/${encodeURIComponent(id)}/price`, { method: "PATCH", body: JSON.stringify({ priceInPerM, priceOutPerM }) }),
+  renameModel: (id: string, newId: string) =>
+    req<{ ok: boolean; id: string }>(`/models/${encodeURIComponent(id)}/rename`, { method: "PATCH", body: JSON.stringify({ newId }) }),
   modelMetadata: (id: string) =>
     req<ModelMetadata>(`/models/${encodeURIComponent(id)}/metadata`),
   hfSearch: (q: string, limit = 15) =>
