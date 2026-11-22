@@ -262,15 +262,16 @@ toggle for a light theme (choice remembered). Tabs:
   page with category filtering and copy-to-clipboard. CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` (F218).
- - **Chat CLI** — `llmctl chats [filter] [-json]` lists saved conversations
-   and `llmctl chats show <id> [-json]` prints one with a message preview
-   (over the chat-store API, F244).
+ - **Chat CLI** — `llmctl chats [filter] [-json]` lists saved conversations,
+   `llmctl chats show <id> [-json]` prints one with a message preview and
+   `llmctl chats search <query> [-json]` full-text searches message content
+   with match snippets (over the chat-store API, F244, F267).
  - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs
    (filter matches id/name/description/tags); `skills show|enable|disable|delete <id>`
    manages them (F245).
  - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
-   `memory add "<text>" [-tags a,b]`, `memory show <id>`, `memory delete <id>`
-   (F246).
+   `memory add "<text>" [-tags a,b]`, `memory show <id>`, `memory search
+   <query> [-json]`, `memory delete <id>` (F246, F267).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb show|docs|delete <id>` and
    `kb add-doc <kb-id> <path> [-name X]` upload documents (F247, F250).

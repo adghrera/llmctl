@@ -189,9 +189,9 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
-  llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
+  llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json] | llmctl chats search <query> [-json]
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
-  llmctl memory [filter] [-n 30] [-json] | memory show|add|delete …
+  llmctl memory [filter] [-n 30] [-json] | memory show|add|search|delete …
   llmctl kb [filter] [-json] | kb show|create|docs|add-doc|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
@@ -2705,6 +2705,59 @@ func cmdChats(args []string) error {
 		}
 		return nil
 	}
+	if len(args) > 0 && args[0] == "search" {
+		qfs := flag.NewFlagSet("chats search", flag.ExitOnError)
+		qjson := qfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		qfs.Parse(reorderFlags(args[1:]))
+		if qfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl chats search <query> [-json]")
+		}
+		q := strings.Join(qfs.Args(), " ")
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats/search?q=" + url.QueryEscape(q))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats search: %s", out)
+		}
+		if *qjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var res []struct {
+			ConversationID string `json:"conversationId"`
+			Title          string `json:"title"`
+			Model          string `json:"model"`
+			UpdatedAt      string `json:"updatedAt"`
+			Matches        []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"matches"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return err
+		}
+		if len(res) == 0 {
+			fmt.Printf("no chats match %q\n", q)
+			return nil
+		}
+		for _, r := range res {
+			fmt.Printf("%s  %s  [%s]  %d match(es)\n", r.ConversationID, r.Title, r.Model, len(r.Matches))
+			for _, m := range r.Matches {
+				sn := strings.TrimSpace(m.Content)
+				sn = strings.ReplaceAll(sn, "\n", " ")
+				if len(sn) > 90 {
+					sn = sn[:90] + "…"
+				}
+				fmt.Printf("    [%s] %s\n", m.Role, sn)
+			}
+		}
+		return nil
+	}
 	fs := flag.NewFlagSet("chats", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of conversations")
 	jsonOut := fs.Bool("json", false, "print the chat list as JSON (for scripts)")
@@ -2921,11 +2974,48 @@ func cmdMemory(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "delete":
+		case "list", "show", "add", "delete", "search":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "search":
+		sfs := flag.NewFlagSet("memory search", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		sfs.Parse(reorderFlags(rest))
+		if sfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl memory search <query> [-json]")
+		}
+		q := strings.Join(sfs.Args(), " ")
+		code, out, err := cc.Get("/api/v1/memory/search?q=" + url.QueryEscape(q))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory search: %s", out)
+		}
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var res []struct {
+			Entry struct {
+				ID      string   `json:"id"`
+				Content string   `json:"content"`
+				Tags    []string `json:"tags"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return err
+		}
+		if len(res) == 0 {
+			fmt.Printf("no memory entries match %q\n", q)
+			return nil
+		}
+		for _, r := range res {
+			fmt.Printf("%s  [%s]  %s\n", r.Entry.ID, strings.Join(r.Entry.Tags, ","), strings.ReplaceAll(strings.TrimSpace(r.Entry.Content), "\n", " "))
+		}
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("memory", flag.ExitOnError)
 		n := fs.Int("n", 30, "number of entries")
