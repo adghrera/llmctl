@@ -56,6 +56,9 @@ GitHub release, or file list. No recompile.
 - Per-instance parameters: ctx, ngl (GPU layers), parallel slots, threads,
   url (attach backends).
 - Health-gated startup; crashed instances are reaped and marked stopped.
+- Crash auto-restart (per-instance "Auto" toggle): a crashed managed process
+  is relaunched after a short delay, at most 3 times per 5 minutes before
+  giving up; clean stops never trigger it.
 - One-click restart (UI or `POST /api/v1/instances/{id}/restart`) relaunches a
   managed instance with the same id, port and vars; attached instances are
   rejected (restart the external server instead). A "Stop all" action

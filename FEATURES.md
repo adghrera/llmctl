@@ -96,6 +96,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F084 | P2 | 84 | scheduler | Run-now + scheduler CLI | COMPLETED | `POST /api/v1/scheduler/{id}/run` executes a task immediately (async, daemon-injected runner hook). `llmctl scheduler list\|add\|run\|enable\|disable\|delete` covers the whole surface from the CLI. Verified live: run-now started an instance on demand. |
 | F085 | P2 | 85 | instances | Configurable startup timeout | COMPLETED | `settings.startupTimeoutSec` (Settings field, 0 = default 240 s) bounds how long an instance start waits for the backend to become healthy. Verified live: 2 s timeout made a dead-port attach fail in 2 s instead of 240 s; validation + persistence checked. |
 | F086 | P2 | 86 | gateway | Persistent request log | COMPLETED | Every gateway request is appended to `~/.llmctl/requests.jsonl`; at startup the recent-requests ring is re-seeded from it (trimmed to the newest 1000 lines), so the Requests page keeps history across daemon restarts. Verified live: entries survived restart, file trimmed 1167→1000, ring re-seeded to 256. |
+| F087 | P2 | 87 | instances | Crash auto-restart | COMPLETED | Per-instance `autoRestart` (start flag, `POST /instances/{id}/autorestart` toggle, "Auto" button on the Instances page): a crashed owned process is relaunched after 5 s, max 3× per 5 min, then gives up with a lastError. Clean stops never trigger it. Verified live: kill -9 → new pid; 4th crash → gave up; clean stop stayed down. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

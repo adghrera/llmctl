@@ -103,6 +103,19 @@ export default function Instances() {
     }
   };
 
+  const toggleAuto = async (id: string, enabled: boolean) => {
+    setBusy(id);
+    try {
+      await api.setAutoRestart(id, enabled);
+      ok(`${id}: auto-restart ${enabled ? "on" : "off"}`);
+      await refreshOne("instances");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const stopAll = async () => {
     setBusy("stop-all");
     try {
@@ -377,6 +390,17 @@ export default function Instances() {
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
                       Logs
                     </button>
+                    {!i.attached && (
+                      <button
+                        className={`btn sm ${i.autoRestart ? "primary" : ""}`}
+                        style={{ marginRight: 6 }}
+                        disabled={busy === i.id}
+                        title="Relaunch automatically when the process crashes (max 3 per 5 min)"
+                        onClick={() => toggleAuto(i.id, !i.autoRestart)}
+                      >
+                        Auto
+                      </button>
+                    )}
                     {i.status === "running" || i.status === "starting" ? (
                       <>
                         {i.status === "running" && !i.attached && (

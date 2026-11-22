@@ -104,6 +104,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/instances/{id}", s.stopInstance)
 	m.HandleFunc("POST /api/v1/instances/stop-all", s.stopAllInstances)
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
+	m.HandleFunc("POST /api/v1/instances/{id}/autorestart", s.setAutoRestart)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs", s.instanceLogs)
 	m.HandleFunc("GET /api/v1/instances/{id}/logs/download", s.instanceLogsDownload)
 	// Auto-start specs
@@ -649,6 +650,8 @@ type instanceView struct {
 	LastUsed  time.Time         `json:"lastUsed,omitempty"` // last gateway request (F060)
 	Vars      map[string]string `json:"vars,omitempty"`
 	LastError string            `json:"lastError,omitempty"`
+	// AutoRestart: relaunch on crash (F087).
+	AutoRestart bool `json:"autoRestart,omitempty"`
 }
 
 func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
@@ -660,7 +663,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 			ID: i.ID, ModelID: i.ModelID, BackendID: i.BackendID,
 			Transport: i.Transport, Port: i.Port, Status: i.Status,
 			Attached: i.Attached, PID: i.PID, StartedAt: i.StartedAt,
-			Vars: i.Vars, LastError: i.LastError,
+			Vars: i.Vars, LastError: i.LastError, AutoRestart: i.AutoRestart,
 		}
 		if s.gw != nil {
 			v.LastUsed = s.gw.ModelLastUsed(i.ModelID)
@@ -676,6 +679,8 @@ type startInstanceReq struct {
 	Backend  string `json:"backend"`
 	Port     int    `json:"port"`
 	Vars     any    `json:"vars"` // map of scalars; numbers/bools coerced to strings
+	// AutoRestart relaunches the instance if it crashes (F087).
+	AutoRestart bool `json:"autoRestart"`
 }
 
 // coerceVars accepts {"ctx": "64000"} and {"ctx": 64000} alike, mapping
@@ -767,7 +772,41 @@ func (s *Server) startInstanceInternal(w http.ResponseWriter, r *http.Request, r
 		writeErr(w, 409, err.Error())
 		return
 	}
+	if req.AutoRestart {
+		s.store.Update(func(st *store.State) error {
+			if r := st.Instances[id]; r != nil {
+				r.AutoRestart = true
+			}
+			return nil
+		})
+		inst.AutoRestart = true
+	}
 	writeJSON(w, 200, inst)
+}
+
+// setAutoRestart handles POST /api/v1/instances/{id}/autorestart — toggle
+// crash auto-restart on a running or stopped instance (F087).
+func (s *Server) setAutoRestart(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Instances[id] == nil {
+		writeErr(w, 404, "unknown instance: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if r := st.Instances[id]; r != nil {
+			r.AutoRestart = req.Enabled
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "autoRestart": req.Enabled})
 }
 
 func (s *Server) stopInstance(w http.ResponseWriter, r *http.Request) {

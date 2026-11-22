@@ -41,6 +41,7 @@ type Supervisor struct {
 
 	mu       sync.Mutex
 	sessions map[string]*stdio.Session // stdio instance id -> live session
+	restarts map[string][]time.Time    // instance id -> recent auto-restart times (F087)
 
 	notifier func(event string, inst *store.InstanceRecord) // F073
 }
@@ -69,6 +70,7 @@ func New(st *store.Store, reg *backend.Registry, logger *slog.Logger) *Superviso
 		logger:   logger,
 		httpC:    &http.Client{Timeout: 5 * time.Second},
 		sessions: map[string]*stdio.Session{},
+		restarts: map[string][]time.Time{},
 	}
 }
 
@@ -126,6 +128,10 @@ func (sv *Supervisor) Start(ctx context.Context, instanceID, modelID, backendID 
 		Transport: spec.Transport, Status: "starting",
 		StartedAt: time.Now(), Vars: vars, LogDir: logDir,
 		APIBasePath: spec.APIBasePath,
+	}
+	// Carry the crash auto-restart opt-in across (re)starts (F087).
+	if prev := st.Instances[instanceID]; prev != nil {
+		inst.AutoRestart = prev.AutoRestart
 	}
 
 	// launchVars adds the backend install dir for {backend} placeholder
@@ -366,6 +372,7 @@ func (sv *Supervisor) markExited(id string, werr error) {
 	})
 	sv.logger.Warn("instance exited", "id", id, "err", werr)
 	sv.notify("instance.crashed", rec)
+	sv.maybeRestart(id)
 }
 
 // reap marks dead-PID instances as stopped (crash detection).
@@ -388,8 +395,79 @@ func (sv *Supervisor) reap() {
 				return nil
 			})
 			sv.notify("instance.crashed", inst)
+			sv.maybeRestart(inst.ID)
 		}
 	}
+}
+
+// Auto-restart policy (F087): relaunch a crashed instance after a short
+// delay, at most restartMax times within restartWindow; then give up and
+// leave it stopped so a crash loop cannot spin forever.
+const (
+	restartDelay  = 5 * time.Second
+	restartWindow = 5 * time.Minute
+	restartMax    = 3
+)
+
+// maybeRestart schedules an auto-restart for id if it opted in (async;
+// returns immediately).
+func (sv *Supervisor) maybeRestart(id string) {
+	cur, _ := sv.store.Load()
+	if cur == nil {
+		return
+	}
+	rec := cur.Instances[id]
+	if rec == nil || !rec.AutoRestart || rec.Attached {
+		return
+	}
+	now := time.Now()
+	sv.mu.Lock()
+	kept := sv.restarts[id][:0]
+	for _, t := range sv.restarts[id] {
+		if now.Sub(t) < restartWindow {
+			kept = append(kept, t)
+		}
+	}
+	if len(kept) >= restartMax {
+		sv.mu.Unlock()
+		sv.store.Update(func(s *store.State) error {
+			if r := s.Instances[id]; r != nil {
+				r.LastError = "auto-restart gave up after repeated crashes"
+			}
+			return nil
+		})
+		sv.logger.Warn("auto-restart giving up", "id", id)
+		return
+	}
+	sv.restarts[id] = append(kept, now)
+	sv.mu.Unlock()
+
+	sv.logger.Info("auto-restart scheduled", "id", id, "delay", restartDelay)
+	go func() {
+		time.Sleep(restartDelay)
+		// Skip if something (user or an earlier restart) already brought it up.
+		c, _ := sv.store.Load()
+		if c == nil {
+			return
+		}
+		r := c.Instances[id]
+		if r == nil || r.Status == store.StatusRunning {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if _, err := sv.Start(ctx, r.ID, r.ModelID, r.BackendID, r.Port, r.Vars); err != nil {
+			sv.logger.Warn("auto-restart failed", "id", id, "err", err)
+			sv.store.Update(func(s *store.State) error {
+				if x := s.Instances[id]; x != nil {
+					x.LastError = "auto-restart failed: " + err.Error()
+				}
+				return nil
+			})
+			return
+		}
+		sv.logger.Info("auto-restarted instance", "id", id)
+	}()
 }
 
 // ReapLoop runs reap until ctx is done.

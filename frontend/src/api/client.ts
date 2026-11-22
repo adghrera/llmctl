@@ -45,6 +45,7 @@ export interface Instance {
   lastUsed?: string;
   vars?: Record<string, string>;
   lastError?: string;
+  autoRestart?: boolean;
 }
 
 export interface InstanceLogTail {
@@ -465,6 +466,11 @@ export const api = {
   stopAll: () => req<{ ok: boolean; stopped: string[] }>("/instances/stop-all", { method: "POST" }),
   restartInstance: (id: string) =>
     req<Instance>(`/instances/${encodeURIComponent(id)}/restart`, { method: "POST" }),
+  setAutoRestart: (id: string, enabled: boolean) =>
+    req<{ ok: boolean; autoRestart: boolean }>(`/instances/${encodeURIComponent(id)}/autorestart`, {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),

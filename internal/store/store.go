@@ -58,6 +58,9 @@ type InstanceRecord struct {
 	Vars      map[string]string `json:"vars,omitempty"`
 	LogDir    string            `json:"logDir"`
 	LastError string            `json:"lastError,omitempty"`
+	// AutoRestart relaunches the instance when it crashes (owned processes
+	// only). Crash-loop guard: max 3 restarts per 5 minutes (F087).
+	AutoRestart bool `json:"autoRestart,omitempty"`
 }
 
 // BaseURL returns the HTTP base for an http-transport instance.
