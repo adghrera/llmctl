@@ -194,6 +194,58 @@ export default function Bench() {
         </div>
         {rows.length > 0 && (
           <div className="oc-table" style={{ overflowX: "auto" }}>
+            <div className="row" style={{ justifyContent: "flex-end", gap: 6, marginBottom: 6 }}>
+              <button
+                className="btn sm"
+                title="download the bench stats as CSV — same columns as llmctl bench --csv (F714)"
+                onClick={() => {
+                  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                  const lines = [
+                    "model,ok,fails,avg_ms,p50_ms,p95_ms,max_ms,req_per_s,tok_per_s,first_error",
+                    ...rows.map((r) =>
+                      [
+                        r.model,
+                        r.done ? String(r.ok) : "",
+                        r.done ? String(r.fail) : "",
+                        r.done ? r.avg.toFixed(0) : "",
+                        r.done ? r.p50.toFixed(0) : "",
+                        r.done ? r.p95.toFixed(0) : "",
+                        r.done ? r.max.toFixed(0) : "",
+                        r.done ? r.reqps.toFixed(2) : "",
+                        r.done ? r.tokps.toFixed(0) : "",
+                        r.error || "",
+                      ]
+                        .map(esc)
+                        .join(",")
+                    ),
+                  ];
+                  const blob = new Blob([lines.join("\n") + "\n"], { type: "text/csv" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-bench-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                className="btn sm"
+                title="download the bench stats as JSON (CLI: llmctl bench -json)"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(rows.map(({ done, ...r }) => r), null, 2)], {
+                    type: "application/json",
+                  });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-bench-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export JSON
+              </button>
+            </div>
             <table>
               <thead>
                 <tr>
