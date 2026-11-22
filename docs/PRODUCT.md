@@ -282,7 +282,8 @@ toggle for a light theme (choice remembered). Tabs:
    (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once
    the key's estimated USD spend for the UTC day reaches it (F138). Per-key usage counters (tokens, requests, cost) can
   be zeroed with a "Reset" button, `llmctl key reset-usage <id>` or
-  `POST /api/v1/keys/{id}/reset-usage` (F107).
+  `POST /api/v1/keys/{id}/reset-usage` (F107). Token and request quotas can
+   be changed after creation via PATCH and the Keys page quota editor (F148).
 - **Idle auto-unload** — Settings → "Idle auto-unload" (minutes, 0 = off):
   running instances that serve no gateway request for that long are stopped
   automatically, freeing VRAM for other models. Per-model override on the

@@ -1498,6 +1498,8 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AllowedModels      []string `json:"allowedModels"`
 		MaxConcurrent      *int     `json:"maxConcurrent"`
+		TokenQuota         *int64   `json:"tokenQuota"`         // 0 = unlimited (F148)
+		MaxRequests        *int64   `json:"maxRequests"`        // 0 = unlimited (F148)
 		RateRPS            *float64 `json:"rateRPS"`            // 0 = gateway default (F130)
 		RateBurst          *int     `json:"rateBurst"`          // 0 = gateway default (F130)
 		ExpiresInDays      *int     `json:"expiresInDays"`      // 0 = never expires (F135)
@@ -1510,6 +1512,10 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.MaxConcurrent != nil && *req.MaxConcurrent < 0 {
 		writeErr(w, 400, "maxConcurrent must be >= 0")
+		return
+	}
+	if req.TokenQuota != nil && *req.TokenQuota < 0 || req.MaxRequests != nil && *req.MaxRequests < 0 {
+		writeErr(w, 400, "tokenQuota and maxRequests must be >= 0")
 		return
 	}
 	if req.RateRPS != nil && *req.RateRPS < 0 || req.RateBurst != nil && *req.RateBurst < 0 {
@@ -1540,6 +1546,12 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 			k.AllowedModels = list
 			if req.MaxConcurrent != nil {
 				k.MaxConcurrent = *req.MaxConcurrent
+			}
+			if req.TokenQuota != nil {
+				k.TokenQuota = *req.TokenQuota // 0 = unlimited (F148)
+			}
+			if req.MaxRequests != nil {
+				k.MaxRequests = *req.MaxRequests // 0 = unlimited (F148)
 			}
 			if req.RateRPS != nil {
 				k.RateRPS = *req.RateRPS

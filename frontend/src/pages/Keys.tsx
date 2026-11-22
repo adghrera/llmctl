@@ -17,6 +17,9 @@ export default function Keys() {
   const [budget, setBudget] = useState(0);
   const [renameFor, setRenameFor] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [quotaFor, setQuotaFor] = useState<string | null>(null);
+  const [quotaTok, setQuotaTok] = useState("");
+  const [quotaReqs, setQuotaReqs] = useState("");
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
@@ -70,7 +73,7 @@ export default function Keys() {
     if (input === null) return;
     setBusy(true);
     try {
-      await api.updateKey(id, input.split(",").map((s) => s.trim()).filter(Boolean));
+      await api.updateKey(id, { allowedModels: input.split(",").map((s) => s.trim()).filter(Boolean) });
       ok("model allowlist updated");
       await refreshOne("keys");
     } catch (e) {
@@ -111,9 +114,30 @@ export default function Keys() {
     if (!name || busy) return;
     setBusy(true);
     try {
-      await api.updateKey(k.id, k.allowedModels ?? [], undefined, undefined, undefined, undefined, name);
+      await api.updateKey(k.id, { allowedModels: k.allowedModels ?? [], name });
       ok("key renamed");
       setRenameFor(null);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveQuota = async (k: ApiKey) => {
+    if (busy) return;
+    const tok = quotaTok.trim() === "" ? 0 : Number(quotaTok);
+    const reqs = quotaReqs.trim() === "" ? 0 : Number(quotaReqs);
+    if (Number.isNaN(tok) || Number.isNaN(reqs) || tok < 0 || reqs < 0) {
+      err("quotas must be >= 0 (empty = unlimited)");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.updateKey(k.id, { allowedModels: k.allowedModels ?? [], tokenQuota: tok, maxRequests: reqs });
+      ok("quotas updated");
+      setQuotaFor(null);
       await refreshOne("keys");
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -295,16 +319,62 @@ export default function Keys() {
                       ))}
                   </td>
                   <td className="mono">
-                    {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
-                    {k.usedCost ? <span className="muted"> · ${k.usedCost.toFixed(4)}</span> : null}
-                    {k.maxRequests ? (
-                      <span className="muted"> · {k.usedRequests ?? 0}/{k.maxRequests} reqs</span>
-                    ) : null}
-                    {k.rateRPS ? (
-                      <span className="muted" title={`rate limit: ${k.rateRPS} req/s (burst ${k.rateBurst || "default"})`}>
-                        {" "}{k.rateRPS}/s
+                    {quotaFor === k.id ? (
+                      <span style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                        <input
+                          autoFocus
+                          style={{ width: 90 }}
+                          placeholder="tok quota"
+                          value={quotaTok}
+                          onChange={(e) => setQuotaTok(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveQuota(k);
+                            if (e.key === "Escape") setQuotaFor(null);
+                          }}
+                        />
+                        <input
+                          style={{ width: 80 }}
+                          placeholder="reqs"
+                          value={quotaReqs}
+                          onChange={(e) => setQuotaReqs(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveQuota(k);
+                            if (e.key === "Escape") setQuotaFor(null);
+                          }}
+                        />
+                        <button className="btn sm primary" disabled={busy} onClick={() => saveQuota(k)}>
+                          Save
+                        </button>
+                        <button className="btn sm" onClick={() => setQuotaFor(null)}>
+                          ✕
+                        </button>
                       </span>
-                    ) : null}
+                    ) : (
+                      <span>
+                        {k.usedTokens.toLocaleString()} / {k.tokenQuota ? k.tokenQuota.toLocaleString() : "∞"}
+                        {k.usedCost ? <span className="muted"> · ${k.usedCost.toFixed(4)}</span> : null}
+                        {k.maxRequests ? (
+                          <span className="muted"> · {k.usedRequests ?? 0}/{k.maxRequests} reqs</span>
+                        ) : null}
+                        {k.rateRPS ? (
+                          <span className="muted" title={`rate limit: ${k.rateRPS} req/s (burst ${k.rateBurst || "default"})`}>
+                            {" "}{k.rateRPS}/s
+                          </span>
+                        ) : null}{" "}
+                        <button
+                          className="btn sm"
+                          title="edit quotas"
+                          style={{ opacity: 0.6 }}
+                          onClick={() => {
+                            setQuotaFor(k.id);
+                            setQuotaTok(k.tokenQuota ? String(k.tokenQuota) : "");
+                            setQuotaReqs(k.maxRequests ? String(k.maxRequests) : "");
+                          }}
+                        >
+                          ✎
+                        </button>
+                      </span>
+                    )}
                   </td>
                   <td className="mono">
                     {(() => {
