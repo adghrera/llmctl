@@ -158,7 +158,8 @@ toggle for a light theme (choice remembered). Tabs:
   order. REST: POST /api/v1/batch. Dedicated Batch page.
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
-  totals, request counts, per-model latency percentiles (p50/p95/p99), average
+  totals, request counts, per-model latency percentiles (p50/p95/p99) and
+  4xx/5xx error split, average
   time-to-first-token and completion throughput (tok/s), and
   per-conversation context percentage. A "Daily History" table shows the
   per-day, per-model rollup (requests, errors, tokens, estimated cost) which

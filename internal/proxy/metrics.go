@@ -38,6 +38,8 @@ type metricsCollector struct {
 type modelMt struct {
 	reqs       int64
 	errs       int64
+	err4xx     int64 // client-error share of errs (F122)
+	err5xx     int64 // server-error share of errs (F122)
 	promptTok  int64
 	compTok    int64
 	latSamples []float64 // per-model reservoir of latencies in ms
@@ -124,6 +126,12 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 	mm.reqs++
 	if status >= 400 {
 		mm.errs++
+		switch {
+		case status < 500:
+			mm.err4xx++
+		default:
+			mm.err5xx++
+		}
 	}
 	mm.promptTok += pTok
 	mm.compTok += cTok
@@ -363,6 +371,8 @@ func (m *metricsCollector) Snapshot() map[string]any {
 		entry := map[string]any{
 			"requests":          v.reqs,
 			"errors":            v.errs,
+			"errors_4xx":        v.err4xx,
+			"errors_5xx":        v.err5xx,
 			"prompt_tokens":     v.promptTok,
 			"completion_tokens": v.compTok,
 		}

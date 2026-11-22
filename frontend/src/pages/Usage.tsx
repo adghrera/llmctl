@@ -56,6 +56,8 @@ export default function Usage() {
       id,
       requests: v.requests || 0,
       errors: v.errors || 0,
+      err4xx: v.errors_4xx || 0,
+      err5xx: v.errors_5xx || 0,
       prompt: v.prompt_tokens || 0,
       completion: v.completion_tokens || 0,
       total: (v.prompt_tokens || 0) + (v.completion_tokens || 0),
@@ -142,7 +144,14 @@ export default function Usage() {
                   <tr key={m.id}>
                     <td style={{ fontFamily: "monospace", fontSize: 12 }}>{m.id}</td>
                     <td className="oc-num">{m.requests}</td>
-                    <td className="oc-num">{m.errors}</td>
+                    <td className="oc-num" title={m.errors > 0 ? `${m.err4xx} client · ${m.err5xx} server` : undefined}>
+                      {m.errors}
+                      {m.errors > 0 && (
+                        <span className="muted" style={{ fontSize: 11 }}>
+                          {" "}({m.err4xx}c/{m.err5xx}s)
+                        </span>
+                      )}
+                    </td>
                     <td className="oc-num">{m.p50 != null ? m.p50.toFixed(0) + " ms" : "—"}</td>
                     <td className="oc-num">{m.p95 != null ? m.p95.toFixed(0) + " ms" : "—"}</td>
                     <td className="oc-num">{m.p99 != null ? m.p99.toFixed(0) + " ms" : "—"}</td>
