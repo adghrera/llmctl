@@ -315,6 +315,14 @@ export default function Files() {
                         View
                       </button>
                     )}
+                    <a
+                      className="btn sm"
+                      href={`/api/v1/files/${encodeURIComponent(f.id)}/content`}
+                      download={f.entry.filename}
+                      title="download the stored bytes (CLI: llmctl files cat -out)"
+                    >
+                      Download
+                    </a>
                     <button
                       className="btn sm"
                       title="edit tags (CLI: llmctl files tag)"
