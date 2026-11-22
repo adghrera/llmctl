@@ -277,7 +277,7 @@ Usage:
   llmctl tools [-json|-csv|-out FILE] | tools show|install [-json]|enable|disable [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
-  llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
+  llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
@@ -9452,15 +9452,25 @@ func cmdFiles(args []string) error {
 		}
 		return nil
 	case "cat":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl files cat <id>")
+		cfs := flag.NewFlagSet("files cat", flag.ExitOnError)
+		cout := cfs.String("out", "", "write the stored bytes to this file instead of stdout (F613)")
+		cfs.Parse(reorderFlags(rest))
+		if cfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl files cat <id> [-out FILE]")
 		}
-		code, out, err := cc.Get("/api/v1/files/" + url.PathEscape(rest[0]) + "/content")
+		code, out, err := cc.Get("/api/v1/files/" + url.PathEscape(cfs.Arg(0)) + "/content")
 		if err != nil {
 			return err
 		}
 		if code != 200 {
-			return fmt.Errorf("file %q not found (%d)", rest[0], code)
+			return fmt.Errorf("file %q not found (%d)", cfs.Arg(0), code)
+		}
+		if *cout != "" { // F613: download to disk, stdout stays clean
+			if err := os.WriteFile(*cout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *cout, len(out))
+			return nil
 		}
 		fmt.Print(string(out))
 		return nil
