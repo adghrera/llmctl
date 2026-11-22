@@ -201,6 +201,7 @@ Usage:
   llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
   llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]
   llmctl jobs show <job-id> [-json]
+  llmctl jobs clear [-json]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
@@ -1258,6 +1259,34 @@ func cmdJobs(args []string) error {
 	if len(args) > 0 && args[0] == "show" { // F578: one job in detail
 		return cmdJobsShow(args[1:])
 	}
+	if len(args) > 0 && args[0] == "clear" { // F585: drop finished jobs
+		cfs := flag.NewFlagSet("jobs clear", flag.ExitOnError)
+		cjson := cfs.Bool("json", false, "print the raw {cleared} JSON (for scripts)")
+		cfs.Parse(reorderFlags(args[1:]))
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Do("DELETE", "/api/v1/jobs", nil)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("jobs clear returned %d: %s", code, out)
+		}
+		if *cjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var res struct {
+			Cleared int `json:"cleared"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return err
+		}
+		fmt.Printf("cleared %d finished job(s)\n", res.Cleared)
+		return nil
+	}
 	fs := flag.NewFlagSet("jobs", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the job list as CSV (F427)")
@@ -2172,7 +2201,7 @@ var llmSubCommands = map[string]string{
 	"catalog":   "list install",
 	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
 	"files":     "list upload cat delete",
-	"jobs":      "wait show",
+	"jobs":      "wait show clear",
 	"kb":        "list show create update docs doc add-doc export search embed delete",
 	"key":       "generate show note enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",

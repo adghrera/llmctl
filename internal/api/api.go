@@ -194,6 +194,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/jobs", s.listJobs)
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
 	m.HandleFunc("GET /api/v1/jobs/{id}", s.getJob)
+	m.HandleFunc("DELETE /api/v1/jobs", s.clearJobs)
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	m.HandleFunc("GET /api/v1/usage/daily", s.dailyUsage)
@@ -1608,6 +1609,11 @@ func (s *Server) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, j)
+}
+
+// clearJobs drops finished jobs from memory (F585, llmctl jobs clear).
+func (s *Server) clearJobs(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, map[string]any{"cleared": s.jobs.ClearDone()})
 }
 
 // jobEvents is an SSE stream of job progress.

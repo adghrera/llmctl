@@ -123,3 +123,75 @@ func TestGetJobByID(t *testing.T) {
 		t.Fatalf("events content-type = %q", ct)
 	}
 }
+
+// F585: DELETE /api/v1/jobs drops finished jobs and keeps running ones.
+func TestClearJobs(t *testing.T) {
+	ts, jm := newJobsTestServer(t)
+
+	release := make(chan struct{})
+	jm.Submit("model-install", "stuck", func(ctx context.Context, j *jobs.Job) error {
+		<-release
+		return nil
+	})
+	jm.Submit("model-install", "quick", func(ctx context.Context, j *jobs.Job) error {
+		return nil
+	})
+	// Wait for the quick job to finish.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if len(jm.List()) == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("jobs never registered")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	done := false
+	for {
+		for _, j := range jm.List() {
+			if j.Target == "quick" && j.Status == "done" {
+				done = true
+			}
+		}
+		if done || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !done {
+		t.Fatal("quick job never reached done")
+	}
+
+	req, _ := http.NewRequest("DELETE", ts.URL+"/api/v1/jobs", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("status %d: %s", resp.StatusCode, body)
+	}
+	var res struct {
+		Cleared int `json:"cleared"`
+	}
+	if err := json.Unmarshal(body, &res); err != nil || res.Cleared != 1 {
+		t.Fatalf("expected cleared=1, got %s", body)
+	}
+	// Only the running job remains.
+	resp, err = http.Get(ts.URL + "/api/v1/jobs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	var list []struct {
+		Target string `json:"target"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(body, &list); err != nil || len(list) != 1 || list[0].Target != "stuck" {
+		t.Fatalf("expected only the running job, got %s", body)
+	}
+	close(release)
+}

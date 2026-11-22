@@ -126,6 +126,21 @@ func (m *Manager) Get(id string) (*Job, bool) {
 	return &cp, true
 }
 
+// ClearDone removes finished (done/error) jobs from memory and returns how
+// many were dropped; running jobs are kept (F585).
+func (m *Manager) ClearDone() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n := 0
+	for id, j := range m.jobs {
+		if j.Status != StatusRunning {
+			delete(m.jobs, id)
+			n++
+		}
+	}
+	return n
+}
+
 // Subscribe returns a channel that receives all future events. The channel is
 // buffered and never closed (callers range over it until done).
 func (m *Manager) Subscribe() <-chan Event {
