@@ -165,7 +165,7 @@ toggle for a light theme (choice remembered). Tabs:
   and link to their gateway request history (F132); the Req button shows how
   many requests the instance has served since daemon start (F150). Named start
   presets (model + vars + port recipe) can be saved and one-click started from
-  the page, and from the CLI with `llmctl presets list|save|start|delete` (F265).
+  the page, and from the CLI with `llmctl presets list|save|start|delete|export|import` (F265, F328).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a
@@ -482,7 +482,7 @@ llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also show
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
 llmctl catalog list [-json] | install <id>      (curated model picker, F266)
-llmctl presets list|save|start|delete           (named start recipes, F265)
+llmctl presets list|save|start|delete|export|import  (named start recipes, F265, F328)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total,
 llmctl models add <id> <file> [-backend ID]              (register an existing local GGUF, F275)
 llmctl models rename <id> <new-id>                    (change a model id; aliases follow, F284)

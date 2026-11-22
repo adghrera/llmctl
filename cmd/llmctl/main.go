@@ -214,7 +214,7 @@ Usage:
   llmctl autostart list
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
-  llmctl presets list|save -name N -model ID [...]|start <name>|delete <name>
+  llmctl presets list|save -name N -model ID [...]|start <name>|delete <name>|export|import
   llmctl catalog list [-json] | install <id>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
@@ -576,7 +576,7 @@ func sortedVars(m map[string]string) string {
 // page): list, save, start, delete (F265).
 func cmdPresets(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl presets <list|save|start|delete> [flags]")
+		return fmt.Errorf("usage: llmctl presets <list|save|start|delete|export|import> [flags]")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -584,6 +584,65 @@ func cmdPresets(args []string) error {
 		return err
 	}
 	switch sub {
+	case "export":
+		// Dump all launch presets as a JSON array (feed to `presets import`, F328).
+		efs := flag.NewFlagSet("presets export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/presets")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("presets export: %s", out)
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(list, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d presets to %s\n", len(list), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	case "import":
+		// Create/replace presets from a `presets export` file (F328);
+		// same-name presets are replaced.
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl presets import <file.json>")
+		}
+		data, err := os.ReadFile(rest[0])
+		if err != nil {
+			return err
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(data, &list); err != nil {
+			return fmt.Errorf("import file: %w", err)
+		}
+		var created, skipped int
+		for _, p := range list {
+			code, out, err := cc.Post("/api/v1/presets", p)
+			if err != nil {
+				return err
+			}
+			if code/100 != 2 {
+				fmt.Printf("  skip %v: %s\n", p["name"], out)
+				skipped++
+				continue
+			}
+			created++
+		}
+		fmt.Printf("imported %d presets (%d skipped)\n", created, skipped)
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("presets list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw presets JSON (for scripts)")
