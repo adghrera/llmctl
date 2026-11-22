@@ -649,6 +649,7 @@ llmctl models routable [-key K] [-json|-csv|-out FILE]  (what /v1/models serves 
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json] [-out FILE]   (model settings, F255; human summary by default, -json prints the raw response and -out writes it to a file, F520–F522, F560)
 llmctl models metadata <id> [-json] [-out FILE]        (GGUF header metadata, F268; -out writes the raw JSON, F500)
 llmctl models unused [--csv] [-out FILE]              (models with no instance + reclaimable size, F280; --csv exports id,size_bytes, F408; -out writes the same as JSON, F512)
+llmctl models stats [-json] [--csv] [-out FILE]      (per-backend roll-up — models, running, total size, F627)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]
 llmctl stop <instance> [--force] [--json]
 llmctl stop --all                          (stop every running instance, attached ones stay, F278; human confirmation by default, --json for raw, F566)

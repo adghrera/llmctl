@@ -223,6 +223,7 @@ Usage:
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json|-out FILE]
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv] [-out FILE]
+  llmctl models stats [-json] [--csv] [-out FILE]   (per-backend roll-up: models, running, total size)
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE]
   llmctl models aliases [-json] [--csv] [-out FILE]
@@ -2882,7 +2883,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|show|add|rename|probe|price|ctx|idle|metadata|install|remove|routable|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|stats|show|add|rename|probe|price|ctx|idle|metadata|install|remove|routable|unused|aliases|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -3011,6 +3012,86 @@ func cmdModels(args []string) error {
 			return nil
 		}
 		fmt.Printf("model %s registered from %s\n", afs.Arg(0), afs.Arg(1))
+		return nil
+	case "stats":
+		// Roll the model library up per backend — models, running, total
+		// size (F627).
+		sfs := flag.NewFlagSet("models stats", flag.ExitOnError)
+		sjson := sfs.Bool("json", false, "print the per-backend stats as JSON (for scripts)")
+		scsv := sfs.Bool("csv", false, "output the per-backend stats as CSV (F627)")
+		sout := sfs.String("out", "", "write the stats JSON to this file instead of stdout (F627)")
+		sfs.Parse(reorderFlags(rest))
+		_, out, err := cc.Get("/api/v1/models")
+		if err != nil {
+			return err
+		}
+		var mods []struct {
+			BackendID string `json:"backendId"`
+			SizeBytes int64  `json:"sizeBytes"`
+			Running   bool   `json:"running"`
+		}
+		if err := json.Unmarshal(out, &mods); err != nil {
+			return err
+		}
+		type bst struct {
+			Backend string `json:"backend"`
+			Models  int    `json:"models"`
+			Running int    `json:"running"`
+			Size    int64  `json:"size_bytes"`
+		}
+		byBackend := map[string]*bst{}
+		for _, m := range mods {
+			g := byBackend[m.BackendID]
+			if g == nil {
+				g = &bst{Backend: m.BackendID}
+				byBackend[m.BackendID] = g
+			}
+			g.Models++
+			if m.Running {
+				g.Running++
+			}
+			g.Size += m.SizeBytes
+		}
+		names := make([]string, 0, len(byBackend))
+		for k := range byBackend {
+			names = append(names, k)
+		}
+		sort.Slice(names, func(i, j int) bool { return byBackend[names[i]].Size > byBackend[names[j]].Size })
+		rows := make([]bst, 0, len(names))
+		for _, k := range names {
+			rows = append(rows, *byBackend[k])
+		}
+		if *sout != "" { // raw stats JSON to a file, stdout stays clean
+			b, _ := json.Marshal(rows)
+			if err := os.WriteFile(*sout, b, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(b))
+			return nil
+		}
+		if *sjson {
+			b, _ := json.Marshal(rows)
+			fmt.Println(string(b))
+			return nil
+		}
+		if *scsv {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"backend", "models", "running", "size_bytes"})
+			for _, r := range rows {
+				_ = w.Write([]string{r.Backend, strconv.Itoa(r.Models), strconv.Itoa(r.Running),
+					strconv.FormatInt(r.Size, 10)})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		if len(rows) == 0 {
+			fmt.Println("no models downloaded")
+			return nil
+		}
+		fmt.Printf("%-14s %7s %8s %12s\n", "BACKEND", "MODELS", "RUNNING", "SIZE")
+		for _, r := range rows {
+			fmt.Printf("%-14s %7d %8d %12s\n", r.Backend, r.Models, r.Running, fmtSize(r.Size))
+		}
 		return nil
 	case "unused":
 		// Models with no running instance and no stored instance record —
