@@ -737,6 +737,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F724 | P3 | 724 | ui | Settings Health list Export CSV/JSON | COMPLETED | The Settings page's full doctor-check list gained Export CSV/JSON buttons beside Re-run checks — same twins as F723 on the Overview card. Verified live: served bundle carries the buttons. |
 | F725 | P3 | 725 | backups | Snapshots list Export JSON | COMPLETED | The Settings snapshots card gained an Export JSON button beside Export CSV — UI twin of `llmctl backups list -json`. Verified live: served bundle carries the button. |
 | F726 | P3 | 726 | models | Aliases card Export CSV/JSON | COMPLETED | The Models page Aliases card gained Export CSV/JSON buttons (shown when aliases exist) — twins of `llmctl models aliases --csv`/`-json` with the same alias,model columns. Verified live: served bundle carries the buttons. |
+| F727 | P3 | 727 | chats | Chat sidebar Export JSON | COMPLETED | The Chat page sidebar's conversation list gained an Export JSON button beside Export CSV — UI twin of `llmctl chats list -json`. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

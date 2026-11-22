@@ -547,6 +547,21 @@ export default function Chat() {
             </button>
             <button
               className="btn sm"
+              disabled={streaming || chats.length === 0}
+              title="download the conversation list as JSON (CLI: llmctl chats list -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(chats, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-chats-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
+            <button
+              className="btn sm"
               disabled={streaming}
               title="import a chat exported as JSON (CLI: llmctl chats import)"
               onClick={() => importFileRef.current?.click()}

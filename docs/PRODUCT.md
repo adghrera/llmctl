@@ -374,8 +374,9 @@ toggle for a light theme (choice remembered). Tabs:
   conversation, a Rename button (F296) that edits the title in place, and an
   Import button in the Conversations header that uploads an export file
   verbatim (tools/system included) under a fresh id and opens it (F369,
-  plus an "Export CSV" button there downloading the conversation list —
-  id,title,model,messages,updated_at, same columns as `chats list --csv`, F392 —
+  plus "Export CSV"/"Export JSON" buttons there downloading the conversation
+  list —
+  id,title,model,messages,updated_at, same columns as `chats list --csv`, F392, F727 —
   and a Stats toggle rolling the list up per model (chats, messages, tokens,
   last updated), mirroring `chats -stats` (F633).
   replacing the earlier field-picking section); CLI twin `chats import` (F368).
