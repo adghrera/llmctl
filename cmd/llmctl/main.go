@@ -4759,9 +4759,10 @@ func cmdChats(args []string) error {
 		last := sfs.Int("last", 0, "show only the last N messages (0 = all)")
 		grep := sfs.String("grep", "", "show only messages whose content contains this (case-insensitive)")
 		full := sfs.Bool("full", false, "print full message text (no 100-char preview truncation)")
+		sout := sfs.String("out", "", "write the raw chat JSON to this file instead of stdout (F472)")
 		sfs.Parse(reorderFlags(args[1:]))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full]")
+			return fmt.Errorf("usage: llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -4773,6 +4774,13 @@ func cmdChats(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("chat %s: %s", sfs.Arg(0), out)
+		}
+		if *sout != "" { // F472: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*sout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *sout, len(out))
+			return nil
 		}
 		if *sjson {
 			fmt.Print(string(out))
