@@ -445,7 +445,8 @@ toggle for a light theme (choice remembered). Tabs:
   status/error) are listed under the webhook, at
   GET /api/v1/webhook/log (F144), and in `llmctl webhooks` (F191), which
   supports `-n` (server-side `?limit=`) and `-event` (server-side `?event=`)
-  filters (F357). Event and
+  filters (F357); the Settings page delivery list has a matching event
+  dropdown (F358). Event and
   scheduler-hook deliveries retry
   up to 3 times (1s, 2s backoff) so a briefly unreachable receiver still gets
   the notification (F163).

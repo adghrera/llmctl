@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [whEvents, setWhEvents] = useState("");
   const [whSecret, setWhSecret] = useState("");
   const [whLog, setWhLog] = useState<WebhookDelivery[]>([]);
+  const [whEvent, setWhEvent] = useState("");
   const loadWhLog = () => api.webhookLog().then(setWhLog).catch(() => setWhLog([]));
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
@@ -499,7 +500,23 @@ export default function SettingsPage() {
             </p>
             {whLog.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <span className="muted small">recent deliveries</span>
+                <div className="row" style={{ alignItems: "center", gap: 8 }}>
+                  <span className="muted small">recent deliveries</span>
+                  <div className="spacer" />
+                  <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    event
+                    <select
+                      style={{ width: 160 }}
+                      value={whEvent}
+                      onChange={(e) => setWhEvent(e.target.value)}
+                    >
+                      <option value="">all</option>
+                      {[...new Set(whLog.map((d) => d.event).filter(Boolean))].map((ev) => (
+                        <option key={ev} value={ev}>{ev}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <table style={{ marginTop: 4 }}>
                   <thead>
                     <tr>
@@ -509,7 +526,9 @@ export default function SettingsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {whLog.slice(0, 5).map((d, i) => (
+                    {(whEvent ? whLog.filter((d) => d.event === whEvent) : whLog)
+                      .slice(0, 20)
+                      .map((d, i) => (
                       <tr key={i}>
                         <td className="muted" style={{ fontSize: 12 }} title={new Date(d.time).toLocaleString()}>{ago(d.time)}</td>
                         <td className="mono" style={{ fontSize: 12 }}>{d.event || "—"}</td>
