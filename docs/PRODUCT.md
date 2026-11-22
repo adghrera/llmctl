@@ -346,6 +346,8 @@ toggle for a light theme (choice remembered). Tabs:
   `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts update <id>
   [-name N …]` / `prompts delete <id>` / `prompts duplicate <id> <new-id> [-name N]`
   (copies any template, built-in or custom, to a new custom id, F638);
+  `prompts retag OLD NEW` renames a category across all custom templates in one
+  shot (built-ins untouched, F641);
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)
   plus a Duplicate button on every template (built-in or custom) that copies it to a
   new custom id, mirroring `prompts duplicate` (F639), plus a live text filter with `?q=` deep links from Search (F322) and an
