@@ -183,7 +183,7 @@ Usage:
   llmctl gpu [-json] [--csv]
   llmctl jobs [-json] [--csv] [-watch N]
   llmctl search <query> [-max N] [-json] [--csv]
-  llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
+  llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
   llmctl complete -model ID [-json] [-out FILE] <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
@@ -1182,6 +1182,7 @@ func cmdStructured(args []string) error {
 	retries := fs.Int("retries", 2, "validation retries")
 	maxTok := fs.Int("max-tokens", 0, "max tokens per attempt (0 = model default, F344)")
 	temp := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F344)")
+	outFile := fs.String("out", "", "write the validated JSON to this file instead of stdout (F457)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 || *model == "" || *schemaF == "" {
 		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] [-max-tokens N] [-temperature T] <prompt>")
@@ -1239,6 +1240,13 @@ func cmdStructured(args []string) error {
 	}
 	if !res.OK {
 		return fmt.Errorf("structured failed after retries: %s", res.Error)
+	}
+	if *outFile != "" { // F457: validated JSON only, for scripts
+		if err := os.WriteFile(*outFile, append(res.JSON, '\n'), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(res.JSON)+1)
+		return nil
 	}
 	var pretty bytes.Buffer
 	if err := json.Indent(&pretty, res.JSON, "", "  "); err != nil {
