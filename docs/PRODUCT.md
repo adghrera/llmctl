@@ -598,7 +598,7 @@ llmctl models rename <id> <new-id>                    (change a model id; aliase
                                     model (F367); list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180; `aliases --csv` exports alias,model, F385; `aliases -out FILE` writes the raw JSON, F498)
-llmctl models probe [-json]                          (what /v1/models serves now, F252)
+llmctl models probe [-json] [-out FILE]              (what /v1/models serves now, F252; -out writes the raw JSON, F501)
 llmctl models routable [-key K] [-json|-csv|-out FILE]  (what /v1/models serves for one key, via the gateway — reflects the key's allowlist, F337; --csv exports id,owned_by, F407; -out writes the raw JSON, F499)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
 llmctl models metadata <id> [-json] [-out FILE]        (GGUF header metadata, F268; -out writes the raw JSON, F500)

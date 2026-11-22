@@ -199,7 +199,7 @@ Usage:
   llmctl backends remove <id>
   llmctl models list [--csv] [-out FILE]
   llmctl models show <id> [-json] [-out FILE]
-  llmctl models probe
+  llmctl models probe [-json] [-out FILE]
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv]
@@ -2660,6 +2660,7 @@ func cmdModels(args []string) error {
 	case "probe":
 		pfs := flag.NewFlagSet("models probe", flag.ExitOnError)
 		pjson := pfs.Bool("json", false, "print the probe JSON (for scripts)")
+		pout := pfs.String("out", "", "write the probe JSON to this file instead of stdout (F501)")
 		pfs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/models/probe")
 		if err != nil {
@@ -2667,6 +2668,13 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("probe returned %d: %s", code, out)
+		}
+		if *pout != "" { // F501: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*pout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *pout, len(out))
+			return nil
 		}
 		if *pjson {
 			fmt.Print(string(out))
