@@ -542,9 +542,10 @@ toggle for a light theme (choice remembered). Tabs:
   REST API: GET/POST/GET/PUT/DELETE /api/v1/scheduler,
   POST /api/v1/scheduler/{id}/enabled. Dedicated Scheduler page with a
   "Run" button per task (F141), an "Edit" button (prompts for name/cron/model/
-  prompt and PUTs the updated spec, F293) and a "Recent Runs" history of the last 50
+  prompt and PUTs the updated spec, F293) and a "Recent Runs" history of the last
   executions — status, duration and error/result excerpt
-  (GET /api/v1/scheduler/runs, F145) with an Export CSV button matching
+  (GET /api/v1/scheduler/runs, F145; the ring keeps the newest 200 and the API
+  takes ?limit= and ?task= server-side, F699) with an Export CSV button matching
   `scheduler runs --csv` (F418, F419); `scheduler runs -json` prints the raw
   run log, `scheduler runs -out FILE` writes the
   run-log JSON to a file (F476); `scheduler runs -watch N` live-tails new runs
@@ -552,7 +553,8 @@ toggle for a light theme (choice remembered). Tabs:
   count, ok/errors, average duration, last run (F601), with a matching Stats
   toggle on the Scheduler page (F602) and an Auto-refresh checkbox that polls
   the ring every 5s while on (F608). `scheduler runs -task T` keeps only the
-  runs of one task (id or name; the CSV gained a task_id column), and the
+  runs of one task (id or name; the CSV gained a task_id column; the filter and
+  `-n` now run server-side via ?task= and ?limit=, F699), and the
   Scheduler page's Recent Runs card has a matching task dropdown (F688). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
    and `llmctl scheduler list` (F184), plus an "Export CSV" button on the

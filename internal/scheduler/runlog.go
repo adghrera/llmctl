@@ -17,14 +17,14 @@ type Run struct {
 	Detail     string    `json:"detail,omitempty"` // error text or result excerpt
 }
 
-const runLogSize = 50
+const runLogSize = 200
 
 var (
 	runsMu  sync.Mutex
 	runsBuf []Run
 )
 
-// LogRun appends a completed run to the ring (trimmed to the newest 50).
+// LogRun appends a completed run to the ring (trimmed to the newest 200).
 func LogRun(r Run) {
 	runsMu.Lock()
 	defer runsMu.Unlock()
@@ -35,12 +35,23 @@ func LogRun(r Run) {
 }
 
 // Runs returns up to n recent runs, newest first.
-func Runs(n int) []Run {
+func Runs(n int) []Run { return RunsFiltered(n, "") }
+
+// RunsFiltered is Runs plus an optional task filter: when task is non-empty
+// only runs whose task id or name match exactly are kept (F699).
+func RunsFiltered(n int, task string) []Run {
 	runsMu.Lock()
 	defer runsMu.Unlock()
 	out := make([]Run, 0, n)
-	for i := len(runsBuf) - 1; i >= 0 && len(out) < n; i-- {
-		out = append(out, runsBuf[i])
+	for i := len(runsBuf) - 1; i >= 0; i-- {
+		r := runsBuf[i]
+		if task != "" && r.TaskID != task && r.Name != task {
+			continue
+		}
+		out = append(out, r)
+		if len(out) >= n {
+			break
+		}
 	}
 	return out
 }

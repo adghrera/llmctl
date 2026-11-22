@@ -37,7 +37,7 @@ export default function Scheduler() {
 
   useEffect(() => {
     load();
-    api.schedulerRuns().then(setRuns).catch(() => setRuns([]));
+    api.schedulerRuns(200).then(setRuns).catch(() => setRuns([]));
     api.knowledgeBases().then(setKbs).catch(() => setKbs([]));
   }, []);
 
@@ -45,7 +45,7 @@ export default function Scheduler() {
   // mirroring the Requests page's auto-refresh pattern.
   useEffect(() => {
     if (!autoRuns) return;
-    const t = setInterval(() => api.schedulerRuns().then(setRuns).catch(() => {}), 5000);
+    const t = setInterval(() => api.schedulerRuns(200).then(setRuns).catch(() => {}), 5000);
     return () => clearInterval(t);
   }, [autoRuns]);
 
@@ -240,7 +240,7 @@ export default function Scheduler() {
       ok(`task "${s.name}" started`);
       setTimeout(() => {
         load();
-        api.schedulerRuns().then(setRuns).catch(() => {});
+        api.schedulerRuns(200).then(setRuns).catch(() => {});
       }, 1500);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));

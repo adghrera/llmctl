@@ -273,7 +273,7 @@ Usage:
   llmctl scheduler duplicate <id> [-name N] [-json] | run|enable|disable <id> | delete <id> [-json]
   llmctl scheduler tag <id> [a,b] [-json] | scheduler retag <old> <new> | retag -rm <tag> [-json]
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
-  llmctl scheduler runs [-n 20] [-json] [--csv] [-watch N] [-out FILE] [-stats]
+  llmctl scheduler runs [-n 20] [-task T] [-json] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]
@@ -5088,7 +5088,11 @@ func cmdScheduler(args []string) error {
 			Detail     string    `json:"detail"`
 		}
 		fetch := func() ([]runRow, error) {
-			code, out, err := cc.Get("/api/v1/scheduler/runs")
+			u := "/api/v1/scheduler/runs?limit=" + strconv.Itoa(*n)
+			if *taskF != "" { // server-side exact task id or name filter (F699)
+				u += "&task=" + url.QueryEscape(*taskF)
+			}
+			code, out, err := cc.Get(u)
 			if err != nil {
 				return nil, err
 			}
@@ -5098,15 +5102,6 @@ func cmdScheduler(args []string) error {
 			var runs []runRow
 			if err := json.Unmarshal(out, &runs); err != nil {
 				return nil, err
-			}
-			if *taskF != "" { // F688: exact task id or name filter
-				keep := runs[:0]
-				for _, r := range runs {
-					if r.TaskID == *taskF || r.Name == *taskF {
-						keep = append(keep, r)
-					}
-				}
-				runs = keep
 			}
 			return runs, nil
 		}

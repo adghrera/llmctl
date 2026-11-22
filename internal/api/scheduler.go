@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"llmctl/internal/events"
@@ -189,9 +190,17 @@ func (s *Server) setScheduleTags(w http.ResponseWriter, r *http.Request) {
 }
 
 // schedulerRuns handles GET /api/v1/scheduler/runs — recent task executions,
-// newest first (F145).
+// newest first (F145). ?limit=N caps the response (default 50, max 200);
+// ?task= keeps only runs of that task id or name (F699).
 func (s *Server) schedulerRuns(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, scheduler.Runs(50))
+	limit := 50
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+	task := strings.TrimSpace(r.URL.Query().Get("task"))
+	writeJSON(w, 200, scheduler.RunsFiltered(limit, task))
 }
 
 // runScheduleNow handles POST /api/v1/scheduler/{id}/run — execute a task// immediately (async), regardless of its cron schedule (F084).

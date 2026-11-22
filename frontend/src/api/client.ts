@@ -813,7 +813,10 @@ export const api = {
     req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runSchedule: (id: string) => req<{ ok: boolean; started: string }>(`/scheduler/${encodeURIComponent(id)}/run`, { method: "POST" }),
-  schedulerRuns: () => req<ScheduleRun[]>("/scheduler/runs"),
+  schedulerRuns: (limit = 0, task = "") =>
+    req<ScheduleRun[]>(
+      `/scheduler/runs${limit ? "?limit=" + limit : ""}${task ? (limit ? "&" : "?") + "task=" + encodeURIComponent(task) : ""}`
+    ),
   setScheduleEnabled: (id: string, enabled: boolean) =>
     req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   setScheduleTags: (id: string, tags: string[]) =>
