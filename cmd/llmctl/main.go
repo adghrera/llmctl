@@ -77,6 +77,10 @@ func main() {
 		err = cmdBench(args)
 	case "note":
 		err = cmdNote(args)
+	case "tag":
+		err = cmdInstanceTag(args)
+	case "retag":
+		err = cmdInstanceRetag(args)
 	case "autorestart":
 		err = cmdAutoRestartToggle(args)
 	case "setvars":
@@ -243,6 +247,7 @@ Usage:
   llmctl restart <instance> [-json] | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
   llmctl note <instance> [text] [-json] (empty text clears) | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
+  llmctl tag <instance> [a,b,c] [-json] (empty clears) | retag <old> <new> | retag -rm <tag>   (instance tags, F673)
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
@@ -1298,6 +1303,114 @@ func cmdNote(args []string) error {
 	return nil
 }
 
+// cmdInstanceTag replaces an instance's tags (PATCH tags endpoint, F673).
+func cmdInstanceTag(args []string) error {
+	fs := flag.NewFlagSet("tag", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw response JSON")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: llmctl tag <instance-id> [a,b,c] [-json]  (empty clears)")
+	}
+	var tags []string
+	if fs.NArg() > 1 {
+		for _, t := range strings.Split(fs.Arg(1), ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				tags = append(tags, t)
+			}
+		}
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(fs.Arg(0))+"/tags",
+		map[string]any{"tags": tags})
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("tag: %s", out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	if len(tags) == 0 {
+		fmt.Printf("instance %s tags cleared\n", fs.Arg(0))
+	} else {
+		fmt.Printf("instance %s tags: %s\n", fs.Arg(0), strings.Join(tags, ", "))
+	}
+	return nil
+}
+
+// cmdInstanceRetag bulk-renames or drops a tag across all instances (F673),
+// twin of `models retag`; the tag rules live in the tags endpoint.
+func cmdInstanceRetag(args []string) error {
+	fs := flag.NewFlagSet("retag", flag.ExitOnError)
+	rm := fs.Bool("rm", false, "drop the tag instead of renaming it")
+	jsonOut := fs.Bool("json", false, "print the count as JSON")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() < 1 || (!*rm && fs.NArg() < 2) {
+		return fmt.Errorf("usage: llmctl retag <old-tag> <new-tag> | llmctl retag -rm <tag> [-json]")
+	}
+	oldTag, newTag := fs.Arg(0), fs.Arg(1)
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/instances")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("instances returned %d: %s", code, out)
+	}
+	var is []struct {
+		ID   string   `json:"id"`
+		Tags []string `json:"tags"`
+	}
+	if err := json.Unmarshal(out, &is); err != nil {
+		return err
+	}
+	changed := 0
+	for _, i := range is {
+		found := false
+		var tags []string
+		for _, t := range i.Tags {
+			if t != oldTag {
+				tags = append(tags, t)
+				continue
+			}
+			found = true
+			if !*rm {
+				tags = append(tags, newTag)
+			}
+		}
+		if !found {
+			continue
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(i.ID)+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("retag %s: %s", i.ID, out)
+		}
+		changed++
+	}
+	if *jsonOut {
+		fmt.Printf("{\"changed\": %d}\n", changed)
+		return nil
+	}
+	if *rm {
+		fmt.Printf("removed tag %q from %d instance(s)\n", oldTag, changed)
+	} else {
+		fmt.Printf("renamed tag %q -> %q on %d instance(s)\n", oldTag, newTag, changed)
+	}
+	return nil
+}
+
 // cmdAutoRestartToggle toggles crash auto-restart on an instance (F087).
 func cmdAutoRestartToggle(args []string) error {
 	fs := flag.NewFlagSet("autorestart", flag.ExitOnError)
@@ -2327,7 +2440,7 @@ func cmdCompare(args []string) error {
 var llmTopCommands = []string{
 	"up", "down", "status", "doctor", "gpu", "disk", "presets", "catalog",
 	"maxparallel", "jobs", "search", "structured", "embed", "complete",
-	"compare", "count", "bench", "note", "autorestart", "setvars", "ps",
+	"compare", "count", "bench", "note", "tag", "retag", "autorestart", "setvars", "ps",
 	"backends", "models", "start", "stop", "restart", "logs", "key",
 	"autostart", "requests", "backups", "usage", "metrics", "events",
 	"webhooks", "prompts", "chats", "skills", "memory", "kb", "tools",
@@ -2367,6 +2480,7 @@ var llmIDSources = map[string]string{
 	"restart":     "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
 	"logs":        "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
 	"note":        "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
+	"tag":         "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
 	"autorestart": "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
 	"setvars":     "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",
 	"maxparallel": "llmctl ps --csv 2>/dev/null | tail -n +2 | cut -d, -f1",

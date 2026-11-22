@@ -217,6 +217,9 @@ type State struct {
 	// rather than on the instance record because records are forgotten when
 	// an instance stops (F119).
 	InstanceNotes map[string]string `json:"instanceNotes,omitempty"`
+	// InstanceTags is a free-form tag list per instance id, stored like
+	// InstanceNotes so tags survive stop/start (F673).
+	InstanceTags map[string][]string `json:"instanceTags,omitempty"`
 	// CustomPrompts are user-defined prompt templates (F306), keyed by id.
 	// They merge with the built-in library in the prompts API.
 	CustomPrompts map[string]*CustomPrompt `json:"customPrompts,omitempty"`

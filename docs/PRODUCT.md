@@ -209,7 +209,9 @@ toggle for a light theme (choice remembered). Tabs:
   **Auto-refresh** checkbox polls every 5s so status and uptime update without
   a reload — the UI twin of `llmctl ps -watch N` (F612). Each
   instance can carry a free-text note (Vars dialog) shown under its id and
-  persisted across restarts (F119); running instances show their uptime (F125)
+  persisted across restarts (F119); it can also carry free-form tags (Vars
+  dialog, `llmctl tag <instance> a,b` / `llmctl retag`), shown under the note
+  and persisted like notes (F673); running instances show their uptime (F125)
   and link to their gateway request history (F132); the Req button shows how
   many requests the instance has served since daemon start (F150). Named start
   presets (model + vars + port recipe) can be saved and one-click started from
@@ -721,6 +723,7 @@ llmctl stop --all                          (stop every running instance, attache
 llmctl restart <instance> [-json] | llmctl restart --all [--json]   (single restart prints "restarted X", --all reports per-instance failures, F445; --json prints the raw response or, with --all, one aggregate {"restarted":[…]} object, F533, F567)
 llmctl maxparallel <instance> <n> [-json]  (concurrent-request cap, 0 = unlimited, F270; -json prints the raw response, F532)
 llmctl note <instance> [text] [-json]        (free-text annotation, F271; empty text clears the note, F645; -json prints the raw response, F529)
+llmctl tag <instance> [a,b,c] [-json] | retag <old> <new> | retag -rm <tag>   (instance tags, empty clears; retag bulk-renames/drops across instances, F673)
 llmctl autorestart <instance> <on|off> [-json]  (crash auto-restart toggle, F271; -json prints the raw response, F530)
 llmctl setvars <instance> [-var k=v…] [-json]  (replace stored start vars, F271; -json prints the raw response, F531)
 llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]

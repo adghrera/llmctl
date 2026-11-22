@@ -114,6 +114,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/instances/{id}/restart", s.restartInstance)
 	m.HandleFunc("POST /api/v1/instances/{id}/autorestart", s.setAutoRestart)
 	m.HandleFunc("PATCH /api/v1/instances/{id}/note", s.setNote)
+	m.HandleFunc("PATCH /api/v1/instances/{id}/tags", s.setInstanceTags)
 	m.HandleFunc("PATCH /api/v1/instances/{id}/maxparallel", s.setMaxParallel)
 	m.HandleFunc("PATCH /api/v1/models/{id}/price", s.setModelPrice)
 	m.HandleFunc("PATCH /api/v1/models/{id}/idle", s.setModelIdle)
@@ -777,6 +778,8 @@ type instanceView struct {
 	MaxParallel int `json:"maxParallel,omitempty"`
 	// Note: free-text user annotation (F119).
 	Note string `json:"note,omitempty"`
+	// Tags: free-form labels for grouping (F673).
+	Tags []string `json:"tags,omitempty"`
 	// Served: requests this instance has served since daemon start (F150).
 	Served int64 `json:"served,omitempty"`
 	// RestartCount: cumulative successful auto-restarts (F185).
@@ -794,6 +797,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 			Attached: i.Attached, PID: i.PID, StartedAt: i.StartedAt,
 			Vars: i.Vars, LastError: i.LastError, AutoRestart: i.AutoRestart,
 			MaxParallel: i.MaxParallel, Note: st.InstanceNotes[i.ID],
+			Tags:         st.InstanceTags[i.ID],
 			RestartCount: i.RestartCount,
 		}
 		if s.gw != nil {
@@ -974,6 +978,56 @@ func (s *Server) setNote(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// setInstanceTags handles PATCH /api/v1/instances/{id}/tags — replace an
+// instance's free-form tag list, the instance twin of model/kb/skill tags
+// (F673). Tags are trimmed, deduped and capped (20 tags, 40 chars each) and
+// survive stop/start like instance notes.
+func (s *Server) setInstanceTags(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	seen := map[string]bool{}
+	tags := []string{}
+	for _, t := range req.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+		seen[t] = true
+		tags = append(tags, t)
+	}
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	st, _ := s.store.Load()
+	if st.Instances[id] == nil {
+		writeErr(w, 404, "unknown instance: "+id)
+		return
+	}
+	s.store.Update(func(st *store.State) error {
+		if st.InstanceTags == nil {
+			st.InstanceTags = map[string][]string{}
+		}
+		if len(tags) == 0 {
+			delete(st.InstanceTags, id)
+		} else {
+			st.InstanceTags[id] = tags
+		}
+		return nil
+	})
+	writeJSON(w, 200, map[string]any{"ok": true, "tags": tags})
 }
 
 // setMaxParallel handles PATCH /api/v1/instances/{id}/maxparallel — cap the

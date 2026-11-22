@@ -46,6 +46,7 @@ export default function Instances() {
   const [varsText, setVarsText] = useState("");
   const [varsCap, setVarsCap] = useState(0);
   const [varsNote, setVarsNote] = useState("");
+  const [varsTags, setVarsTags] = useState("");
   const [varsBusy, setVarsBusy] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
@@ -141,11 +142,12 @@ export default function Instances() {
     void loadLogs(id, "stderr");
   };
 
-  const openVars = (id: string, vars?: Record<string, string>, cap?: number, note?: string) => {
+  const openVars = (id: string, vars?: Record<string, string>, cap?: number, note?: string, tags?: string[]) => {
     setVarsFor(id);
     setVarsText(JSON.stringify(vars ?? {}, null, 2));
     setVarsCap(cap ?? 0);
     setVarsNote(note ?? "");
+    setVarsTags((tags ?? []).join(", "));
   };
 
   const saveVars = async () => {
@@ -162,6 +164,10 @@ export default function Instances() {
       const r = await api.setInstanceVars(varsFor, parsed);
       await api.setInstanceCap(varsFor, varsCap);
       await api.setInstanceNote(varsFor, varsNote.trim());
+      await api.setInstanceTags(
+        varsFor,
+        varsTags.split(",").map((t) => t.trim()).filter(Boolean)
+      );
       ok(r.restartRequired ? "vars saved — restart to apply" : "vars saved");
       setVarsFor(null);
       await refreshOne("instances");
@@ -747,6 +753,11 @@ export default function Instances() {
                         {i.note}
                       </div>
                     ) : null}
+                    {i.tags?.length ? (
+                      <div className="muted" style={{ fontSize: 11, maxWidth: 220 }} title={i.tags.join(", ")}>
+                        {(i.tags || []).join(", ")}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="mono">{i.modelId}</td>
                   <td>{i.backendId}</td>
@@ -793,7 +804,7 @@ export default function Instances() {
                         Req{i.served ? ` ${i.served}` : ""}
                       </button>
                     </Link>
-                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel, i.note)}>
+                    <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel, i.note, i.tags)}>
                       Vars
                     </button>
                     {!i.attached && (
@@ -967,6 +978,15 @@ export default function Instances() {
               placeholder="free-text annotation (shown on this row)"
               value={varsNote}
               onChange={(e) => setVarsNote(e.target.value)}
+            />
+          </div>
+          <div className="row" style={{ marginTop: 8, alignItems: "center", gap: 8 }}>
+            <span className="muted small" style={{ width: 90 }}>tags</span>
+            <input
+              style={{ flex: 1 }}
+              placeholder="comma-separated labels, e.g. primary,gpu (F673)"
+              value={varsTags}
+              onChange={(e) => setVarsTags(e.target.value)}
             />
           </div>
         </div>

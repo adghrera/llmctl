@@ -53,6 +53,7 @@ export interface Instance {
   restartCount?: number;
   maxParallel?: number;
   note?: string;
+  tags?: string[];
   vars?: Record<string, string>;
   lastError?: string;
   autoRestart?: boolean;
@@ -570,6 +571,11 @@ export const api = {
     req<{ ok: boolean }>(`/instances/${encodeURIComponent(id)}/note`, {
       method: "PATCH",
       body: JSON.stringify({ note }),
+    }),
+  setInstanceTags: (id: string, tags: string[]) =>
+    req<{ ok: boolean; tags: string[] }>(`/instances/${encodeURIComponent(id)}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tags }),
     }),
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
