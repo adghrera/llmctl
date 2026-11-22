@@ -427,6 +427,8 @@ llmctl disk [-json]                                (model dir + volume disk usag
 llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
+llmctl catalog list [-json] | install <id>      (curated model picker, F266)
+llmctl presets list|save|start|delete           (named start recipes, F265)
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total,
                                     price and idle-unload; list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)

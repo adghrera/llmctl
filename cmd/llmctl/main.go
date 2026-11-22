@@ -52,6 +52,8 @@ func main() {
 		err = cmdDisk(args)
 	case "presets":
 		err = cmdPresets(args)
+	case "catalog":
+		err = cmdCatalog(args)
 	case "ps":
 		err = cmdPS(args)
 	case "backends":
@@ -174,6 +176,7 @@ Usage:
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
   llmctl presets list|save -name N -model ID [...]|start <name>|delete <name>
+  llmctl catalog list [-json] | install <id>
   llmctl scheduler list
   llmctl scheduler show <id> [-json]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
@@ -669,6 +672,68 @@ func cmdPresets(args []string) error {
 		return nil
 	default:
 		return fmt.Errorf("unknown presets subcommand: %s (list|save|start|delete)", sub)
+	}
+}
+
+// cmdCatalog browses the curated model catalog (GET /api/v1/catalog) and
+// installs entries by id (F266).
+func cmdCatalog(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: llmctl catalog <list|install> [id] [flags]")
+	}
+	sub, rest := args[0], args[1:]
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("catalog list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw catalog JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/catalog")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("catalog returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			ID      string   `json:"id"`
+			Name    string   `json:"name"`
+			Backend string   `json:"backend"`
+			SizeGB  string   `json:"sizeGB"`
+			Quant   string   `json:"quant"`
+			Tags    []string `json:"tags"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		fmt.Printf("%-28s %-28s %-10s %-8s %-10s %s\n", "ID", "NAME", "SIZE", "QUANT", "BACKEND", "TAGS")
+		for _, e := range list {
+			fmt.Printf("%-28s %-28s %-10s %-8s %-10s %s\n", e.ID, e.Name, e.SizeGB+" GB", e.Quant, e.Backend, strings.Join(e.Tags, ","))
+		}
+		fmt.Printf("\ninstall one: llmctl catalog install <id>\n")
+		return nil
+	case "install":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl catalog install <id>  (see: llmctl catalog list)")
+		}
+		code, out, err := cc.Post("/api/v1/catalog/install", map[string]any{"id": rest[0]})
+		if err != nil {
+			return err
+		}
+		if code != 200 && code != 202 {
+			return fmt.Errorf("catalog install returned %d: %s", code, out)
+		}
+		fmt.Printf("catalog install %s started — track with: llmctl models show %s\n", rest[0], rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown catalog subcommand: %s (list|install)", sub)
 	}
 }
 
