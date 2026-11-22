@@ -267,7 +267,7 @@ Usage:
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
-  llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
+  llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json] | prompts categories [-json|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
@@ -5693,6 +5693,7 @@ func cmdEvents(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the raw events JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	outFile := fs.String("out", "", "write the raw events JSON to this file instead of stdout (F468)")
+	stats := fs.Bool("stats", false, "aggregate the events by kind instead of listing them (F599)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -5705,7 +5706,7 @@ func cmdEvents(args []string) error {
 	if *model != "" {
 		u += "&model=" + url.QueryEscape(*model)
 	}
-	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F468)
+	if (*jsonOut || *outFile != "") && !*stats { // -out writes the same payload to a file (F468)
 		code, out, err := cc.Get(u)
 		if err != nil {
 			return err
@@ -5744,6 +5745,88 @@ func cmdEvents(args []string) error {
 	evs, err := fetch()
 	if err != nil {
 		return err
+	}
+	if *stats { // F599: one row per event kind (count, last seen, who)
+		type est struct {
+			Kind      string    `json:"kind"`
+			Count     int       `json:"count"`
+			Last      time.Time `json:"last"`
+			Instances []string  `json:"instances,omitempty"`
+			Models    []string  `json:"models,omitempty"`
+		}
+		byKind := map[string]*est{}
+		insts := map[string]map[string]bool{}
+		mods := map[string]map[string]bool{}
+		for _, e := range evs {
+			g := byKind[e.Kind]
+			if g == nil {
+				g = &est{Kind: e.Kind}
+				byKind[e.Kind] = g
+				insts[e.Kind] = map[string]bool{}
+				mods[e.Kind] = map[string]bool{}
+			}
+			g.Count++
+			if e.Time.After(g.Last) {
+				g.Last = e.Time
+			}
+			if e.Instance != "" {
+				insts[e.Kind][e.Instance] = true
+			}
+			if e.Model != "" {
+				mods[e.Kind][e.Model] = true
+			}
+		}
+		names := make([]string, 0, len(byKind))
+		for k := range byKind {
+			names = append(names, k)
+		}
+		sort.Slice(names, func(i, j int) bool { return byKind[names[i]].Count > byKind[names[j]].Count })
+		rows := make([]est, 0, len(names))
+		for _, k := range names {
+			g := byKind[k]
+			for _, s := range []struct {
+				set map[string]bool
+				dst *[]string
+			}{{insts[k], &g.Instances}, {mods[k], &g.Models}} {
+				for v := range s.set {
+					*s.dst = append(*s.dst, v)
+				}
+				sort.Strings(*s.dst)
+			}
+			rows = append(rows, *g)
+		}
+		if *jsonOut || *outFile != "" {
+			b, _ := json.Marshal(rows)
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"kind", "count", "last", "instances", "models"})
+			for _, r := range rows {
+				_ = w.Write([]string{r.Kind, strconv.Itoa(r.Count), r.Last.UTC().Format(time.RFC3339),
+					strings.Join(r.Instances, " "), strings.Join(r.Models, " ")})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		if len(rows) == 0 {
+			fmt.Println("no events since daemon start")
+			return nil
+		}
+		fmt.Printf("%-26s %6s %-20s %s\n", "EVENT", "COUNT", "LAST (UTC)", "INSTANCES / MODELS")
+		for _, r := range rows {
+			who := strings.Join(append(append([]string{}, r.Instances...), r.Models...), " ")
+			fmt.Printf("%-26s %6d %-20s %s\n", r.Kind, r.Count, r.Last.UTC().Format("2006-01-02 15:04:05"), who)
+		}
+		return nil
 	}
 	if *csvOut { // F261
 		w := csv.NewWriter(os.Stdout)
