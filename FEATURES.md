@@ -255,6 +255,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F243 | P3 | 243 | files | `llmctl files upload` | COMPLETED | The CLI gained `files upload <path> [-name X] [-json]` (multipart to the existing API), completing file coverage in the shell. Verified live: upload, rename, `-json`, `cat` round-trip and delete all pass. |
 | F244 | P3 | 244 | cli | `llmctl chats` | COMPLETED | New CLI over the chat-store API: `llmctl chats [filter] [-n] [-json]` lists saved conversations (title/model substring filter) and `chats show <id> [-json]` prints metadata plus a per-message preview. Verified live: list, filter, JSON and show all correct. |
 | F245 | P3 | 245 | cli | `llmctl skills` | COMPLETED | New CLI over the skills API: `llmctl skills [filter] [-json]` (matches id/name/description/tags), `skills show <id>` (raw JSON), and `skills enable|disable|delete <id>`. Verified live end-to-end: create via API, list, filter, toggle, show, delete. |
+| F246 | P3 | 246 | cli | `llmctl memory` | COMPLETED | New CLI over the memory API: `memory [filter] [-n] [-json]` lists entries (content/tag filter), `memory add "<text>" [-tags a,b]`, `memory show <id>` and `memory delete <id>`. Verified live end-to-end: add, list, filter, JSON, show, delete. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

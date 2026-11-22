@@ -82,6 +82,8 @@ func main() {
 		err = cmdChats(args)
 	case "skills":
 		err = cmdSkills(args)
+	case "memory":
+		err = cmdMemory(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -165,6 +167,7 @@ Usage:
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
+  llmctl memory [filter] [-n 30] [-json] | memory show|add|delete …
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -2364,6 +2367,154 @@ func cmdSkills(args []string) error {
 		return nil
 	default:
 		return fmt.Errorf("unknown skills subcommand %q (list|show|enable|disable|delete)", sub)
+	}
+}
+
+// cmdMemory lists and manages memory entries (F246).
+func cmdMemory(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub, rest := "list", args
+	if len(args) > 0 {
+		switch args[0] {
+		case "list", "show", "add", "delete":
+			sub, rest = args[0], args[1:]
+		}
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("memory", flag.ExitOnError)
+		n := fs.Int("n", 30, "number of entries")
+		jsonOut := fs.Bool("json", false, "print the entries as JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/memory")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory returned %d: %s", code, out)
+		}
+		filter := ""
+		if fs.NArg() > 0 {
+			filter = strings.ToLower(fs.Arg(0))
+		}
+		var list []struct {
+			Entry struct {
+				ID        string   `json:"id"`
+				Content   string   `json:"content"`
+				Tags      []string `json:"tags"`
+				CreatedAt string   `json:"created_at"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if filter != "" {
+			var keep []struct {
+				Entry struct {
+					ID        string   `json:"id"`
+					Content   string   `json:"content"`
+					Tags      []string `json:"tags"`
+					CreatedAt string   `json:"created_at"`
+				} `json:"entry"`
+			}
+			for _, m := range list {
+				hay := strings.ToLower(m.Entry.Content + " " + strings.Join(m.Entry.Tags, " "))
+				if strings.Contains(hay, filter) {
+					keep = append(keep, m)
+				}
+			}
+			list = keep
+		}
+		if len(list) > *n {
+			list = list[:*n]
+		}
+		if *jsonOut {
+			b, err := json.Marshal(list)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if len(list) == 0 {
+			fmt.Println("no memory entries")
+			return nil
+		}
+		for _, m := range list {
+			content := strings.ReplaceAll(strings.TrimSpace(m.Entry.Content), "\n", " ")
+			if len(content) > 80 {
+				content = content[:80] + "…"
+			}
+			fmt.Printf("%-16s %s", m.Entry.ID, content)
+			if len(m.Entry.Tags) > 0 {
+				fmt.Printf("  [%s]", strings.Join(m.Entry.Tags, ","))
+			}
+			fmt.Println()
+		}
+		return nil
+	case "show":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl memory show <id>")
+		}
+		code, out, err := cc.Get("/api/v1/memory/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory %s: %s", rest[0], out)
+		}
+		fmt.Print(string(out))
+		return nil
+	case "add":
+		afs := flag.NewFlagSet("memory add", flag.ExitOnError)
+		tags := afs.String("tags", "", "comma-separated tags")
+		afs.Parse(reorderFlags(rest))
+		if afs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl memory add \"<text>\" [-tags a,b]")
+		}
+		body := map[string]any{"content": strings.Join(afs.Args(), " ")}
+		if *tags != "" {
+			list := []string{}
+			for _, t := range strings.Split(*tags, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					list = append(list, t)
+				}
+			}
+			body["tags"] = list
+		}
+		code, out, err := cc.Post("/api/v1/memory", body)
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("memory add returned %d: %s", code, out)
+		}
+		var rec struct {
+			Entry struct {
+				ID string `json:"id"`
+			} `json:"entry"`
+		}
+		json.Unmarshal(out, &rec)
+		fmt.Printf("added memory %s\n", rec.Entry.ID)
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl memory delete <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/memory/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("delete returned %d: %s", code, out)
+		}
+		fmt.Printf("deleted memory %s\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown memory subcommand %q (list|show|add|delete)", sub)
 	}
 }
 
