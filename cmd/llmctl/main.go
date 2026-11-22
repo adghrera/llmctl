@@ -738,10 +738,13 @@ func cmdPresets(args []string) error {
 	case "import":
 		// Create/replace presets from a `presets export` file (F328);
 		// same-name presets are replaced.
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl presets import <file.json>")
+		pifs := flag.NewFlagSet("presets import", flag.ExitOnError)
+		pijson := pifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON (F542)")
+		pifs.Parse(reorderFlags(rest))
+		if pifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl presets import <file.json> [-json]")
 		}
-		data, err := os.ReadFile(rest[0])
+		data, err := os.ReadFile(pifs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -756,11 +759,20 @@ func cmdPresets(args []string) error {
 				return err
 			}
 			if code/100 != 2 {
-				fmt.Printf("  skip %v: %s\n", p["name"], out)
+				if *pijson {
+					fmt.Fprintf(os.Stderr, "  skip %v: %s\n", p["name"], out)
+				} else {
+					fmt.Printf("  skip %v: %s\n", p["name"], out)
+				}
 				skipped++
 				continue
 			}
 			created++
+		}
+		if *pijson {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("imported %d presets (%d skipped)\n", created, skipped)
 		return nil
@@ -3549,10 +3561,13 @@ func cmdScheduler(args []string) error {
 	case "import":
 		// Create schedules from a `scheduler export` file (F326). Each
 		// import creates fresh ids; re-running duplicates rather than merges.
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl scheduler import <file.json>")
+		sifs := flag.NewFlagSet("scheduler import", flag.ExitOnError)
+		sijson := sifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON (F542)")
+		sifs.Parse(reorderFlags(rest))
+		if sifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl scheduler import <file.json> [-json]")
 		}
-		data, err := os.ReadFile(rest[0])
+		data, err := os.ReadFile(sifs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -3568,11 +3583,20 @@ func cmdScheduler(args []string) error {
 				return err
 			}
 			if code != 201 {
-				fmt.Printf("  skip: %s\n", out)
+				if *sijson {
+					fmt.Fprintf(os.Stderr, "  skip: %s\n", out)
+				} else {
+					fmt.Printf("  skip: %s\n", out)
+				}
 				skipped++
 				continue
 			}
 			created++
+		}
+		if *sijson {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("imported %d schedules (%d skipped)\n", created, skipped)
 		return nil
@@ -6052,9 +6076,10 @@ func cmdMemory(args []string) error {
 	case "import":
 		// Bulk-create entries from a `memory export` file (F321).
 		ifs := flag.NewFlagSet("memory import", flag.ExitOnError)
+		mijson := ifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON (F542)")
 		ifs.Parse(reorderFlags(rest))
 		if ifs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl memory import <file.json>")
+			return fmt.Errorf("usage: llmctl memory import <file.json> [-json]")
 		}
 		data, err := os.ReadFile(ifs.Arg(0))
 		if err != nil {
@@ -6081,11 +6106,20 @@ func cmdMemory(args []string) error {
 				return err
 			}
 			if code != 201 {
-				fmt.Printf("  skip: %s\n", out)
+				if *mijson {
+					fmt.Fprintf(os.Stderr, "  skip: %s\n", out)
+				} else {
+					fmt.Printf("  skip: %s\n", out)
+				}
 				skipped++
 				continue
 			}
 			created++
+		}
+		if *mijson {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("imported %d entries (%d skipped)\n", created, skipped)
 		return nil
@@ -7180,10 +7214,13 @@ func cmdMcp(args []string) error {
 		// Recreate MCP servers from an `mcp export` file (F330). Fresh ids;
 		// the create endpoint forces enabled, so a disabled source is
 		// re-disabled afterwards.
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl mcp import <file.json>")
+		mifs := flag.NewFlagSet("mcp import", flag.ExitOnError)
+		mijson2 := mifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON (F542)")
+		mifs.Parse(reorderFlags(rest))
+		if mifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl mcp import <file.json> [-json]")
 		}
-		data, err := os.ReadFile(rest[0])
+		data, err := os.ReadFile(mifs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -7204,7 +7241,11 @@ func cmdMcp(args []string) error {
 				return err
 			}
 			if code != 201 && code != 200 {
-				fmt.Printf("  skip %v: %s\n", s["name"], out)
+				if *mijson2 {
+					fmt.Fprintf(os.Stderr, "  skip %v: %s\n", s["name"], out)
+				} else {
+					fmt.Printf("  skip %v: %s\n", s["name"], out)
+				}
 				skipped++
 				continue
 			}
@@ -7216,6 +7257,11 @@ func cmdMcp(args []string) error {
 				cc.Do("POST", "/api/v1/mcp/"+url.PathEscape(rec.ID)+"/enabled", map[string]any{"enabled": false})
 			}
 			created++
+		}
+		if *mijson2 {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("imported %d MCP servers (%d skipped)\n", created, skipped)
 		return nil
@@ -7768,10 +7814,13 @@ func cmdPrompts(args []string) error {
 	}
 	if len(args) > 0 && args[0] == "import" {
 		// Bulk-create templates from a `prompts export` file (F323).
-		if len(args) < 2 {
-			return fmt.Errorf("usage: llmctl prompts import <file.json>")
+		prifs := flag.NewFlagSet("prompts import", flag.ExitOnError)
+		prjson := prifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON (F542)")
+		prifs.Parse(reorderFlags(args[1:]))
+		if prifs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl prompts import <file.json> [-json]")
 		}
-		data, err := os.ReadFile(args[1])
+		data, err := os.ReadFile(prifs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -7799,11 +7848,20 @@ func cmdPrompts(args []string) error {
 				return err
 			}
 			if code != 201 {
-				fmt.Printf("  skip %s: %s\n", e.ID, out)
+				if *prjson {
+					fmt.Fprintf(os.Stderr, "  skip %s: %s\n", e.ID, out)
+				} else {
+					fmt.Printf("  skip %s: %s\n", e.ID, out)
+				}
 				skipped++
 				continue
 			}
 			created++
+		}
+		if *prjson {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("imported %d prompts (%d skipped)\n", created, skipped)
 		return nil
@@ -8938,10 +8996,13 @@ func cmdAutoStart(args []string) error {
 	case "import":
 		// Re-create auto-start entries from an `autostart export` file (F329);
 		// same-model entries are replaced (the POST upserts).
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl autostart import <file.json>")
+		aifs := flag.NewFlagSet("autostart import", flag.ExitOnError)
+		aijson := aifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON (F542)")
+		aifs.Parse(reorderFlags(rest))
+		if aifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl autostart import <file.json> [-json]")
 		}
-		data, err := os.ReadFile(rest[0])
+		data, err := os.ReadFile(aifs.Arg(0))
 		if err != nil {
 			return err
 		}
@@ -8956,11 +9017,20 @@ func cmdAutoStart(args []string) error {
 				return err
 			}
 			if code/100 != 2 {
-				fmt.Printf("  skip %v: %s\n", s["modelId"], out)
+				if *aijson {
+					fmt.Fprintf(os.Stderr, "  skip %v: %s\n", s["modelId"], out)
+				} else {
+					fmt.Printf("  skip %v: %s\n", s["modelId"], out)
+				}
 				skipped++
 				continue
 			}
 			created++
+		}
+		if *aijson {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("imported %d auto-start entries (%d skipped)\n", created, skipped)
 		return nil
