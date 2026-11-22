@@ -12040,6 +12040,19 @@ func cmdAutoStart(args []string) error {
 // kbContextFor searches a knowledge base for the query and builds the
 // context block shared by the one-shot -kb flag and the REPL /kb command (F342).
 // Returns "" when nothing matches.
+// fileContextFor reads a local file for `chat -file`, formatted like the
+// Chat UI's /file injection (F669). Capped at 1 MiB.
+func fileContextFor(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read file: %w", err)
+	}
+	if len(b) > 1<<20 {
+		return "", fmt.Errorf("file too large (max 1 MiB): %s", path)
+	}
+	return fmt.Sprintf("File: %s\n\n%s", filepath.Base(path), string(b)), nil
+}
+
 func kbContextFor(cc *daemon.ControlClient, kbIDs, query string) (string, error) {
 	// kbIDs may be a comma-separated list: search each KB and merge the
 	// top hits by score (F666), same as the scheduler's -kb.
@@ -12102,6 +12115,7 @@ func cmdChat(args []string) error {
 	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
 	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
 	kbFlag := fs.String("kb", "", "prepend the top knowledge-base matches as context (one-shot and REPL; comma-separated ids search all and merge, like the Chat UI; F302, F666, F667)")
+	fileFlag := fs.String("file", "", "prepend the contents of this local file as a context message (one-shot and REPL; like the Chat UI /file, F669)")
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
 	temp := fs.Float64("temperature", -1, "with -prompt: sampling temperature (-1 = model default, F319)")
 	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")
@@ -12297,6 +12311,13 @@ func cmdChat(args []string) error {
 		if strings.TrimSpace(*system) != "" && len(contMsgs) == 0 {
 			hist = append(hist, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 		}
+		if *fileFlag != "" { // file context first, like the Chat UI (F669)
+			ctxMsg, err := fileContextFor(*fileFlag)
+			if err != nil {
+				return err
+			}
+			hist = append(hist, map[string]any{"role": "user", "content": ctxMsg})
+		}
 		if *kbFlag != "" {
 			ctxMsg, err := kbContextFor(cc, *kbFlag, oneShot)
 			if err != nil {
@@ -12444,6 +12465,14 @@ func cmdChat(args []string) error {
 		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 	}
 	kbID := strings.TrimSpace(*kbFlag) // -kb seeds the REPL too (F667); /kb can change it
+	fileCtx := ""                      // -file seeds the REPL too (F669)
+	if *fileFlag != "" {
+		var ferr error
+		fileCtx, ferr = fileContextFor(*fileFlag)
+		if ferr != nil {
+			return ferr
+		}
+	}
 	outW := bufio.NewWriter(os.Stdout)
 
 	for {
@@ -12597,19 +12626,28 @@ func cmdChat(args []string) error {
 		// Append user message.
 		history = append(history, map[string]any{"role": "user", "content": line})
 
-		// With a /kb attached, prepend the top KB matches for this message
-		// as a context turn (same shape as the one-shot -kb flag, F342).
+		// With -file and/or a /kb attached, prepend their context turns for
+		// this message (same shape as the one-shot flags, F342, F669).
 		reqMsgs := history
+		var ctxMsgs []string
+		if fileCtx != "" {
+			ctxMsgs = append(ctxMsgs, fileCtx)
+		}
 		if kbID != "" {
 			ctxMsg, kerr := kbContextFor(cc, kbID, line)
 			if kerr != nil {
 				fmt.Printf("[kb search failed: %v]\n", kerr)
 			} else if ctxMsg != "" {
-				reqMsgs = make([]map[string]any, 0, len(history)+1)
-				reqMsgs = append(reqMsgs, history[:len(history)-1]...)
-				reqMsgs = append(reqMsgs, map[string]any{"role": "user", "content": ctxMsg})
-				reqMsgs = append(reqMsgs, history[len(history)-1])
+				ctxMsgs = append(ctxMsgs, ctxMsg)
 			}
+		}
+		if len(ctxMsgs) > 0 {
+			reqMsgs = make([]map[string]any, 0, len(history)+len(ctxMsgs))
+			reqMsgs = append(reqMsgs, history[:len(history)-1]...)
+			for _, c := range ctxMsgs {
+				reqMsgs = append(reqMsgs, map[string]any{"role": "user", "content": c})
+			}
+			reqMsgs = append(reqMsgs, history[len(history)-1])
 		}
 
 		body := map[string]any{

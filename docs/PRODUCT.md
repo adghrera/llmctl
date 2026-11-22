@@ -768,6 +768,7 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
                                      add -kb ID[,ID2…] to prepend the top knowledge-base matches as context, F302, comma-separated ids merge across KBs F666, applies in the REPL too F667;
+                                     add -file PATH to prepend a local file's contents as context (like the Chat UI /file, one-shot and REPL, F669);
                                      add -out FILE to write the reply text to a file instead of stdout, F448)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)
