@@ -39,6 +39,7 @@ export default function Instances() {
   const [logData, setLogData] = useState<InstanceLogTail | null>(null);
   const [logBusy, setLogBusy] = useState(false);
   const [logFollow, setLogFollow] = useState(false);
+  const [logFilter, setLogFilter] = useState("");
   const logPreRef = useRef<HTMLPreElement>(null);
   const [varsFor, setVarsFor] = useState<string | null>(null);
   const [varsText, setVarsText] = useState("");
@@ -126,6 +127,7 @@ export default function Instances() {
     setLogFor(id);
     setLogStream("stderr");
     setLogFollow(false);
+    setLogFilter("");
     void loadLogs(id, "stderr");
   };
 
@@ -787,6 +789,14 @@ export default function Instances() {
               >
                 {logFollow ? "Following" : "Follow"}
               </button>
+              <input
+                className="oc-input"
+                style={{ width: 140 }}
+                placeholder="filter lines"
+                title="show only log lines containing this text"
+                value={logFilter}
+                onChange={(e) => setLogFilter(e.target.value)}
+              />
               <button className="btn sm" disabled={logBusy} onClick={() => void loadLogs(logFor, logStream)}>
                 {logBusy ? "Loading…" : "Refresh"}
               </button>
@@ -817,7 +827,14 @@ export default function Instances() {
               fontSize: 12,
             }}
           >
-            {logBusy && !logData ? "loading…" : logData?.logs || "(empty)"}
+            {(() => {
+              // Optional substring filter over the tail (F450).
+              const raw = logBusy && !logData ? "loading…" : logData?.logs || "(empty)";
+              const f = logFilter.trim();
+              if (!f || raw === "loading…") return raw;
+              const lines = raw.split("\n").filter((l) => l.toLowerCase().includes(f.toLowerCase()));
+              return lines.length ? lines.join("\n") : `no lines match “${f}”`;
+            })()}
           </pre>
         </div>
       )}

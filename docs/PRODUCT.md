@@ -141,7 +141,8 @@ GitHub release, or file list. No recompile.
   that instance's model preselected (`/chat?model=`, F362) and an Export CSV
   button matching `llmctl ps --csv` (F406). Its log viewer (stderr/stdout
   tails, download) has a Follow toggle that keeps tailing new lines every 2s,
-  the UI counterpart of `llmctl logs -f` (F422). An optional
+  the UI counterpart of `llmctl logs -f` (F422), and a filter box that shows
+  only lines containing a substring (F450). An optional
   per-instance "max parallel" cap (Vars dialog)
   sheds excess requests with 503 instead of overloading a backend (F114).
 
@@ -160,7 +161,8 @@ toggle for a light theme (choice remembered). Tabs:
   F116, F351; also `llmctl events -kind … -model …`) and an Export CSV button
   matching `llmctl events --csv` columns (F371). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173) with a Follow toggle that keeps tailing it
-  every 2s (UI counterpart of `llmctl logs -daemon -f`, F423). `llmctl events -watch N` live-tails
+  every 2s (UI counterpart of `llmctl logs -daemon -f`, F423) and a filter box
+  for substring line filtering (F450). `llmctl events -watch N` live-tails
    the feed, printing new events every N seconds (F187).
 - **Search** — one box across local resources (F283): fan-out over the
   existing endpoints to find models (id/backend/path), saved chats (full-text

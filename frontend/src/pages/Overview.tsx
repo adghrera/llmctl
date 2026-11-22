@@ -15,6 +15,7 @@ export default function Overview() {
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
   const [daemonLog, setDaemonLog] = useState<string | null>(null);
   const [daemonFollow, setDaemonFollow] = useState(false);
+  const [daemonLogFilter, setDaemonLogFilter] = useState("");
   const daemonPreRef = useRef<HTMLPreElement>(null);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
 
@@ -419,6 +420,15 @@ export default function Overview() {
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Daemon log</h2>
           <div className="row" style={{ gap: 6 }}>
+          <input
+            className="oc-input"
+            style={{ width: 140 }}
+            placeholder="filter lines"
+            title="show only log lines containing this text (F450)"
+            value={daemonLogFilter}
+            onChange={(e) => setDaemonLogFilter(e.target.value)}
+            disabled={daemonLog === null}
+          />
           <button
             className={`btn sm${daemonFollow ? " primary" : ""}`}
             title="keep tailing the daemon log every 2s (CLI: llmctl logs -daemon -f)"
@@ -459,7 +469,13 @@ export default function Overview() {
               whiteSpace: "pre-wrap",
             }}
           >
-            {daemonLog}
+            {(() => {
+              // Optional substring filter over the daemon log (F450).
+              const f = daemonLogFilter.trim();
+              if (!f || daemonLog === null) return daemonLog;
+              const lines = daemonLog.split("\n").filter((l) => l.toLowerCase().includes(f.toLowerCase()));
+              return lines.length ? lines.join("\n") : `no lines match “${f}”`;
+            })()}
           </pre>
         )}
       </div>
