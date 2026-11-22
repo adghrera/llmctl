@@ -134,7 +134,25 @@ export default function Structured() {
       </div>
       {(result || meta) && (
         <div className="card">
-          <h2>Result</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Result</h2>
+            {result && (
+              <button
+                className="btn sm"
+                onClick={() => {
+                  // Download the validated JSON output (F432).
+                  const blob = new Blob([result + "\n"], { type: "application/json" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-structured-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export JSON
+              </button>
+            )}
+          </div>
           <p className="small" style={{ margin: "4px 0 8px" }}>{meta}</p>
           <pre
             style={{

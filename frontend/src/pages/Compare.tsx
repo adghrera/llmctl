@@ -201,7 +201,30 @@ export default function Compare() {
 
       {Object.keys(results).length > 0 && (
         <div className="card">
-          <h2>Results</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Results</h2>
+            <button
+              className="btn sm"
+              disabled={streaming}
+              onClick={() => {
+                // Same shape as `llmctl compare --json`: [{model, reply}|{model, error}] (F431).
+                const arr = selectedInstances.map((inst) => {
+                  const r = results[inst.id];
+                  return r?.error
+                    ? { model: inst.modelId, error: r.error }
+                    : { model: inst.modelId, reply: r?.content ?? "" };
+                });
+                const blob = new Blob([JSON.stringify(arr, null, 2) + "\n"], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-compare-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
+          </div>
           <div className="row" style={{ gap: 12 }}>
             {selectedInstances.map((inst) => (
               <div key={inst.id} style={{ flex: 1, minWidth: 200, border: "1px solid var(--border, #333)", borderRadius: 6, overflow: "hidden" }}>

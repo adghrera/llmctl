@@ -209,7 +209,8 @@ toggle for a light theme (choice remembered). Tabs:
   model for JSON only, validates the reply against the schema and retries
   with the validation error appended until it matches (or gives up with the
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
-  optional max-tokens/temperature inputs (F359).
+  optional max-tokens/temperature inputs (F359) and a Result Export JSON
+  button (F432).
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional
@@ -293,7 +294,8 @@ toggle for a light theme (choice remembered). Tabs:
   with an Export CSV button on the entry list (F402).
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page, with
-  optional max-tokens/temperature inputs (F359).
+  optional max-tokens/temperature inputs (F359) and a Results Export JSON
+  button matching `llmctl compare --json` shape (F431).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
   CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301);
   add `-json` for a machine-readable `[{model, reply|error}]` array (F314).
