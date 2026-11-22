@@ -7,6 +7,7 @@ export default function MCP() {
   const [name, setName] = useState("");
   const [command, setCommand] = useState("");
   const [args, setArgs] = useState("");
+  const [env, setEnv] = useState("");
   const [busy, setBusy] = useState(false);
   const [testResult, setTestResult] = useState<{ id: string; tools: MCPToolDef[] } | null>(null);
 
@@ -65,11 +66,23 @@ export default function MCP() {
     setBusy(true);
     try {
       const argList = args.trim() ? args.trim().split(/\s+/) : [];
-      await api.createMCPServer({ name: name.trim(), command: command.trim(), args: argList });
+      const envMap: Record<string, string> = {};
+      for (const pair of env.split(",")) {
+        const t = pair.trim();
+        const i = t.indexOf("=");
+        if (i > 0) envMap[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+      }
+      await api.createMCPServer({
+        name: name.trim(),
+        command: command.trim(),
+        args: argList,
+        env: Object.keys(envMap).length ? envMap : undefined,
+      });
       ok("MCP server added");
       setName("");
       setCommand("");
       setArgs("");
+      setEnv("");
       await load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -186,6 +199,13 @@ export default function MCP() {
             value={args}
             onChange={(e) => setArgs(e.target.value)}
             style={{ flex: 1, minWidth: 200 }}
+          />
+          <input
+            placeholder="Env (K=V, K2=V2)"
+            title="server process environment (CLI: llmctl mcp add -env)"
+            value={env}
+            onChange={(e) => setEnv(e.target.value)}
+            style={{ flex: 1, minWidth: 160 }}
           />
           <button className="btn primary" disabled={busy} onClick={create}>
             {busy ? "Working…" : "Add server"}
