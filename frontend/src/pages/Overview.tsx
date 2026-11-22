@@ -143,7 +143,44 @@ export default function Overview() {
       </div>
       {health && (
         <div className="card">
-          <h2>Health</h2>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Health</h2>
+            <div className="row" style={{ gap: 6 }}>
+              <button
+                className="btn sm"
+                title="download the doctor checks as CSV — same columns as llmctl doctor --csv (F723)"
+                onClick={() => {
+                  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                  const rows = [
+                    "name,status,detail",
+                    ...health.checks.map((c) => [c.name, c.status, c.detail || ""].map(esc).join(",")),
+                  ];
+                  const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-doctor-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                className="btn sm"
+                title="download the doctor checks as JSON (CLI: llmctl doctor -json)"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(health, null, 2)], { type: "application/json" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-doctor-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export JSON
+              </button>
+            </div>
+          </div>
           {health.checks.filter((c) => c.status !== "ok").length === 0 ? (
             <p>
               <span className="badge ok">ok</span> all {health.checks.length} checks passed

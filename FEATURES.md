@@ -733,6 +733,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F720 | P3 | 720 | mcp | MCP tested-tools Export JSON | COMPLETED | The MCP page's test-result (advertised tools) list gained an Export JSON button beside its Export CSV. Verified live: served bundle carries the button. |
 | F721 | P3 | 721 | ui | GPU card Export CSV/JSON | COMPLETED | The Overview GPU card gained Export CSV and Export JSON buttons (shown when GPUs are detected) — UI twins of `llmctl gpu --csv`/`-json`, CSV with the same vendor,name,total_bytes,used_bytes,used_pct columns. Verified live: served bundle carries the buttons. |
 | F722 | P3 | 722 | ui | Disk + Gateway metrics Export CSV/JSON | COMPLETED | The Overview Disk card and Gateway metrics card gained Export CSV/JSON buttons — twins of `llmctl disk --csv`/`-json` and `llmctl metrics --csv`/`-json` (CSV mirrors the CLI columns). Verified live: all four titles present in the served bundle. |
+| F723 | P3 | 723 | ui | Health card Export CSV/JSON | COMPLETED | The Overview Health (doctor) card gained Export CSV/JSON buttons — twins of `llmctl doctor --csv`/`-json`, CSV with the same name,status,detail columns. Verified live: served bundle carries the buttons. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
