@@ -243,7 +243,7 @@ Usage:
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
   llmctl scheduler runs [-n 20] [--csv]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
@@ -3689,6 +3689,7 @@ func cmdRequests(args []string) error {
 	stats := fs.Bool("stats", false, "print aggregate stats (count, errors, latency percentiles, tokens, cost) instead of the table")
 	by := fs.String("by", "", "with -stats: group by model, key or instance")
 	jsonOut := fs.Bool("json", false, "print the raw requests JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw requests JSON to this file instead of stdout (F473)")
 	fs.Parse(reorderFlags(args))
 	if *by != "" && *by != "model" && *by != "key" && *by != "instance" {
 		return fmt.Errorf("-by must be model, key or instance")
@@ -3707,6 +3708,13 @@ func cmdRequests(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("request %s: %s", *id, out)
+		}
+		if *outFile != "" { // F473: single request JSON to a file
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		fmt.Println(string(out))
 		return nil
@@ -3749,7 +3757,14 @@ func cmdRequests(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("requests returned %d: %s", code, out)
 	}
-	if *jsonOut && !*stats {
+	if (*jsonOut || *outFile != "") && !*stats { // -out writes the same payload to a file (F473)
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
+		}
 		fmt.Print(string(out))
 		return nil
 	}
