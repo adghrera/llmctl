@@ -268,7 +268,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|export|enable|disable [-json]|delete <id> [-json]
@@ -6045,6 +6045,7 @@ func cmdWebhooks(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the delivery log as JSON (for scripts)")
 	outFile := fs.String("out", "", "write the delivery log JSON to this file instead of stdout (F478)")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new deliveries until Ctrl-C (0 = print once) (F556)")
+	stats := fs.Bool("stats", false, "aggregate the deliveries per event name instead of listing them (F624)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -6079,6 +6080,73 @@ func cmdWebhooks(args []string) error {
 	list, err := fetch()
 	if err != nil {
 		return err
+	}
+	if *stats { // F624: one row per event name (total, ok, failed, last attempt)
+		type wst struct {
+			Event  string    `json:"event"`
+			Total  int       `json:"total"`
+			OK     int       `json:"ok"`
+			Failed int       `json:"failed"`
+			Last   time.Time `json:"last"`
+		}
+		byEvent := map[string]*wst{}
+		for _, d := range list {
+			g := byEvent[d.Event]
+			if g == nil {
+				g = &wst{Event: d.Event}
+				byEvent[d.Event] = g
+			}
+			g.Total++
+			if d.OK {
+				g.OK++
+			} else {
+				g.Failed++
+			}
+			if d.Time.After(g.Last) {
+				g.Last = d.Time
+			}
+		}
+		names := make([]string, 0, len(byEvent))
+		for k := range byEvent {
+			names = append(names, k)
+		}
+		sort.Slice(names, func(i, j int) bool { return byEvent[names[i]].Total > byEvent[names[j]].Total })
+		rows := make([]wst, 0, len(names))
+		for _, k := range names {
+			rows = append(rows, *byEvent[k])
+		}
+		if *jsonOut || *outFile != "" {
+			b, _ := json.Marshal(rows)
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"event", "total", "ok", "failed", "last"})
+			for _, r := range rows {
+				_ = w.Write([]string{r.Event, strconv.Itoa(r.Total), strconv.Itoa(r.OK),
+					strconv.Itoa(r.Failed), r.Last.UTC().Format(time.RFC3339)})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		if len(rows) == 0 {
+			fmt.Println("no webhook deliveries yet")
+			return nil
+		}
+		fmt.Printf("%-26s %6s %4s %6s %-20s\n", "EVENT", "TOTAL", "OK", "FAILED", "LAST (UTC)")
+		for _, r := range rows {
+			fmt.Printf("%-26s %6d %4d %6d %-20s\n", r.Event, r.Total, r.OK, r.Failed,
+				r.Last.UTC().Format("2006-01-02 15:04:05"))
+		}
+		return nil
 	}
 	if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F478)
 		b, err := json.Marshal(list)
