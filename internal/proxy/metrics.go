@@ -33,6 +33,7 @@ type metricsCollector struct {
 	keyCounters map[string]*costCounter // per API key prefix
 	pricing     map[string]cost.ModelPricing
 	daily       map[string]map[string]*store.DailyModelUsage // UTC date -> model (F097)
+	dailyKeys   map[string]map[string]*store.DailyModelUsage // UTC date -> key id (F126)
 }
 
 type modelMt struct {
@@ -74,6 +75,7 @@ func newMetricsCollector() *metricsCollector {
 		keyCounters: map[string]*costCounter{},
 		pricing:     make(map[string]cost.ModelPricing),
 		daily:       map[string]map[string]*store.DailyModelUsage{},
+		dailyKeys:   map[string]map[string]*store.DailyModelUsage{},
 	}
 }
 
@@ -162,6 +164,26 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 	du.Prompt += pTok
 	du.Comp += cTok
 	du.Cost += float64(pTok)/1e6*m.pricingFor(model).InputPerM + float64(cTok)/1e6*m.pricingFor(model).OutputPerM
+	// Daily per-key rollup (F126): UTC date -> key id -> counters.
+	if key != "" {
+		kc := m.dailyKeys[day]
+		if kc == nil {
+			kc = map[string]*store.DailyModelUsage{}
+			m.dailyKeys[day] = kc
+		}
+		ku := kc[key]
+		if ku == nil {
+			ku = &store.DailyModelUsage{}
+			kc[key] = ku
+		}
+		ku.Requests++
+		if status >= 400 {
+			ku.Errors++
+		}
+		ku.Prompt += pTok
+		ku.Comp += cTok
+		ku.Cost += float64(pTok)/1e6*m.pricingFor(model).InputPerM + float64(cTok)/1e6*m.pricingFor(model).OutputPerM
+	}
 	// Per-model latency reservoir (bounded, same policy as global).
 	mm.seen++
 	if len(mm.latSamples) < reservoirSize {
@@ -295,8 +317,36 @@ func (m *metricsCollector) seedDaily(daily map[string]map[string]*store.DailyMod
 func (m *metricsCollector) dailyUsage() map[string]map[string]*store.DailyModelUsage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	out := make(map[string]map[string]*store.DailyModelUsage, len(m.daily))
-	for day, models := range m.daily {
+	return copyDaily(m.daily)
+}
+
+// seedDailyKeys restores the per-key daily rollup (F126).
+func (m *metricsCollector) seedDailyKeys(daily map[string]map[string]*store.DailyModelUsage) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for day, keys := range daily {
+		if m.dailyKeys[day] == nil {
+			m.dailyKeys[day] = map[string]*store.DailyModelUsage{}
+		}
+		for key, u := range keys {
+			if m.dailyKeys[day][key] == nil {
+				cp := *u
+				m.dailyKeys[day][key] = &cp
+			}
+		}
+	}
+}
+
+// dailyKeyUsage returns a deep copy of the per-key daily rollup (F126).
+func (m *metricsCollector) dailyKeyUsage() map[string]map[string]*store.DailyModelUsage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return copyDaily(m.dailyKeys)
+}
+
+func copyDaily(in map[string]map[string]*store.DailyModelUsage) map[string]map[string]*store.DailyModelUsage {
+	out := make(map[string]map[string]*store.DailyModelUsage, len(in))
+	for day, models := range in {
 		cp := make(map[string]*store.DailyModelUsage, len(models))
 		for model, u := range models {
 			c := *u

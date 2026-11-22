@@ -184,6 +184,7 @@ func (s *Server) Handler() http.Handler {
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	m.HandleFunc("GET /api/v1/usage/daily", s.dailyUsage)
+	m.HandleFunc("GET /api/v1/usage/keys", s.dailyKeyUsage)
 	m.HandleFunc("GET /api/v1/events", s.listEvents)
 	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
 	m.HandleFunc("GET /api/v1/disk", s.diskUsage)
@@ -1120,7 +1121,41 @@ func (s *Server) dailyUsage(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, daily)
 }
 
-// listEvents handles GET /api/v1/events — recent daemon events, newest
+// dailyKeyUsage handles GET /api/v1/usage/keys — the persisted UTC-date ->
+// key id usage rollup (F126). Same ?days=N windowing as /usage/daily;
+// ?key=<id> limits to one key.
+func (s *Server) dailyKeyUsage(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway not running")
+		return
+	}
+	daily := s.gw.DailyKeyUsage()
+	if key := r.URL.Query().Get("key"); key != "" {
+		out := map[string]map[string]*store.DailyModelUsage{}
+		for d, keys := range daily {
+			if u, ok := keys[key]; ok {
+				out[d] = map[string]*store.DailyModelUsage{key: u}
+			}
+		}
+		daily = out
+	}
+	if n, err := strconv.Atoi(r.URL.Query().Get("days")); err == nil && n > 0 {
+		days := make([]string, 0, len(daily))
+		for d := range daily {
+			days = append(days, d)
+		}
+		sort.Strings(days)
+		if len(days) > n {
+			days = days[len(days)-n:]
+		}
+		out := make(map[string]map[string]*store.DailyModelUsage, len(days))
+		for _, d := range days {
+			out[d] = daily[d]
+		}
+		daily = out
+	}
+	writeJSON(w, 200, daily)
+}
 // first (F099). ?limit=N caps the response; ?kind= keeps only that event
 // kind, e.g. instance.crashed (F116).
 func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {

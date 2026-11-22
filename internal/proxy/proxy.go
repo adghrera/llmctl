@@ -917,6 +917,16 @@ func (s *Server) SeedDaily(daily map[string]map[string]*store.DailyModelUsage) {
 	s.collector.seedDaily(daily)
 }
 
+// DailyKeyUsage returns the UTC-date -> key id usage rollup (F126).
+func (s *Server) DailyKeyUsage() map[string]map[string]*store.DailyModelUsage {
+	return s.collector.dailyKeyUsage()
+}
+
+// SeedDailyKeys restores the per-key daily rollup at startup (F126).
+func (s *Server) SeedDailyKeys(daily map[string]map[string]*store.DailyModelUsage) {
+	s.collector.seedDailyKeys(daily)
+}
+
 // KeyTotalTokens exposes one key counter's token total for quota checks (F074).
 func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
 

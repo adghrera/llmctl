@@ -188,6 +188,10 @@ func Run(ctx context.Context, opts Options) error {
 	if cur, err := st.Load(); err == nil && len(cur.DailyUsage) > 0 {
 		gw.SeedDaily(cur.DailyUsage)
 	}
+	// Per-key daily rollup (F126).
+	if cur, err := st.Load(); err == nil && len(cur.DailyKeyUsage) > 0 {
+		gw.SeedDailyKeys(cur.DailyKeyUsage)
+	}
 	syncPricing(st, gw) // per-model price overrides (F102)
 	go flushKeyUsageLoop(ctx, st, gw, logger)
 
@@ -440,6 +444,7 @@ func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 	syncPricing(st, gw)
 	usage := gw.KeyUsage()
 	daily := gw.DailyUsage()
+	dailyKeys := gw.DailyKeyUsage()
 	if len(usage) == 0 && len(daily) == 0 {
 		return
 	}
@@ -451,6 +456,7 @@ func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 			}
 		}
 		s.DailyUsage = daily // deep copy from the collector (F097)
+		s.DailyKeyUsage = dailyKeys
 		return nil
 	}); err != nil {
 		logger.Error("persist key usage failed", "error", err)

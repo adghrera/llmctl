@@ -167,6 +167,9 @@ type State struct {
 	// DailyUsage is UTC date ("2006-01-02") -> model id -> counters,
 	// flushed with the key-usage loop so usage history survives restarts (F097).
 	DailyUsage map[string]map[string]*DailyModelUsage `json:"dailyUsage,omitempty"`
+	// DailyKeyUsage is UTC date -> key id -> counters (F126), flushed with
+	// the same loop so per-key daily cost survives restarts.
+	DailyKeyUsage map[string]map[string]*DailyModelUsage `json:"dailyKeyUsage,omitempty"`
 	// InstanceNotes is a free-text annotation per instance id. It lives here
 	// rather than on the instance record because records are forgotten when
 	// an instance stops (F119).
