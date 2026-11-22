@@ -225,7 +225,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
-  llmctl scheduler runs [-n 20]
+  llmctl scheduler runs [-n 20] [--csv]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
@@ -3284,6 +3284,7 @@ func cmdScheduler(args []string) error {
 		fs := flag.NewFlagSet("scheduler runs", flag.ExitOnError)
 		n := fs.Int("n", 20, "number of recent runs")
 		jsonOut := fs.Bool("json", false, "print the run log as JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the run log as CSV (F418)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler/runs")
 		if err != nil {
@@ -3317,6 +3318,16 @@ func cmdScheduler(args []string) error {
 			}
 			fmt.Println(string(b))
 			return nil
+		}
+		if *csvOut { // F418: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"time", "name", "kind", "status", "duration_ms", "detail"})
+			for _, r := range runs {
+				_ = w.Write([]string{r.Time.UTC().Format(time.RFC3339), r.Name, r.Kind, r.Status,
+					strconv.FormatInt(r.DurationMs, 10), r.Detail})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(runs) == 0 {
 			fmt.Println("no scheduler runs yet (ring is in-memory, cleared on daemon restart)")

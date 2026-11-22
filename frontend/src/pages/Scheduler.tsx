@@ -457,7 +457,32 @@ export default function Scheduler() {
       </div>
       {runs.length > 0 && (
         <div className="card">
-          <h2>Recent Runs</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Recent Runs</h2>
+            <button
+              className="btn sm"
+              onClick={() => {
+                // Same columns as `llmctl scheduler runs --csv` (F419).
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "time,name,kind,status,duration_ms,detail",
+                  ...runs.map((r) =>
+                    [r.time, r.name, r.kind, r.status, String(r.durationMs), r.detail || ""]
+                      .map(esc)
+                      .join(",")
+                  ),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-scheduler-runs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
           <table>
             <thead>
               <tr>
