@@ -213,7 +213,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional
-  max-tokens/temperature inputs (F359). CLI:
+  max-tokens/temperature inputs (F359) and a Results Export CSV button
+  (index,prompt,ok,content,error, F424). CLI:
   `llmctl batch -model ID [-file F|piped stdin|prompts…] [-key K] [-json]`
   (F224).
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
