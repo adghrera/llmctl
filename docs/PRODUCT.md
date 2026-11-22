@@ -638,6 +638,7 @@ llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FIL
 llmctl skills|memory|kb|tools delete <id> [-json] | mcp remove <id> [-json]   (delete/remove print the raw response with -json, F536)
 llmctl skills|tools|mcp enable|disable <id> [-json]   (toggles print the raw response with -json, F537)
 llmctl presets delete <name> [-json] | chats delete <id> [-json] | prompts delete <id> [-json] | memory add "<text>" [-json] | kb create <name> [-json]   (print the raw response/created-record JSON with -json, F538)
+llmctl kb add-doc <kb> <path> [-json] | kb update <id> … [-json] | memory update <id> … [-json] | prompts update <id> … [-json] | key update <id> … [-json] | chats pin|unpin <id> [-json]   (print the raw response JSON with -json, F539)
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep

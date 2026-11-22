@@ -5573,14 +5573,17 @@ func cmdChats(args []string) error {
 		return nil
 	}
 	if len(args) > 0 && (args[0] == "pin" || args[0] == "unpin") {
-		if len(args) < 2 {
-			return fmt.Errorf("usage: llmctl chats %s <id>", args[0])
+		pufs := flag.NewFlagSet("chats "+args[0], flag.ExitOnError)
+		pujson := pufs.Bool("json", false, "print the raw response JSON (F539)")
+		pufs.Parse(reorderFlags(args[1:]))
+		if pufs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl chats %s <id> [-json]", args[0])
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Post("/api/v1/chats/"+url.PathEscape(args[1])+"/pin",
+		code, out, err := cc.Post("/api/v1/chats/"+url.PathEscape(pufs.Arg(0))+"/pin",
 			map[string]any{"pinned": args[0] == "pin"})
 		if err != nil {
 			return err
@@ -5588,11 +5591,15 @@ func cmdChats(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("chat %s: %s", args[0], out)
 		}
+		if *pujson {
+			fmt.Print(string(out))
+			return nil
+		}
 		word := "unpinned"
 		if args[0] == "pin" {
 			word = "pinned"
 		}
-		fmt.Printf("%s chat %s\n", word, args[1])
+		fmt.Printf("%s chat %s\n", word, pufs.Arg(0))
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {
@@ -6060,9 +6067,10 @@ func cmdMemory(args []string) error {
 		ufs := flag.NewFlagSet("memory update", flag.ExitOnError)
 		content := ufs.String("content", "", "new content")
 		tags := ufs.String("tags", "", "comma-separated tags (replaces)")
+		mujson := ufs.Bool("json", false, "print the raw response JSON (F539)")
 		ufs.Parse(reorderFlags(rest))
 		if ufs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl memory update <id> [-content C] [-tags a,b]")
+			return fmt.Errorf("usage: llmctl memory update <id> [-content C] [-tags a,b] [-json]")
 		}
 		if *content == "" && *tags == "" {
 			return fmt.Errorf("nothing to change (pass -content and/or -tags)")
@@ -6086,6 +6094,10 @@ func cmdMemory(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("memory update: %s", out)
+		}
+		if *mujson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("memory entry %s updated\n", ufs.Arg(0))
 		return nil
@@ -6675,9 +6687,10 @@ func cmdKb(args []string) error {
 	case "add-doc":
 		dfs := flag.NewFlagSet("kb add-doc", flag.ExitOnError)
 		name := dfs.String("name", "", "store under this filename (default: the file's base name)")
+		adjson := dfs.Bool("json", false, "print the raw created-doc JSON (F539)")
 		dfs.Parse(reorderFlags(rest))
 		if dfs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl kb add-doc <kb-id> <path> [-name X]")
+			return fmt.Errorf("usage: llmctl kb add-doc <kb-id> <path> [-name X] [-json]")
 		}
 		f, err := os.Open(dfs.Arg(1))
 		if err != nil {
@@ -6694,6 +6707,10 @@ func cmdKb(args []string) error {
 		}
 		if code != 201 && code != 200 {
 			return fmt.Errorf("add-doc returned %d: %s", code, out)
+		}
+		if *adjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var rec struct {
 			ID       string `json:"id"`
@@ -6714,6 +6731,7 @@ func cmdKb(args []string) error {
 		ufs := flag.NewFlagSet("kb update", flag.ExitOnError)
 		name := ufs.String("name", "", "new name")
 		desc := ufs.String("desc", "", "new description")
+		kujson := ufs.Bool("json", false, "print the raw response JSON (F539)")
 		ufs.Parse(reorderFlags(rest[1:]))
 		if *name == "" && *desc == "" {
 			return fmt.Errorf("nothing to change (pass -name and/or -desc)")
@@ -6748,6 +6766,10 @@ func cmdKb(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("kb update: %s", out)
+		}
+		if *kujson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("knowledge base %s updated\n", rest[0])
 		return nil
@@ -7572,9 +7594,10 @@ func cmdPrompts(args []string) error {
 		desc := ufs.String("desc", "", "new description")
 		content := ufs.String("content", "", "new template text (or -file / piped stdin)")
 		file := ufs.String("file", "", "read the new template text from this file")
+		pujson := ufs.Bool("json", false, "print the raw response JSON (F539)")
 		ufs.Parse(reorderFlags(args[1:]))
 		if ufs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl prompts update <id> [-name N] [-category C] [-desc D] [-content T | -file F | piped stdin]")
+			return fmt.Errorf("usage: llmctl prompts update <id> [-name N] [-category C] [-desc D] [-content T | -file F | piped stdin] [-json]")
 		}
 		body := map[string]any{}
 		if *name != "" {
@@ -7617,6 +7640,10 @@ func cmdPrompts(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("prompts update: %s", out)
+		}
+		if *pujson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("updated prompt %s\n", ufs.Arg(0))
 		return nil
@@ -8501,9 +8528,10 @@ func cmdKey(args []string) error {
 		expires := ufs.Int("expires", -1, "expire after N days (0 = never)")
 		budget := ufs.Float64("budget", -1, "daily USD budget (0 = unlimited)")
 		maxConc := ufs.Int("max-concurrent", -1, "concurrent request cap (0 = unlimited)")
+		kujjson := ufs.Bool("json", false, "print the raw response JSON (F539)")
 		ufs.Parse(reorderFlags(rest))
 		if ufs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl key update <id> [-name X] [-note X] [-models a,b] [-quota N] [-maxreq N] [-rps X] [-burst N] [-expires D] [-budget X] [-max-concurrent N]")
+			return fmt.Errorf("usage: llmctl key update <id> [-name X] [-note X] [-models a,b] [-quota N] [-maxreq N] [-rps X] [-burst N] [-expires D] [-budget X] [-max-concurrent N] [-json]")
 		}
 		body := map[string]any{}
 		ufs.Visit(func(f *flag.Flag) {
@@ -8545,6 +8573,10 @@ func cmdKey(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("key update returned %d: %s", code, out)
+		}
+		if *kujjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("updated key %s\n", ufs.Arg(0))
 		return nil
