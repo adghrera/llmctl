@@ -1796,7 +1796,7 @@ func cmdWebhooks(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|show|note|enable|disable|list|revoke|prune|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|show|note|enable|disable|rotate|list|revoke|prune|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -2082,6 +2082,19 @@ func cmdKey(args []string) error {
 		fmt.Println(string(out))
 		if code != 200 {
 			return fmt.Errorf("reset-usage returned %d", code)
+		}
+		return nil
+	case "rotate":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl key rotate <id>")
+		}
+		code, out, err := cc.Post("/api/v1/keys/"+rest[0]+"/rotate", map[string]any{})
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("rotate returned %d", code)
 		}
 		return nil
 	default:

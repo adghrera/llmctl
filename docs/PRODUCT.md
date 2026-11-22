@@ -304,7 +304,11 @@ toggle for a light theme (choice remembered). Tabs:
    keys get 403 `key_expired`; F135). Keys can also be temporarily blocked and
     re-enabled without deleting them (`llmctl key disable/enable`, a Disable/
     Enable button on the Keys page, PATCH
-    `{"disabled":true}`; blocked keys get 403 `key_disabled`; F195, F205). Expired keys can be bulk-deleted with
+    `{"disabled":true}`; blocked keys get 403 `key_disabled`; F195, F205). A key's secret can be
+    rotated without losing its id, quotas or usage counters (`llmctl key
+    rotate <id>`, a Rotate button on the Keys page, `POST
+    /api/v1/keys/{id}/rotate`; the new secret is shown once and the old one
+    stops working immediately; F215). Expired keys can be bulk-deleted with
    `llmctl key prune` / `POST /api/v1/keys/prune` or the Keys page "Prune
    expired" button (F167). A per-key daily cost budget
    (`dailyCostBudgetUSD`, 0 = unlimited) returns 429 `budget_exceeded` once
@@ -384,7 +388,7 @@ llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
-llmctl key generate|show|note|enable|disable|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
+llmctl key generate|show|note|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
                                         show: one key's full view; note: set a free-text note;
                                         list shows usage, cost,
                                         quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)

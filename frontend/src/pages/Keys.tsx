@@ -136,6 +136,21 @@ export default function Keys() {
     }
   };
 
+  const rotate = async (id: string) => {
+    if (!confirm("Rotate this key? The old secret stops working immediately.")) return;
+    setBusy(true);
+    try {
+      const r = await api.rotateKey(id);
+      setCreated(r.key);
+      ok(`rotated key, new secret ${r.prefix}… (shown once)`);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const renameKey = async (k: ApiKey) => {
     const name = renameDraft.trim();
     if (!name || busy) return;
@@ -550,6 +565,15 @@ export default function Keys() {
                       onClick={() => toggleDisabled(k.id, !k.disabled)}
                     >
                       {k.disabled ? "Enable" : "Disable"}
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      disabled={busy}
+                      title="replace the secret; the old one stops working immediately"
+                      onClick={() => rotate(k.id)}
+                    >
+                      Rotate
                     </button>
                     <button className="btn sm danger" disabled={busy} onClick={() => revoke(k.id)}>
                       Revoke

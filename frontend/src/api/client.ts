@@ -792,6 +792,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ disabled }),
     }),
+  rotateKey: (id: string) =>
+    req<{ id: string; key: string; prefix: string }>(`/keys/${encodeURIComponent(id)}/rotate`, {
+      method: "POST",
+      body: "{}",
+    }),
   pruneKeys: () => req<{ ok: boolean; removed: string[] }>("/keys/prune", { method: "POST" }),
   daemonLog: (bytes = 8000) =>
     req<{ size: number; logs: string }>(`/logs/daemon?bytes=${bytes}`),

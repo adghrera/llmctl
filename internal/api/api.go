@@ -232,6 +232,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/keys/prune", s.pruneKeys)
 	m.HandleFunc("PATCH /api/v1/keys/{id}", s.updateKey)
 	m.HandleFunc("POST /api/v1/keys/{id}/reset-usage", s.resetKeyUsage)
+	m.HandleFunc("POST /api/v1/keys/{id}/rotate", s.rotateKey)
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
 	// Settings
 	m.HandleFunc("GET /api/v1/settings", s.getSettings)
@@ -1759,6 +1760,43 @@ func (s *Server) resetKeyUsage(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// rotateKey handles POST /api/v1/keys/{id}/rotate — replace a key's secret
+// with a fresh one. Everything else (id, name, quotas, usage counters,
+// allowlist) is kept; the old secret stops working immediately (F215).
+func (s *Server) rotateKey(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	st, _ := s.store.Load()
+	if st.APIKeys[id] == nil {
+		writeErr(w, 404, "unknown key: "+id)
+		return
+	}
+	plaintext := generateKey()
+	sum := sha256.Sum256([]byte(plaintext))
+	prefix := plaintext
+	if len(prefix) > 12 {
+		prefix = prefix[:12]
+	}
+	if err := s.store.Update(func(st *store.State) error {
+		k := st.APIKeys[id]
+		if k == nil {
+			return fmt.Errorf("unknown key: %s", id)
+		}
+		k.Hash = hex.EncodeToString(sum[:])
+		k.Prefix = prefix
+		return nil
+	}); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	// Return the new plaintext exactly once.
+	writeJSON(w, 200, map[string]any{
+		"id":     id,
+		"key":    plaintext,
+		"prefix": prefix,
+		"note":   "store this key now; it is shown only once, the old secret no longer works",
+	})
 }
 
 func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {

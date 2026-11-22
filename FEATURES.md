@@ -224,6 +224,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F212 | P3 | 212 | gateway | `/v1/models` probe cache | COMPLETED | Upstream `/v1/models` probes are now cached per instance for 2s, so client polling doesn't hammer every backend; results unchanged within the TTL. Verified live: repeated calls return the same model list. |
 | F213 | P3 | 213 | cli | `events -json` | COMPLETED | `llmctl events -json` prints the raw events-feed JSON (honors `-n`/`-kind`) for scripts. Verified live: output parses as JSON; table mode unchanged. |
 | F214 | P3 | 214 | ui | Relative time on Requests | COMPLETED | The Requests page time column now shows `5m ago`-style relative time (absolute timestamp in the tooltip), matching the Instances page (F208). Verified live: served bundle contains the ago strings. |
+| F215 | P3 | 215 | keys | Key rotation | COMPLETED | `POST /api/v1/keys/{id}/rotate` + `llmctl key rotate <id>` + a Rotate button on the Keys page replace a key's secret while keeping its id, name, quotas and usage counters; the new secret is shown once (reuses the keybox), the old one fails with 401 immediately. Verified live: old key 200 → rotate → old 401, new 200, same id. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
