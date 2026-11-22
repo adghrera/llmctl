@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, KB, ScheduleSpec, ScheduleRun } from "../api/client";
 import { until } from "../lib/time";
 import { ok, err } from "../ui/toast";
@@ -37,6 +37,42 @@ export default function Scheduler() {
     api.schedulerRuns().then(setRuns).catch(() => setRuns([]));
     api.knowledgeBases().then(setKbs).catch(() => setKbs([]));
   }, []);
+
+  // JSON export/import, same shapes as `llmctl scheduler export|import` (F412).
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const exportJson = () => {
+    const specs = schedules.map((s) => {
+      const { last_run: _lr, next_run: _nr, created_at: _c, updated_at: _u, ...spec } = s;
+      return spec;
+    });
+    const blob = new Blob([JSON.stringify(specs, null, 2) + "\n"], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `llmctl-scheduler-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const importJson = async (f: File) => {
+    try {
+      const specs = JSON.parse(await f.text()) as Array<Record<string, unknown>>;
+      if (!Array.isArray(specs)) throw new Error("expected a JSON array");
+      let created = 0;
+      let skipped = 0;
+      for (const spec of specs) {
+        delete spec.id; // the store mints its own ids
+        try {
+          await api.createSchedule(spec as Parameters<typeof api.createSchedule>[0]);
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} schedules (${skipped} skipped)`);
+      load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const create = async () => {
     if (!name.trim() || !cronExpr.trim()) {
@@ -264,6 +300,7 @@ export default function Scheduler() {
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Scheduled Tasks ({schedules.length})</h2>
+          <div className="row" style={{ gap: 6 }}>
           <button
             className="btn sm"
             disabled={schedules.length === 0}
@@ -293,6 +330,33 @@ export default function Scheduler() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={schedules.length === 0}
+            title="download schedule specs as JSON (CLI: llmctl scheduler export)"
+            onClick={exportJson}
+          >
+            Export JSON
+          </button>
+          <button
+            className="btn sm"
+            title="import a scheduler JSON file (CLI: llmctl scheduler import)"
+            onClick={() => importFileRef.current?.click()}
+          >
+            Import JSON
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importJson(f);
+              e.target.value = "";
+            }}
+          />
+          </div>
         </div>
         {schedules.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>

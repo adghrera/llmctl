@@ -83,6 +83,8 @@ GitHub release, or file list. No recompile.
   start it only once. `llmctl autostart export [-out F]` / `autostart import
   FILE` move these declarations between instances (F329);
   `autostart list --csv` exports name,model,backend,port,vars (`;`-joined k=v) (F390),
+  and the Instances page auto-start card has matching Export CSV /
+  Export JSON / Import JSON buttons (F400, F414).
   and the Instances page auto-start card has a matching Export CSV button (F400).
 - Logs per instance under `~/.llmctl/logs/<instance>/`, viewable in the UI
   with one-click full-file download (F075).
@@ -182,7 +184,8 @@ toggle for a light theme (choice remembered). Tabs:
   presets (model + vars + port recipe) can be saved and one-click started from
   the page, and from the CLI with `llmctl presets list|save|start|delete|export|import` (F265, F328);
   `presets list --csv` exports name,model,instance,backend,port,vars (`;`-joined k=v, raw values) (F386),
-  and the Instances page Saved-configs card has a matching Export CSV button (F399).
+  and the Instances page Saved-configs card has matching Export CSV /
+  Export JSON / Import JSON buttons (F399, F413).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a
@@ -405,7 +408,8 @@ toggle for a light theme (choice remembered). Tabs:
   token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
   `llmctl scheduler export [-out F]` / `scheduler import FILE` move schedule
-  specs between instances (fresh ids on import, F326).
+  specs between instances (fresh ids on import, F326); the Scheduler page has
+  matching Export JSON / Import JSON buttons (F412).
    Cron expressions are validated on create/update (5 fields, in-range
    values; invalid → 400) so a typo can’t silently mis-schedule (F159).
   Optionally set a webhook URL: after

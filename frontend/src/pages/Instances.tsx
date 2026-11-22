@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type AutoStartSpec, type PresetSpec, type InstanceLogTail } from "../api/client";
 import { useStore } from "../state/store";
@@ -10,6 +10,21 @@ function uptime(startedAt: string): string {
   if (s < 3600) return `${Math.floor(s / 60)}m`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
   return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+}
+
+function downloadJson(data: unknown, prefix: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2) + "\n"], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${prefix}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function readJsonArray(f: File): Promise<Array<Record<string, unknown>>> {
+  const list = JSON.parse(await f.text());
+  if (!Array.isArray(list)) throw new Error("expected a JSON array");
+  return list;
 }
 
 export default function Instances() {
@@ -34,6 +49,49 @@ export default function Instances() {
   useEffect(() => {
     api.autoStart().then(setAutoSpecs).catch(() => setAutoSpecs([]));
   }, []);
+
+  // JSON export/import, same shapes as `llmctl presets|autostart export|import`
+  // (F413, F414).
+  const presetImportRef = useRef<HTMLInputElement>(null);
+  const autoImportRef = useRef<HTMLInputElement>(null);
+  const importPresets = async (f: File) => {
+    try {
+      const list = await readJsonArray(f);
+      let created = 0;
+      let skipped = 0;
+      for (const p of list) {
+        try {
+          await api.savePreset(p as unknown as PresetSpec);
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} presets (${skipped} skipped)`);
+      loadPresets();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const importAutos = async (f: File) => {
+    try {
+      const list = await readJsonArray(f);
+      let created = 0;
+      let skipped = 0;
+      for (const s of list) {
+        try {
+          await api.setAutoStart(s as unknown as AutoStartSpec);
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} auto-start entries (${skipped} skipped)`);
+      api.autoStart().then(setAutoSpecs).catch(() => {});
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const loadLogs = async (id: string, stream: "stdout" | "stderr") => {
     setLogBusy(true);
@@ -312,6 +370,7 @@ export default function Instances() {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Saved configs</h2>
+            <div className="row" style={{ gap: 6 }}>
             <button
               className="btn sm"
               onClick={() => {
@@ -337,6 +396,32 @@ export default function Instances() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              title="download presets as JSON (CLI: llmctl presets export)"
+              onClick={() => downloadJson(presets, "llmctl-presets")}
+            >
+              Export JSON
+            </button>
+            <button
+              className="btn sm"
+              title="import a presets JSON file (CLI: llmctl presets import)"
+              onClick={() => presetImportRef.current?.click()}
+            >
+              Import JSON
+            </button>
+            <input
+              ref={presetImportRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importPresets(f);
+                e.target.value = "";
+              }}
+            />
+            </div>
           </div>
           <table>
             <thead>
@@ -376,6 +461,7 @@ export default function Instances() {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Auto-start entries</h2>
+            <div className="row" style={{ gap: 6 }}>
             <button
               className="btn sm"
               onClick={() => {
@@ -401,6 +487,32 @@ export default function Instances() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              title="download entries as JSON (CLI: llmctl autostart export)"
+              onClick={() => downloadJson(autoSpecs, "llmctl-autostart")}
+            >
+              Export JSON
+            </button>
+            <button
+              className="btn sm"
+              title="import an autostart JSON file (CLI: llmctl autostart import)"
+              onClick={() => autoImportRef.current?.click()}
+            >
+              Import JSON
+            </button>
+            <input
+              ref={autoImportRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importAutos(f);
+                e.target.value = "";
+              }}
+            />
+            </div>
           </div>
           <table>
             <thead>
