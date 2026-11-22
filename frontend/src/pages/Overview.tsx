@@ -320,6 +320,21 @@ export default function Overview() {
             >
               Export CSV
             </button>
+            <button
+              className="btn sm"
+              disabled={events.length === 0}
+              title="download the event feed as JSON (CLI: llmctl events -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-events-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
             <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               model
               <select
@@ -485,6 +500,21 @@ export default function Overview() {
               }}
             >
               Export CSV
+            </button>
+            <button
+              className="btn sm"
+              disabled={completedJobs.length === 0}
+              title="download the job list as JSON (CLI: llmctl jobs -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(completedJobs, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-jobs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
             </button>
             </div>
           </div>

@@ -162,14 +162,14 @@ toggle for a light theme (choice remembered). Tabs:
   tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
   usage, disk usage
   (model bytes + free space), running instances, active jobs (the Recent jobs
-  card has an Export CSV matching `llmctl jobs --csv`, F433, and a Clear done
+  card has Export CSV / Export JSON matching `llmctl jobs --csv`/`-json`, F433, F719, and a Clear done
   button that drops finished jobs from daemon memory, F586; running jobs show
   a live progress bar plus the job message, F597), and a recent
   events feed (instance crashes, auto-restarts, idle unloads;
   `GET /api/v1/events`, F099) with kind, model and key-name filters
   (`?kind=`, `?model=`, `?key=`, F116, F351, F696; also
-  `llmctl events -kind … -model … -key …`) and an Export CSV button
-  matching `llmctl events --csv` columns (F371). A "Daemon log" card shows the tail of the
+  `llmctl events -kind … -model … -key …`) and Export CSV / Export JSON buttons
+  matching `llmctl events --csv`/`-json` columns (F371, F719). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173) with a Follow toggle that keeps tailing it
   every 2s (UI counterpart of `llmctl logs -daemon -f`, F423) and a filter box
   for substring line filtering (F450), and a Stats toggle that rolls the feed
