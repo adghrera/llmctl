@@ -426,6 +426,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F413 | P3 | 413 | ui | Instances presets Export/Import JSON | COMPLETED | The Saved configs header has Export JSON (full preset list) and Import JSON (POST upserts by name, same as `presets import`). Verified live: exported and re-imported a saved preset, test preset removed after. |
 | F414 | P3 | 414 | ui | Instances auto-start Export/Import JSON | COMPLETED | The Auto-start entries header has Export JSON (full spec list) and Import JSON (POST upserts by model, same as `autostart import`). Verified live: exported and re-imported the existing entry, count unchanged after upsert. |
 | F415 | P3 | 415 | ui | Skills page Export/Import JSON | COMPLETED | Each installed skill has an Export button (downloads the manifest JSON, same as `skills export <id>`) and the Installed skills header has Import JSON (manifest → createSkill). Verified live: exported the installed skill's manifest via the CLI, replayed the import (201, fresh id), copy deleted after. |
+| F416 | P3 | 416 | ui | Settings webhook log Export CSV | COMPLETED | The recent-deliveries list has a filter-aware Export CSV button with the same columns as `llmctl webhooks --csv` (time,event,url,status,ok,error). Verified live: test delivery produced a log entry, UI replay matched the CLI export row. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

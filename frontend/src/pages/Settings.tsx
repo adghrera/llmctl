@@ -516,6 +516,29 @@ export default function SettingsPage() {
                       ))}
                     </select>
                   </label>
+                  <button
+                    className="btn sm"
+                    onClick={() => {
+                      // Same columns as `llmctl webhooks --csv` (F416); filter-aware.
+                      const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                      const rows = [
+                        "time,event,url,status,ok,error",
+                        ...(whEvent ? whLog.filter((d) => d.event === whEvent) : whLog).map((d) =>
+                          [d.time, d.event || "", d.url, String(d.status ?? ""), String(d.ok), d.error || ""]
+                            .map(esc)
+                            .join(",")
+                        ),
+                      ];
+                      const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                      const a = document.createElement("a");
+                      a.href = URL.createObjectURL(blob);
+                      a.download = `llmctl-webhooks-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(a.href);
+                    }}
+                  >
+                    Export CSV
+                  </button>
                 </div>
                 <table style={{ marginTop: 4 }}>
                   <thead>
