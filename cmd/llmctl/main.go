@@ -189,6 +189,7 @@ Usage:
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
+  llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
   llmctl version
 
@@ -4503,6 +4504,19 @@ func cmdChat(args []string) error {
 // with the daemon stopped; heavy regenerable data (binaries, models, logs) is
 // excluded.
 func cmdBackup(args []string) error {
+	// `llmctl backup verify <file>` checks any local archive offline (F262),
+	// complementing `llmctl backups verify <name>` for stored snapshots.
+	if len(args) > 0 && args[0] == "verify" {
+		if len(args) < 2 {
+			return fmt.Errorf("usage: llmctl backup verify <file.tar.gz>")
+		}
+		entries, err := backup.Verify(args[1])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("backup %s ok — %d entries, state.json valid\n", args[1], entries)
+		return nil
+	}
 	out := ""
 	if len(args) > 0 {
 		out = args[0]

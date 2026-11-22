@@ -387,7 +387,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Backup & Restore** — Settings page downloads the whole state (config,
   keys, chats, knowledge bases, memory, skills, tools, scheduler, plugins) as
   one .tar.gz and restores it back; also `llmctl backup [file]` /
-  `llmctl restore <file>` on the CLI. Binaries/models/logs are excluded.
+  `llmctl restore <file>` on the CLI, and `llmctl backup verify <file>` to
+  check any local archive offline (F262). Binaries/models/logs are excluded.
   A scheduler task of kind "backup" can snapshot the state automatically on a
   cron (kept in `~/.llmctl/backups`, pruned to the newest N — per-task `keep`
    or the global `settings.backupKeep`, default 7, F181); the Settings
