@@ -549,7 +549,7 @@ llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text com
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt> (CLI twin of Compare page, F301, F314, F343)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
-llmctl bench -models A,B [-n N] [-conc C] [-json]             (multi-model comparison table, F303, F315)
+llmctl bench -models A,B [-n N] [-conc C] [-json|--csv]       (multi-model comparison table; --csv one row per model, F426, F303, F315)
 llmctl disk [-json]                                (model dir + volume disk usage)
                                     health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is

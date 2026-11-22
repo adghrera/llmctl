@@ -173,7 +173,7 @@ Usage:
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
-  llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
+  llmctl bench -models A,B [-n N] [-conc C] [-json|--csv]   (benchmark + comparison table)
   llmctl disk [-json]
   llmctl ps [-watch N] [--csv] [-json]
   llmctl backends list [-json|-csv]
@@ -1232,6 +1232,7 @@ func cmdBench(args []string) error {
 	conc := fs.Int("conc", 1, "concurrent requests")
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
 	jsonOut := fs.Bool("json", false, "print per-model stats as one JSON array instead of text (F315)")
+	csvOut := fs.Bool("csv", false, "output per-model stats as CSV (F426)")
 	fs.Parse(reorderFlags(args))
 	var models []string
 	if *modelsFlag != "" {
@@ -1337,7 +1338,7 @@ func cmdBench(args []string) error {
 			close(res)
 		}()
 
-		if !*jsonOut {
+		if !*jsonOut && !*csvOut {
 			fmt.Printf("bench: model=%s n=%d conc=%d\n", m, *n, *conc)
 		}
 		var lats []float64
@@ -1356,15 +1357,15 @@ func cmdBench(args []string) error {
 			}
 			lats = append(lats, r.ms)
 			totalTok += r.tok
-			if !*jsonOut && (done%10 == 0 || done == *n) {
+			if !*jsonOut && !*csvOut && (done%10 == 0 || done == *n) {
 				fmt.Printf("  %d/%d done\r", done, *n)
 			}
 		}
 		elapsed := time.Since(t0)
-		if !*jsonOut {
+		if !*jsonOut && !*csvOut {
 			fmt.Println()
 		}
-		if fails > 0 && !*jsonOut {
+		if fails > 0 && !*jsonOut && !*csvOut {
 			fmt.Printf("errors: %d/%d (first: %s)\n", fails, *n, firstErr)
 		}
 		if len(lats) == 0 {
@@ -1382,7 +1383,7 @@ func cmdBench(args []string) error {
 		for _, v := range lats {
 			sum += v
 		}
-		if !*jsonOut {
+		if !*jsonOut && !*csvOut {
 			fmt.Printf("ok: %d  wall: %s\n", len(lats), elapsed.Round(time.Millisecond))
 			fmt.Printf("latency ms: min %.0f  avg %.0f  p50 %.0f  p95 %.0f  max %.0f\n",
 				lats[0], sum/float64(len(lats)), pct(0.50), pct(0.95), lats[len(lats)-1])
@@ -1431,6 +1432,19 @@ func cmdBench(args []string) error {
 		arr = append(arr, failed...)
 		b, _ := json.Marshal(arr)
 		fmt.Println(string(b))
+	} else if *csvOut { // F426: one row per model, header-only when none succeeded
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"model", "ok", "fails", "wall_ms", "min_ms", "avg_ms", "p50_ms", "p95_ms", "max_ms", "req_per_s", "tok_per_s", "first_error"})
+		for _, st := range all {
+			_ = w.Write([]string{st.model, strconv.Itoa(st.ok), strconv.Itoa(st.fails),
+				strconv.FormatInt(st.wall.Milliseconds(), 10),
+				strconv.FormatFloat(st.min, 'f', 0, 64), strconv.FormatFloat(st.avg, 'f', 0, 64),
+				strconv.FormatFloat(st.p50, 'f', 0, 64), strconv.FormatFloat(st.p95, 'f', 0, 64),
+				strconv.FormatFloat(st.max, 'f', 0, 64), strconv.FormatFloat(st.reqps, 'f', 2, 64),
+				strconv.FormatFloat(st.tokps, 'f', 0, 64), st.firstErr})
+		}
+		w.Flush()
+		return w.Error()
 	} else if len(models) > 1 && len(all) > 0 {
 		fmt.Printf("\ncomparison (n=%d conc=%d):\n", *n, *conc)
 		fmt.Printf("%-24s %5s %8s %8s %8s %9s\n", "MODEL", "OK", "AVG MS", "P50 MS", "P95 MS", "TOK/S")
