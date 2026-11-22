@@ -158,14 +158,15 @@ export default function Usage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [keyByTag, setKeyByTag] = useState(false); // roll Daily by Key up per tag (CLI `usage -tag` twin, F706)
   const [dailyFilter, setDailyFilter] = useState("");
+  const [nDays, setNDays] = useState(14); // roll-up window, CLI `usage -n` twin (F759)
 
   const load = async () => {
     try {
       const [m, c, d, dk, ks] = await Promise.all([
         api.metrics().catch(() => null as GatewayMetrics | null),
         api.chats().catch(() => [] as any[]),
-        api.dailyUsage().catch(() => null),
-        api.dailyKeyUsage().catch(() => null),
+        api.dailyUsage(nDays).catch(() => null),
+        api.dailyKeyUsage(nDays).catch(() => null),
         api.keys().catch(() => [] as ApiKey[]),
       ]);
       setMetrics(m);
@@ -182,7 +183,8 @@ export default function Usage() {
     load();
     const t = setInterval(load, 10000);
     return () => clearInterval(t);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nDays]);
 
   if (!metrics) {
     return <div className="card">Loading usage data…</div>;
@@ -352,6 +354,20 @@ export default function Usage() {
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Daily History</h2>
             <div className="row" style={{ gap: 8, alignItems: "center" }}>
+              <label style={{ fontSize: 12, opacity: 0.7 }} title="days to fetch — CLI: llmctl usage -n N (F759)">
+                days{" "}
+                <select
+                  className="oc-input"
+                  style={{ width: "auto", fontSize: 12 }}
+                  value={nDays}
+                  onChange={(e) => setNDays(Number(e.target.value))}
+                >
+                  <option value={7}>7</option>
+                  <option value={14}>14</option>
+                  <option value={30}>30</option>
+                  <option value={90}>90</option>
+                </select>
+              </label>
               <input
                 className="oc-input"
                 style={{ width: 160 }}
