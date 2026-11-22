@@ -333,7 +333,8 @@ toggle for a light theme (choice remembered). Tabs:
   button for the content (F441).
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page, with
-  optional max-tokens/temperature inputs (F359) and a Results Export JSON
+  optional max-tokens/temperature inputs (F359), a persisted system-prompt
+  input matching `compare -system` (F668) and a Results Export JSON
   button matching `llmctl compare --json` shape (F431) plus an Export CSV
   button matching `llmctl compare --csv` (F607).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.

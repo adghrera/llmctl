@@ -11,6 +11,7 @@ export default function Compare() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
   const [maxTok, setMaxTok] = useState("");
   const [temp, setTemp] = useState("");
+  const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
 
   const load = () =>
     api
@@ -58,7 +59,10 @@ export default function Compare() {
           if (!inst) return;
           const body = JSON.stringify({
             model: inst.modelId,
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+              ...(sys.trim() ? [{ role: "system", content: sys.trim() }] : []),
+              { role: "user", content: prompt },
+            ],
             stream: true,
             ...(Number(maxTok) > 0 ? { max_tokens: Number(maxTok) } : {}),
             ...(temp.trim() !== "" ? { temperature: Number(temp) } : {}),
@@ -154,6 +158,14 @@ export default function Compare() {
             title="sampling temperature (empty = model default)"
             value={temp}
             onChange={(e) => setTemp(e.target.value)}
+          />
+          <input
+            style={{ flex: 1, minWidth: 200 }}
+            placeholder="system prompt (optional, sent to every model)"
+            title="system prompt prepended to the conversation (CLI: compare -system, F668)"
+            value={sys}
+            onChange={(e) => setSys(e.target.value)}
+            onBlur={() => localStorage.setItem("llmctl.compare.sys", sys)}
           />
         </div>
         <div style={{ marginBottom: 10 }}>
