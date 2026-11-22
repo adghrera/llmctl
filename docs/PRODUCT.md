@@ -347,7 +347,8 @@ toggle for a light theme (choice remembered). Tabs:
   [-name N …]` / `prompts delete <id>` / `prompts duplicate <id> <new-id> [-name N]`
   (copies any template, built-in or custom, to a new custom id, F638);
   the Prompts page has a New-template form and per-custom-entry Edit/Delete (F307, F309)
-  plus a live text filter with `?q=` deep links from Search (F322) and an
+  plus a Duplicate button on every template (built-in or custom) that copies it to a
+  new custom id, mirroring `prompts duplicate` (F639), plus a live text filter with `?q=` deep links from Search (F322) and an
   Export CSV button on the template list (F394) and a Stats toggle rolling the
   filtered list up per category, mirroring `prompts -stats` (F636);
   `prompts export [-out F]` / `prompts import FILE` move custom templates

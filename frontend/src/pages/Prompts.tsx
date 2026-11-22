@@ -112,6 +112,26 @@ export default function Prompts() {
     }
   };
 
+  const duplicateTemplate = async (t: PromptTemplate) => {
+    // Same flow as `llmctl prompts duplicate` (F638): copy any template to a
+    // new custom id so it can be edited without touching the original.
+    const newId = window.prompt(`Duplicate ${t.id} as (new id):`, `${t.id}-copy`);
+    if (!newId || !newId.trim()) return;
+    try {
+      await api.createPrompt({
+        id: newId.trim(),
+        name: `${t.name} copy`,
+        category: t.category,
+        description: t.description,
+        content: t.content,
+      });
+      ok(`template ${newId.trim()} created`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const load = async () => {
     try {
       const [t, c] = await Promise.all([api.prompts(), api.promptCategories()]);
@@ -442,6 +462,13 @@ export default function Prompts() {
               onClick={() => copyToClipboard(t.content, t.id)}
             >
               {copied.has(t.id) ? "Copied ✓" : "Copy to clipboard"}
+            </button>{" "}
+            <button
+              className="btn sm"
+              title="copy this template to a new custom id — CLI: llmctl prompts duplicate (F639)"
+              onClick={() => duplicateTemplate(t)}
+            >
+              Duplicate
             </button>{" "}
             <button
               className="btn sm"
