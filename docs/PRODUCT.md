@@ -237,7 +237,9 @@ toggle for a light theme (choice remembered). Tabs:
   Export JSON / Import JSON buttons (F399, F413) and a per-row Duplicate
   button (F649).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
-  stream tokens live (SSE), multi-turn history. A "Copy cURL" button in the
+  stream tokens live (SSE), multi-turn history. While a reply streams, the
+  Send button becomes a Stop button that cancels the request and keeps the
+  partial reply (F754). A "Copy cURL" button in the
   sampling options copies a ready-to-run curl for the conversation's next
   request (model, messages, system prompt, sampling, $LLMCTL_API_KEY, F434). Assistant messages carry real
   token usage from the upstream usage chunk (shown per message and as a

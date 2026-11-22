@@ -925,6 +925,7 @@ export async function* chatStream(
     maxTokens?: number;
     temperature?: number;
     onUsage?: (u: { prompt: number; completion: number; total: number }) => void;
+    signal?: AbortSignal; // cancel the stream mid-flight (F754)
   } = {}
 ): AsyncGenerator<string> {
   const body: Record<string, unknown> = {
@@ -940,6 +941,7 @@ export async function* chatStream(
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify(body),
+    signal: opts.signal,
   });
   if (!r.ok || !r.body) {
     const t = await r.text();
@@ -1006,7 +1008,8 @@ export async function* agentStream(
     maxSteps?: number;
     temperature?: number;
     requireApproval?: boolean;
-  }
+  },
+  opts: { signal?: AbortSignal } = {} // cancel the stream mid-flight (F754)
 ): AsyncGenerator<AgentEvent> {
   const r = await fetch("/api/v1/chat/agent", {
     method: "POST",
@@ -1015,6 +1018,7 @@ export async function* agentStream(
       ...(key ? { Authorization: `Bearer ${key}` } : {}),
     },
     body: JSON.stringify(body),
+    signal: opts.signal,
   });
   if (!r.ok || !r.body) {
     const t = await r.text();

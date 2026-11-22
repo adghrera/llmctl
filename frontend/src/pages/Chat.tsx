@@ -37,6 +37,7 @@ export default function Chat() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null); // stop in-flight stream (F754)
   const [showKey, setShowKey] = useState(!key);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -408,6 +409,8 @@ export default function Chat() {
   const runStream = async (next: Msg[]) => {
     setMsgs(next);
     setStreaming(true);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     const history: { role: string; content: string }[] = next.map((m) => ({ role: m.role, content: m.content }));
     if (systemPrompt.trim()) {
       history.unshift({ role: "system", content: systemPrompt.trim() });
@@ -423,7 +426,7 @@ export default function Chat() {
           model,
           messages: history,
           requireApproval,
-        })) {
+        }, { signal: ctrl.signal })) {
           if (ev.type === "delta" && ev.content) {
             acc += ev.content;
             updateLast((m) => ({ ...m, content: acc }));
@@ -447,6 +450,7 @@ export default function Chat() {
         for await (const delta of chatStream(key, model, history, {
           maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
           temperature: temp.trim() !== "" ? Number(temp) : undefined,
+          signal: ctrl.signal,
           onUsage: (u) => {
             usage = u;
           },
@@ -456,8 +460,10 @@ export default function Chat() {
         }
       }
     } catch (e) {
-      err(e instanceof Error ? e.message : String(e));
+      if (e instanceof DOMException && e.name === "AbortError") ok("stopped");
+      else err(e instanceof Error ? e.message : String(e));
     } finally {
+      abortRef.current = null;
       setStreaming(false);
       // Save once the turn completes (assistant message settled).
       const done = next.concat([{ role: "assistant", content: acc, tools, tokens: usage }]);
@@ -1126,9 +1132,19 @@ export default function Chat() {
             }
           />
           <div style={{ alignSelf: "flex-end" }}>
-            <button className="btn primary" disabled={streaming || !input.trim()} onClick={send}>
-              {streaming ? "…" : "Send"}
-            </button>
+            {streaming ? (
+              <button
+                className="btn danger"
+                title="stop generating (keeps the partial reply)"
+                onClick={() => abortRef.current?.abort()}
+              >
+                Stop
+              </button>
+            ) : (
+              <button className="btn primary" disabled={!input.trim()} onClick={send}>
+                Send
+              </button>
+            )}
           </div>
         </div>
       </div>
