@@ -7274,6 +7274,40 @@ func cmdAutoStart(args []string) error {
 	}
 }
 
+// kbContextFor searches a knowledge base for the query and builds the
+// context block shared by the one-shot -kb flag and the REPL /kb command (F342).
+// Returns "" when nothing matches.
+func kbContextFor(cc *daemon.ControlClient, kbID, query string) (string, error) {
+	code, out, err := cc.Post("/api/v1/knowledge-bases/"+url.PathEscape(kbID)+"/search",
+		map[string]any{"q": query, "limit": 3})
+	if err != nil {
+		return "", err
+	}
+	if code != 200 {
+		return "", fmt.Errorf("kb search: %s", out)
+	}
+	var hits []struct {
+		Filename  string  `json:"filename"`
+		Score     float64 `json:"score"`
+		ChunkText string  `json:"chunk_text"`
+	}
+	if err := json.Unmarshal(out, &hits); err != nil {
+		return "", err
+	}
+	if len(hits) == 0 {
+		return "", nil
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", kbID)
+	for i, h := range hits {
+		if i > 0 {
+			sb.WriteString("\n\n---\n\n")
+		}
+		fmt.Fprintf(&sb, "Document: %s (relevance: %.1f%%)\n%s", h.Filename, h.Score*100, h.ChunkText)
+	}
+	return sb.String(), nil
+}
+
 func cmdChat(args []string) error {
 	fs := flag.NewFlagSet("chat", flag.ExitOnError)
 	modelFlag := fs.String("model", "", "model id to chat with")
@@ -7480,32 +7514,12 @@ func cmdChat(args []string) error {
 			hist = append(hist, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 		}
 		if *kbFlag != "" {
-			code, out, err := cc.Post("/api/v1/knowledge-bases/"+url.PathEscape(*kbFlag)+"/search",
-				map[string]any{"q": oneShot, "limit": 3})
+			ctxMsg, err := kbContextFor(cc, *kbFlag, oneShot)
 			if err != nil {
 				return err
 			}
-			if code != 200 {
-				return fmt.Errorf("kb search: %s", out)
-			}
-			var hits []struct {
-				Filename  string  `json:"filename"`
-				Score     float64 `json:"score"`
-				ChunkText string  `json:"chunk_text"`
-			}
-			if err := json.Unmarshal(out, &hits); err != nil {
-				return err
-			}
-			if len(hits) > 0 {
-				var sb strings.Builder
-				fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", *kbFlag)
-				for i, h := range hits {
-					if i > 0 {
-						sb.WriteString("\n\n---\n\n")
-					}
-					fmt.Fprintf(&sb, "Document: %s (relevance: %.1f%%)\n%s", h.Filename, h.Score*100, h.ChunkText)
-				}
-				hist = append(hist, map[string]any{"role": "user", "content": sb.String()})
+			if ctxMsg != "" {
+				hist = append(hist, map[string]any{"role": "user", "content": ctxMsg})
 			}
 		}
 		hist = append(hist, map[string]any{"role": "user", "content": oneShot})
@@ -7639,6 +7653,7 @@ func cmdChat(args []string) error {
 	if strings.TrimSpace(*system) != "" {
 		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 	}
+	kbID := "" // knowledge base attached via /kb (F342)
 	outW := bufio.NewWriter(os.Stdout)
 
 	for {
@@ -7666,7 +7681,7 @@ func cmdChat(args []string) error {
 			rest := strings.TrimSpace(strings.TrimPrefix(line, cmd))
 			switch cmd {
 			case "/help":
-				fmt.Println("commands: /help /clear /system TEXT /model ID /save [title] /quit")
+				fmt.Println("commands: /help /clear /system TEXT /model ID /kb ID /save [title] /quit")
 			case "/clear":
 				history = history[:0]
 				if strings.TrimSpace(*system) != "" {
@@ -7688,6 +7703,46 @@ func cmdChat(args []string) error {
 				}
 				model = rest
 				fmt.Printf("[model set to %q]\n", model)
+			case "/kb":
+				if rest == "" {
+					if kbID == "" {
+						fmt.Println("[no knowledge base attached — usage: /kb ID, /kb - to detach]")
+					} else {
+						fmt.Printf("[knowledge base %q attached]\n", kbID)
+					}
+					continue
+				}
+				if rest == "-" {
+					kbID = ""
+					fmt.Println("[knowledge base detached]")
+					continue
+				}
+				// Validate the id against the KB list before attaching.
+				code, out, err := cc.Get("/api/v1/knowledge-bases")
+				if err != nil {
+					fmt.Printf("[kb lookup failed: %v]\n", err)
+					continue
+				}
+				if code != 200 {
+					fmt.Printf("[kb lookup: %s]\n", out)
+					continue
+				}
+				var kbs []struct {
+					ID string `json:"id"`
+				}
+				json.Unmarshal(out, &kbs)
+				found := false
+				for _, k := range kbs {
+					if k.ID == rest {
+						found = true
+					}
+				}
+				if !found {
+					fmt.Printf("[no knowledge base %q — see llmctl kb list]\n", rest)
+					continue
+				}
+				kbID = rest
+				fmt.Printf("[knowledge base %q attached — top matches will be added to each message]\n", kbID)
 			case "/save":
 				title := rest
 				if title == "" {
@@ -7735,9 +7790,24 @@ func cmdChat(args []string) error {
 		// Append user message.
 		history = append(history, map[string]any{"role": "user", "content": line})
 
+		// With a /kb attached, prepend the top KB matches for this message
+		// as a context turn (same shape as the one-shot -kb flag, F342).
+		reqMsgs := history
+		if kbID != "" {
+			ctxMsg, kerr := kbContextFor(cc, kbID, line)
+			if kerr != nil {
+				fmt.Printf("[kb search failed: %v]\n", kerr)
+			} else if ctxMsg != "" {
+				reqMsgs = make([]map[string]any, 0, len(history)+1)
+				reqMsgs = append(reqMsgs, history[:len(history)-1]...)
+				reqMsgs = append(reqMsgs, map[string]any{"role": "user", "content": ctxMsg})
+				reqMsgs = append(reqMsgs, history[len(history)-1])
+			}
+		}
+
 		body := map[string]any{
 			"model":    model,
-			"messages": history,
+			"messages": reqMsgs,
 			"stream":   true,
 		}
 		b, _ := json.Marshal(body)

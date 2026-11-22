@@ -549,7 +549,7 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285)
                                     (interactive REPL: /help /clear /system TEXT /model ID
-                                     /save [title] /quit, F331)
+                                     /kb ID (/kb - detaches) /save [title] /quit, F331, F342)
 llmctl version
 llmctl completion [bash|zsh]                       (print a shell-completion script for llmctl, F341)
 ```
