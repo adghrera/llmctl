@@ -261,7 +261,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
@@ -5508,6 +5508,9 @@ type eventRow struct {
 // GET /api/v1/webhook/log.
 func cmdWebhooks(args []string) error {
 	if len(args) > 0 && args[0] == "test" { // F447: discoverable twin of settings test-webhook
+		tfs := flag.NewFlagSet("webhooks test", flag.ExitOnError)
+		tjson := tfs.Bool("json", false, "print the raw response JSON (F573)")
+		tfs.Parse(reorderFlags(args[1:]))
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
@@ -5516,10 +5519,24 @@ func cmdWebhooks(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 200 {
-			return fmt.Errorf("notify-test returned %d", code)
+			return fmt.Errorf("notify-test returned %d: %s", code, out)
 		}
+		if *tjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var tr struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal(out, &tr); err != nil {
+			return err
+		}
+		if !tr.OK {
+			return fmt.Errorf("webhook test failed: %s", tr.Error)
+		}
+		fmt.Println("test notification delivered to the configured webhook")
 		return nil
 	}
 	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
