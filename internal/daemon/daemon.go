@@ -29,6 +29,7 @@ import (
 	"llmctl/internal/api"
 	"llmctl/internal/backend"
 	"llmctl/internal/backup"
+	"llmctl/internal/events"
 	"llmctl/internal/jobs"
 	"llmctl/internal/paths"
 	"llmctl/internal/proxy"
@@ -179,13 +180,16 @@ func Run(ctx context.Context, opts Options) error {
 		runScheduledTask(ctx, sch, sv, rec, gw, logger)
 	})
 
-	// Auto-stop instances that have served no gateway request for a while.
-	go idleUnloadLoop(ctx, st, sv, gw, logger)
-
-	// Instance-event webhook (settings.notifyWebhook), F073.
+	// Instance-event webhook (settings.notifyWebhook) + events feed (F073, F099).
+	evRing := &events.Ring{}
+	mgmt.SetEvents(evRing)
 	sv.SetNotifier(func(event string, inst *store.InstanceRecord) {
+		evRing.Add(events.Event{Kind: event, Instance: inst.ID, Model: inst.ModelID})
 		postEventWebhook(ctx, st, event, inst, logger)
 	})
+
+	// Auto-stop instances that have served no gateway request for a while.
+	go idleUnloadLoop(ctx, st, sv, gw, logger, evRing)
 
 	// One mux: gateway + management API + UI.
 	root := http.NewServeMux()
@@ -378,7 +382,7 @@ func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 // idleUnloadLoop stops running instances that have served no gateway request
 // for Settings.IdleUnloadMin minutes (0 = disabled). A tick is skipped while
 // any request is in flight so long generations are never cut off (F060).
-func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervisor, gw *proxy.Server, logger *slog.Logger) {
+func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervisor, gw *proxy.Server, logger *slog.Logger, evRing *events.Ring) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -415,6 +419,7 @@ func idleUnloadLoop(ctx context.Context, st *store.Store, sv *supervisor.Supervi
 			if err := sv.Stop(id, false); err != nil {
 				logger.Error("idle unload: stop failed", "instance", id, "error", err)
 			} else {
+				evRing.Add(events.Event{Kind: "instance.idle-unloaded", Instance: inst.ID, Model: inst.ModelID})
 				postEventWebhook(ctx, st, "instance.idle-unloaded", inst, logger)
 			}
 		}

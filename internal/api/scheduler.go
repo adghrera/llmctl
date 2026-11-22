@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"llmctl/internal/events"
 	"llmctl/internal/scheduler"
 )
 
@@ -152,6 +153,9 @@ func (s *Server) runScheduleNow(w http.ResponseWriter, r *http.Request) {
 // SetScheduleRunner wires the daemon's task executor so the API can trigger
 // immediate runs (F084).
 func (s *Server) SetScheduleRunner(fn func(scheduler.Record)) { s.schedRun = fn }
+
+// SetEvents installs the daemon's event ring for GET /api/v1/events (F099).
+func (s *Server) SetEvents(r *events.Ring) { s.events = r }
 
 func statusForSched(err error) int {
 	msg := strings.ToLower(err.Error())

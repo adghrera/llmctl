@@ -30,6 +30,7 @@ import (
 	"llmctl/internal/toolstore"
 	"llmctl/internal/memory"
 	"llmctl/internal/cost"
+	"llmctl/internal/events"
 	"llmctl/internal/files"
 	"llmctl/internal/rag"
 	"llmctl/internal/scheduler"
@@ -63,6 +64,7 @@ type Server struct {
 	cost       *cost.Tracker       // token usage and cost tracking (F045)
 	sched      *scheduler.Store    // scheduled agent tasks (F046)
 	schedRun   func(scheduler.Record) // daemon-provided "run this task now" hook (F084)
+	events     *events.Ring             // recent daemon events feed (F099)
 	rag        *rag.Store          // knowledge bases for RAG (F047)
 	mcpSt      *mcp.Store          // MCP server configs (F054)
 	mcpReg     *mcp.Registry       // live MCP connections (F054)
@@ -179,6 +181,7 @@ func (s *Server) Handler() http.Handler {
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	m.HandleFunc("GET /api/v1/usage/daily", s.dailyUsage)
+	m.HandleFunc("GET /api/v1/events", s.listEvents)
 	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
 	m.HandleFunc("GET /api/v1/disk", s.diskUsage)
 	m.HandleFunc("GET /api/v1/backups", s.listBackups)
@@ -996,6 +999,20 @@ func (s *Server) dailyUsage(w http.ResponseWriter, r *http.Request) {
 		daily = out
 	}
 	writeJSON(w, 200, daily)
+}
+
+// listEvents handles GET /api/v1/events — recent daemon events, newest
+// first (F099). ?limit=N caps the response.
+func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
+	if s.events == nil {
+		writeJSON(w, 200, []events.Event{})
+		return
+	}
+	limit := 50
+	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 {
+		limit = n
+	}
+	writeJSON(w, 200, s.events.List(limit))
 }
 
 // recentRequests handles GET /api/v1/requests — the ring of recent gateway

@@ -471,6 +471,7 @@ func (sv *Supervisor) maybeRestart(id string) {
 			return
 		}
 		sv.logger.Info("auto-restarted instance", "id", id)
+		sv.notify("instance.auto-restarted", r)
 	}()
 }
 

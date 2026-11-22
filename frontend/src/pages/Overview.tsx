@@ -7,6 +7,18 @@ export default function Overview() {
   const [metrics, setMetrics] = useState<GatewayMetrics | null>(null);
   const [gpus, setGpus] = useState<GPUInfo[] | null>(null);
   const [disk, setDisk] = useState<Awaited<ReturnType<typeof api.disk>> | null>(null);
+  const [events, setEvents] = useState<Awaited<ReturnType<typeof api.events>>>([]);
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () => api.events(15).then((e) => alive && setEvents(e)).catch(() => {});
+    tick();
+    const t = setInterval(tick, 10000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -149,6 +161,37 @@ export default function Overview() {
           <div className="empty">no instances running</div>
         )}
       </div>
+      {events.length > 0 && (
+        <div className="card">
+          <h2>Events</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Event</th>
+                <th>Instance</th>
+                <th>Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((e, i) => (
+                <tr key={i}>
+                  <td className="muted" style={{ fontSize: 12 }}>
+                    {new Date(e.time).toLocaleString()}
+                  </td>
+                  <td>
+                    <span className={`badge ${e.kind.includes("crashed") ? "err" : "warn"}`}>
+                      {e.kind.replace("instance.", "")}
+                    </span>
+                  </td>
+                  <td className="mono" style={{ fontSize: 12 }}>{e.instance || "—"}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{e.model || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {activeJobs.length > 0 && (
         <div className="card">
           <h2>Active jobs</h2>
