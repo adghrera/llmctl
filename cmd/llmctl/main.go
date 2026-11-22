@@ -103,7 +103,7 @@ Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
   llmctl status [-json]
-  llmctl doctor
+  llmctl doctor [-json]
   llmctl ps
   llmctl backends list
   llmctl backends install <id> [--asset <hint>]
@@ -267,6 +267,9 @@ func cmdStatus(args []string) error {
 // cmdDoctor runs the daemon-side health sweep and prints one line per check
 // (F146). Exit code is non-zero when any check errored.
 func cmdDoctor(args []string) error {
+	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw doctor JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
@@ -288,6 +291,13 @@ func cmdDoctor(args []string) error {
 	}
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		if !res.OK {
+			return fmt.Errorf("doctor: some checks failed")
+		}
+		return nil
 	}
 	sym := map[string]string{"ok": "[ok]  ", "warn": "[warn]", "error": "[fail]"}
 	for _, c := range res.Checks {

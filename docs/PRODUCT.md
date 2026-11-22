@@ -364,7 +364,7 @@ llmctl down
 llmctl status [-json]              (version, uptime, running instances with
                                     uptime, gateway auth, today's usage;
                                     -json = raw)
-llmctl doctor                      (health sweep: state dir, backends, models,
+llmctl doctor [-json]              (health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is
                                     bound to a public address with auth off, F183); exit ≠0 on errors)
 llmctl ps                          (shows uptime, requests served, auto-restart
