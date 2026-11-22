@@ -84,6 +84,8 @@ func main() {
 		err = cmdSkills(args)
 	case "memory":
 		err = cmdMemory(args)
+	case "kb":
+		err = cmdKb(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -168,6 +170,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|delete …
+  llmctl kb [filter] [-json] | kb show|create|docs|delete …
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -2515,6 +2518,164 @@ func cmdMemory(args []string) error {
 		return nil
 	default:
 		return fmt.Errorf("unknown memory subcommand %q (list|show|add|delete)", sub)
+	}
+}
+
+// cmdKb lists and manages knowledge bases (F247).
+func cmdKb(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub, rest := "list", args
+	if len(args) > 0 {
+		switch args[0] {
+		case "list", "show", "create", "docs", "delete":
+			sub, rest = args[0], args[1:]
+		}
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("kb", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the knowledge bases as JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/knowledge-bases")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb returned %d: %s", code, out)
+		}
+		filter := ""
+		if fs.NArg() > 0 {
+			filter = strings.ToLower(fs.Arg(0))
+		}
+		var list []struct {
+			KB struct {
+				ID          string `json:"id"`
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				DocCount    int    `json:"doc_count"`
+			} `json:"kb"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if filter != "" {
+			var keep []struct {
+				KB struct {
+					ID          string `json:"id"`
+					Name        string `json:"name"`
+					Description string `json:"description"`
+					DocCount    int    `json:"doc_count"`
+				} `json:"kb"`
+			}
+			for _, kb := range list {
+				if strings.Contains(strings.ToLower(kb.KB.Name+" "+kb.KB.Description), filter) {
+					keep = append(keep, kb)
+				}
+			}
+			list = keep
+		}
+		if *jsonOut {
+			b, err := json.Marshal(list)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if len(list) == 0 {
+			fmt.Println("no knowledge bases")
+			return nil
+		}
+		fmt.Printf("%-20s %-24s %-5s %s\n", "ID", "NAME", "DOCS", "DESCRIPTION")
+		for _, kb := range list {
+			desc := kb.KB.Description
+			if len(desc) > 40 {
+				desc = desc[:40] + "…"
+			}
+			fmt.Printf("%-20s %-24s %-5d %s\n", kb.KB.ID, kb.KB.Name, kb.KB.DocCount, desc)
+		}
+		return nil
+	case "show":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl kb show <id>")
+		}
+		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb %s: %s", rest[0], out)
+		}
+		fmt.Print(string(out))
+		return nil
+	case "docs":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl kb docs <id>")
+		}
+		code, out, err := cc.Get("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]) + "/documents")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb docs returned %d: %s", code, out)
+		}
+		var docs []struct {
+			ID       string `json:"id"`
+			Filename string `json:"filename"`
+			Size     int64  `json:"size"`
+		}
+		if err := json.Unmarshal(out, &docs); err != nil {
+			return err
+		}
+		if len(docs) == 0 {
+			fmt.Println("no documents")
+			return nil
+		}
+		fmt.Printf("%-18s %-40s %s\n", "ID", "FILENAME", "BYTES")
+		for _, d := range docs {
+			fmt.Printf("%-18s %-40s %d\n", d.ID, d.Filename, d.Size)
+		}
+		return nil
+	case "create":
+		cfs := flag.NewFlagSet("kb create", flag.ExitOnError)
+		desc := cfs.String("desc", "", "description")
+		cfs.Parse(reorderFlags(rest))
+		if cfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl kb create <name> [-desc X]")
+		}
+		code, out, err := cc.Post("/api/v1/knowledge-bases", map[string]any{"name": cfs.Arg(0), "description": *desc})
+		if err != nil {
+			return err
+		}
+		if code != 201 {
+			return fmt.Errorf("kb create returned %d: %s", code, out)
+		}
+		var rec struct {
+			KB struct {
+				ID string `json:"id"`
+			} `json:"kb"`
+		}
+		json.Unmarshal(out, &rec)
+		fmt.Printf("created knowledge base %s\n", rec.KB.ID)
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl kb delete <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/knowledge-bases/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("delete returned %d: %s", code, out)
+		}
+		fmt.Printf("deleted knowledge base %s\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown kb subcommand %q (list|show|create|docs|delete)", sub)
 	}
 }
 

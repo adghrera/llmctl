@@ -264,6 +264,8 @@ toggle for a light theme (choice remembered). Tabs:
  - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
    `memory add "<text>" [-tags a,b]`, `memory show <id>`, `memory delete <id>`
    (F246).
+ - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
+   `kb create <name> [-desc X]`, `kb show|docs|delete <id>` (F247).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).
