@@ -485,7 +485,7 @@ export const api = {
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
   dailyUsage: (days = 14) =>
-    req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number }>>>(
+    req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number; cost?: number }>>>(
       `/usage/daily?days=${days}`
     ),
   events: (limit = 50) =>

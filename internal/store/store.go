@@ -170,10 +170,11 @@ type KeyUsageRecord struct {
 
 // DailyModelUsage is one day's gateway usage for one model (F097).
 type DailyModelUsage struct {
-	Requests int64 `json:"requests"`
-	Errors   int64 `json:"errors"`
-	Prompt   int64 `json:"prompt"`
-	Comp     int64 `json:"comp"`
+	Requests int64   `json:"requests"`
+	Errors   int64   `json:"errors"`
+	Prompt   int64   `json:"prompt"`
+	Comp     int64   `json:"comp"`
+	Cost     float64 `json:"cost,omitempty"` // estimated USD (F103)
 }
 
 func newState() *State {

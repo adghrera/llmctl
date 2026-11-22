@@ -170,18 +170,20 @@ export default function Usage() {
                 <th>Prompt</th>
                 <th>Completion</th>
                 <th>Total</th>
+                <th>Cost</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(daily)
                 .sort((a, b) => b[0].localeCompare(a[0]))
                 .map(([date, models]) => {
-                  let reqs = 0, errs = 0, prompt = 0, comp = 0;
+                  let reqs = 0, errs = 0, prompt = 0, comp = 0, cost = 0;
                   for (const u of Object.values(models)) {
                     reqs += u.requests;
                     errs += u.errors;
                     prompt += u.prompt;
                     comp += u.comp;
+                    cost += u.cost ?? 0;
                   }
                   return (
                     <tr key={date}>
@@ -191,6 +193,7 @@ export default function Usage() {
                       <td className="oc-num">{prompt.toLocaleString()}</td>
                       <td className="oc-num">{comp.toLocaleString()}</td>
                       <td className="oc-num">{(prompt + comp).toLocaleString()}</td>
+                      <td className="oc-num">{cost > 0 ? `$${cost.toFixed(4)}` : "—"}</td>
                     </tr>
                   );
                 })}

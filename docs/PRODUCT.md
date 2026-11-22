@@ -154,8 +154,8 @@ toggle for a light theme (choice remembered). Tabs:
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
   totals, request counts, per-model latency percentiles (p50/p95), and
   per-conversation context percentage. A "Daily History" table shows the
-  per-day, per-model rollup (requests, errors, tokens) which persists across
-  restarts (`GET /api/v1/usage/daily[?days=N]`, F097).
+  per-day, per-model rollup (requests, errors, tokens, estimated cost) which
+  persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103).
 - **Requests** — the last 256 gateway requests (time, model, key, status,
   latency, tokens) in an auto-refreshing table, with one-click CSV export and
   combinable filters (model, status class, min latency, stream/plain).

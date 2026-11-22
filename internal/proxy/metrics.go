@@ -138,6 +138,7 @@ func (m *metricsCollector) record(model, key string, status int, latencyMs float
 	}
 	du.Prompt += pTok
 	du.Comp += cTok
+	du.Cost += float64(pTok)/1e6*m.pricingFor(model).InputPerM + float64(cTok)/1e6*m.pricingFor(model).OutputPerM
 	// Per-model latency reservoir (bounded, same policy as global).
 	mm.seen++
 	if len(mm.latSamples) < reservoirSize {

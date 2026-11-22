@@ -835,10 +835,11 @@ func cmdUsage(args []string) error {
 		return fmt.Errorf("usage returned %d: %s", code, out)
 	}
 	var daily map[string]map[string]struct {
-		Requests int64 `json:"requests"`
-		Errors   int64 `json:"errors"`
-		Prompt   int64 `json:"prompt"`
-		Comp     int64 `json:"comp"`
+		Requests int64   `json:"requests"`
+		Errors   int64   `json:"errors"`
+		Prompt   int64   `json:"prompt"`
+		Comp     int64   `json:"comp"`
+		Cost     float64 `json:"cost"`
 	}
 	if err := json.Unmarshal(out, &daily); err != nil {
 		return err
@@ -866,8 +867,11 @@ func cmdUsage(args []string) error {
 			if name == "" {
 				name = "(unknown)"
 			}
-			fmt.Printf("  %-20s %6d reqs %4d err %10d in %10d out\n",
-				name, u.Requests, u.Errors, u.Prompt, u.Comp)
+			fmt.Printf("  %-20s %6d reqs %4d err %10d in %10d out", name, u.Requests, u.Errors, u.Prompt, u.Comp)
+			if u.Cost > 0 {
+				fmt.Printf("  $%.4f", u.Cost)
+			}
+			fmt.Println()
 		}
 	}
 	return nil
