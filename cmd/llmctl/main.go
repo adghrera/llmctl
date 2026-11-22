@@ -166,7 +166,7 @@ Usage:
   llmctl structured -model ID -schema file.json <prompt>
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
-  llmctl compare -models A,B [-system S] [-max-tokens N] <prompt>
+  llmctl compare -models A,B [-system S] [-max-tokens N] [-json] <prompt>
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C]   (benchmark + comparison table)
   llmctl disk [-json]
@@ -1378,6 +1378,7 @@ func cmdCompare(args []string) error {
 	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
 	system := fs.String("system", "", "system prompt prepended to the conversation")
 	maxTok := fs.Int("max-tokens", 0, "max tokens per response (0 = model default)")
+	jsonOut := fs.Bool("json", false, "print [{model, reply} | {model, error}] as one JSON array instead of streamed text (F314)")
 	fs.Parse(reorderFlags(args))
 	if *modelsFlag == "" {
 		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] <prompt>  (or pipe stdin)")
@@ -1395,6 +1396,12 @@ func cmdCompare(args []string) error {
 	if err != nil {
 		return err
 	}
+	type cmpRes struct {
+		Model string `json:"model"`
+		Reply string `json:"reply,omitempty"`
+		Error string `json:"error,omitempty"`
+	}
+	var results []cmpRes
 	for _, m := range strings.Split(*modelsFlag, ",") {
 		m = strings.TrimSpace(m)
 		if m == "" {
@@ -1409,12 +1416,21 @@ func cmdCompare(args []string) error {
 		if *maxTok > 0 {
 			body["max_tokens"] = *maxTok
 		}
-		fmt.Printf("=== %s ===\n", m)
+		if !*jsonOut {
+			fmt.Printf("=== %s ===\n", m)
+		}
+		fail := func(msg string) {
+			if *jsonOut {
+				results = append(results, cmpRes{Model: m, Error: msg})
+			} else {
+				fmt.Printf("error: %s\n\n", msg)
+			}
+		}
 		body["stream"] = true
 		b, _ := json.Marshal(body)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
 		if err != nil {
-			fmt.Printf("error: %v\n\n", err)
+			fail(err.Error())
 			continue
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -1425,15 +1441,16 @@ func cmdCompare(args []string) error {
 		hc := &http.Client{Timeout: 10 * time.Minute}
 		resp, err := hc.Do(req)
 		if err != nil {
-			fmt.Printf("error: %v\n\n", err)
+			fail(err.Error())
 			continue
 		}
 		if resp.StatusCode != 200 {
 			bodyBytes, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			fmt.Printf("error: %s\n\n", string(bodyBytes))
+			fail(string(bodyBytes))
 			continue
 		}
+		var reply strings.Builder
 		rd := bufio.NewReader(resp.Body)
 		for {
 			l, err := rd.ReadString('\n')
@@ -1456,11 +1473,22 @@ func cmdCompare(args []string) error {
 				} `json:"choices"`
 			}
 			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
-				fmt.Print(chunk.Choices[0].Delta.Content)
+				if !*jsonOut {
+					fmt.Print(chunk.Choices[0].Delta.Content)
+				}
+				reply.WriteString(chunk.Choices[0].Delta.Content)
 			}
 		}
 		resp.Body.Close()
-		fmt.Print("\n\n")
+		if *jsonOut {
+			results = append(results, cmpRes{Model: m, Reply: reply.String()})
+		} else {
+			fmt.Print("\n\n")
+		}
+	}
+	if *jsonOut {
+		b, _ := json.Marshal(results)
+		fmt.Println(string(b))
 	}
 	return nil
 }
