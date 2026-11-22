@@ -792,8 +792,9 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
                                      print the streamed reply, exit; for scripts, F277;
                                      add -save "Title" to also store the exchange as a saved chat, F294;
-                                     add -chat ID to send the saved chat's history and append the reply to it, F297;
-                                     add -continue to append to the most recently updated saved chat, F312;
+                                     add -chat ID to send the saved chat's history and append the reply to it, F297,
+                                     in the REPL too — the history loads and every exchange is appended back, F685;
+                                     add -continue to append to the most recently updated saved chat, F312, REPL too F685;
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
                                      add -kb ID[,ID2…] to prepend the top knowledge-base matches as context, F302, comma-separated ids merge across KBs F666, applies in the REPL too F667;

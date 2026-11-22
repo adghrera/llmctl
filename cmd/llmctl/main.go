@@ -12701,8 +12701,8 @@ func cmdChat(args []string) error {
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
-	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
-	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
+	contChat := fs.String("chat", "", "continue this saved chat — its history is sent and the reply appended (one-shot and REPL; F297, REPL F685)")
+	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312; REPL too, F685)")
 	kbFlag := fs.String("kb", "", "prepend the top knowledge-base matches as context (one-shot and REPL; comma-separated ids search all and merge, like the Chat UI; F302, F666, F667)")
 	fileFlag := fs.String("file", "", "prepend the contents of this local file as a context message (one-shot and REPL; like the Chat UI /file, F669)")
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
@@ -13050,7 +13050,9 @@ func cmdChat(args []string) error {
 
 	reader := bufio.NewReader(os.Stdin)
 	history := []map[string]any{}
-	replChat := "" // id of the chat created by /save; /title and /tag act on it (F683)
+	replChat := ""    // id of the chat created by /save; /title and /tag act on it (F683)
+	replTitle := ""   // its title, kept in sync on /save and -chat load (F685)
+	replAuto := false // -chat/-continue: append each exchange back to replChat (F685)
 	if strings.TrimSpace(*system) != "" {
 		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 	}
@@ -13062,6 +13064,58 @@ func cmdChat(args []string) error {
 		if ferr != nil {
 			return ferr
 		}
+	}
+	// -chat/-continue seed the REPL too: load the saved history and append
+	// every exchange back to that chat as the conversation grows (F685).
+	if *contLast && *contChat == "" {
+		code, out, err := cc.Get("/api/v1/chats")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats list: %s", out)
+		}
+		var chats []struct {
+			ID        string    `json:"id"`
+			UpdatedAt time.Time `json:"updatedAt"`
+		}
+		if err := json.Unmarshal(out, &chats); err != nil {
+			return err
+		}
+		var best time.Time
+		for _, c := range chats {
+			if c.UpdatedAt.After(best) {
+				best, *contChat = c.UpdatedAt, c.ID
+			}
+		}
+		if *contChat == "" {
+			return fmt.Errorf("no saved chats to continue")
+		}
+		fmt.Printf("continuing chat %s\n", *contChat)
+	}
+	if *contChat != "" {
+		code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(*contChat))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat %s: %s", *contChat, out)
+		}
+		var ch struct {
+			Title    string `json:"title"`
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.Unmarshal(out, &ch); err != nil {
+			return err
+		}
+		for _, m := range ch.Messages {
+			history = append(history, map[string]any{"role": m.Role, "content": m.Content})
+		}
+		replChat, replTitle, replAuto = *contChat, ch.Title, true
+		fmt.Printf("[loaded %d message(s) from chat %s — replies are appended to it]\n", len(ch.Messages), replChat)
 	}
 	outW := bufio.NewWriter(os.Stdout)
 
@@ -13207,7 +13261,7 @@ func cmdChat(args []string) error {
 					ID string `json:"id"`
 				}
 				json.Unmarshal(out, &saved)
-				replChat = saved.ID // /title and /tag can act on it now (F683)
+				replChat, replTitle = saved.ID, title // /title and /tag can act on it now (F683)
 				fmt.Printf("[saved as chat %s: %q]\n", saved.ID, title)
 			case "/title":
 				// Rename the chat saved by /save (twin of `chats rename`, F683).
@@ -13403,6 +13457,20 @@ func cmdChat(args []string) error {
 		// Append assistant message to history.
 		if acc.Len() > 0 {
 			history = append(history, map[string]any{"role": "assistant", "content": acc.String()})
+		}
+		if replAuto && acc.Len() > 0 { // keep the continued chat in sync (F685)
+			msgs := []map[string]string{}
+			for _, h := range history {
+				if fmt.Sprint(h["role"]) != "system" {
+					msgs = append(msgs, map[string]string{"role": fmt.Sprint(h["role"]), "content": fmt.Sprint(h["content"])})
+				}
+			}
+			code, out, err := cc.Put("/api/v1/chats/"+url.PathEscape(replChat), map[string]any{
+				"title": replTitle, "model": model, "messages": msgs,
+			})
+			if err != nil || code != 200 {
+				fmt.Printf("[chat append failed: %v %s]\n", err, out)
+			}
 		}
 	}
 	outW.Flush()
