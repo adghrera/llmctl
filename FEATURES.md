@@ -102,6 +102,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F090 | P2 | 90 | cli | `requests` + `backups` commands | COMPLETED | `llmctl requests [--model] [--status] [--min-ms] [-n]` prints the (filtered) request log as a table; `llmctl backups [list\|create\|delete <name>]` manages state snapshots. Verified live against the running daemon. |
 | F091 | P2 | 91 | instances | Vars editor | COMPLETED | `PUT /api/v1/instances/{id}/vars` replaces an instance's stored start vars (JSON); a "Vars" button on the Instances page opens a JSON editor; running instances report `restartRequired` and apply the new vars on next restart. Verified live (store round-trip, 404, restart semantics). |
 | F092 | P2 | 92 | gateway | Request IDs | COMPLETED | Every gateway request carries an `X-Request-Id` (client-provided or minted), logged on each request-log entry and shown in the Requests page, CSV export and `llmctl requests`. Verified live: generated, reused, persisted, displayed. |
+| F093 | P3 | 93 | daemon | Daemon log rotation | COMPLETED | `llmctl.log` is rotated to `llmctl.log.1` at daemon start when it exceeds 5 MiB (one generation kept), so the slog file cannot grow unbounded. Verified live: 5 MiB file rotated, small file untouched. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

@@ -245,7 +245,20 @@ func dialableAddr(ln net.Listener, requested string) string {
 	return bind
 }
 
+// rotateDaemonLog renames llmctl.log to llmctl.log.1 when it exceeds
+// maxDaemonLogBytes at startup (one generation kept). F093.
+const maxDaemonLogBytes = 5 << 20 // 5 MiB
+
+func rotateDaemonLog() {
+	fi, err := os.Stat(paths.DaemonLog())
+	if err != nil || fi.Size() < maxDaemonLogBytes {
+		return
+	}
+	os.Rename(paths.DaemonLog(), paths.DaemonLog()+".1")
+}
+
 func newLogger() *slog.Logger {
+	rotateDaemonLog()
 	f, err := os.OpenFile(paths.DaemonLog(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return slog.New(slog.NewTextHandler(os.Stderr, nil))
