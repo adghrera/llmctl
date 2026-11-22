@@ -249,7 +249,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json]   recent webhook delivery attempts
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
@@ -6992,11 +6992,12 @@ func cmdPrompts(args []string) error {
 	if len(args) > 0 && args[0] == "render" {
 		rfs := flag.NewFlagSet("prompts render", flag.ExitOnError)
 		input := rfs.String("input", "", "text to substitute for {{input}} (default: piped stdin)")
+		outFile := rfs.String("out", "", "write the rendered prompt to this file instead of stdout (F442)")
 		var vlist stringList
 		rfs.Var(&vlist, "var", "substitute {{k}} for v (repeatable, F347)")
 		rfs.Parse(reorderFlags(args[1:]))
 		if rfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl prompts render <id> [-input TEXT | piped stdin] [-var k=v ...]")
+			return fmt.Errorf("usage: llmctl prompts render <id> [-input TEXT | piped stdin] [-var k=v ...] [-out file]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -7029,6 +7030,13 @@ func cmdPrompts(args []string) error {
 				return fmt.Errorf("-var expects k=v, got %q", kv)
 			}
 			out2 = strings.ReplaceAll(out2, "{{"+strings.TrimSpace(k)+"}}", v)
+		}
+		if *outFile != "" { // F442: rendered text only, for scripts
+			if err := os.WriteFile(*outFile, []byte(out2+"\n"), 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("wrote %s (%d bytes)\n", *outFile, len(out2)+1)
+			return nil
 		}
 		fmt.Println(out2)
 		return nil
