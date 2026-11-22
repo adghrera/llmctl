@@ -541,8 +541,8 @@ llmctl status [-json] [-watch N]   (-watch N: live refresh; -json: raw; version,
                                     uptime, gateway auth, today's usage)
 llmctl doctor [-json] [-quiet] [-check NAME]...    (-quiet prints only warn/error lines + a summary;
 llmctl gpu [-json]                                 (GPU inventory: vendor, name, used/total)
-llmctl jobs [-json] [-watch N]                     (background install jobs, F273)
-llmctl search <query> [-max N] [-json]             (keyless web search, F274)
+llmctl jobs [-json] [--csv] [-watch N]              (background install jobs; --csv exports the job list, F427, F273)
+llmctl search <query> [-max N] [-json] [--csv]      (keyless web search; --csv exports rank,title,url,snippet, F428, F274)
 llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] <prompt>   (schema-validated JSON, F279, F344)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
 llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)

@@ -165,8 +165,8 @@ Usage:
   llmctl status [-json] [-watch N]
   llmctl doctor [-json] [-quiet] [-check NAME]...
   llmctl gpu [-json]
-  llmctl jobs [-json] [-watch N]
-  llmctl search <query> [-max N] [-json]
+  llmctl jobs [-json] [--csv] [-watch N]
+  llmctl search <query> [-max N] [-json] [--csv]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
@@ -979,6 +979,7 @@ func cmdSetVars(args []string) error {
 func cmdJobs(args []string) error {
 	fs := flag.NewFlagSet("jobs", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the job list as CSV (F427)")
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -1009,6 +1010,17 @@ func cmdJobs(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *csvOut { // F427: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "kind", "target", "status", "progress", "message", "error", "updated"})
+			for _, j := range list {
+				_ = w.Write([]string{j.ID, j.Kind, j.Target, j.Status,
+					strconv.FormatFloat(j.Progress, 'f', 2, 64), j.Message, j.Error,
+					j.Updated.UTC().Format(time.RFC3339)})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(list) == 0 {
 			fmt.Println("no jobs (installs appear here: llmctl models install …)")
@@ -1043,6 +1055,7 @@ func cmdWebSearch(args []string) error {
 	fs := flag.NewFlagSet("search", flag.ExitOnError)
 	max := fs.Int("max", 5, "max results")
 	jsonOut := fs.Bool("json", false, "print the raw search JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the results as CSV (F428)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 {
 		return fmt.Errorf("usage: llmctl search <query> [-max N] [-json]")
@@ -1072,6 +1085,16 @@ func cmdWebSearch(args []string) error {
 	}
 	if err := json.Unmarshal(out, &res); err != nil {
 		return err
+	}
+	if *csvOut { // F428: header-only when empty keeps the stream parseable
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"rank", "title", "url", "snippet"})
+		for i, r := range res.Results {
+			_ = w.Write([]string{strconv.Itoa(i + 1), r.Title, r.URL,
+				strings.TrimSpace(strings.ReplaceAll(r.Snippet, "\n", " "))})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	if len(res.Results) == 0 {
 		fmt.Printf("no results for %q\n", q)
