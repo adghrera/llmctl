@@ -200,7 +200,7 @@ Usage:
   llmctl gpu [-json] [--csv] [-out FILE] [-watch N]
   llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
   llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]
-  llmctl jobs show <job-id> [-json]
+  llmctl jobs show <job-id> [-json] [-out FILE]
   llmctl jobs clear [-json]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
@@ -1498,9 +1498,10 @@ func cmdJobsWait(args []string) error {
 func cmdJobsShow(args []string) error {
 	fs := flag.NewFlagSet("jobs show", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw job JSON (for scripts)")
+	outFile := fs.String("out", "", "write the raw job JSON to this file instead of stdout (F621)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl jobs show <job-id> [-json]")
+		return fmt.Errorf("usage: llmctl jobs show <job-id> [-json] [-out FILE]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1515,6 +1516,13 @@ func cmdJobsShow(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("jobs show returned %d: %s", code, out)
+	}
+	if *outFile != "" { // F621: raw JSON to a file, stdout stays clean
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+		return nil
 	}
 	if *jsonOut {
 		fmt.Print(string(out))
