@@ -243,6 +243,8 @@ llmctl backends list|install|uninstall|add|remove
 llmctl models list|install|remove|hf-search|hf-files
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
+llmctl restart <instance>
+llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl key generate|list|revoke
 llmctl chat [--model ID] [--key KEY]
 llmctl version

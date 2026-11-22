@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -47,6 +48,10 @@ func main() {
 		err = cmdStart(args)
 	case "stop":
 		err = cmdStop(args)
+	case "restart":
+		err = cmdRestart(args)
+	case "logs":
+		err = cmdLogs(args)
 	case "key":
 		err = cmdKey(args)
 	case "autostart":
@@ -93,6 +98,8 @@ Usage:
   llmctl models hf-files <repo>
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force]
+  llmctl restart <instance>
+  llmctl logs <instance> [--stream stderr|stdout] [--tail N]
   llmctl key generate [name]
   llmctl key list
   llmctl key revoke <id>
@@ -485,6 +492,57 @@ func cmdStop(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("stop returned %d", code)
 	}
+	return nil
+}
+
+func cmdRestart(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: llmctl restart <instance>")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Post("/api/v1/instances/"+args[0]+"/restart", nil)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(out))
+	if code != 200 {
+		return fmt.Errorf("restart returned %d", code)
+	}
+	return nil
+}
+
+// cmdLogs prints the tail of an instance's log (stderr by default).
+func cmdLogs(args []string) error {
+	fs := flag.NewFlagSet("logs", flag.ExitOnError)
+	stream := fs.String("stream", "stderr", "log stream: stderr|stdout")
+	tail := fs.Int("tail", 4000, "bytes to show from the end")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: llmctl logs <instance> [--stream stderr|stdout] [--tail N]")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("/api/v1/instances/%s/logs?stream=%s&bytes=%d",
+		fs.Arg(0), url.QueryEscape(*stream), *tail)
+	code, out, err := cc.Get(path)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("logs returned %d: %s", code, out)
+	}
+	var v struct {
+		Logs string `json:"logs"`
+	}
+	if err := json.Unmarshal(out, &v); err != nil {
+		return err
+	}
+	fmt.Print(v.Logs)
 	return nil
 }
 
