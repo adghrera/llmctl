@@ -16,6 +16,7 @@ export default function Models() {
   const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
   const [today, setToday] = useState<Record<string, { requests: number; cost: number }>>({});
   const [filter, setFilter] = useState("");
+  const [showStats, setShowStats] = useState(false); // per-backend rollup (CLI `models stats` parity, F634)
 
   useEffect(() => {
     api
@@ -432,6 +433,16 @@ export default function Models() {
       <div className="card">
         <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0 }}>Installed models</h2>
+          <div className="row" style={{ gap: 6 }}>
+          <button
+            className="btn sm"
+            aria-pressed={showStats}
+            disabled={models.length === 0}
+            title="group models per backend — CLI: llmctl models stats (F634)"
+            onClick={() => setShowStats(!showStats)}
+          >
+            {showStats ? "Show list" : "Stats"}
+          </button>
           <button
             className="btn sm"
             disabled={models.length === 0}
@@ -470,6 +481,7 @@ export default function Models() {
           >
             Export CSV
           </button>
+          </div>
         </div>
         <input
           className="input"
@@ -489,6 +501,43 @@ export default function Models() {
                     (m.path || "").toLowerCase().includes(low)
                 )
               : models;
+            if (showStats) {
+              // Same rollup as `llmctl models stats` (F634): one row per
+              // backend, sorted by total size.
+              const by = new Map<string, { models: number; running: number; size: number }>();
+              for (const m of shown) {
+                const g = by.get(m.backendId) ?? { models: 0, running: 0, size: 0 };
+                g.models++;
+                if (m.running) g.running++;
+                g.size += m.sizeBytes ?? 0;
+                by.set(m.backendId, g);
+              }
+              const rows = [...by.entries()].sort((a, b) => b[1].size - a[1].size);
+              return rows.length === 0 ? (
+                <p className="muted small">No models match “{filter}”.</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Backend</th>
+                      <th>Models</th>
+                      <th>Running</th>
+                      <th>Size</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(([backend, g]) => (
+                      <tr key={backend}>
+                        <td>{backend}</td>
+                        <td>{g.models}</td>
+                        <td>{g.running}</td>
+                        <td>{fmtBytes(g.size)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            }
             return shown.length === 0 ? (
             <p className="muted small">No models match “{filter}”.</p>
           ) : (
