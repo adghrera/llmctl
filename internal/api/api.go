@@ -1354,7 +1354,8 @@ func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
 		limit = n
 	}
 	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
-	writeJSON(w, 200, s.events.List(limit, kind))
+	model := strings.TrimSpace(r.URL.Query().Get("model"))
+	writeJSON(w, 200, s.events.List(limit, kind, model))
 }
 
 // recentRequests handles GET /api/v1/requests — the ring of recent gateway

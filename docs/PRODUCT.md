@@ -528,7 +528,7 @@ llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--js
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json]
 llmctl metrics [-watch N] [-json]  (-watch N: live refresh every N seconds)
-llmctl events [-n 20] [-watch N] [-json]
+llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json]
 llmctl webhooks [-n 20] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> | prompts render <id> [-input TEXT]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]

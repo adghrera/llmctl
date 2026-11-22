@@ -231,7 +231,7 @@ Usage:
   llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
-  llmctl events [-n 20] [-csv] [-json]
+  llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|prune|delete|delete-all …
@@ -3896,6 +3896,7 @@ func cmdEvents(args []string) error {
 	fs := flag.NewFlagSet("events", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of events")
 	kind := fs.String("kind", "", "only this event kind, e.g. instance.crashed")
+	model := fs.String("model", "", "only events for this model id (F345)")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new events until Ctrl-C (0 = print once)")
 	jsonOut := fs.Bool("json", false, "print the raw events JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
@@ -3907,6 +3908,9 @@ func cmdEvents(args []string) error {
 	u := "/api/v1/events?limit=" + strconv.Itoa(*n)
 	if *kind != "" {
 		u += "&kind=" + url.QueryEscape(*kind)
+	}
+	if *model != "" {
+		u += "&model=" + url.QueryEscape(*model)
 	}
 	if *jsonOut {
 		code, out, err := cc.Get(u)
