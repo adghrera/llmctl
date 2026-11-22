@@ -347,8 +347,8 @@ survives the periodic UI re-render.
 ```
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
 llmctl down
-llmctl status                      (version, uptime, running instances,
-                                    gateway auth, today's usage)
+llmctl status [-json]              (version, uptime, running instances,
+                                    gateway auth, today's usage; -json = raw)
 llmctl doctor                      (health sweep: state dir, backends, models,
                                     instances, gateway, backups; exit ≠0 on errors)
 llmctl ps                          (shows uptime and per-instance notes)
@@ -365,7 +365,7 @@ llmctl key generate|show|list|revoke|prune   (generate: -quota -maxreq -models -
 llmctl scheduler list|add|run|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv]
 llmctl backups [list|create|delete <name>]
-llmctl usage [-n 14] [-key ID | -keys]
+llmctl usage [-n 14] [-key ID | -keys] [--csv]
 llmctl metrics
 llmctl events [-n 20]
 llmctl chat [--model ID] [--key KEY]

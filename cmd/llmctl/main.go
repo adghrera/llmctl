@@ -100,7 +100,7 @@ func usage() {
 Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
   llmctl down
-  llmctl status
+  llmctl status [-json]
   llmctl doctor
   llmctl ps
   llmctl backends list
@@ -132,7 +132,7 @@ Usage:
   llmctl scheduler run|enable|disable|delete <id>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20]
   llmctl backups [list|create|delete <name>]
-  llmctl usage [-n 14] [-key ID]
+  llmctl usage [-n 14] [-key ID] [-keys] [--csv]
   llmctl metrics
   llmctl events [-n 20]
   llmctl chat [--model ID] [--key KEY]
@@ -200,6 +200,9 @@ func cmdDown(args []string) error {
 }
 
 func cmdStatus(args []string) error {
+	fs := flag.NewFlagSet("status", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw status JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
@@ -207,6 +210,11 @@ func cmdStatus(args []string) error {
 	code, out, err := cc.Get("/api/v1/status")
 	if err != nil {
 		return err
+	}
+	if *jsonOut {
+		fmt.Println(string(out))
+		_ = code
+		return nil
 	}
 	var st map[string]any
 	json.Unmarshal(out, &st)
@@ -1117,6 +1125,7 @@ func cmdUsage(args []string) error {
 	n := fs.Int("n", 14, "number of days")
 	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
 	keysFlag := fs.Bool("keys", false, "show daily usage for all keys instead of per-model")
+	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1199,6 +1208,24 @@ func cmdUsage(args []string) error {
 			days = append(days, d)
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(days)))
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"date", "key_id", "key_name", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"})
+			for _, day := range days {
+				ids := make([]string, 0, len(kd[day]))
+				for id := range kd[day] {
+					ids = append(ids, id)
+				}
+				sort.Strings(ids)
+				for _, id := range ids {
+					u := kd[day][id]
+					_ = w.Write([]string{day, id, names[id], strconv.FormatInt(u.Requests, 10), strconv.FormatInt(u.Errors, 10),
+						strconv.FormatInt(u.Prompt, 10), strconv.FormatInt(u.Comp, 10), strconv.FormatFloat(u.Cost, 'f', 6, 64)})
+				}
+			}
+			w.Flush()
+			return w.Error()
+		}
 		for _, day := range days {
 			ids := make([]string, 0, len(kd[day]))
 			for id := range kd[day] {
@@ -1246,6 +1273,25 @@ func cmdUsage(args []string) error {
 		days = append(days, d)
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(days)))
+	if *csvOut {
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"date", "model", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"})
+		for _, day := range days {
+			models := daily[day]
+			names := make([]string, 0, len(models))
+			for m := range models {
+				names = append(names, m)
+			}
+			sort.Strings(names)
+			for _, m := range names {
+				u := models[m]
+				_ = w.Write([]string{day, m, strconv.FormatInt(u.Requests, 10), strconv.FormatInt(u.Errors, 10),
+					strconv.FormatInt(u.Prompt, 10), strconv.FormatInt(u.Comp, 10), strconv.FormatFloat(u.Cost, 'f', 6, 64)})
+			}
+		}
+		w.Flush()
+		return w.Error()
+	}
 	for _, day := range days {
 		fmt.Printf("%s\n", day)
 		models := daily[day]
