@@ -234,7 +234,7 @@ Usage:
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|prune|delete|delete-all …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
@@ -1623,7 +1623,7 @@ var llmSubCommands = map[string]string{
 	"backends":  "list install uninstall add remove",
 	"backups":   "list create restore verify download delete",
 	"catalog":   "list install",
-	"chats":     "list show search export export-all fork rename pin unpin prune delete delete-all",
+	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
 	"files":     "list upload cat delete",
 	"kb":        "list show create update docs doc add-doc export search embed delete",
 	"key":       "generate show note enable disable rotate list revoke prune reset-usage",
@@ -4408,6 +4408,49 @@ func cmdChats(args []string) error {
 			return nil
 		}
 		fmt.Print(string(out))
+		return nil
+	}
+	if len(args) > 0 && args[0] == "import" {
+		// Re-import a `chats export` JSON file as a NEW chat (F368): the id
+		// is dropped so the store mints a fresh one, same convention as
+		// scheduler import (F326).
+		ifs := flag.NewFlagSet("chats import", flag.ExitOnError)
+		jsonOut := ifs.Bool("json", false, "print the saved chat JSON (for scripts)")
+		ifs.Parse(reorderFlags(args[1:]))
+		if ifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl chats import <file.json> [-json]")
+		}
+		b, err := os.ReadFile(ifs.Arg(0))
+		if err != nil {
+			return err
+		}
+		var conv map[string]any
+		if err := json.Unmarshal(b, &conv); err != nil {
+			return fmt.Errorf("import: %w", err)
+		}
+		delete(conv, "id")
+		delete(conv, "context") // recomputed server-side
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Post("/api/v1/chats", conv)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat import: %s", out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var saved struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		}
+		json.Unmarshal(out, &saved)
+		fmt.Printf("imported as chat %s (%s)\n", saved.ID, saved.Title)
 		return nil
 	}
 	if len(args) > 0 && args[0] == "fork" {

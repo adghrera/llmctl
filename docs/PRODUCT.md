@@ -311,6 +311,8 @@ toggle for a light theme (choice remembered). Tabs:
    `llmctl chats search <query> [-json]` full-text searches message content
    with match snippets, `chats export <id> [-md] [-out f]` and
    `chats export-all [-out DIR] [-md]` (bulk file export, F325),
+   `chats import <file.json>` re-imports an exported chat under a fresh id
+   (F368),
    `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
    `chats pin|unpin <id>` (pinned chats sort first, F310; the Chat page
    shows a 📌 marker and a Pin/Unpin button, F311),
