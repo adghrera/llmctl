@@ -209,7 +209,8 @@ toggle for a light theme (choice remembered). Tabs:
   labels models with free-form tags, shown as badges under the id and
   matched by the page filter (F662).
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
-  survive model swaps; the gateway advertises them in /v1/models. Optional
+  survive model swaps, with Export CSV/JSON on the Models page Aliases card
+  (F726); the gateway advertises them in /v1/models. Optional
   per-model USD pricing (`llmctl models price <id> <in> <out>`, or the
    Models page "Price $/M" column, F137) drives the
   per-key cost estimates (F102). A "Today" column shows each model's request

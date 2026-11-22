@@ -901,7 +901,46 @@ function AliasesCard() {
 
   return (
     <div className="card">
-      <h2>Aliases</h2>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ margin: 0 }}>Aliases</h2>
+        {aliases.length > 0 && (
+          <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              title="download the alias list as CSV — same columns as llmctl models aliases --csv (F726)"
+              onClick={() => {
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "alias,model",
+                  ...aliases.map((a) => [a.alias, a.model].map(esc).join(",")),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-aliases-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+            <button
+              className="btn sm"
+              title="download the alias list as JSON (CLI: llmctl models aliases -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(aliases, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-aliases-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
+          </div>
+        )}
+      </div>
       <p className="muted small" style={{ margin: "4px 0 12px" }}>
         Stable gateway names: send <span className="mono">model="chat"</span> and the
         gateway routes to the mapped model id, so clients survive model swaps.
