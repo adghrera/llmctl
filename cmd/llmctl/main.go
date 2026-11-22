@@ -269,7 +269,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
-  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json] | prompts categories [-json|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add [-json]|update [-json]|search|export|import [-json]|delete [-json] …
@@ -8762,6 +8762,10 @@ func cmdPrompts(args []string) error {
 		return nil
 	}
 	if len(args) > 0 && args[0] == "categories" {
+		cfs := flag.NewFlagSet("prompts categories", flag.ExitOnError)
+		cjson := cfs.Bool("json", false, "print the raw categories JSON (F595)")
+		cout := cfs.String("out", "", "write the categories JSON to this file instead of stdout (F595)")
+		cfs.Parse(reorderFlags(args[1:]))
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
@@ -8772,6 +8776,17 @@ func cmdPrompts(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("categories returned %d: %s", code, out)
+		}
+		if *cout != "" { // F595: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*cout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *cout, len(out))
+			return nil
+		}
+		if *cjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		var cats []string
 		if err := json.Unmarshal(out, &cats); err != nil {

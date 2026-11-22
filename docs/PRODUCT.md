@@ -351,7 +351,8 @@ toggle for a light theme (choice remembered). Tabs:
    `llmctl prompts show <id> [-out file]` and `llmctl prompts render <id> [-input TEXT |
    piped stdin] [-var k=v …] [-out file]` (renders the template with {{input}} and any
    {{k}} placeholders filled, for scripts; -out writes the rendered text to a file, F442)
-   and `llmctl prompts categories` (lists categories, one per line)
+   and `llmctl prompts categories [-json] [-out FILE]` (lists categories, one
+   per line; -json prints the raw array, -out writes it to a file, F595)
    (F218, F298, F304).
  - **Chat CLI** — `llmctl chats [filter] [-json] [-out FILE]` (or `chats list [filter]`)
    lists saved conversations (`--csv` exports the list, F378),
