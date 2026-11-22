@@ -343,7 +343,8 @@ llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
-llmctl key generate|list|revoke   (list shows usage, cost, quota, expiry, daily budget)
+llmctl key generate|list|revoke   (generate: -quota -maxreq -models -expires -budget -rps;
+                                    list shows usage, cost, quota, expiry, daily budget)
 llmctl scheduler list|add|run|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
 llmctl backups [list|create|delete <name>]

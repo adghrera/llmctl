@@ -1244,11 +1244,44 @@ func cmdKey(args []string) error {
 	}
 	switch sub {
 	case "generate":
+		fs := flag.NewFlagSet("key generate", flag.ExitOnError)
+		quota := fs.Int64("quota", 0, "token quota (0 = unlimited)")
+		maxReq := fs.Int64("maxreq", 0, "total request cap (0 = unlimited)")
+		models := fs.String("models", "", "comma-separated allowed model ids (empty = all)")
+		expires := fs.Int("expires", 0, "expire after N days (0 = never)")
+		budget := fs.Float64("budget", 0, "daily USD budget (0 = unlimited)")
+		rps := fs.Float64("rps", 0, "per-key rate limit, req/s (0 = gateway default)")
+		fs.Parse(reorderFlags(rest))
 		name := ""
-		if len(rest) > 0 {
-			name = rest[0]
+		if fs.NArg() > 0 {
+			name = fs.Arg(0)
 		}
-		code, out, err := cc.Post("/api/v1/keys", map[string]any{"name": name})
+		body := map[string]any{"name": name}
+		if *quota > 0 {
+			body["tokenQuota"] = *quota
+		}
+		if *maxReq > 0 {
+			body["maxRequests"] = *maxReq
+		}
+		if *models != "" {
+			list := []string{}
+			for _, m := range strings.Split(*models, ",") {
+				if m = strings.TrimSpace(m); m != "" {
+					list = append(list, m)
+				}
+			}
+			body["allowedModels"] = list
+		}
+		if *expires > 0 {
+			body["expiresInDays"] = *expires
+		}
+		if *budget > 0 {
+			body["dailyCostBudgetUSD"] = *budget
+		}
+		if *rps > 0 {
+			body["rateRPS"] = *rps
+		}
+		code, out, err := cc.Post("/api/v1/keys", body)
 		if err != nil {
 			return err
 		}
