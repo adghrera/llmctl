@@ -778,6 +778,9 @@ export default function Models() {
                         <button className="btn sm" title="open the Chat page with this model (twin of the Instances Chat link)">Chat</button>
                       </Link>
                     )}{" "}
+                    <Link to={`/requests?model=${encodeURIComponent(m.id)}`}>
+                      <button className="btn sm" title="gateway requests for this model (twin of the Instances Req link)">Req</button>
+                    </Link>{" "}
                     <button className="btn sm" disabled={busy || !m.downloaded} onClick={() => viewMeta(m.id)}>
                       {metaFor === m.id ? "Hide meta" : "Meta"}
                     </button>{" "}
