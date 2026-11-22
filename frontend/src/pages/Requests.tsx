@@ -50,6 +50,7 @@ export default function Requests() {
   const [fSince, setFSince] = useState("");
   const [fUntil, setFUntil] = useState("");
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [byDay, setByDay] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -182,9 +183,15 @@ export default function Requests() {
         )}
       </div>
       <p className="muted small" style={{ margin: "0 0 12px" }}>
-        Last {entries.length} gateway requests (ring of 256, newest first).
+        Last {entries.length} gateway requests (ring of 256, newest first).{" "}
+        {entries.length > 0 && (
+          <button className="btn sm" onClick={() => setByDay(!byDay)}>
+            {byDay ? "Hide by-day stats" : "By-day stats"}
+          </button>
+        )}
       </p>
       {entries.length > 0 && <StatsBar entries={entries} />}
+      {entries.length > 0 && byDay && <DayStats entries={entries} />}
       {entries.length === 0 ? (
         <div className="empty">no gateway requests yet</div>
       ) : (
@@ -327,5 +334,59 @@ function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
         Export CSV
       </button>
     </p>
+  );
+}
+
+// DayStats groups the visible ring by UTC day — the UI counterpart of
+// `llmctl requests -stats -by day` (F549). Same percentile index as the CLI.
+function DayStats({ entries }: { entries: RequestLogEntry[] }) {
+  const groups = new Map<string, RequestLogEntry[]>();
+  for (const e of entries) {
+    const d = e.time.slice(0, 10); // RFC3339 UTC → calendar day
+    const g = groups.get(d);
+    if (g) g.push(e);
+    else groups.set(d, [e]);
+  }
+  const days = [...groups.keys()].sort().reverse();
+  return (
+    <table style={{ marginBottom: 12 }}>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Reqs</th>
+          <th>Errors</th>
+          <th>P50</th>
+          <th>P95</th>
+          <th>In</th>
+          <th>Out</th>
+          <th>Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {days.map((d) => {
+          const es = groups.get(d)!;
+          const errors = es.filter((e) => e.status >= 400).length;
+          const lat = es.map((e) => e.latencyMs).sort((a, b) => a - b);
+          const pct = (p: number) => (lat.length ? lat[Math.floor(p * (lat.length - 1))] : 0);
+          const inTok = es.reduce((s, e) => s + e.promptTok, 0);
+          const outTok = es.reduce((s, e) => s + e.compTok, 0);
+          const cost = es.reduce((s, e) => s + (e.cost || 0), 0);
+          return (
+            <tr key={d}>
+              <td className="mono">{d}</td>
+              <td>{es.length}</td>
+              <td>
+                {errors > 0 ? <span className={`badge ${errors === es.length ? "err" : "warn"}`}>{errors}</span> : <span className="muted">0</span>}
+              </td>
+              <td>{pct(0.5).toFixed(0)} ms</td>
+              <td>{pct(0.95).toFixed(0)} ms</td>
+              <td className="muted">{inTok.toLocaleString()}</td>
+              <td className="muted">{outTok.toLocaleString()}</td>
+              <td className="mono">{cost ? `$${cost.toFixed(4)}` : "—"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
