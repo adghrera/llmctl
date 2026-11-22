@@ -211,7 +211,7 @@ Usage:
   llmctl models list [--csv] [-out FILE]
   llmctl models show <id> [-json] [-out FILE]
   llmctl models probe [-json] [-out FILE]
-  llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
+  llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-out FILE]
   llmctl models metadata <id> [-json] [-out FILE]
   llmctl models unused [--csv] [-out FILE]
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
@@ -2738,9 +2738,10 @@ func cmdModels(args []string) error {
 		return nil
 	case "idle":
 		ifs := flag.NewFlagSet("models idle", flag.ExitOnError)
+		iout := ifs.String("out", "", "write the raw response JSON to this file instead of stdout (F522)")
 		ifs.Parse(reorderFlags(rest))
 		if ifs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl models idle <id> <minutes|never>  (never = -1, 0 = global default)")
+			return fmt.Errorf("usage: llmctl models idle <id> <minutes|never> [-out FILE]  (never = -1, 0 = global default)")
 		}
 		n, err := strconv.Atoi(ifs.Arg(1))
 		if ifs.Arg(1) == "never" {
@@ -2755,6 +2756,13 @@ func cmdModels(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("idle returned %d: %s", code, outb)
+		}
+		if *iout != "" { // F522: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*iout, outb, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *iout, len(outb))
+			return nil
 		}
 		fmt.Printf("idleUnloadMin %d set for %s\n", n, ifs.Arg(0))
 		return nil
