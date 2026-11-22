@@ -276,7 +276,7 @@ Usage:
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
-  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|enable|disable [-json]|delete <id> [-json]
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
@@ -2343,7 +2343,7 @@ var llmSubCommands = map[string]string{
 	"prompts":   "list show render run categories add duplicate retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
-	"skills":    "list show add update export enable disable delete",
+	"skills":    "list show add update export retag enable disable delete",
 	"tools":     "list show install enable disable sandbox run delete",
 }
 
@@ -7452,7 +7452,7 @@ func cmdSkills(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "update", "export", "enable", "disable", "delete":
+		case "list", "show", "add", "update", "export", "retag", "enable", "disable", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -7563,6 +7563,79 @@ func cmdSkills(args []string) error {
 			return nil
 		}
 		fmt.Printf("skill %s updated\n", sufs.Arg(0))
+		return nil
+	case "retag":
+		// Bulk-rename or drop a tag across all skills (F663), twin of
+		// `memory retag`: fetch the list, PUT each manifest whose tags
+		// contain the old one.
+		rfs := flag.NewFlagSet("skills retag", flag.ExitOnError)
+		rm := rfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rjson := rfs.Bool("json", false, "print the count as JSON")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() < 1 || (!*rm && rfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl skills retag <old-tag> <new-tag> | skills retag -rm <tag> [-json]")
+		}
+		oldTag, newTag := rfs.Arg(0), rfs.Arg(1)
+		code, out, err := cc.Get("/api/v1/skills")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skills returned %d: %s", code, out)
+		}
+		var list []struct {
+			Manifest map[string]any `json:"manifest"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		changed := 0
+		for _, s := range list {
+			m := s.Manifest
+			if m == nil {
+				continue
+			}
+			raw, _ := json.Marshal(m["tags"])
+			var tags []string
+			_ = json.Unmarshal(raw, &tags)
+			found := false
+			var next []string
+			for _, t := range tags {
+				if t != oldTag {
+					next = append(next, t)
+					continue
+				}
+				found = true
+				if !*rm {
+					next = append(next, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			id, _ := m["id"].(string)
+			if id == "" {
+				continue
+			}
+			m["tags"] = next
+			code, out, err := cc.Put("/api/v1/skills/"+url.PathEscape(id), m)
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("skills retag %s: %s", id, out)
+			}
+			changed++
+		}
+		if *rjson {
+			fmt.Printf("{\"changed\":%d}\n", changed)
+			return nil
+		}
+		if *rm {
+			fmt.Printf("dropped tag %q from %d skill(s)\n", oldTag, changed)
+		} else {
+			fmt.Printf("renamed tag %q to %q on %d skill(s)\n", oldTag, newTag, changed)
+		}
 		return nil
 	case "list":
 		fs := flag.NewFlagSet("skills", flag.ExitOnError)
