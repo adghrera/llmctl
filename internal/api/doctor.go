@@ -14,6 +14,7 @@ import (
 	"llmctl/internal/disk"
 	"llmctl/internal/paths"
 	"llmctl/internal/store"
+	"llmctl/internal/webhook"
 )
 
 // doctorCheck is one diagnostic result (F146).
@@ -98,6 +99,36 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 			add("aliases", "warn", fmt.Sprintf("%d alias(es) point at unknown models: %v", len(dead), dead))
 		} else {
 			add("aliases", "ok", fmt.Sprintf("%d alias(es), all targets registered", len(st.Aliases)))
+		}
+	}
+
+	// Notify webhook: warn when recent deliveries to it are failing (F232).
+	if hook := strings.TrimSpace(st.Settings.NotifyWebhook); hook != "" {
+		var fails int
+		var total int
+		var lastErr string
+		for _, d := range webhook.History(50) {
+			if d.URL != hook {
+				continue
+			}
+			total++
+			if !d.OK {
+				fails++
+				if lastErr == "" { // History is newest-first
+					lastErr = d.Error
+				}
+			}
+		}
+		switch {
+		case total == 0:
+			add("webhook", "ok", "notify webhook configured, no deliveries yet")
+		case fails == 0:
+			add("webhook", "ok", fmt.Sprintf("notify webhook: %d recent deliveries, all ok", total))
+		default:
+			if len(lastErr) > 80 {
+				lastErr = lastErr[:80] + "…"
+			}
+			add("webhook", "warn", fmt.Sprintf("notify webhook: %d/%d recent deliveries failed (last error: %s)", fails, total, lastErr))
 		}
 	}
 

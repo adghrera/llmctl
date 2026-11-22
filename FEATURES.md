@@ -241,6 +241,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F229 | P3 | 229 | cli | `requests -stats -json` | COMPLETED | `llmctl requests -stats -json` emits the aggregate stats as JSON (counts, error rate, latency percentiles, tokens, cost); plain `-json` still prints the raw log. Verified live: both modes parse correctly. |
 | F230 | P3 | 230 | cli | `usage -model ID` | COMPLETED | `llmctl usage -model ID` filters the per-model daily table (and `-json` output, and the totals row) to one model. Verified live: table, filtered JSON and unfiltered JSON all correct. |
 | F231 | P3 | 231 | keys | `key show -json` + `key prune -dry-run` | COMPLETED | `key show <id> -json` prints the raw key view; `key prune -dry-run` (API `?dry=1`) lists expired keys without deleting. Verified live: show JSON parses, dry-run echoes `dry:true` and deletes nothing. |
+| F232 | P3 | 232 | doctor | Failing-webhook check | COMPLETED | `llmctl doctor` gained a "webhook" check: when a notify webhook is configured, reports recent delivery health from the webhook log and warns on failures (with the last error). Verified live: ok (no deliveries / all ok) and warn (dead port) paths. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
