@@ -28,6 +28,7 @@ export default function Keys() {
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -205,6 +206,16 @@ export default function Keys() {
     }
   };
 
+  const low = filter.trim().toLowerCase();
+  const shownKeys = low
+    ? keys.filter(
+        (k) =>
+          (k.name || "").toLowerCase().includes(low) ||
+          (k.id || "").toLowerCase().includes(low) ||
+          (k.prefix || "").toLowerCase().includes(low)
+      )
+    : keys;
+
   return (
     <>
       <div className="card">
@@ -314,6 +325,13 @@ export default function Keys() {
       </div>
       <div className="card">
         <h2>API keys</h2>
+        <input
+          className="input"
+          placeholder="Filter by name, id or prefix…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          style={{ width: "100%", margin: "4px 0 10px" }}
+        />
         {keys.some((k) => k.expiresAt && new Date(k.expiresAt).getTime() < Date.now()) && (
           <p style={{ margin: "0 0 10px" }}>
             <button className="btn sm danger" disabled={busy} onClick={pruneExpired}>
@@ -325,6 +343,9 @@ export default function Keys() {
           </p>
         )}
         {keys.length ? (
+          shownKeys.length === 0 ? (
+            <p className="muted small">No keys match “{filter}”.</p>
+          ) : (
           <table>
             <thead>
               <tr>
@@ -338,7 +359,7 @@ export default function Keys() {
               </tr>
             </thead>
             <tbody>
-              {keys.map((k) => (
+              {shownKeys.map((k) => (
                 <tr key={k.id} style={k.disabled ? { opacity: 0.55 } : undefined}>
                   <td>
                     {renameFor === k.id ? (
@@ -584,6 +605,7 @@ export default function Keys() {
               ))}
             </tbody>
           </table>
+          )
         ) : (
           <div className="empty">no API keys</div>
         )}

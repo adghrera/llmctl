@@ -376,7 +376,7 @@ toggle for a light theme (choice remembered). Tabs:
   until the quota is raised. Usage counters persist across restarts and are
   tracked per key id, so keys that share a visible prefix never share usage
   (F109). Keys page shows usage and estimated cost, today's per-key usage
-  (F127), and links each key to its
+  (F127), a live text filter (name/id/prefix, F335), and links each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed
   inline (F140) and carry a free-text note edited inline or via
   `llmctl key note <id> <text>` (F186). `llmctl key update <id>` edits any
