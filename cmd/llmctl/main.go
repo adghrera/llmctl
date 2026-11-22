@@ -251,7 +251,7 @@ Usage:
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-out FILE] | webhooks test   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
-  llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json|-csv|-out FILE] | tools show|install|enable|disable|run|delete <id>
@@ -5484,6 +5484,7 @@ func cmdSkills(args []string) error {
 		fs := flag.NewFlagSet("skills", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the skills as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the skill list as CSV (F384)")
+		outFile := fs.String("out", "", "write the skills JSON to this file instead of stdout (F489)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/skills")
 		if err != nil {
@@ -5530,10 +5531,18 @@ func cmdSkills(args []string) error {
 			}
 			list = keep
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F489)
 			b, err := json.Marshal(list)
 			if err != nil {
 				return err
+			}
+			if *outFile != "" {
+				b = append(b, '\n')
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
 			}
 			fmt.Println(string(b))
 			return nil
