@@ -514,9 +514,16 @@ func cmdModels(args []string) error {
 	}
 	switch sub {
 	case "list":
+		fs := flag.NewFlagSet("models list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw models JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/models")
 		if err != nil {
 			return err
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var list []struct {
 			ID        string  `json:"id"`
