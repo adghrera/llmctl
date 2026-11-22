@@ -236,7 +236,7 @@ Usage:
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...> [-json]
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
-  llmctl key disable <id> / llmctl key enable <id>
+  llmctl key disable <id> [-json] / llmctl key enable <id> [-json]
   llmctl key rotate <id> [-json] [-out FILE]
   llmctl key list [--csv] [-out FILE]
   llmctl key revoke <id>
@@ -2483,12 +2483,12 @@ func cmdModels(args []string) error {
 	case "rename":
 		rnfs := flag.NewFlagSet("models rename", flag.ExitOnError)
 		rnjson := rnfs.Bool("json", false, "print the raw response JSON (F523)")
-		rnfs.Parse(reorderFlags(rest[2:]))
-		if len(rest) < 2 {
+		rnfs.Parse(reorderFlags(rest))
+		if rnfs.NArg() < 2 {
 			return fmt.Errorf("usage: llmctl models rename <id> <new-id> [-json]")
 		}
-		code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(rest[0])+"/rename",
-			map[string]any{"newId": rest[1]})
+		code, out, err := cc.Do("PATCH", "/api/v1/models/"+url.PathEscape(rnfs.Arg(0))+"/rename",
+			map[string]any{"newId": rnfs.Arg(1)})
 		if err != nil {
 			return err
 		}
@@ -2499,7 +2499,7 @@ func cmdModels(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Printf("model %s renamed to %s\n", rest[0], rest[1])
+		fmt.Printf("model %s renamed to %s\n", rnfs.Arg(0), rnfs.Arg(1))
 		return nil
 	case "add":
 		afs := flag.NewFlagSet("models add", flag.ExitOnError)
@@ -2860,11 +2860,11 @@ func cmdModels(args []string) error {
 	case "alias":
 		afs := flag.NewFlagSet("models alias", flag.ExitOnError)
 		ajson := afs.Bool("json", false, "print the raw response JSON (F519)")
-		afs.Parse(reorderFlags(rest[2:]))
-		if afs.NArg()+2 < 2 {
+		afs.Parse(reorderFlags(rest))
+		if afs.NArg() < 2 {
 			return fmt.Errorf("usage: llmctl models alias <name> <model-id> [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/aliases", map[string]string{"alias": rest[0], "model": rest[1]})
+		code, out, err := cc.Post("/api/v1/aliases", map[string]string{"alias": afs.Arg(0), "model": afs.Arg(1)})
 		if err != nil {
 			return err
 		}
@@ -2875,16 +2875,16 @@ func cmdModels(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Printf("alias %s -> %s\n", rest[0], rest[1])
+		fmt.Printf("alias %s -> %s\n", afs.Arg(0), afs.Arg(1))
 		return nil
 	case "unalias":
 		ufs := flag.NewFlagSet("models unalias", flag.ExitOnError)
 		ujson := ufs.Bool("json", false, "print the raw response JSON (F519)")
-		ufs.Parse(reorderFlags(rest[1:]))
-		if ufs.NArg()+1 == 0 {
+		ufs.Parse(reorderFlags(rest))
+		if ufs.NArg() == 0 {
 			return fmt.Errorf("usage: llmctl models unalias <name> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/aliases/" + url.PathEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/aliases/" + url.PathEscape(ufs.Arg(0)))
 		if err != nil {
 			return err
 		}
@@ -2895,7 +2895,7 @@ func cmdModels(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Printf("removed alias %s\n", rest[0])
+		fmt.Printf("removed alias %s\n", ufs.Arg(0))
 		return nil
 	case "show":
 		sfs := flag.NewFlagSet("models show", flag.ExitOnError)
@@ -3010,16 +3010,16 @@ func cmdModels(args []string) error {
 	case "ctx":
 		cfs := flag.NewFlagSet("models ctx", flag.ExitOnError)
 		cout := cfs.String("out", "", "write the raw response JSON to this file instead of stdout (F521)")
-		cfs.Parse(reorderFlags(rest[2:]))
-		if len(rest) == 0 {
+		cfs.Parse(reorderFlags(rest))
+		if cfs.NArg() == 0 {
 			return fmt.Errorf("usage: llmctl models ctx <model-id> <tokens|0> [-out FILE]  (0 = backend default)")
 		}
-		id := rest[0]
+		id := cfs.Arg(0)
 		n := 0
-		if len(rest) > 1 {
-			v, err := strconv.Atoi(rest[1])
+		if cfs.NArg() > 1 {
+			v, err := strconv.Atoi(cfs.Arg(1))
 			if err != nil {
-				return fmt.Errorf("invalid token count: %s", rest[1])
+				return fmt.Errorf("invalid token count: %s", cfs.Arg(1))
 			}
 			n = v
 		}
@@ -3042,19 +3042,19 @@ func cmdModels(args []string) error {
 	case "price":
 		pfs := flag.NewFlagSet("models price", flag.ExitOnError)
 		pout := pfs.String("out", "", "write the raw response JSON to this file instead of stdout (F520)")
-		pfs.Parse(reorderFlags(rest[3:]))
-		if len(rest) < 3 {
+		pfs.Parse(reorderFlags(rest))
+		if pfs.NArg() < 3 {
 			return fmt.Errorf("usage: llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]  (USD, 0 = free)")
 		}
-		inP, err := strconv.ParseFloat(rest[1], 64)
+		inP, err := strconv.ParseFloat(pfs.Arg(1), 64)
 		if err != nil {
-			return fmt.Errorf("invalid price: %s", rest[1])
+			return fmt.Errorf("invalid price: %s", pfs.Arg(1))
 		}
-		outP, err := strconv.ParseFloat(rest[2], 64)
+		outP, err := strconv.ParseFloat(pfs.Arg(2), 64)
 		if err != nil {
-			return fmt.Errorf("invalid price: %s", rest[2])
+			return fmt.Errorf("invalid price: %s", pfs.Arg(2))
 		}
-		code, out, err := cc.Do("PATCH", "/api/v1/models/"+urlEscape(rest[0])+"/price",
+		code, out, err := cc.Do("PATCH", "/api/v1/models/"+urlEscape(pfs.Arg(0))+"/price",
 			map[string]any{"priceInPerM": inP, "priceOutPerM": outP})
 		if err != nil {
 			return err
@@ -8457,12 +8457,12 @@ func cmdKey(args []string) error {
 	case "note":
 		knfs := flag.NewFlagSet("key note", flag.ExitOnError)
 		knjson := knfs.Bool("json", false, "print the raw response JSON (F528)")
-		knfs.Parse(reorderFlags(rest[1:]))
-		if len(rest) == 0 {
+		knfs.Parse(reorderFlags(rest))
+		if knfs.NArg() == 0 {
 			return fmt.Errorf("usage: llmctl key note <id> <text...> [-json]  (empty text clears)")
 		}
-		note := strings.TrimSpace(strings.Join(rest[1:], " "))
-		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(rest[0]), map[string]any{"note": note})
+		note := strings.TrimSpace(strings.Join(knfs.Args()[1:], " "))
+		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(knfs.Arg(0)), map[string]any{"note": note})
 		if err != nil {
 			return err
 		}
@@ -8480,18 +8480,25 @@ func cmdKey(args []string) error {
 		}
 		return nil
 	case "disable", "enable":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl key %s <id>", sub)
+		keds := flag.NewFlagSet("key "+sub, flag.ExitOnError)
+		kejson := keds.Bool("json", false, "print the raw response JSON (F535)")
+		keds.Parse(reorderFlags(rest))
+		if keds.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl key %s <id> [-json]", sub)
 		}
 		disabled := sub == "disable"
-		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(rest[0]), map[string]any{"disabled": disabled})
+		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(keds.Arg(0)), map[string]any{"disabled": disabled})
 		if err != nil {
 			return err
 		}
 		if code != 200 {
 			return fmt.Errorf("key %s returned %d: %s", sub, code, out)
 		}
-		fmt.Printf("key %s %sd\n", rest[0], sub)
+		if *kejson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("key %s %sd\n", keds.Arg(0), sub)
 		return nil
 	case "list":
 		fs := flag.NewFlagSet("key list", flag.ExitOnError)
@@ -8883,11 +8890,11 @@ func cmdAutoStart(args []string) error {
 	case "remove":
 		rmfs := flag.NewFlagSet("autostart remove", flag.ExitOnError)
 		rmjson := rmfs.Bool("json", false, "print the raw response JSON (F527)")
-		rmfs.Parse(reorderFlags(rest[1:]))
-		if rmfs.NArg()+1 == 0 {
+		rmfs.Parse(reorderFlags(rest))
+		if rmfs.NArg() == 0 {
 			return fmt.Errorf("usage: llmctl autostart remove <model> [-json]")
 		}
-		code, out, err := cc.Delete("/api/v1/autostart/" + urlEscape(rest[0]))
+		code, out, err := cc.Delete("/api/v1/autostart/" + urlEscape(rmfs.Arg(0)))
 		if err != nil {
 			return err
 		}
@@ -8898,7 +8905,7 @@ func cmdAutoStart(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Printf("auto-start removed for %q\n", rest[0])
+		fmt.Printf("auto-start removed for %q\n", rmfs.Arg(0))
 		return nil
 	default:
 		return fmt.Errorf("unknown autostart subcommand: %s", sub)
