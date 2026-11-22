@@ -93,6 +93,21 @@ export default function Backends() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={backends.length === 0}
+            title="download the backends list as JSON (CLI: llmctl backends list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(backends, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-backends-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
           <button className="btn" onClick={() => setShowPlugin((s) => !s)}>
             {showPlugin ? "Cancel" : "+ Add plugin backend"}
           </button>

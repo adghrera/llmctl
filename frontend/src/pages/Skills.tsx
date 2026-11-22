@@ -233,6 +233,21 @@ export default function Skills() {
           </button>
           <button
             className="btn sm"
+            disabled={skills.length === 0}
+            title="download the skills list as JSON (CLI: llmctl skills list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(skills, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-skills-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
+          <button
+            className="btn sm"
             title="import a skill manifest JSON (CLI: llmctl skills export → skills add)"
             onClick={() => importFileRef.current?.click()}
           >

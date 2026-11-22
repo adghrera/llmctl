@@ -151,6 +151,21 @@ export default function Tools() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={tools.length === 0}
+            title="download the tools list as JSON (CLI: llmctl tools list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(tools, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-tools-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
         </div>
         {tools.length === 0 && <p style={{ opacity: 0.7 }}>No tools installed yet.</p>}
         {tools.map((t) => {

@@ -190,7 +190,8 @@ toggle for a light theme (choice remembered). Tabs:
   `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON),
   remove plugin registrations with a per-row Remove button (CLI twin of
-  `llmctl backends remove`, F658), Export CSV on the list (F404).
+  `llmctl backends remove`, F658), Export CSV and Export JSON on the list
+  (F404, F715).
 - **Models** — HuggingFace search + file picker, download with live progress.
   The installed-models table has a live text filter (id/backend/path, F332)
   and a tag dropdown filtering by exact tag (UI twin of `models list -tag`,
@@ -313,7 +314,7 @@ toggle for a light theme (choice remembered). Tabs:
   (container, no network, memory & PID caps) by default; a per-tool toggle
   opts out to host execution. List, enable/disable, test-run with args, and
   uninstall. Enabled tools join the agent's tool set in Chat. The Tools page
-  has an Export CSV button on the installed list (F396).
+  has Export CSV and Export JSON buttons on the installed list (F396, F715).
 - **MCP servers** — add Model Context Protocol servers launched as local
   processes (command + args). llmctl performs the MCP handshake, lists each
   server's tools, and offers them to the agent as
@@ -326,7 +327,8 @@ toggle for a light theme (choice remembered). Tabs:
   description, prompt template (with {{input}} and {{conversation}} placeholders),
   tags, and an enabled flag. Stored as directories at
   `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable
-  and an Export CSV button on the installed list (F395), per-skill Export JSON
+  and Export CSV / Export JSON buttons on the installed list (F395, F715),
+  per-skill Export JSON
   (manifest, CLI parity) and an Import JSON button on the list (F415).
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
