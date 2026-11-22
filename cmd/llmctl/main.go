@@ -220,7 +220,7 @@ Usage:
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
-  llmctl logs -daemon [--tail N] [-out FILE] [-f]
+  llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
   llmctl key show <id> [-json] [-out FILE]
   llmctl key note <id> <text...>
@@ -3189,6 +3189,7 @@ func cmdLogs(args []string) error {
 	outFile := fs.String("out", "", "with an instance: download the full log file to this path (F292)")
 	follow := fs.Bool("f", false, "keep printing new log bytes until Ctrl-C (F316)")
 	interval := fs.Int("interval", 1, "with -f: poll every N seconds")
+	jsonOut := fs.Bool("json", false, "with -daemon: print the raw {size,logs} JSON (F517)")
 	fs.Parse(reorderFlags(args))
 	if *daemonFlag {
 		cc, err := daemon.NewControlClient()
@@ -3215,6 +3216,14 @@ func cmdLogs(args []string) error {
 		size, logs, err := fetch()
 		if err != nil {
 			return err
+		}
+		if *jsonOut { // F517: raw {size,logs} JSON for scripts
+			b, err := json.Marshal(map[string]any{"size": size, "logs": logs})
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
 		}
 		if *outFile != "" { // F516: write the tail to a file, stdout stays clean
 			if err := os.WriteFile(*outFile, []byte(logs), 0o644); err != nil {
