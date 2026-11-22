@@ -421,6 +421,7 @@ llmctl status [-json] [-watch N]   (-watch N: live refresh; -json: raw; version,
 llmctl doctor [-json] [-quiet] [-check NAME]...    (-quiet prints only warn/error lines + a summary;
 llmctl gpu [-json]                                 (GPU inventory: vendor, name, used/total)
 llmctl jobs [-json] [-watch N]                     (background install jobs, F273)
+llmctl search <query> [-max N] [-json]             (keyless web search, F274)
 llmctl disk [-json]                                (model dir + volume disk usage)
                                     health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is

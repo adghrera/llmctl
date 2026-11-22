@@ -58,6 +58,8 @@ func main() {
 		err = cmdMaxParallel(args)
 	case "jobs":
 		err = cmdJobs(args)
+	case "search":
+		err = cmdWebSearch(args)
 	case "note":
 		err = cmdNote(args)
 	case "autorestart":
@@ -149,6 +151,7 @@ Usage:
   llmctl doctor [-json] [-quiet] [-check NAME]...
   llmctl gpu [-json]
   llmctl jobs [-json] [-watch N]
+  llmctl search <query> [-max N] [-json]
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -919,6 +922,58 @@ func cmdJobs(args []string) error {
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
 	}
+}
+
+// cmdWebSearch runs the daemon's keyless web search (GET /api/v1/search, F274).
+func cmdWebSearch(args []string) error {
+	fs := flag.NewFlagSet("search", flag.ExitOnError)
+	max := fs.Int("max", 5, "max results")
+	jsonOut := fs.Bool("json", false, "print the raw search JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: llmctl search <query> [-max N] [-json]")
+	}
+	q := strings.Join(fs.Args(), " ")
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/search?q=" + url.QueryEscape(q) + "&max=" + strconv.Itoa(*max))
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("search: %s", out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var res struct {
+		Results []struct {
+			Title   string `json:"title"`
+			URL     string `json:"url"`
+			Snippet string `json:"snippet"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	if len(res.Results) == 0 {
+		fmt.Printf("no results for %q\n", q)
+		return nil
+	}
+	for i, r := range res.Results {
+		sn := strings.TrimSpace(strings.ReplaceAll(r.Snippet, "\n", " "))
+		if len(sn) > 120 {
+			sn = sn[:120] + "…"
+		}
+		fmt.Printf("%d. %s\n   %s\n", i+1, r.Title, r.URL)
+		if sn != "" {
+			fmt.Printf("   %s\n", sn)
+		}
+	}
+	return nil
 }
 
 func cmdPS(args []string) error {
