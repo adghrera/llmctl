@@ -430,7 +430,9 @@ toggle for a light theme (choice remembered). Tabs:
    `tools install <dir>` installs a local pack, `tools show <id> [-out FILE]|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`;
    `-out FILE` writes the result to a file, F458)
-   execute one from the shell (F248, F250, F338).
+   execute one from the shell (F248, F250, F338); `tools sandbox <id> <on|off>`
+   toggles sandboxed execution for python tools — CLI twin of the Tools page
+   toggle (F653).
  - **MCP CLI** — `llmctl mcp [-json] [-csv]` lists configured MCP servers
    (`--csv` exports id,name,enabled,command, F403);
    `mcp add <name> <command> [-args 'a b'] [-out FILE]` (-out writes the raw created-server JSON, F511), `mcp remove|enable|disable <id>`,

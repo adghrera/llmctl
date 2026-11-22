@@ -276,7 +276,7 @@ Usage:
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
-  llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|run|delete <id> [-json]
+  llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list]
@@ -2341,7 +2341,7 @@ var llmSubCommands = map[string]string{
 	"scheduler": "list show add duplicate update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
 	"skills":    "list show add update export enable disable delete",
-	"tools":     "list show install enable disable run delete",
+	"tools":     "list show install enable disable sandbox run delete",
 }
 
 // llmIDSources maps a top-level command to a shell pipeline that prints its
@@ -8709,7 +8709,7 @@ func cmdTools(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "install", "enable", "disable", "run", "delete":
+		case "list", "show", "install", "enable", "disable", "sandbox", "run", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -8867,6 +8867,33 @@ func cmdTools(args []string) error {
 			return nil
 		}
 		fmt.Printf("%sd tool %s\n", sub, teds.Arg(0))
+		return nil
+	case "sandbox":
+		// Toggle sandboxed execution for a python tool (POST sandbox, F653),
+		// the CLI twin of the Tools page sandbox toggle.
+		tsfs := flag.NewFlagSet("tools sandbox", flag.ExitOnError)
+		tsjson := tsfs.Bool("json", false, "print the raw response JSON")
+		tsfs.Parse(reorderFlags(rest))
+		if tsfs.NArg() != 2 {
+			return fmt.Errorf("usage: llmctl tools sandbox <id> <on|off> [-json]")
+		}
+		s := strings.ToLower(tsfs.Arg(1))
+		if s != "on" && s != "off" {
+			return fmt.Errorf("expected on or off, got %q", tsfs.Arg(1))
+		}
+		code, out, err := cc.Post("/api/v1/tools/"+url.PathEscape(tsfs.Arg(0))+"/sandbox",
+			map[string]any{"sandbox": s == "on"})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("tools sandbox returned %d: %s", code, out)
+		}
+		if *tsjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		fmt.Printf("tool %s sandbox %s\n", tsfs.Arg(0), s)
 		return nil
 	case "run":
 		rfs := flag.NewFlagSet("tools run", flag.ExitOnError)
