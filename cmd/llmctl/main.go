@@ -185,6 +185,7 @@ Usage:
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json]
   llmctl models unused
+  llmctl models routable [-key K] [-json]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID]
   llmctl models aliases
   llmctl models alias <name> <model-id>
@@ -1889,7 +1890,7 @@ func cmdBackends(args []string) error {
 
 func cmdModels(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl models <list|show|add|rename|probe|price|ctx|idle|metadata|install|remove|hf-search|hf-files>")
+		return fmt.Errorf("usage: llmctl models <list|show|add|rename|probe|price|ctx|idle|metadata|install|remove|routable|hf-search|hf-files>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1897,6 +1898,52 @@ func cmdModels(args []string) error {
 		return err
 	}
 	switch sub {
+	case "routable":
+		// Show what the gateway advertises to OpenAI-compatible clients
+		// (GET /v1/models): running models + aliases, subject to the key's
+		// allowlist — debug "my client can't see the model" (F337).
+		rfs := flag.NewFlagSet("models routable", flag.ExitOnError)
+		keyF := rfs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled)")
+		rjson := rfs.Bool("json", false, "print the raw /v1/models JSON")
+		rfs.Parse(reorderFlags(rest))
+		req, err := http.NewRequest(http.MethodGet, cc.Base+"/v1/models", nil)
+		if err != nil {
+			return err
+		}
+		if *keyF != "" {
+			req.Header.Set("Authorization", "Bearer "+*keyF)
+		}
+		resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("gateway /v1/models returned %d: %s", resp.StatusCode, string(body))
+		}
+		if *rjson {
+			fmt.Print(string(body))
+			return nil
+		}
+		var parsed struct {
+			Data []struct {
+				ID      string `json:"id"`
+				OwnedBy string `json:"owned_by"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &parsed); err != nil {
+			return err
+		}
+		if len(parsed.Data) == 0 {
+			fmt.Println("gateway advertises no models (start an instance or check the key's allowlist)")
+			return nil
+		}
+		fmt.Printf("gateway advertises %d model(s):\n", len(parsed.Data))
+		for _, m := range parsed.Data {
+			fmt.Printf("  %-24s %s\n", m.ID, m.OwnedBy)
+		}
+		return nil
 	case "rename":
 		if len(rest) < 2 {
 			return fmt.Errorf("usage: llmctl models rename <id> <new-id>")

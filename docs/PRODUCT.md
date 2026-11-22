@@ -498,6 +498,7 @@ llmctl models rename <id> <new-id>                    (change a model id; aliase
                                     remove --file also deletes a registered external file)
 llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180)
 llmctl models probe [-json]                          (what /v1/models serves now, F252)
+llmctl models routable [-key K] [-json]              (what /v1/models serves for one key, via the gateway — reflects the key's allowlist, F337)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
 llmctl models metadata <id> [-json]                     (GGUF header metadata, F268)
 llmctl models unused                                    (models with no instance + reclaimable size, F280)
