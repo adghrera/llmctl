@@ -9,6 +9,38 @@ export default function Prompts() {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [copied, setCopied] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [nf, setNf] = useState({ id: "", name: "", category: "", description: "", content: "" });
+
+  const createTemplate = async () => {
+    if (!nf.id || !nf.name || !nf.content) {
+      err("id, name and content are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.createPrompt(nf);
+      ok(`template ${nf.id} created`);
+      setAdding(false);
+      setNf({ id: "", name: "", category: "", description: "", content: "" });
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+    setBusy(false);
+  };
+
+  const deleteTemplate = async (id: string) => {
+    if (!window.confirm(`Delete custom prompt ${id}?`)) return;
+    try {
+      await api.deletePrompt(id);
+      ok("template deleted");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const load = async () => {
     try {
@@ -72,8 +104,58 @@ export default function Prompts() {
           >
             All
           </button>
+          <button className="btn sm primary" onClick={() => setAdding(!adding)}>
+            {adding ? "Cancel" : "New template"}
+          </button>
         </div>
       </div>
+
+      {adding && (
+        <div className="card">
+          <h2>New custom template</h2>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <input
+              className="input"
+              placeholder="id (lowercase, dashes)"
+              value={nf.id}
+              onChange={(e) => setNf({ ...nf, id: e.target.value })}
+              style={{ width: 180 }}
+            />
+            <input
+              className="input"
+              placeholder="name"
+              value={nf.name}
+              onChange={(e) => setNf({ ...nf, name: e.target.value })}
+              style={{ width: 180 }}
+            />
+            <input
+              className="input"
+              placeholder="category (optional)"
+              value={nf.category}
+              onChange={(e) => setNf({ ...nf, category: e.target.value })}
+              style={{ width: 160 }}
+            />
+            <input
+              className="input"
+              placeholder="description (optional)"
+              value={nf.description}
+              onChange={(e) => setNf({ ...nf, description: e.target.value })}
+              style={{ width: 240 }}
+            />
+          </div>
+          <textarea
+            className="input"
+            placeholder="template text — use {{input}} as the placeholder"
+            value={nf.content}
+            onChange={(e) => setNf({ ...nf, content: e.target.value })}
+            rows={4}
+            style={{ width: "100%", fontFamily: "monospace", fontSize: 12, marginBottom: 8 }}
+          />
+          <button className="btn primary" disabled={busy} onClick={createTemplate}>
+            Create template
+          </button>
+        </div>
+      )}
 
       <div className="card">
         <h2>Templates ({filtered.length})</h2>
@@ -107,6 +189,19 @@ export default function Prompts() {
               >
                 {t.category}
               </span>
+              {t.custom && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    opacity: 0.8,
+                    background: "rgba(80,160,255,0.15)",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                  }}
+                >
+                  custom
+                </span>
+              )}
             </div>
             {t.description && (
               <div style={{ opacity: 0.75, fontSize: 13, marginBottom: 6 }}>
@@ -143,6 +238,11 @@ export default function Prompts() {
             >
               Insert into chat
             </button>
+            {t.custom && (
+              <button className="btn sm danger" onClick={() => deleteTemplate(t.id)}>
+                Delete
+              </button>
+            )}
           </div>
         ))}
       </div>

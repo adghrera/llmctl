@@ -284,6 +284,7 @@ export interface PromptTemplate {
   description: string;
   category: string;
   content: string;
+  custom?: boolean;
 }
 
 export interface ChatMessage {
@@ -763,6 +764,10 @@ export const api = {
   setScheduleEnabled: (id: string, enabled: boolean) =>
     req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   prompts: () => req<PromptTemplate[]>("/prompts"),
+  createPrompt: (body: { id: string; name: string; category?: string; description?: string; content: string }) =>
+    req<PromptTemplate>("/prompts", { method: "POST", body: JSON.stringify(body) }),
+  deletePrompt: (id: string) =>
+    req<{ ok: boolean }>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),
   promptCategories: () => req<string[]>("/prompts/categories"),
   prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),
   presets: () => req<PresetSpec[]>("/presets"),

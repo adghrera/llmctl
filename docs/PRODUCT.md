@@ -267,7 +267,8 @@ toggle for a light theme (choice remembered). Tabs:
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
   in internal/prompt/templates.go, plus user-defined custom templates stored
   in state (F306): POST/DELETE /api/v1/prompts, merged into the list with a
-  `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts delete <id>`.
+  `custom` flag; CLI `prompts add <id> -name N [-content T]` / `prompts delete <id>`;
+  the Prompts page has a New-template form and per-custom-entry Delete (F307).
   REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering, copy-to-clipboard, and an "Insert into chat"
