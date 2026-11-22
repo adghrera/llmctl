@@ -5174,9 +5174,10 @@ func cmdChats(args []string) error {
 		// scheduler import (F326).
 		ifs := flag.NewFlagSet("chats import", flag.ExitOnError)
 		jsonOut := ifs.Bool("json", false, "print the saved chat JSON (for scripts)")
+		outFile := ifs.String("out", "", "write the saved chat JSON to this file instead of stdout (F510)")
 		ifs.Parse(reorderFlags(args[1:]))
 		if ifs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl chats import <file.json> [-json]")
+			return fmt.Errorf("usage: llmctl chats import <file.json> [-json] [-out FILE]")
 		}
 		b, err := os.ReadFile(ifs.Arg(0))
 		if err != nil {
@@ -5198,6 +5199,13 @@ func cmdChats(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("chat import: %s", out)
+		}
+		if *outFile != "" { // F510: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
