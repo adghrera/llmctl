@@ -12719,6 +12719,7 @@ func cmdChat(args []string) error {
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
+	tagsFlag := fs.String("tags", "", "with -save: comma-separated tags for the new chat (F687)")
 	contChat := fs.String("chat", "", "continue this saved chat — its history is sent and the reply appended (one-shot and REPL; F297, REPL F685)")
 	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312; REPL too, F685)")
 	kbFlag := fs.String("kb", "", "prepend the top knowledge-base matches as context (one-shot and REPL; comma-separated ids search all and merge, like the Chat UI; F302, F666, F667)")
@@ -12891,6 +12892,7 @@ func cmdChat(args []string) error {
 			}
 			fmt.Fprintf(os.Stderr, "continuing chat %s\n", *contChat)
 		}
+		var contTags []string // kept so continuing a chat doesn't wipe its tags (F687)
 		if *contChat != "" {
 			code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(*contChat))
 			if err != nil {
@@ -12900,7 +12902,8 @@ func cmdChat(args []string) error {
 				return fmt.Errorf("chat %s: %s", *contChat, out)
 			}
 			var ch struct {
-				Title    string `json:"title"`
+				Title    string   `json:"title"`
+				Tags     []string `json:"tags"`
 				Messages []struct {
 					Role    string `json:"role"`
 					Content string `json:"content"`
@@ -12909,7 +12912,7 @@ func cmdChat(args []string) error {
 			if err := json.Unmarshal(out, &ch); err != nil {
 				return err
 			}
-			contTitle = ch.Title
+			contTitle, contTags = ch.Title, ch.Tags
 			for _, m := range ch.Messages {
 				hist = append(hist, map[string]any{"role": m.Role, "content": m.Content})
 				contMsgs = append(contMsgs, map[string]string{"role": m.Role, "content": m.Content})
@@ -13009,6 +13012,7 @@ func cmdChat(args []string) error {
 				"title":    contTitle,
 				"model":    model,
 				"messages": msgs,
+				"tags":     contTags, // don't wipe the chat's tags on continue (F687)
 			})
 			if err != nil {
 				return err
@@ -13025,11 +13029,21 @@ func cmdChat(args []string) error {
 				msgs = append(msgs, map[string]string{"role": fmt.Sprint(h["role"]), "content": fmt.Sprint(h["content"])})
 			}
 			msgs = append(msgs, map[string]string{"role": "assistant", "content": reply.String()})
-			code, out, err := cc.Post("/api/v1/chats", map[string]any{
+			body := map[string]any{
 				"title":    *saveChat,
 				"model":    model,
 				"messages": msgs,
-			})
+			}
+			if *tagsFlag != "" { // tag the chat at creation (F687)
+				tagList := []string{}
+				for _, t := range strings.Split(*tagsFlag, ",") {
+					if t = strings.TrimSpace(t); t != "" {
+						tagList = append(tagList, t)
+					}
+				}
+				body["tags"] = tagList
+			}
+			code, out, err := cc.Post("/api/v1/chats", body)
 			if err != nil {
 				return err
 			}
@@ -13068,9 +13082,10 @@ func cmdChat(args []string) error {
 
 	reader := bufio.NewReader(os.Stdin)
 	history := []map[string]any{}
-	replChat := ""    // id of the chat created by /save; /title and /tag act on it (F683)
-	replTitle := ""   // its title, kept in sync on /save and -chat load (F685)
-	replAuto := false // -chat/-continue: append each exchange back to replChat (F685)
+	replChat := ""        // id of the chat created by /save; /title and /tag act on it (F683)
+	replTitle := ""       // its title, kept in sync on /save and -chat load (F685)
+	var replTags []string // its tags, kept across auto-appends (F687)
+	replAuto := false     // -chat/-continue: append each exchange back to replChat (F685)
 	if strings.TrimSpace(*system) != "" {
 		history = append(history, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
 	}
@@ -13120,7 +13135,8 @@ func cmdChat(args []string) error {
 			return fmt.Errorf("chat %s: %s", *contChat, out)
 		}
 		var ch struct {
-			Title    string `json:"title"`
+			Title    string   `json:"title"`
+			Tags     []string `json:"tags"`
 			Messages []struct {
 				Role    string `json:"role"`
 				Content string `json:"content"`
@@ -13133,6 +13149,7 @@ func cmdChat(args []string) error {
 			history = append(history, map[string]any{"role": m.Role, "content": m.Content})
 		}
 		replChat, replTitle, replAuto = *contChat, ch.Title, true
+		replTags = ch.Tags
 		fmt.Printf("[loaded %d message(s) from chat %s — replies are appended to it]\n", len(ch.Messages), replChat)
 	}
 	outW := bufio.NewWriter(os.Stdout)
@@ -13351,6 +13368,7 @@ func cmdChat(args []string) error {
 				} else {
 					fmt.Printf("[tags set: %s]\n", strings.Join(tags, ", "))
 				}
+				replTags = tags // keep auto-appends from wiping them (F687)
 			case "/regenerate":
 				// Drop the last assistant reply and re-send the last user
 				// message — handy after /system or /model tweaks (F684).
@@ -13484,7 +13502,7 @@ func cmdChat(args []string) error {
 				}
 			}
 			code, out, err := cc.Put("/api/v1/chats/"+url.PathEscape(replChat), map[string]any{
-				"title": replTitle, "model": model, "messages": msgs,
+				"title": replTitle, "model": model, "messages": msgs, "tags": replTags,
 			})
 			if err != nil || code != 200 {
 				fmt.Printf("[chat append failed: %v %s]\n", err, out)

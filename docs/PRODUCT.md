@@ -793,9 +793,11 @@ llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
                                      print the streamed reply, exit; for scripts, F277;
-                                     add -save "Title" to also store the exchange as a saved chat, F294;
+                                     add -save "Title" to also store the exchange as a saved chat, F294,
+                                     with -tags a,b to tag it at creation (F687);
                                      add -chat ID to send the saved chat's history and append the reply to it, F297,
                                      in the REPL too — the history loads and every exchange is appended back, F685;
+                                     continuations keep the chat's tags (F687);
                                      add -continue to append to the most recently updated saved chat, F312, REPL too F685;
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
