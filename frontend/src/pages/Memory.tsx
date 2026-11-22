@@ -142,6 +142,30 @@ export default function Memory() {
     }
   };
 
+  const retagAll = async () => {
+    // Bulk rename/remove a tag across all entries — UI twin of
+    // `llmctl memory retag` (F643).
+    const oldTag = window.prompt("Rename which tag? (leave new tag empty to remove it)");
+    if (!oldTag || !oldTag.trim()) return;
+    const newTag = (window.prompt(`New tag for "${oldTag.trim()}" (empty = remove):`) ?? "").trim();
+    let changed = 0;
+    try {
+      for (const e of entries) {
+        const tags = e.entry.tags ?? [];
+        if (!tags.includes(oldTag.trim())) continue;
+        const next = tags
+          .map((t) => (t === oldTag.trim() ? newTag : t))
+          .filter((t) => t !== "");
+        await api.updateMemory(e.id, { content: e.entry.content, tags: next });
+        changed++;
+      }
+      ok(newTag ? `retagged ${changed} entr${changed === 1 ? "y" : "ies"}` : `removed tag from ${changed} entr${changed === 1 ? "y" : "ies"}`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const search = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -274,6 +298,14 @@ export default function Memory() {
                 onClick={() => setShowStats(!showStats)}
               >
                 {showStats ? "Show list" : "Stats"}
+              </button>
+              <button
+                className="btn sm"
+                disabled={entries.length === 0}
+                title="rename or remove a tag across all entries — CLI: llmctl memory retag (F643)"
+                onClick={() => void retagAll()}
+              >
+                Retag
               </button>
               <button
                 className="btn sm"

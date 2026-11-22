@@ -408,7 +408,8 @@ toggle for a light theme (choice remembered). Tabs:
    `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321); the Memory page
    has matching Export JSON / Import JSON buttons (F410), a Duplicate button per
-   entry that copies it with editable tags (F642), and a Stats toggle
+   entry that copies it with editable tags (F642), a Retag button that renames or
+   removes a tag across all entries mirroring `memory retag` (F643), and a Stats toggle
    that rolls the list up per tag, mirroring `memory -stats` (F632).
  - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
