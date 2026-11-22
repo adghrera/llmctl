@@ -277,7 +277,7 @@ Usage:
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]
-  llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
+  llmctl usage [-n 14] [-key ID] [-keys] [-tag T] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-key K] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
@@ -6256,6 +6256,7 @@ func usageOnce(args []string) error {
 	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
 	modelFlag := fs.String("model", "", "in per-model mode, show only this model id")
 	keysFlag := fs.Bool("keys", false, "show daily usage for all keys instead of per-model")
+	tagFlag := fs.String("tag", "", "roll up daily usage across all keys carrying this tag (F704)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
 	jsonOut := fs.Bool("json", false, "print the raw usage JSON (for scripts)")
 	outFile := fs.String("out", "", "write the usage JSON to this file instead of stdout (F474)")
@@ -6330,6 +6331,137 @@ func usageOnce(args []string) error {
 				fmt.Println()
 			}
 		}
+		return nil
+	}
+	if *tagFlag != "" {
+		// Roll up usage across every key carrying the tag (F704), the
+		// usage-side twin of the tag filters on the list commands.
+		code, kout, err := cc.Get("/api/v1/keys")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("keys returned %d: %s", code, kout)
+		}
+		var kl []struct {
+			ID   string   `json:"id"`
+			Name string   `json:"name"`
+			Tags []string `json:"tags"`
+		}
+		if err := json.Unmarshal(kout, &kl); err != nil {
+			return err
+		}
+		matched := map[string]string{} // key id -> name
+		for _, k := range kl {
+			for _, t := range k.Tags {
+				if t == *tagFlag {
+					matched[k.ID] = k.Name
+					break
+				}
+			}
+		}
+		if len(matched) == 0 {
+			return fmt.Errorf("no keys carry tag %q", *tagFlag)
+		}
+		code, out, err := cc.Get("/api/v1/usage/keys?days=" + strconv.Itoa(*n))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("usage returned %d: %s", code, out)
+		}
+		var kd map[string]map[string]struct {
+			Requests int64   `json:"requests"`
+			Errors   int64   `json:"errors"`
+			Prompt   int64   `json:"prompt"`
+			Comp     int64   `json:"comp"`
+			Cost     float64 `json:"cost"`
+		}
+		if err := json.Unmarshal(out, &kd); err != nil {
+			return err
+		}
+		type daySum struct {
+			Reqs   int64   `json:"requests"`
+			Errors int64   `json:"errors"`
+			Prompt int64   `json:"prompt"`
+			Comp   int64   `json:"comp"`
+			Cost   float64 `json:"cost"`
+		}
+		sums := map[string]*daySum{}
+		for day, keys := range kd {
+			for id, u := range keys {
+				if _, ok := matched[id]; !ok {
+					continue
+				}
+				s := sums[day]
+				if s == nil {
+					s = &daySum{}
+					sums[day] = s
+				}
+				s.Reqs += u.Requests
+				s.Errors += u.Errors
+				s.Prompt += u.Prompt
+				s.Comp += u.Comp
+				s.Cost += u.Cost
+			}
+		}
+		if *jsonOut || *outFile != "" {
+			payload, err := json.Marshal(sums)
+			if err != nil {
+				return err
+			}
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, payload, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(payload))
+				return nil
+			}
+			fmt.Println(string(payload))
+			return nil
+		}
+		days := make([]string, 0, len(sums))
+		for d := range sums {
+			days = append(days, d)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(days)))
+		if len(days) == 0 {
+			fmt.Printf("no usage recorded for tag %q (%d key(s))\n", *tagFlag, len(matched))
+			return nil
+		}
+		if !*csvOut {
+			fmt.Printf("usage for tag %q across %d key(s)\n", *tagFlag, len(matched))
+		}
+		if *csvOut {
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"date", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"})
+			for _, day := range days {
+				s := sums[day]
+				_ = w.Write([]string{day, strconv.FormatInt(s.Reqs, 10), strconv.FormatInt(s.Errors, 10),
+					strconv.FormatInt(s.Prompt, 10), strconv.FormatInt(s.Comp, 10), strconv.FormatFloat(s.Cost, 'f', 6, 64)})
+			}
+			w.Flush()
+			return w.Error()
+		}
+		var tot daySum
+		for _, day := range days {
+			s := sums[day]
+			tot.Reqs += s.Reqs
+			tot.Errors += s.Errors
+			tot.Prompt += s.Prompt
+			tot.Comp += s.Comp
+			tot.Cost += s.Cost
+			fmt.Printf("%s  %6d reqs %4d err %10d in %10d out", day, s.Reqs, s.Errors, s.Prompt, s.Comp)
+			if s.Cost > 0 {
+				fmt.Printf("  $%.4f", s.Cost)
+			}
+			fmt.Println()
+		}
+		fmt.Printf("%-10s  %6d reqs %4d err %10d in %10d out", "TOTAL", tot.Reqs, tot.Errors, tot.Prompt, tot.Comp)
+		if tot.Cost > 0 {
+			fmt.Printf("  $%.4f", tot.Cost)
+		}
+		fmt.Println()
 		return nil
 	}
 	if *keysFlag {
