@@ -37,12 +37,16 @@ func (r *Ring) Add(e Event) {
 	}
 }
 
-// List returns events newest-first, at most limit (0 = all).
-func (r *Ring) List(limit int) []Event {
+// List returns events newest-first, at most limit (0 = all). When kind is
+// non-empty only events of that kind are returned (exact match, F116).
+func (r *Ring) List(limit int, kind string) []Event {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make([]Event, 0, len(r.evs))
 	for i := len(r.evs) - 1; i >= 0; i-- {
+		if kind != "" && r.evs[i].Kind != kind {
+			continue
+		}
 		out = append(out, r.evs[i])
 		if limit > 0 && len(out) >= limit {
 			break

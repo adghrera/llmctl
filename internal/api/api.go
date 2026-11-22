@@ -1084,7 +1084,8 @@ func (s *Server) dailyUsage(w http.ResponseWriter, r *http.Request) {
 }
 
 // listEvents handles GET /api/v1/events — recent daemon events, newest
-// first (F099). ?limit=N caps the response.
+// first (F099). ?limit=N caps the response; ?kind= keeps only that event
+// kind, e.g. instance.crashed (F116).
 func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
 	if s.events == nil {
 		writeJSON(w, 200, []events.Event{})
@@ -1094,7 +1095,8 @@ func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
 	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 {
 		limit = n
 	}
-	writeJSON(w, 200, s.events.List(limit))
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	writeJSON(w, 200, s.events.List(limit, kind))
 }
 
 // recentRequests handles GET /api/v1/requests — the ring of recent gateway

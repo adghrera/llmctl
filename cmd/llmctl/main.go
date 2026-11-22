@@ -899,12 +899,17 @@ func cmdUsage(args []string) error {
 func cmdEvents(args []string) error {
 	fs := flag.NewFlagSet("events", flag.ExitOnError)
 	n := fs.Int("n", 20, "number of events")
+	kind := fs.String("kind", "", "only this event kind, e.g. instance.crashed")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.Get("/api/v1/events?limit=" + strconv.Itoa(*n))
+	u := "/api/v1/events?limit=" + strconv.Itoa(*n)
+	if *kind != "" {
+		u += "&kind=" + url.QueryEscape(*kind)
+	}
+	code, out, err := cc.Get(u)
 	if err != nil {
 		return err
 	}

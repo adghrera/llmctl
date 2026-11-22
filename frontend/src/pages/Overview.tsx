@@ -8,17 +8,27 @@ export default function Overview() {
   const [gpus, setGpus] = useState<GPUInfo[] | null>(null);
   const [disk, setDisk] = useState<Awaited<ReturnType<typeof api.disk>> | null>(null);
   const [events, setEvents] = useState<Awaited<ReturnType<typeof api.events>>>([]);
+  const [eventKind, setEventKind] = useState("");
+  const [eventKinds, setEventKinds] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
-    const tick = () => api.events(15).then((e) => alive && setEvents(e)).catch(() => {});
+    const tick = () =>
+      api
+        .events(50, eventKind)
+        .then((e) => {
+          if (!alive) return;
+          setEvents(e);
+          setEventKinds((prev) => [...new Set([...prev, ...e.map((x) => x.kind)])]);
+        })
+        .catch(() => {});
     tick();
     const t = setInterval(tick, 10000);
     return () => {
       alive = false;
       clearInterval(t);
     };
-  }, []);
+  }, [eventKind]);
 
   useEffect(() => {
     let alive = true;
@@ -161,9 +171,25 @@ export default function Overview() {
           <div className="empty">no instances running</div>
         )}
       </div>
-      {events.length > 0 && (
+      {(events.length > 0 || eventKind) && (
         <div className="card">
-          <h2>Events</h2>
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ margin: 0 }}>Events</h2>
+            <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              kind
+              <select
+                style={{ width: 180 }}
+                value={eventKind}
+                onChange={(e) => setEventKind(e.target.value)}
+              >
+                <option value="">all</option>
+                {eventKinds.map((k) => (
+                  <option key={k} value={k}>{k}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {events.length === 0 && <p className="muted small">No events of this kind.</p>}
           <table>
             <thead>
               <tr>

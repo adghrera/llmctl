@@ -500,8 +500,10 @@ export const api = {
     req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number; cost?: number }>>>(
       `/usage/daily?days=${days}`
     ),
-  events: (limit = 50) =>
-    req<{ time: string; kind: string; instance?: string; model?: string }[]>(`/events?limit=${limit}`),
+  events: (limit = 50, kind = "") =>
+    req<{ time: string; kind: string; instance?: string; model?: string }[]>(
+      `/events?limit=${limit}${kind ? "&kind=" + encodeURIComponent(kind) : ""}`
+    ),
   gpu: () => req<{ gpus: GPUInfo[] }>("/gpu"),
   disk: () =>
     req<{ dir: string; modelsBytes: number; modelsCount: number; freeBytes?: number; totalBytes?: number }>(

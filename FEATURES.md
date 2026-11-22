@@ -125,6 +125,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F113 | P2 | 113 | gateway | Least-loaded routing | COMPLETED | The gateway tracks in-flight requests per instance and sorts replicas least-loaded-first (failover order unchanged); `inflight` appears on the instances API and as a "N busy" badge on the Instances page. Verified live: 3 parallel requests over two slow replicas spread 1/2, counters returned to 0. |
 | F114 | P2 | 114 | gateway | Per-instance concurrency cap | COMPLETED | `maxParallel` per instance (`PATCH /api/v1/instances/{id}/maxparallel`, editable in the Vars dialog): replicas at their cap are skipped, and 503 `overloaded_error` when all are saturated. Verified live: cap 1 on a slow instance → parallel pair got 200+503, next request 200 after the slot freed. |
 | F115 | P3 | 115 | usage | Which instance served a request | COMPLETED | Every gateway response carries `X-LLMCtrl-Instance: <id>`, and the request ring records the serving replica (`instance` field) — shown as a column on the Requests page and in CSV export and `llmctl requests` output. Verified live: header + ring + CLI all show `so`. |
+| F116 | P3 | 116 | daemon | Events feed kind filter | COMPLETED | `GET /api/v1/events?kind=<kind>` returns only that event kind; `llmctl events -kind <kind>` and a "kind" dropdown on the Overview events card use it. Verified live: cold-start event returned by the exact kind, unknown kind → empty. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
