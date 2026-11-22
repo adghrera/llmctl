@@ -83,6 +83,8 @@ type modelRef struct {
 	Key    string // counter key: API key id, or 8-char prefix fallback (F109)
 	// KeyLabel is the human-readable 8-char key prefix for the request log.
 	KeyLabel string
+	// Instance is the replica that served (or last attempted) the request (F115).
+	Instance string
 	// AllowedModels, when non-empty, restricts the request to these model
 	// names for the calling key (F089).
 	AllowedModels []string

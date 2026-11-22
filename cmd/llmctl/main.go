@@ -745,6 +745,7 @@ func cmdRequests(args []string) error {
 		ID        string    `json:"id"`
 		Time      time.Time `json:"time"`
 		Model     string    `json:"model"`
+		Instance  string    `json:"instance"`
 		Key       string    `json:"key"`
 		Status    int       `json:"status"`
 		LatencyMs float64   `json:"latencyMs"`
@@ -759,14 +760,14 @@ func cmdRequests(args []string) error {
 		fmt.Println("no requests yet")
 		return nil
 	}
-	fmt.Printf("%-12s %-19s %-16s %-10s %5s %9s %7s %7s %s\n", "ID", "TIME", "MODEL", "KEY", "CODE", "MS", "IN", "OUT", "STREAM")
+	fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5s %9s %7s %7s %s\n", "ID", "TIME", "MODEL", "INSTANCE", "KEY", "CODE", "MS", "IN", "OUT", "STREAM")
 	for _, e := range entries {
 		stream := ""
 		if e.Stream {
 			stream = "stream"
 		}
-		fmt.Printf("%-12s %-19s %-16s %-10s %5d %9.0f %7d %7d %s\n",
-			e.ID, e.Time.Local().Format("2006-01-02 15:04:05"), e.Model, e.Key, e.Status, e.LatencyMs, e.PromptTok, e.CompTok, stream)
+		fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5d %9.0f %7d %7d %s\n",
+			e.ID, e.Time.Local().Format("2006-01-02 15:04:05"), e.Model, e.Instance, e.Key, e.Status, e.LatencyMs, e.PromptTok, e.CompTok, stream)
 	}
 	return nil
 }

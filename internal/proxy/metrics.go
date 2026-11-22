@@ -97,7 +97,7 @@ func (m *metricsCollector) pricingFor(model string) cost.ModelPricing {
 }
 
 // record adds one completed gateway request. model may be "" (unknown).
-func (m *metricsCollector) record(model, key, keyLabel string, status int, latencyMs, ttftMs float64, stream bool, respBody []byte, rid string) {
+func (m *metricsCollector) record(model, key, keyLabel, instance string, status int, latencyMs, ttftMs float64, stream bool, respBody []byte, rid string) {
 	var pTok, cTok int64
 	if stream {
 		pTok, cTok = scanUsageSSE(respBody)
@@ -191,6 +191,7 @@ func (m *metricsCollector) record(model, key, keyLabel string, status int, laten
 		Time:      time.Now(),
 		Model:     model,
 		Key:       keyLabel,
+		Instance:  instance,
 		Status:    status,
 		LatencyMs: latencyMs,
 		TtftMs:    ttftMs,

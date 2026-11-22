@@ -16,6 +16,7 @@ type RequestLogEntry struct {
 	Time      time.Time `json:"time"`
 	Model     string    `json:"model,omitempty"`
 	Key       string    `json:"key,omitempty"` // API key prefix (first 8 chars)
+	Instance  string    `json:"instance,omitempty"` // replica that served it (F115)
 	Status    int       `json:"status"`
 	LatencyMs float64   `json:"latencyMs"`
 	TtftMs    float64   `json:"ttftMs,omitempty"` // streaming time-to-first-token (F112)

@@ -160,10 +160,11 @@ toggle for a light theme (choice remembered). Tabs:
   per-conversation context percentage. A "Daily History" table shows the
   per-day, per-model rollup (requests, errors, tokens, estimated cost) which
   persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103).
-- **Requests** — the last 256 gateway requests (time, model, key, status,
-  latency, tokens) in an auto-refreshing table, with one-click CSV export and
-  combinable filters (model, status class, min latency, stream/plain, key
-  prefix).
+- **Requests** — the last 256 gateway requests (time, model, serving instance,
+  key, status, latency, tokens) in an auto-refreshing table, with one-click
+  CSV export and combinable filters (model, status class, min latency,
+  stream/plain, key prefix). The serving replica is also echoed to clients as
+  the `X-LLMCtrl-Instance` response header (F115).
   Each request has an id echoed as the X-Request-Id response header (a
   client-sent X-Request-Id is reused). Keys with a token or request quota get
   X-RateLimit-Limit/-Remaining and X-LLMCtrl-Requests-Limit/-Remaining

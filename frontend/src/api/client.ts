@@ -372,6 +372,7 @@ export interface RequestLogEntry {
   time: string;
   model?: string;
   key?: string;
+  instance?: string;
   status: number;
   latencyMs: number;
   ttftMs?: number;

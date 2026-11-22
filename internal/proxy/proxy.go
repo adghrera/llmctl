@@ -229,7 +229,7 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		if holder.Stream && !rec.firstWrite.IsZero() {
 			ttftMs = float64(rec.firstWrite.Sub(start).Microseconds()) / 1000.0
 		}
-		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, rec.status, float64(time.Since(start).Microseconds())/1000.0, ttftMs, holder.Stream, rec.buf.Bytes(), rid)
+		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, holder.Instance, rec.status, float64(time.Since(start).Microseconds())/1000.0, ttftMs, holder.Stream, rec.buf.Bytes(), rid)
 	})
 }
 
@@ -493,6 +493,10 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	targets = free
 
 	if targets[0].Transport == "stdio" {
+		if ref := modelRefFrom(r.Context()); ref != nil {
+			ref.Instance = targets[0].InstanceID
+		}
+		w.Header().Set("X-LLMCtrl-Instance", targets[0].InstanceID)
 		s.instAdd(targets[0].InstanceID, 1)
 		s.proxyStdio(w, r, targets[0], body, path, peek.Stream)
 		s.instAdd(targets[0].InstanceID, -1)
@@ -504,6 +508,10 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 	var lastErr error
 	for i, target := range targets {
 		t := target
+		if ref := modelRefFrom(r.Context()); ref != nil {
+			ref.Instance = t.InstanceID
+		}
+		w.Header().Set("X-LLMCtrl-Instance", t.InstanceID)
 		s.instAdd(t.InstanceID, 1)
 		upErr := s.proxyHTTP(w, r, body, t, path)
 		s.instAdd(t.InstanceID, -1)

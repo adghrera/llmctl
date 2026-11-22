@@ -13,12 +13,13 @@ function csvField(s: string): string {
 }
 
 function toCsv(entries: RequestLogEntry[]): string {
-  const head = ["id", "time", "model", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens"];
+  const head = ["id", "time", "model", "instance", "key", "status", "stream", "latency_ms", "prompt_tokens", "completion_tokens"];
   const rows = entries.map((e) =>
     [
       e.id || "",
       new Date(e.time).toISOString(),
       e.model || "",
+      e.instance || "",
       e.key || "",
       String(e.status),
       e.stream ? "1" : "0",
@@ -148,6 +149,7 @@ export default function Requests() {
               <th>Id</th>
               <th>Time</th>
               <th>Model</th>
+              <th>Instance</th>
               <th>Key</th>
               <th>Status</th>
               <th>Latency</th>
@@ -176,6 +178,7 @@ export default function Requests() {
                   {e.model || "—"}
                   {e.stream ? <span className="muted"> ⚡</span> : null}
                 </td>
+                <td className="mono muted">{e.instance || "—"}</td>
                 <td className="mono muted">{e.key || "—"}</td>
                 <td>
                   <span className={`badge ${statusTone(e.status)}`}>{e.status}</span>
