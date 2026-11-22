@@ -6254,10 +6254,11 @@ func cmdChats(args []string) error {
 	if len(args) > 0 && args[0] == "search" {
 		qfs := flag.NewFlagSet("chats search", flag.ExitOnError)
 		qjson := qfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		qcsv := qfs.Bool("csv", false, "output the matches as CSV — one row per matched message (F617)")
 		qout := qfs.String("out", "", "write the raw search JSON to this file instead of stdout (F482)")
 		qfs.Parse(reorderFlags(args[1:]))
 		if qfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl chats search <query> [-json] [-out FILE]")
+			return fmt.Errorf("usage: llmctl chats search <query> [-json] [-csv] [-out FILE]")
 		}
 		q := strings.Join(qfs.Args(), " ")
 		cc, err := daemon.NewControlClient()
@@ -6294,6 +6295,17 @@ func cmdChats(args []string) error {
 		}
 		if err := json.Unmarshal(out, &res); err != nil {
 			return err
+		}
+		if *qcsv { // F617: one row per matched message
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"chat_id", "title", "model", "role", "content"})
+			for _, r := range res {
+				for _, m := range r.Matches {
+					_ = w.Write([]string{r.ConversationID, r.Title, r.Model, m.Role, m.Content})
+				}
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(res) == 0 {
 			fmt.Printf("no chats match %q\n", q)
@@ -7227,10 +7239,11 @@ func cmdMemory(args []string) error {
 	case "search":
 		sfs := flag.NewFlagSet("memory search", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		scsv := sfs.Bool("csv", false, "output the matches as CSV (F617)")
 		sout := sfs.String("out", "", "write the raw search JSON to this file instead of stdout (F484)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl memory search <query> [-json] [-out FILE]")
+			return fmt.Errorf("usage: llmctl memory search <query> [-json] [-csv] [-out FILE]")
 		}
 		q := strings.Join(sfs.Args(), " ")
 		code, out, err := cc.Get("/api/v1/memory/search?q=" + url.QueryEscape(q))
@@ -7260,6 +7273,15 @@ func cmdMemory(args []string) error {
 		}
 		if err := json.Unmarshal(out, &res); err != nil {
 			return err
+		}
+		if *scsv { // F617: tags ;-joined like `memory list --csv` (F401)
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "tags", "content"})
+			for _, r := range res {
+				_ = w.Write([]string{r.Entry.ID, strings.Join(r.Entry.Tags, ";"), r.Entry.Content})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(res) == 0 {
 			fmt.Printf("no memory entries match %q\n", q)
@@ -7493,11 +7515,12 @@ func cmdKb(args []string) error {
 	case "search":
 		sfs := flag.NewFlagSet("kb search", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
+		scsv := sfs.Bool("csv", false, "output the matches as CSV (F617)")
 		limit := sfs.Int("limit", 10, "max results")
 		sout := sfs.String("out", "", "write the raw search JSON to this file instead of stdout (F483)")
 		sfs.Parse(reorderFlags(rest))
 		if sfs.NArg() < 2 {
-			return fmt.Errorf("usage: llmctl kb search <kb-id> <query> [-limit N] [-json] [-out FILE]")
+			return fmt.Errorf("usage: llmctl kb search <kb-id> <query> [-limit N] [-json] [-csv] [-out FILE]")
 		}
 		kbID := sfs.Arg(0)
 		query := strings.Join(sfs.Args()[1:], " ")
@@ -7529,6 +7552,16 @@ func cmdKb(args []string) error {
 		}
 		if err := json.Unmarshal(out, &res); err != nil {
 			return err
+		}
+		if *scsv { // F617: full chunk text, score to 3 decimals like the table
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"doc_id", "filename", "chunk_index", "score", "chunk_text"})
+			for _, r := range res {
+				_ = w.Write([]string{r.DocID, r.Filename, strconv.Itoa(r.ChunkIndex),
+					strconv.FormatFloat(r.Score, 'f', 3, 64), r.ChunkText})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(res) == 0 {
 			fmt.Printf("no chunks match %q in %s\n", query, kbID)

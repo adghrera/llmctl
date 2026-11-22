@@ -368,8 +368,8 @@ toggle for a light theme (choice remembered). Tabs:
    lists saved conversations with a per-chat token total (`--csv` exports the list, F378, F603),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]` prints one
    with a message preview,
-   `llmctl chats search <query> [-json] [-out FILE]` full-text searches message content
-   with match snippets, `chats export <id> [-md] [-out f]` and
+   `llmctl chats search <query> [-json] [-csv] [-out FILE]` full-text searches message content
+   with match snippets (`--csv` one row per matched message, F617), `chats export <id> [-md] [-out f]` and
    `chats export-all [-out DIR] [-md]` (bulk file export, F325),
    `chats import <file.json> [-json] [-out FILE]` re-imports an exported chat under a fresh id
    (F368; -out writes the saved chat JSON, F510),
@@ -389,7 +389,7 @@ toggle for a light theme (choice remembered). Tabs:
  - **Memory CLI** — `llmctl memory [filter] [-json] [-csv]` lists memory entries
    (`--csv` exports id,created_at,tags (`;`-joined),content, F401);
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
-   [-tags a,b]`, `memory show <id>`, `memory search <query> [-json] [-out FILE]`,
+   [-tags a,b]`, `memory show <id>`, `memory search <query> [-json] [-csv] [-out FILE]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321); the Memory page
    has matching Export JSON / Import JSON buttons (F410).
@@ -400,7 +400,7 @@ toggle for a light theme (choice remembered). Tabs:
    document's text, F320) and
    `kb add-doc <kb-id> <path> [-name X]` upload documents,
    `kb export <kb-id> [-out DIR]` dumps all documents as files (F324) and
-   `kb search <kb-id> <query> [-limit N] [-json] [-out FILE]` runs RAG search and
+   `kb search <kb-id> <query> [-limit N] [-json] [-csv] [-out FILE]` runs RAG search and
    `kb embed <kb-id> -url U -model M [-key K] | -clear` configures semantic
    search (F247, F250, F268, F272, F291, F320).
  - **Tools CLI** — `llmctl tools [-json] [-csv] [-out FILE]` lists installed tools
