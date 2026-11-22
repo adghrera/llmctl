@@ -258,6 +258,9 @@ toggle for a light theme (choice remembered). Tabs:
  - **Chat CLI** — `llmctl chats [filter] [-json]` lists saved conversations
    and `llmctl chats show <id> [-json]` prints one with a message preview
    (over the chat-store API, F244).
+ - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs
+   (filter matches id/name/description/tags); `skills show|enable|disable|delete <id>`
+   manages them (F245).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).

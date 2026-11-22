@@ -80,6 +80,8 @@ func main() {
 		err = cmdPrompts(args)
 	case "chats":
 		err = cmdChats(args)
+	case "skills":
+		err = cmdSkills(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -162,6 +164,7 @@ Usage:
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
+  llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -2229,6 +2232,139 @@ func cmdChats(args []string) error {
 		fmt.Printf("%-18s %-14s %-4d %-14s %s\n", c.ID, c.Model, c.Messages, updated, title)
 	}
 	return nil
+}
+
+// cmdSkills lists and manages skill packs (F245).
+func cmdSkills(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub, rest := "list", args
+	if len(args) > 0 {
+		switch args[0] {
+		case "list", "show", "enable", "disable", "delete":
+			sub, rest = args[0], args[1:]
+		}
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("skills", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the skills as JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/skills")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skills returned %d: %s", code, out)
+		}
+		filter := ""
+		if fs.NArg() > 0 {
+			filter = strings.ToLower(fs.Arg(0))
+		}
+		var list []struct {
+			ID       string `json:"id"`
+			Manifest struct {
+				ID          string   `json:"id"`
+				Name        string   `json:"name"`
+				Description string   `json:"description"`
+				Tags        []string `json:"tags"`
+				Enabled     bool     `json:"enabled"`
+				PromptTmpl  string   `json:"prompt_template"`
+			} `json:"manifest"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if filter != "" {
+			var keep []struct {
+				ID       string `json:"id"`
+				Manifest struct {
+					ID          string   `json:"id"`
+					Name        string   `json:"name"`
+					Description string   `json:"description"`
+					Tags        []string `json:"tags"`
+					Enabled     bool     `json:"enabled"`
+					PromptTmpl  string   `json:"prompt_template"`
+				} `json:"manifest"`
+			}
+			for _, s := range list {
+				hay := strings.ToLower(s.Manifest.ID + " " + s.Manifest.Name + " " + s.Manifest.Description + " " + strings.Join(s.Manifest.Tags, " "))
+				if strings.Contains(hay, filter) {
+					keep = append(keep, s)
+				}
+			}
+			list = keep
+		}
+		if *jsonOut {
+			b, err := json.Marshal(list)
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(b))
+			return nil
+		}
+		if len(list) == 0 {
+			fmt.Println("no skills installed")
+			return nil
+		}
+		fmt.Printf("%-20s %-6s %-20s %s\n", "ID", "ON", "NAME", "DESCRIPTION")
+		for _, s := range list {
+			on := "off"
+			if s.Manifest.Enabled {
+				on = "on "
+			}
+			desc := s.Manifest.Description
+			if len(desc) > 48 {
+				desc = desc[:48] + "…"
+			}
+			fmt.Printf("%-20s %-6s %-20s %s\n", s.Manifest.ID, on, s.Manifest.Name, desc)
+		}
+		return nil
+	case "show":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl skills show <id>")
+		}
+		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skill %s: %s", rest[0], out)
+		}
+		fmt.Print(string(out))
+		return nil
+	case "enable", "disable":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl skills %s <id>", sub)
+		}
+		body := map[string]any{"enabled": sub == "enable"}
+		code, out, err := cc.Post("/api/v1/skills/"+url.PathEscape(rest[0])+"/enabled", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("%s returned %d: %s", sub, code, out)
+		}
+		fmt.Printf("%sd skill %s\n", sub, rest[0])
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl skills delete <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/skills/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("delete returned %d: %s", code, out)
+		}
+		fmt.Printf("deleted skill %s\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown skills subcommand %q (list|show|enable|disable|delete)", sub)
+	}
 }
 
 // cmdPrompts lists the built-in prompt library (F218).
