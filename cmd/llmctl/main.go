@@ -250,7 +250,7 @@ Usage:
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
   llmctl version
-  llmctl completion [bash|zsh]  print a shell completion script
+  llmctl completion [bash|zsh|fish]  print a shell completion script
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
 web UI (http://127.0.0.1:8080/) on one port.
@@ -1639,7 +1639,7 @@ var llmSubCommands = map[string]string{
 }
 
 // cmdCompletion prints a shell completion script (bash or zsh) for the
-// top-level llmctl commands and their subcommands (F341, F350).
+// top-level llmctl commands and their subcommands (F341, F350, F354).
 func cmdCompletion(args []string) error {
 	shell := "bash"
 	if len(args) > 0 {
@@ -1701,8 +1701,18 @@ _llmctl() {
 }
 compdef _llmctl llmctl
 `, quoted, sb.String())
+	case "fish":
+		// Fish: one `complete` line per command (level 1) and per command's
+		// subcommand set (level 2) (F354).
+		var sb strings.Builder
+		for _, n := range names {
+			fmt.Fprintf(&sb, "complete -c llmctl -n \"__fish_seen_subcommand_from %s\" -a \"%s\"\n", n, llmSubCommands[n])
+		}
+		fmt.Printf(`complete -c llmctl -f
+complete -c llmctl -n __fish_use_subcommand -a "%s"
+%s`, cmds, sb.String())
 	default:
-		return fmt.Errorf("usage: llmctl completion [bash|zsh]")
+		return fmt.Errorf("usage: llmctl completion [bash|zsh|fish]")
 	}
 	return nil
 }
