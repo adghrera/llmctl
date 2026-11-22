@@ -184,7 +184,8 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl chats search` /
   `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON),
-  Export CSV on the list (F404).
+  remove plugin registrations with a per-row Remove button (CLI twin of
+  `llmctl backends remove`, F658), Export CSV on the list (F404).
 - **Models** — HuggingFace search + file picker, download with live progress.
   The installed-models table has a live text filter (id/backend/path, F332)
   and an Export CSV button for the filtered list (same columns as

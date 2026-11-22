@@ -42,6 +42,12 @@ export default function Backends() {
     }
   };
 
+  // Remove a plugin backend registration (CLI: llmctl backends remove, F658).
+  const removePlugin = (id: string) => {
+    if (!window.confirm(`Remove plugin backend "${id}"? Its registration is deleted.`)) return;
+    act(id, () => api.removePlugin(id), `removed plugin ${id}`);
+  };
+
   const handleUninstall = (id: string) => {
     setConfirmId(id);
     setConfirmMessage(`Uninstall backend ${id}? This cannot be undone.`);
@@ -174,6 +180,16 @@ export default function Backends() {
                       onClick={() => act(b.id, () => api.installBackend(b.id), `install started for ${b.id}`)}
                     >
                       Install
+                    </button>
+                  )}
+                  {b.plugin && (
+                    <button
+                      className="btn sm danger"
+                      disabled={busy === b.id}
+                      title="remove this plugin backend registration (CLI: llmctl backends remove)"
+                      onClick={() => removePlugin(b.id)}
+                    >
+                      Remove
                     </button>
                   )}
                 </td>
