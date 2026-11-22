@@ -384,7 +384,7 @@ toggle for a light theme (choice remembered). Tabs:
    `kb search <kb-id> <query> [-limit N] [-json] [-out FILE]` runs RAG search and
    `kb embed <kb-id> -url U -model M [-key K] | -clear` configures semantic
    search (F247, F250, F268, F272, F291, F320).
- - **Tools CLI** — `llmctl tools [-json] [-csv]` lists installed tools
+ - **Tools CLI** — `llmctl tools [-json] [-csv] [-out FILE]` lists installed tools
    (`--csv` exports id,enabled,sandbox,runtime,name,description, F389);
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`;

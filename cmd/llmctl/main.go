@@ -254,7 +254,7 @@ Usage:
   llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
-  llmctl tools [-json|-csv] | tools show|install|enable|disable|run|delete <id>
+  llmctl tools [-json|-csv|-out FILE] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json|-csv] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
@@ -6489,6 +6489,7 @@ func cmdTools(args []string) error {
 		fs := flag.NewFlagSet("tools", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the tools as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the tool list as CSV (F389)")
+		outFile := fs.String("out", "", "write the raw tools JSON to this file instead of stdout (F486)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/tools")
 		if err != nil {
@@ -6496,6 +6497,13 @@ func cmdTools(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("tools returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F486: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
