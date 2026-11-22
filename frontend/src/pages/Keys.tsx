@@ -311,6 +311,9 @@ export default function Keys() {
                   <td className="mono">{k.prefix}…</td>
                   <td>
                     {new Date(k.createdAt).toLocaleString()}
+                    {k.lastUsed && (
+                      <div className="muted" style={{ fontSize: 11 }}>used {new Date(k.lastUsed).toLocaleString()}</div>
+                    )}
                     {k.expiresAt &&
                       (new Date(k.expiresAt).getTime() < Date.now() ? (
                         <div className="danger" style={{ fontSize: 11 }}>expired {new Date(k.expiresAt).toLocaleString()}</div>

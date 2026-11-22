@@ -1191,6 +1191,7 @@ func cmdKey(args []string) error {
 			MaxRequests        int64      `json:"maxRequests"`
 			UsedReqs           int64      `json:"usedRequests"`
 			ExpiresAt          *time.Time `json:"expiresAt"`
+			LastUsed           *time.Time `json:"lastUsed"`
 			DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD"`
 			TodayCost          float64    `json:"todayCost"`
 		}
@@ -1201,7 +1202,7 @@ func cmdKey(args []string) error {
 			fmt.Println("no keys")
 			return nil
 		}
-		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %-12s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "EXPIRES", "QUOTA")
+		fmt.Printf("%-17s %-14s %-10s %10s %9s %8s %-12s %-12s %s\n", "ID", "NAME", "PREFIX", "TOKENS", "COST $", "REQS", "EXPIRES", "LAST USED", "QUOTA")
 		for _, k := range list {
 			quota := ""
 			if k.TokenQuota > 0 {
@@ -1227,8 +1228,12 @@ func cmdKey(args []string) error {
 					expires = k.ExpiresAt.Local().Format("2006-01-02")
 				}
 			}
-			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %-12s %s\n",
-				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, expires, quota)
+			last := "-"
+			if k.LastUsed != nil {
+				last = k.LastUsed.Local().Format("01-02 15:04")
+			}
+			fmt.Printf("%-17s %-14s %-10s %10d %9.4f %8d %-12s %-12s %s\n",
+				k.ID, k.Name, k.Prefix+"…", k.UsedTok, k.UsedCost, k.UsedReqs, expires, last, quota)
 		}
 		return nil
 	case "revoke":

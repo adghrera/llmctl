@@ -262,11 +262,12 @@ func statusClass(status int) string {
 // lastUsedAt returns the last recorded request time for a model (zero if none).
 // KeyUsage is per-key (or per-model) token totals for cost/quota views (F074).
 type KeyUsage struct {
-	InputTok  int64   `json:"input_tokens"`
-	OutputTok int64   `json:"output_tokens"`
-	TotalTok  int64   `json:"total_tokens"`
-	Requests  int64   `json:"requests"`
-	Cost      float64 `json:"cost_usd"`
+	InputTok  int64     `json:"input_tokens"`
+	OutputTok int64     `json:"output_tokens"`
+	TotalTok  int64     `json:"total_tokens"`
+	Requests  int64     `json:"requests"`
+	Cost      float64   `json:"cost_usd"`
+	LastUsed  time.Time `json:"lastUsed,omitempty"` // last billed request (F149)
 }
 
 // keyUsage snapshots the per-key counters.
@@ -276,7 +277,7 @@ func (m *metricsCollector) keyUsage() map[string]KeyUsage {
 	out := make(map[string]KeyUsage, len(m.keyCounters))
 	for k, c := range m.keyCounters {
 		c.mu.Lock()
-		out[k] = KeyUsage{InputTok: c.InputTok, OutputTok: c.OutputTok, TotalTok: c.TotalTok, Requests: c.Requests, Cost: c.Cost}
+		out[k] = KeyUsage{InputTok: c.InputTok, OutputTok: c.OutputTok, TotalTok: c.TotalTok, Requests: c.Requests, Cost: c.Cost, LastUsed: c.UpdatedAt}
 		c.mu.Unlock()
 	}
 	return out

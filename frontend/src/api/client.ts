@@ -425,6 +425,7 @@ export interface ApiKey {
   expiresAt?: string;
   dailyCostBudgetUSD?: number;
   todayCost?: number;
+  lastUsed?: string;
 }
 
 export interface WebhookDelivery {

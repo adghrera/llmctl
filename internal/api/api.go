@@ -1453,23 +1453,36 @@ type keyView struct {
 	RateBurst     int        `json:"rateBurst,omitempty"`     // burst size, 0 = default (F130)
 	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`     // nil = never (F135)
 	// DailyCostBudgetUSD: estimated USD cap per UTC day, 0 = unlimited (F138).
-	DailyCostBudgetUSD float64 `json:"dailyCostBudgetUSD,omitempty"`
-	TodayCost          float64 `json:"todayCost"` // estimated USD spent today (F138)
+	DailyCostBudgetUSD float64    `json:"dailyCostBudgetUSD,omitempty"`
+	TodayCost          float64    `json:"todayCost"`          // estimated USD spent today (F138)
+	LastUsed           *time.Time `json:"lastUsed,omitempty"` // last billed request (F149)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
+	var live map[string]proxy.KeyUsage
+	if s.gw != nil {
+		live = s.gw.KeyUsage() // one snapshot for all keys (F149)
+	}
 	out := []keyView{}
 	for _, k := range st.APIKeys {
 		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst, ExpiresAt: k.ExpiresAt, DailyCostBudgetUSD: k.DailyCostBudgetUSD}
 		if s.gw != nil {
 			v.TodayCost = s.gw.KeyDailyCost(k.ID) // F138
 		}
-		if s.gw != nil {
-			if ku, ok := s.gw.KeyUsage()[k.ID]; ok { // counters key on the key id (F109)
-				v.UsedTok = ku.TotalTok
-				v.UsedCost = ku.Cost
-				v.UsedReqs = ku.Requests
+		if ku, ok := live[k.ID]; ok { // counters key on the key id (F109)
+			v.UsedTok = ku.TotalTok
+			v.UsedCost = ku.Cost
+			v.UsedReqs = ku.Requests
+			if !ku.LastUsed.IsZero() {
+				t := ku.LastUsed
+				v.LastUsed = &t
+			}
+		}
+		if v.LastUsed == nil {
+			if rec := st.KeyUsage[k.ID]; rec != nil && !rec.LastUsed.IsZero() {
+				t := rec.LastUsed // persisted across restarts (F149)
+				v.LastUsed = &t
 			}
 		}
 		out = append(out, v)

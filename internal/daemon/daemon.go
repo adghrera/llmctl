@@ -466,7 +466,7 @@ func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 		s.KeyUsage = make(map[string]*store.KeyUsageRecord, len(usage))
 		for k, u := range usage {
 			s.KeyUsage[k] = &store.KeyUsageRecord{
-				Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests, Cost: u.Cost,
+				Input: u.InputTok, Output: u.OutputTok, Total: u.TotalTok, Requests: u.Requests, Cost: u.Cost, LastUsed: u.LastUsed,
 			}
 		}
 		s.DailyUsage = daily // deep copy from the collector (F097)

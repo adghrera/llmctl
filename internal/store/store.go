@@ -192,11 +192,12 @@ type State struct {
 // KeyUsageRecord is the persisted token usage for one API key prefix, so
 // per-key quotas (F074) survive daemon restarts (F080).
 type KeyUsageRecord struct {
-	Input    int64   `json:"input"`
-	Output   int64   `json:"output"`
-	Total    int64   `json:"total"`
-	Requests int64   `json:"requests"`
-	Cost     float64 `json:"cost,omitempty"` // estimated USD (F102)
+	Input    int64     `json:"input"`
+	Output   int64     `json:"output"`
+	Total    int64     `json:"total"`
+	Requests int64     `json:"requests"`
+	Cost     float64   `json:"cost,omitempty"`     // estimated USD (F102)
+	LastUsed time.Time `json:"lastUsed,omitempty"` // last billed request (F149)
 }
 
 // DailyModelUsage is one day's gateway usage for one model (F097).
