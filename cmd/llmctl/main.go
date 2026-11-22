@@ -2934,6 +2934,7 @@ func cmdScheduler(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("scheduler list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw scheduler JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the schedule table as CSV (F376)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler")
 		if err != nil {
@@ -2965,8 +2966,32 @@ func cmdScheduler(args []string) error {
 			return err
 		}
 		if len(recs) == 0 {
+			if *csvOut { // keep the stream parseable (F376)
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"id", "name", "kind", "cron", "model", "enabled", "next_run", "last_run_time", "last_run_status"})
+				w.Flush()
+				return w.Error()
+			}
 			fmt.Println("no scheduled tasks")
 			return nil
+		}
+		if *csvOut { // F376
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "name", "kind", "cron", "model", "enabled", "next_run", "last_run_time", "last_run_status"})
+			for _, r := range recs {
+				kind := r.Spec.Kind
+				if kind == "" {
+					kind = "chat"
+				}
+				lt, ls := "", ""
+				if r.LastRun != nil {
+					lt, ls = r.LastRun.Time, r.LastRun.Status
+				}
+				_ = w.Write([]string{r.ID, r.Spec.Name, kind, r.Spec.CronExpr, r.Spec.Model,
+					strconv.FormatBool(r.Spec.Enabled), r.Spec.NextRun, lt, ls})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("%-16s %-4s %-12s %-12s %-12s %-10s %-8s %s\n", "ID", "ON", "KIND", "CRON", "MODEL", "LAST", "NEXT", "NAME")
 		for _, r := range recs {
