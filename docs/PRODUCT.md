@@ -332,7 +332,8 @@ survives the periodic UI re-render.
 ```
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
 llmctl down
-llmctl status
+llmctl status                      (version, uptime, running instances,
+                                    gateway auth, today's usage)
 llmctl doctor                      (health sweep: state dir, backends, models,
                                     instances, gateway, backups; exit ≠0 on errors)
 llmctl ps                          (shows uptime and per-instance notes)

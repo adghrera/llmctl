@@ -165,6 +165,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F153 | P3 | 153 | usage | Exact status filter | COMPLETED | The Requests page status filter now offers exact codes (400, 401, 404, 413, 429, 500, 502, 503) alongside the 2xx/4xx/5xx classes — the API already accepted exact `status=` values. Verified live: `status=404`/`401` return only those codes, `status=4` still matches the class. |
 | F154 | P3 | 154 | keys | Model allowlist editor | COMPLETED | The Keys page "Models" button opens an inline checkbox editor listing all known models (plus any stale entries on the key) instead of a prompt; empty selection = all models. Wired to the existing `PATCH /keys/{id}` allowedModels field. Verified live: allowlist set to `so,other` and cleared via the API path the editor uses. |
 | F155 | P3 | 155 | cli | `usage -keys` | COMPLETED | `llmctl usage -keys [-n N]` prints the daily per-key rollup (requests, errors, tokens, estimated cost) with key names resolved from the keys API, newest day first — CLI parity with the Usage page's per-key table. Verified live: a keyed request shows under the key's name; deleted keys print `(revoked)`. |
+| F156 | P3 | 156 | cli | Richer `status` | COMPLETED | `GET /api/v1/status` now also reports `running` instance count, `requireAuth`, `uptimeSec`, and today's (UTC) request/error/cost totals; `llmctl status` prints version, uptime, running count, gateway auth state and today's usage. Verified live: all fields present and correct after a request. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

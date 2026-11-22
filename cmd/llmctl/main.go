@@ -207,11 +207,29 @@ func cmdStatus(args []string) error {
 	}
 	var st map[string]any
 	json.Unmarshal(out, &st)
-	fmt.Printf("daemon: running (%s)\n", cc.Base)
+	ver, _ := st["version"].(string)
+	up := ""
+	if sec, ok := st["uptimeSec"].(float64); ok && sec > 0 {
+		up = ", up " + uptimeShort(time.Duration(sec)*time.Second)
+	}
+	fmt.Printf("daemon: running (%s) v%s%s\n", cc.Base, ver, up)
 	fmt.Printf("backends: %v installed\n", st["backends"])
 	fmt.Printf("models: %v downloaded\n", st["models"])
-	fmt.Printf("instances: %v\n", st["instances"])
-	fmt.Printf("gateway: %v\n", st["gateway"])
+	if run, ok := st["running"]; ok {
+		fmt.Printf("instances: %v (%v running)\n", st["instances"], run)
+	} else {
+		fmt.Printf("instances: %v\n", st["instances"])
+	}
+	auth := ""
+	if v, ok := st["requireAuth"].(bool); ok && v {
+		auth = " (auth on)"
+	}
+	fmt.Printf("gateway: %v%s\n", st["gateway"], auth)
+	if reqs, ok := st["todayRequests"].(float64); ok {
+		errs, _ := st["todayErrors"].(float64)
+		cost, _ := st["todayCost"].(float64)
+		fmt.Printf("today: %d reqs, %d errors, $%.4f est. cost\n", int64(reqs), int64(errs), cost)
+	}
 	_ = code
 	return nil
 }

@@ -969,6 +969,12 @@ func (s *Server) InstanceRequests(instance string) int64 {
 	return s.collector.instRequests(instance)
 }
 
+// TodayTotals returns today's (UTC) gateway request count, error count and
+// estimated USD cost (F156).
+func (s *Server) TodayTotals() (requests, errors int64, cost float64) {
+	return s.collector.todayTotals()
+}
+
 // SeedDailyKeys restores the per-key daily rollup at startup (F126).
 func (s *Server) SeedDailyKeys(daily map[string]map[string]*store.DailyModelUsage) {
 	s.collector.seedDailyKeys(daily)

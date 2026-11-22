@@ -391,6 +391,18 @@ func (m *metricsCollector) instRequests(instance string) int64 {
 	return m.instCount[instance]
 }
 
+// todayTotals sums today's (UTC) per-model daily rollup (F156).
+func (m *metricsCollector) todayTotals() (requests, errors int64, cost float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, u := range m.daily[time.Now().UTC().Format("2006-01-02")] {
+		requests += u.Requests
+		errors += u.Errors
+		cost += u.Cost
+	}
+	return requests, errors, cost
+}
+
 func copyDaily(in map[string]map[string]*store.DailyModelUsage) map[string]map[string]*store.DailyModelUsage {
 	out := make(map[string]map[string]*store.DailyModelUsage, len(in))
 	for day, models := range in {

@@ -54,6 +54,7 @@ type Server struct {
 	logger     *slog.Logger
 	gwPort     int                    // gateway port, for building client URLs
 	gw         *proxy.Server          // gateway handle, for runtime setting changes
+	started    time.Time              // API server start, for uptime (F156)
 	searcher   *websearch.Searcher    // keyless web search (F021)
 	agentTool  agent.Tool             // web_search tool override (tests); nil = WebSearchTool{searcher}
 	chats      *chatstore.Store       // persisted chat conversations (F025)
@@ -74,7 +75,7 @@ type Server struct {
 
 func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
 	cs, _ := chatstore.Open() // nil-safe: handlers report 503 if unavailable
-	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, searcher: websearch.New(), chats: cs, approvals: newPendingApprovals(), shutdownFn: shutdown}
+	return &Server{store: st, reg: reg, sv: sv, jobs: jm, logger: logger, gwPort: gwPort, gw: gw, started: time.Now(), searcher: websearch.New(), chats: cs, approvals: newPendingApprovals(), shutdownFn: shutdown}
 }
 
 // Handler returns the management API mux.
@@ -269,14 +270,30 @@ func (s *Server) shutdown(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
-	writeJSON(w, 200, map[string]any{
-		"ok":        true,
-		"version":   "0.2.0",
-		"backends":  len(st.Backends),
-		"models":    len(st.Models),
-		"instances": len(st.Instances),
-		"gateway":   fmt.Sprintf("http://127.0.0.1:%d", s.gwPort),
-	})
+	running := 0
+	for _, i := range st.Instances {
+		if i.Status == "running" {
+			running++
+		}
+	}
+	out := map[string]any{
+		"ok":          true,
+		"version":     "0.2.0",
+		"backends":    len(st.Backends),
+		"models":      len(st.Models),
+		"instances":   len(st.Instances),
+		"running":     running,
+		"gateway":     fmt.Sprintf("http://127.0.0.1:%d", s.gwPort),
+		"requireAuth": st.Settings.RequireAuth,
+		"uptimeSec":   int64(time.Since(s.started).Seconds()),
+	}
+	if s.gw != nil {
+		reqs, errs, cost := s.gw.TodayTotals()
+		out["todayRequests"] = reqs
+		out["todayErrors"] = errs
+		out["todayCost"] = cost
+	}
+	writeJSON(w, 200, out)
 }
 
 // ---- backends ----
