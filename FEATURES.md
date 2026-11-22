@@ -756,6 +756,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F743 | P3 | 743 | cost | Cost key + model Req deep links | COMPLETED | The Cost page's per-key and per-model tables now link their id cells to the Requests page pre-filtered by that key/model (`/requests?key=`/`?model=`) — same deep-link family as F741/F742. Verified live: served bundle carries both links. |
 | F744 | P3 | 744 | ui | Daemon log card Download button | COMPLETED | The Overview daemon log card gained a Download button saving the displayed (filter-aware) log tail as a .log file — UI twin of the Instances log viewer's Download / `llmctl logs -out`. Verified live: served bundle carries the button. |
 | F745 | P3 | 745 | files | Files per-row Download button | COMPLETED | Each Files row gained a Download button saving the stored bytes under the original filename (works for any file type, not just text) — UI twin of `llmctl files cat -out`. Verified live: served bundle carries the button. |
+| F746 | P3 | 746 | memory | Memory per-entry Edit button | COMPLETED | Each Memory entry row gained an Edit button that rewrites the entry's content in place — UI twin of `llmctl memory update <id> [text…]`. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

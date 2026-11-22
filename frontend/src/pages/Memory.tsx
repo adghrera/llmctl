@@ -115,6 +115,22 @@ export default function Memory() {
     }
   };
 
+  const editEntry = async (e: MemoryEntry) => {
+    // Twin of `llmctl memory update <id> [text…]` (F746).
+    const next = window.prompt("Edit entry content (empty clears):", e.entry.content);
+    if (next === null) return;
+    setBusy(true);
+    try {
+      await api.updateMemory(e.id, { content: next, tags: e.entry.tags ?? [] });
+      ok("entry updated");
+      await load();
+    } catch (e2) {
+      err(e2 instanceof Error ? e2.message : String(e2));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async (e: MemoryEntry) => {
     if (!window.confirm(`Delete memory entry: "${e.entry.content.slice(0, 60)}..."?`)) return;
     setBusy(true);
@@ -453,6 +469,13 @@ export default function Memory() {
                           onClick={() => void duplicateEntry(e)}
                         >
                           Duplicate
+                        </button>{" "}
+                        <button
+                          className="btn sm"
+                          title="edit this entry's content (CLI: llmctl memory update)"
+                          onClick={() => void editEntry(e)}
+                        >
+                          Edit
                         </button>{" "}
                         <button
                           className="btn sm danger"
