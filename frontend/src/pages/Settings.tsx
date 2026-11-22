@@ -648,6 +648,20 @@ export default function SettingsPage() {
                   >
                     Export CSV
                   </button>
+                  <button
+                    className="btn sm"
+                    title="download the delivery log as JSON (CLI: llmctl webhooks -json)"
+                    onClick={() => {
+                      const blob = new Blob([JSON.stringify(shownWh, null, 2)], { type: "application/json" });
+                      const a = document.createElement("a");
+                      a.href = URL.createObjectURL(blob);
+                      a.download = `llmctl-webhooks-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                      a.click();
+                      URL.revokeObjectURL(a.href);
+                    }}
+                  >
+                    Export JSON
+                  </button>
                 </div>
                 <table style={{ marginTop: 4 }}>
                   <thead>

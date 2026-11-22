@@ -758,6 +758,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F745 | P3 | 745 | files | Files per-row Download button | COMPLETED | Each Files row gained a Download button saving the stored bytes under the original filename (works for any file type, not just text) — UI twin of `llmctl files cat -out`. Verified live: served bundle carries the button. |
 | F746 | P3 | 746 | memory | Memory per-entry Edit button | COMPLETED | Each Memory entry row gained an Edit button that rewrites the entry's content in place — UI twin of `llmctl memory update <id> [text…]`. Verified live: served bundle carries the button. |
 | F747 | P3 | 747 | requests | Requests since/until deep links | COMPLETED | The Requests page now reads since/until from the URL (ISO → datetime-local), and the Overview "Today (UTC)" requests stat links to the Requests page filtered to today's UTC window — completes the deep-link param family (key/instance/model already read params). Verified live: served bundle carries the link and converter. |
+| F748 | P3 | 748 | webhooks | Webhook log Export JSON | COMPLETED | The Settings webhook delivery log gained an Export JSON button beside Export CSV (filter-aware, follows the failed-only and event filters) — UI twin of `llmctl webhooks -json`. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

@@ -702,7 +702,8 @@ toggle for a light theme (choice remembered). Tabs:
   filters (F357), `--csv` export (F380), a `-failed` failed-only view (F709)
   and a `-stats` per-event roll-up —
   total/ok/failed/last attempt (F624); the Settings page delivery list has a matching event
-  dropdown (F358), a "Failed only" checkbox (F709), a filter-aware Export CSV button (F416), and an
+  dropdown (F358), a "Failed only" checkbox (F709), filter-aware Export CSV/JSON
+  buttons (F416, F748), and an
   Auto-refresh checkbox that polls every 5s while testing a receiver
   (F615). Event and
   scheduler-hook deliveries retry
