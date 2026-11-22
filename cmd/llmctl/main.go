@@ -213,7 +213,7 @@ Usage:
   llmctl models ctx <model-id> <tokens|0>
   llmctl models price <model-id> <in-per-M> <out-per-M>
   llmctl models hf-search <query> [-json] [-out FILE]
-  llmctl models hf-files <repo>
+  llmctl models hf-files <repo> [-json] [-out FILE]
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance> | llmctl restart --all
@@ -2979,13 +2979,21 @@ func cmdModels(args []string) error {
 	case "hf-files":
 		ffs := flag.NewFlagSet("models hf-files", flag.ExitOnError)
 		fjson := ffs.Bool("json", false, "print the raw files JSON (for scripts)")
+		fout := ffs.String("out", "", "write the raw files JSON to this file instead of stdout (F503)")
 		ffs.Parse(reorderFlags(rest))
 		if ffs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl models hf-files <repo> [-json]")
+			return fmt.Errorf("usage: llmctl models hf-files <repo> [-json] [-out FILE]")
 		}
 		_, out, err := cc.Get("/api/v1/hf/files?repo=" + urlEscape(ffs.Arg(0)))
 		if err != nil {
 			return err
+		}
+		if *fout != "" { // F503: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*fout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *fout, len(out))
+			return nil
 		}
 		if *fjson {
 			fmt.Print(string(out))
