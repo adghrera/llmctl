@@ -234,7 +234,7 @@ Usage:
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
   llmctl key show <id> [-json] [-out FILE]
-  llmctl key note <id> <text...>
+  llmctl key note <id> <text...> [-json]
   llmctl key update <id> [-name X] [-quota N] [-models a,b] …
   llmctl key disable <id> / llmctl key enable <id>
   llmctl key rotate <id> [-json] [-out FILE]
@@ -8403,8 +8403,11 @@ func cmdKey(args []string) error {
 		fmt.Printf("updated key %s\n", ufs.Arg(0))
 		return nil
 	case "note":
+		knfs := flag.NewFlagSet("key note", flag.ExitOnError)
+		knjson := knfs.Bool("json", false, "print the raw response JSON (F528)")
+		knfs.Parse(reorderFlags(rest[1:]))
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl key note <id> <text...>  (empty text clears)")
+			return fmt.Errorf("usage: llmctl key note <id> <text...> [-json]  (empty text clears)")
 		}
 		note := strings.TrimSpace(strings.Join(rest[1:], " "))
 		code, out, err := cc.Do("PATCH", "/api/v1/keys/"+url.PathEscape(rest[0]), map[string]any{"note": note})
@@ -8413,6 +8416,10 @@ func cmdKey(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("key note returned %d: %s", code, out)
+		}
+		if *knjson {
+			fmt.Print(string(out))
+			return nil
 		}
 		if note == "" {
 			fmt.Println("note cleared")

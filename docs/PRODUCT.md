@@ -618,7 +618,7 @@ llmctl setvars <instance> [-var k=v…]    (replace stored start vars, F271)
 llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
                                     (-out FILE: download the full log file, F292)
 llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]  (daemon's own log, ~/.llmctl/llmctl.log; -f follows it, F355; -out writes the tail to a file, F516; -json prints the raw {size,logs}, F517)
-llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note; generate -out FILE writes the creation JSON (incl. the secret) to a 0600 file, F507; rotate -out FILE likewise for the new secret, F508; list -out FILE writes the raw JSON, F481; show -out FILE writes the raw key JSON, F506; prune -out FILE writes the result JSON, F509;
+llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note; generate -out FILE writes the creation JSON (incl. the secret) to a 0600 file, F507; rotate -out FILE likewise for the new secret, F508; list -out FILE writes the raw JSON, F481; show -out FILE writes the raw key JSON, F506; prune -out FILE writes the result JSON, F509; note -json prints the raw response, F528;
                                         list --csv exports the audit table (F374);
                                         generate/rotate -json prints the raw JSON incl. the secret;
                                         show: one key's full view (-json for scripts); prune: -dry-run lists; note: set a free-text note;
