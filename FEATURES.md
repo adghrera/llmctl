@@ -211,6 +211,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F199 | P3 | 199 | cli | Human sizes in `backups list` | COMPLETED | `llmctl backups list` gets a header row, KiB/MiB/GiB sizes and a `total:` row (same style as F192). Verified live: 3 snapshots render with sizes and correct total. |
 | F200 | P3 | 200 | cli | `backups list -json` | COMPLETED | `llmctl backups list -json` prints the raw snapshots JSON for scripts. Verified live: output parses as JSON (3 backups); table mode unchanged. |
 | F201 | P3 | 201 | cli | `models list -json` | COMPLETED | `llmctl models list -json` prints the raw models JSON for scripts. Verified live: output parses as JSON (7 models); table mode unchanged. |
+| F202 | P3 | 202 | cli | `key list -json` | COMPLETED | `llmctl key list -json` prints the raw keys JSON for scripts. Verified live: output parses as JSON (34 keys); table mode unchanged. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

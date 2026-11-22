@@ -1752,7 +1752,7 @@ func cmdWebhooks(args []string) error {
 
 func cmdKey(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl key <generate|show|note|list|revoke|prune|reset-usage>")
+		return fmt.Errorf("usage: llmctl key <generate|show|note|enable|disable|list|revoke|prune|reset-usage>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -1920,9 +1920,16 @@ func cmdKey(args []string) error {
 		fmt.Printf("key %s %sd\n", rest[0], sub)
 		return nil
 	case "list":
+		fs := flag.NewFlagSet("key list", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the raw keys JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/keys")
 		if err != nil {
 			return err
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		var list []struct {
 			ID                 string     `json:"id"`

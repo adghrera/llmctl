@@ -384,7 +384,7 @@ llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.l
 llmctl key generate|show|note|enable|disable|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;
                                         show: one key's full view; note: set a free-text note;
                                         list shows usage, cost,
-                                        quota, expiry, daily budget, note; prune deletes expired keys)
+                                        quota, expiry, daily budget, note (--json for scripts); prune deletes expired keys)
 llmctl scheduler list|add|run|runs|enable|disable|delete
 llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20] [--csv] [--json] [-since 30m|RFC3339] [-until …]
 llmctl backups [list|create|restore <name>|delete <name]]   (list: human sizes + total, --json)
