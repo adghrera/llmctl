@@ -186,7 +186,8 @@ toggle for a light theme (choice remembered). Tabs:
   History persists across daemon restarts (`~/.llmctl/requests.jsonl`,
   trimmed to the newest 1000 lines at startup). Each entry also carries the
   estimated USD cost from per-model pricing, shown as a Cost column and
-  exported in the CSV (F142).
+  exported in the CSV (F142); failed entries also carry the short error
+  reason (e.g. `model "x" not served…`) under the status badge (F151).
   REST: GET /api/v1/requests?model=&status=&minMs=&stream=&key=&instance= and
   GET /api/v1/requests/{id} for a single request by its id (F104, F106).
 - **Tools** — install agent tools from a URL (.zip) or a local folder

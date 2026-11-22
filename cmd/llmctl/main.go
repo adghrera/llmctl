@@ -858,6 +858,7 @@ func cmdRequests(args []string) error {
 		PromptTok int64     `json:"promptTok"`
 		CompTok   int64     `json:"compTok"`
 		Cost      float64   `json:"cost"`
+		Error     string    `json:"error"`
 		Stream    bool      `json:"stream"`
 	}
 	if err := json.Unmarshal(out, &entries); err != nil {
@@ -867,7 +868,7 @@ func cmdRequests(args []string) error {
 		fmt.Println("no requests yet")
 		return nil
 	}
-	fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5s %9s %7s %7s %-9s %s\n", "ID", "TIME", "MODEL", "INSTANCE", "KEY", "CODE", "MS", "IN", "OUT", "COST $", "STREAM")
+	fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5s %9s %7s %7s %-9s %-6s %s\n", "ID", "TIME", "MODEL", "INSTANCE", "KEY", "CODE", "MS", "IN", "OUT", "COST $", "STREAM", "ERROR")
 	for _, e := range entries {
 		stream := ""
 		if e.Stream {
@@ -877,8 +878,12 @@ func cmdRequests(args []string) error {
 		if e.Cost > 0 {
 			cost = fmt.Sprintf("%.4f", e.Cost)
 		}
-		fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5d %9.0f %7d %7d %-9s %s\n",
-			e.ID, e.Time.Local().Format("2006-01-02 15:04:05"), e.Model, e.Instance, e.Key, e.Status, e.LatencyMs, e.PromptTok, e.CompTok, cost, stream)
+		errTxt := e.Error
+		if len(errTxt) > 48 {
+			errTxt = errTxt[:48] + "…"
+		}
+		fmt.Printf("%-12s %-19s %-16s %-10s %-10s %5d %9.0f %7d %7d %-9s %-6s %s\n",
+			e.ID, e.Time.Local().Format("2006-01-02 15:04:05"), e.Model, e.Instance, e.Key, e.Status, e.LatencyMs, e.PromptTok, e.CompTok, cost, stream, errTxt)
 	}
 	return nil
 }

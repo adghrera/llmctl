@@ -223,6 +223,23 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 		keyLabel = key
 	}
 	reqCost := float64(pTok)/1e6*m.pricingFor(model).InputPerM + float64(cTok)/1e6*m.pricingFor(model).OutputPerM
+	// Short error detail for failed requests: the "error.message" field of
+	// the JSON body when present (gateway or upstream error) (F151).
+	var errDetail string
+	if status >= 400 && len(respBody) > 0 && len(respBody) < 4096 {
+		var er struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(respBody, &er) == nil && er.Error.Message != "" {
+			if r := []rune(er.Error.Message); len(r) > 140 {
+				errDetail = string(r[:140]) + "…"
+			} else {
+				errDetail = er.Error.Message
+			}
+		}
+	}
 	m.reqLog.add(RequestLogEntry{
 		ID:        rid,
 		Time:      time.Now(),
@@ -236,6 +253,7 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 		PromptTok: pTok,
 		CompTok:   cTok,
 		Cost:      reqCost, // estimated USD (F142)
+		Error:     errDetail,
 		Stream:    stream,
 	})
 

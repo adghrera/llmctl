@@ -395,6 +395,7 @@ export interface RequestLogEntry {
   promptTok: number;
   compTok: number;
   cost?: number;
+  error?: string;
   stream?: boolean;
 }
 

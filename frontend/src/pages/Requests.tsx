@@ -196,6 +196,11 @@ export default function Requests() {
                 <td className="mono muted">{e.key || "—"}</td>
                 <td>
                   <span className={`badge ${statusTone(e.status)}`}>{e.status}</span>
+                  {e.error ? (
+                    <div className="muted" style={{ fontSize: 11, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={e.error}>
+                      {e.error}
+                    </div>
+                  ) : null}
                 </td>
                 <td>
                   {e.latencyMs < 1000 ? `${Math.round(e.latencyMs)} ms` : `${(e.latencyMs / 1000).toFixed(1)} s`}
