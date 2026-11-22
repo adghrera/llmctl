@@ -445,6 +445,7 @@ llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddin
 llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
 llmctl compare -models A,B [-system S] [-max-tokens N] <prompt> (CLI twin of Compare page, F301)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
+llmctl bench -models A,B [-n N] [-conc C]                     (multi-model comparison table, F303)
 llmctl disk [-json]                                (model dir + volume disk usage)
                                     health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is

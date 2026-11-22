@@ -168,6 +168,7 @@ Usage:
   llmctl complete -model ID <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] <prompt>
   llmctl bench -model ID [-n N] [-conc C]
+  llmctl bench -models A,B [-n N] [-conc C]   (benchmark + comparison table)
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
@@ -1122,14 +1123,25 @@ func cmdEmbed(args []string) error {
 // cmdBench measures gateway chat throughput/latency for one model (F282).
 func cmdBench(args []string) error {
 	fs := flag.NewFlagSet("bench", flag.ExitOnError)
-	model := fs.String("model", "", "model id to benchmark (required)")
+	model := fs.String("model", "", "model id to benchmark (required, unless -models is used)")
+	modelsFlag := fs.String("models", "", "comma-separated model ids to benchmark and compare (F303)")
 	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
 	n := fs.Int("n", 5, "number of requests")
 	conc := fs.Int("conc", 1, "concurrent requests")
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
 	fs.Parse(reorderFlags(args))
-	if *model == "" {
-		return fmt.Errorf("usage: llmctl bench -model ID [-key K] [-n N] [-conc C] [-prompt TEXT]")
+	var models []string
+	if *modelsFlag != "" {
+		for _, m := range strings.Split(*modelsFlag, ",") {
+			if m = strings.TrimSpace(m); m != "" {
+				models = append(models, m)
+			}
+		}
+	} else if *model != "" {
+		models = []string{*model}
+	}
+	if len(models) == 0 {
+		return fmt.Errorf("usage: llmctl bench -model ID [-key K] [-n N] [-conc C] [-prompt TEXT]\n       llmctl bench -models A,B [-key K] [-n N] [-conc C] [-prompt TEXT]")
 	}
 	if *n < 1 {
 		*n = 1
@@ -1141,125 +1153,170 @@ func cmdBench(args []string) error {
 	if err != nil {
 		return err
 	}
-	body, _ := json.Marshal(map[string]any{
-		"model":    *model,
-		"messages": []map[string]string{{"role": "user", "content": *prompt}},
-	})
-	type result struct {
-		ms   float64
-		tok  int
-		errS string
+	type benchStats struct {
+		model    string
+		ok       int
+		fails    int
+		wall     time.Duration
+		min      float64
+		avg      float64
+		p50      float64
+		p95      float64
+		max      float64
+		reqps    float64
+		tokps    float64
+		firstErr string
 	}
-	// worker pool over a job channel
-	jobs := make(chan int)
-	res := make(chan result, *n)
-	var wg sync.WaitGroup
-	for w := 0; w < *conc; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for range jobs {
-				req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(body)))
-				if err != nil {
-					res <- result{errS: err.Error()}
-					continue
-				}
-				req.Header.Set("Content-Type", "application/json")
-				if *keyF != "" {
-					req.Header.Set("Authorization", "Bearer "+*keyF)
-				}
-				hc := &http.Client{Timeout: 5 * time.Minute}
-				t0 := time.Now()
-				resp, err := hc.Do(req)
-				if err != nil {
-					res <- result{errS: err.Error()}
-					continue
-				}
-				payload, _ := io.ReadAll(resp.Body)
-				resp.Body.Close()
-				ms := float64(time.Since(t0).Microseconds()) / 1000.0
-				if resp.StatusCode != 200 {
-					sn := strings.TrimSpace(string(payload))
-					if len(sn) > 80 {
-						sn = sn[:80] + "…"
+	benchOne := func(m string) (*benchStats, error) {
+		body, _ := json.Marshal(map[string]any{
+			"model":    m,
+			"messages": []map[string]string{{"role": "user", "content": *prompt}},
+		})
+		type result struct {
+			ms   float64
+			tok  int
+			errS string
+		}
+		// worker pool over a job channel
+		jobs := make(chan int)
+		res := make(chan result, *n)
+		var wg sync.WaitGroup
+		for w := 0; w < *conc; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for range jobs {
+					req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(body)))
+					if err != nil {
+						res <- result{errS: err.Error()}
+						continue
 					}
-					res <- result{errS: fmt.Sprintf("%d: %s", resp.StatusCode, sn)}
-					continue
+					req.Header.Set("Content-Type", "application/json")
+					if *keyF != "" {
+						req.Header.Set("Authorization", "Bearer "+*keyF)
+					}
+					hc := &http.Client{Timeout: 5 * time.Minute}
+					t0 := time.Now()
+					resp, err := hc.Do(req)
+					if err != nil {
+						res <- result{errS: err.Error()}
+						continue
+					}
+					payload, _ := io.ReadAll(resp.Body)
+					resp.Body.Close()
+					ms := float64(time.Since(t0).Microseconds()) / 1000.0
+					if resp.StatusCode != 200 {
+						sn := strings.TrimSpace(string(payload))
+						if len(sn) > 80 {
+							sn = sn[:80] + "\u2026"
+						}
+						res <- result{errS: fmt.Sprintf("%d: %s", resp.StatusCode, sn)}
+						continue
+					}
+					var parsed struct {
+						Usage struct {
+							TotalTokens int `json:"total_tokens"`
+						} `json:"usage"`
+					}
+					json.Unmarshal(payload, &parsed)
+					res <- result{ms: ms, tok: parsed.Usage.TotalTokens}
 				}
-				var parsed struct {
-					Usage struct {
-						TotalTokens int `json:"total_tokens"`
-					} `json:"usage"`
-				}
-				json.Unmarshal(payload, &parsed)
-				res <- result{ms: ms, tok: parsed.Usage.TotalTokens}
+			}()
+		}
+		go func() {
+			for i := 0; i < *n; i++ {
+				jobs <- i
 			}
+			close(jobs)
 		}()
-	}
-	go func() {
-		for i := 0; i < *n; i++ {
-			jobs <- i
-		}
-		close(jobs)
-	}()
-	go func() {
-		wg.Wait()
-		close(res)
-	}()
+		go func() {
+			wg.Wait()
+			close(res)
+		}()
 
-	fmt.Printf("bench: model=%s n=%d conc=%d\n", *model, *n, *conc)
-	var lats []float64
-	var fails int
-	var firstErr string
-	var totalTok, done int
-	t0 := time.Now()
-	for r := range res {
-		done++
-		if r.errS != "" {
-			fails++
-			if firstErr == "" {
-				firstErr = r.errS
+		fmt.Printf("bench: model=%s n=%d conc=%d\n", m, *n, *conc)
+		var lats []float64
+		var fails int
+		var firstErr string
+		var totalTok, done int
+		t0 := time.Now()
+		for r := range res {
+			done++
+			if r.errS != "" {
+				fails++
+				if firstErr == "" {
+					firstErr = r.errS
+				}
+				continue
 			}
-			continue
+			lats = append(lats, r.ms)
+			totalTok += r.tok
+			if done%10 == 0 || done == *n {
+				fmt.Printf("  %d/%d done\r", done, *n)
+			}
 		}
-		lats = append(lats, r.ms)
-		totalTok += r.tok
-		if done%10 == 0 || done == *n {
-			fmt.Printf("  %d/%d done\r", done, *n)
+		elapsed := time.Since(t0)
+		fmt.Println()
+		if fails > 0 {
+			fmt.Printf("errors: %d/%d (first: %s)\n", fails, *n, firstErr)
+		}
+		if len(lats) == 0 {
+			return nil, fmt.Errorf("bench %s: no successful requests", m)
+		}
+		sort.Float64s(lats)
+		pct := func(p float64) float64 {
+			i := int(p * float64(len(lats)))
+			if i >= len(lats) {
+				i = len(lats) - 1
+			}
+			return lats[i]
+		}
+		var sum float64
+		for _, v := range lats {
+			sum += v
+		}
+		fmt.Printf("ok: %d  wall: %s\n", len(lats), elapsed.Round(time.Millisecond))
+		fmt.Printf("latency ms: min %.0f  avg %.0f  p50 %.0f  p95 %.0f  max %.0f\n",
+			lats[0], sum/float64(len(lats)), pct(0.50), pct(0.95), lats[len(lats)-1])
+		fmt.Printf("throughput: %.2f req/s", float64(len(lats))/elapsed.Seconds())
+		if totalTok > 0 {
+			fmt.Printf("  %.0f tok/s", float64(totalTok)/elapsed.Seconds())
+		}
+		fmt.Println()
+		return &benchStats{
+			model: m, ok: len(lats), fails: fails, wall: elapsed,
+			min: lats[0], avg: sum / float64(len(lats)), p50: pct(0.50), p95: pct(0.95),
+			max:      lats[len(lats)-1],
+			reqps:    float64(len(lats)) / elapsed.Seconds(),
+			tokps:    float64(totalTok) / elapsed.Seconds(),
+			firstErr: firstErr,
+		}, nil
+	}
+	var all []*benchStats
+	var firstErr error
+	for _, m := range models {
+		st, err := benchOne(m)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		if st != nil {
+			all = append(all, st)
 		}
 	}
-	elapsed := time.Since(t0)
-	fmt.Println()
-	if fails > 0 {
-		fmt.Printf("errors: %d/%d (first: %s)\n", fails, *n, firstErr)
-	}
-	if len(lats) == 0 {
-		return fmt.Errorf("bench: no successful requests")
-	}
-	sort.Float64s(lats)
-	pct := func(p float64) float64 {
-		i := int(p * float64(len(lats)))
-		if i >= len(lats) {
-			i = len(lats) - 1
+	if len(models) > 1 && len(all) > 0 {
+		fmt.Printf("\ncomparison (n=%d conc=%d):\n", *n, *conc)
+		fmt.Printf("%-24s %5s %8s %8s %8s %9s\n", "MODEL", "OK", "AVG MS", "P50 MS", "P95 MS", "TOK/S")
+		for _, st := range all {
+			fmt.Printf("%-24s %5d %8.0f %8.0f %8.0f %9.0f\n",
+				st.model, st.ok, st.avg, st.p50, st.p95, st.tokps)
 		}
-		return lats[i]
 	}
-	var sum float64
-	for _, v := range lats {
-		sum += v
+	if firstErr != nil && len(all) < len(models) {
+		return firstErr
 	}
-	fmt.Printf("ok: %d  wall: %s\n", len(lats), elapsed.Round(time.Millisecond))
-	fmt.Printf("latency ms: min %.0f  avg %.0f  p50 %.0f  p95 %.0f  max %.0f\n",
-		lats[0], sum/float64(len(lats)), pct(0.50), pct(0.95), lats[len(lats)-1])
-	fmt.Printf("throughput: %.2f req/s", float64(len(lats))/elapsed.Seconds())
-	if totalTok > 0 {
-		fmt.Printf("  %.0f tok/s", float64(totalTok)/elapsed.Seconds())
-	}
-	fmt.Println()
 	return nil
 }
 
-// cmdComplete calls the gateway's /v1/completions route (F287).
 func cmdComplete(args []string) error {
 	fs := flag.NewFlagSet("complete", flag.ExitOnError)
 	model := fs.String("model", "", "model id (required)")
