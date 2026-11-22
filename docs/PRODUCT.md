@@ -552,7 +552,9 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/webhook/log (F144), and in `llmctl webhooks` (F191), which
   supports `-n` (server-side `?limit=`) and `-event` (server-side `?event=`)
   filters (F357) and `--csv` export (F380); the Settings page delivery list has a matching event
-  dropdown (F358) and a filter-aware Export CSV button (F416). Event and
+  dropdown (F358), a filter-aware Export CSV button (F416), and an
+  Auto-refresh checkbox that polls every 5s while testing a receiver
+  (F615). Event and
   scheduler-hook deliveries retry
   up to 3 times (1s, 2s backoff) so a briefly unreachable receiver still gets
   the notification (F163).

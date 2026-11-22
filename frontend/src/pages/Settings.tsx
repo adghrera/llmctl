@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [snapLabel, setSnapLabel] = useState("");
   const [snapBusy, setSnapBusy] = useState(false);
   const [autoSnap, setAutoSnap] = useState(false); // live-refresh the snapshot list (CLI `backups -watch`, F610)
+  const [autoWh, setAutoWh] = useState(false); // live-refresh the webhook log (CLI `webhooks -watch`, F615)
   // API console state (F589, UI counterpart of `llmctl api`).
   const [apiMethod, setApiMethod] = useState("GET");
   const [apiPath, setApiPath] = useState("/api/v1/status");
@@ -48,6 +49,14 @@ export default function SettingsPage() {
     const t = setInterval(() => api.backups().then(setBackups).catch(() => {}), 5000);
     return () => clearInterval(t);
   }, [autoSnap]);
+
+  // Poll the webhook delivery log while the toggle is on (F615), so new
+  // deliveries appear while testing a receiver.
+  useEffect(() => {
+    if (!autoWh) return;
+    const t = setInterval(loadWhLog, 5000);
+    return () => clearInterval(t);
+  }, [autoWh]);
 
   useEffect(() => {
     api.settings().then((s) => {
@@ -529,6 +538,13 @@ export default function SettingsPage() {
                 <div className="row" style={{ alignItems: "center", gap: 8 }}>
                   <span className="muted small">recent deliveries</span>
                   <div className="spacer" />
+                  <label
+                    style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}
+                    title="poll every 5s so new deliveries appear while testing a receiver (CLI: llmctl webhooks -watch N, F615)"
+                  >
+                    <input type="checkbox" checked={autoWh} onChange={(e) => setAutoWh(e.target.checked)} />
+                    Auto-refresh
+                  </label>
                   <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     event
                     <select
