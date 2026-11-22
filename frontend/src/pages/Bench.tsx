@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, Instance } from "../api/client";
 import { err, ok } from "../ui/toast";
 
@@ -33,6 +33,7 @@ export default function Bench() {
   const [conc, setConc] = useState("1");
   const [rows, setRows] = useState<BenchRow[]>([]);
   const [running, setRunning] = useState(false);
+  const abortRef = useRef<AbortController | null>(null); // stop the bench run (F756)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
 
   const load = () =>
@@ -62,6 +63,7 @@ export default function Bench() {
     const t0 = performance.now();
     const worker = async () => {
       while (true) {
+        if (abortRef.current?.signal.aborted) return; // stop requested (F756)
         const i = next++;
         if (i >= reqs) return;
         const t = performance.now();
@@ -76,6 +78,7 @@ export default function Bench() {
               model: inst.modelId,
               messages: [{ role: "user", content: prompt }],
             }),
+            signal: abortRef.current?.signal,
           });
           const ms = performance.now() - t;
           const body = await resp.text();
@@ -93,6 +96,7 @@ export default function Bench() {
           row.ok++;
           times.push(ms);
         } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") return; // stopped mid-request (F756)
           row.fail++;
           row.error = row.error || String(e);
         }
@@ -120,16 +124,23 @@ export default function Bench() {
     const reqs = Math.max(1, Number(n) || 5);
     const parallel = Math.max(1, Number(conc) || 1);
     setRunning(true);
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     const chosen = instances.filter((i) => selected.has(i.id));
     setRows(chosen.map((i) => ({ model: i.modelId, ok: 0, fail: 0, avg: 0, p50: 0, p95: 0, max: 0, tokps: 0, reqps: 0, done: false })));
     try {
       for (const inst of chosen) {
         const row = await benchOne(inst, reqs, parallel);
         setRows((prev) => prev.map((r) => (r.model === row.model ? row : r)));
+        if (ctrl.signal.aborted) {
+          ok("bench stopped");
+          break;
+        }
         if (row.ok === 0) err(`${row.model}: ${row.error || "all requests failed"}`);
         else ok(`${row.model}: ${row.ok}/${reqs} ok, avg ${row.avg.toFixed(0)} ms`);
       }
     } finally {
+      abortRef.current = null;
       setRunning(false);
     }
   };
@@ -188,9 +199,19 @@ export default function Bench() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
-          <button className="btn primary" disabled={running || selected.size === 0} onClick={runBench}>
-            {running ? "Benching…" : "Run bench"}
-          </button>
+          {running ? (
+            <button
+              className="btn danger"
+              title="stop the bench run (finished rows are kept)"
+              onClick={() => abortRef.current?.abort()}
+            >
+              Stop
+            </button>
+          ) : (
+            <button className="btn primary" disabled={selected.size === 0} onClick={runBench}>
+              Run bench
+            </button>
+          )}
         </div>
         {rows.length > 0 && (
           <div className="oc-table" style={{ overflowX: "auto" }}>
