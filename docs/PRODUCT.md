@@ -182,7 +182,7 @@ toggle for a light theme (choice remembered). Tabs:
   "Daily by Key" table with its own CSV export (F129).
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
   key, status, latency, tokens) in an auto-refreshing table, with one-click
-  CSV export and combinable filters (model, status class or exact code like
+  CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
   stream/plain, key prefix or id). The serving replica is also echoed to clients as
   the `X-LLMCtrl-Instance` response header (F115).

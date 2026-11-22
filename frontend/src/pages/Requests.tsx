@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, type RequestLogEntry } from "../api/client";
 import { ok } from "../ui/toast";
@@ -45,6 +45,7 @@ export default function Requests() {
   const [fStream, setFStream] = useState("");
   const [fKey, setFKey] = useState(params.get("key") || "");
   const [fInstance, setFInstance] = useState(params.get("instance") || "");
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -180,19 +181,31 @@ export default function Requests() {
           </thead>
           <tbody>
             {entries.map((e, i) => (
-              <tr key={i}>
-                <td
-                  className="mono muted"
-                  style={{ fontSize: 11, cursor: e.id ? "pointer" : "default" }}
-                  title={e.id ? "click to copy request id" : undefined}
-                  onClick={() => {
-                    if (e.id && navigator.clipboard) {
-                      void navigator.clipboard.writeText(e.id).then(() => ok(`copied ${e.id}`));
-                    }
-                  }}
-                >
-                  {e.id || "—"}
-                </td>
+              <Fragment key={i}>
+                <tr>
+                  <td
+                    className="mono muted"
+                    style={{ fontSize: 11, cursor: e.id ? "pointer" : "default" }}
+                    title={e.id ? "click to copy request id" : undefined}
+                    onClick={() => {
+                      if (e.id && navigator.clipboard) {
+                        void navigator.clipboard.writeText(e.id).then(() => ok(`copied ${e.id}`));
+                      }
+                    }}
+                  >
+                    <button
+                      className="btn sm"
+                      style={{ padding: "0 5px", marginRight: 4 }}
+                      title="show full entry"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setOpenIdx(openIdx === i ? null : i);
+                      }}
+                    >
+                      {openIdx === i ? "▾" : "▸"}
+                    </button>
+                    {e.id || "—"}
+                  </td>
                 <td className="muted" style={{ fontSize: 12 }}>
                   {new Date(e.time).toLocaleTimeString()}
                 </td>
@@ -224,7 +237,17 @@ export default function Requests() {
                 <td className="mono" style={{ fontSize: 12 }}>
                   {e.cost ? `$${e.cost.toFixed(4)}` : "—"}
                 </td>
-              </tr>
+                </tr>
+                {openIdx === i && (
+                  <tr>
+                    <td colSpan={9} style={{ background: "var(--code-background, rgba(127,127,127,0.08))" }}>
+                      <pre style={{ margin: 0, fontSize: 11, overflowX: "auto", whiteSpace: "pre-wrap" }}>
+                        {JSON.stringify(e, null, 2)}
+                      </pre>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
