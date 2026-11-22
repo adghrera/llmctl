@@ -143,7 +143,7 @@ export default function Search() {
           <h2>Prompts ({prompts.length})</h2>
           {prompts.map((p) => (
             <div className="row" key={p.id} style={{ gap: 8, marginBottom: 4 }}>
-              <Link to={`/prompts`}>{p.name}</Link>
+              <Link to={`/prompts?q=${encodeURIComponent(p.id)}`}>{p.name}</Link>
               <span className="muted small">
                 {p.category}
                 {p.custom ? " · custom" : ""}

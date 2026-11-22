@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, PromptTemplate } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function Prompts() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [filter, setFilter] = useState(params.get("q") || "");
   const [copied, setCopied] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -90,9 +92,18 @@ export default function Prompts() {
     load();
   }, []);
 
-  const filtered = templates.filter(
-    (t) => !selectedCategory || t.category === selectedCategory
-  );
+  const filtered = templates.filter((t) => {
+    if (selectedCategory && t.category !== selectedCategory) return false;
+    const low = filter.trim().toLowerCase();
+    if (!low) return true;
+    return (
+      t.id.toLowerCase().includes(low) ||
+      t.name.toLowerCase().includes(low) ||
+      (t.description || "").toLowerCase().includes(low) ||
+      (t.category || "").toLowerCase().includes(low) ||
+      t.content.toLowerCase().includes(low)
+    );
+  });
 
   const copyToClipboard = async (content: string, id: string) => {
     try {
@@ -118,6 +129,13 @@ export default function Prompts() {
           chat" to open the Chat page with the template in the input, or "Copy"
           to copy a template to your clipboard.
         </p>
+        <input
+          className="input"
+          placeholder="Filter by name, description or content…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          style={{ width: "100%", marginBottom: 10 }}
+        />
         <div className="row" style={{ gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: 12, opacity: 0.7 }}>Category:</span>{" "}
           {categories.map((cat) => (
