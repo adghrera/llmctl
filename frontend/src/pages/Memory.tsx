@@ -123,6 +123,25 @@ export default function Memory() {
     }
   };
 
+  const duplicateEntry = async (e: MemoryEntry) => {
+    // Copy an entry, optionally with new tags (F642) — the quick way to adapt
+    // a note for a different subject without retyping it.
+    const cur = (e.entry.tags ?? []).join(", ");
+    const input = window.prompt("Duplicate entry — tags (comma-separated):", cur);
+    if (input === null) return;
+    const tags = input
+      .split(",")
+      .map((t) => t.trim())
+      .filter((t) => t !== "");
+    try {
+      await api.createMemory({ content: e.entry.content, tags });
+      ok("memory entry duplicated");
+      await load();
+    } catch (e2) {
+      err(e2 instanceof Error ? e2.message : String(e2));
+    }
+  };
+
   const search = async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -373,6 +392,13 @@ export default function Memory() {
                           onClick={() => void copyEntry(e)}
                         >
                           {copied.has(e.id) ? "Copied" : "Copy"}
+                        </button>{" "}
+                        <button
+                          className="btn sm"
+                          title="duplicate this entry, optionally with new tags (F642)"
+                          onClick={() => void duplicateEntry(e)}
+                        >
+                          Duplicate
                         </button>{" "}
                         <button
                           className="btn sm danger"
