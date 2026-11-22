@@ -550,7 +550,8 @@ toggle for a light theme (choice remembered). Tabs:
    -keep N` prunes the existing set on demand, F558); the Settings
   page lists those snapshots for download, restore-in-place, integrity
   verification (`llmctl backups verify <name>` / Verify button, F242), download to a file
-  (`llmctl backups download <name> [-out f]`, F276) or deletion,
+  (`llmctl backups download <name> [-out f]`, F276), pruning to the newest N
+  (`llmctl backups prune` / "Prune old" button, F558, F559) or deletion,
   and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
   `llmctl backups restore <name>` or the Restore button, F175, F176; CLI

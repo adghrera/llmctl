@@ -674,6 +674,28 @@ export default function SettingsPage() {
           >
             Export CSV
           </button>
+          <button
+            className="btn"
+            disabled={snapBusy || backups.length === 0}
+            title="delete all but the newest snapshots (CLI: llmctl backups prune)"
+            onClick={async () => {
+              const keep = backupKeep || 7;
+              if (backups.length <= keep) {
+                ok(`nothing to prune (keeping newest ${keep})`);
+                return;
+              }
+              if (!confirm(`Prune ${backups.length - keep} old snapshot(s), keeping the newest ${keep}?`)) return;
+              try {
+                const r = await api.pruneBackups(keep);
+                ok(`pruned ${r.deleted.length} snapshot(s), keeping newest ${r.keep}`);
+                api.backups().then(setBackups).catch(() => {});
+              } catch (e) {
+                err(e instanceof Error ? e.message : String(e));
+              }
+            }}
+          >
+            Prune old
+          </button>
           <span className="muted small">Keeps the newest {backupKeep || 7} snapshots.</span>
         </div>
         <div className="row" style={{ marginBottom: 10, alignItems: "center" }}>

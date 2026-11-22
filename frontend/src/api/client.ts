@@ -585,6 +585,8 @@ export const api = {
       body: label ? JSON.stringify({ label }) : undefined,
     }),
   deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  pruneBackups: (keep: number) =>
+    req<{ keep: number; deleted: string[] }>("/backups/prune", { method: "POST", body: JSON.stringify({ keep }) }),
   verifyBackup: (name: string) =>
     req<{ ok: boolean; entries?: number; error?: string }>(`/backups/${encodeURIComponent(name)}/verify`, { method: "POST" }),
   restoreStoredBackup: (name: string) =>
