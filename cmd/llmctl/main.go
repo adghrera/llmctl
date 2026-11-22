@@ -1943,6 +1943,24 @@ func cmdUsage(args []string) error {
 			days = append(days, d)
 		}
 		sort.Sort(sort.Reverse(sort.StringSlice(days)))
+		if *csvOut { // same columns as `usage -keys -csv` (F260)
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"date", "key_id", "requests", "errors", "prompt_tokens", "completion_tokens", "cost_usd"})
+			for _, day := range days {
+				ids := make([]string, 0, len(kd[day]))
+				for id := range kd[day] {
+					ids = append(ids, id)
+				}
+				sort.Strings(ids)
+				for _, id := range ids {
+					u := kd[day][id]
+					_ = w.Write([]string{day, id, strconv.FormatInt(u.Requests, 10), strconv.FormatInt(u.Errors, 10),
+						strconv.FormatInt(u.Prompt, 10), strconv.FormatInt(u.Comp, 10), strconv.FormatFloat(u.Cost, 'f', 6, 64)})
+				}
+			}
+			w.Flush()
+			return w.Error()
+		}
 		for _, day := range days {
 			for id, u := range kd[day] {
 				fmt.Printf("%s  key %s  %6d reqs %4d err %10d in %10d out", day, id, u.Requests, u.Errors, u.Prompt, u.Comp)
