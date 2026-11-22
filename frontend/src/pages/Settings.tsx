@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api, type Settings, type WebhookDelivery } from "../api/client";
+import { ago } from "../lib/time";
 import { ok, err } from "../ui/toast";
 
 export default function SettingsPage() {
@@ -476,7 +477,7 @@ export default function SettingsPage() {
                   <tbody>
                     {whLog.slice(0, 5).map((d, i) => (
                       <tr key={i}>
-                        <td className="muted" style={{ fontSize: 12 }}>{new Date(d.time).toLocaleTimeString()}</td>
+                        <td className="muted" style={{ fontSize: 12 }} title={new Date(d.time).toLocaleString()}>{ago(d.time)}</td>
                         <td className="mono" style={{ fontSize: 12 }}>{d.event || "—"}</td>
                         <td>
                           <span className={`badge ${d.ok ? "ok" : "err"}`}>{d.status || (d.ok ? 200 : "err")}</span>

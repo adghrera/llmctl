@@ -3,6 +3,7 @@ import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, ty
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
 import { renderMd } from "../md";
+import { ago } from "../lib/time";
 
 interface Msg {
   role: "user" | "assistant";
@@ -441,7 +442,7 @@ export default function Chat() {
                   <tr key={r.conversationId} style={{ cursor: "pointer" }} onClick={() => openChat(r.conversationId)}>
                     <td style={{ width: "60%" }}>
                       <b>{r.title}</b>
-                      <div style={{ fontSize: 12, opacity: 0.7 }}>{r.model || "—"} • {new Date(r.updatedAt).toLocaleString()}</div>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>{r.model || "—"} • <span title={new Date(r.updatedAt).toLocaleString()}>{ago(r.updatedAt)}</span></div>
                     </td>
                     <td>
                       {r.matches.map((m: SearchMatch, i: number) => (
@@ -478,7 +479,7 @@ export default function Chat() {
                     </a>{" "}
                     {c.agentMode && <span className="badge">agent</span>}
                     <div className="muted" style={{ fontSize: 12 }}>
-                      {c.model} · {c.messages} msgs · {new Date(c.updatedAt).toLocaleString()}
+                      {c.model} · {c.messages} msgs · <span title={new Date(c.updatedAt).toLocaleString()}>{ago(c.updatedAt)}</span>
                     </div>
                   </td>
                   <td style={{ textAlign: "right", verticalAlign: "middle" }}>

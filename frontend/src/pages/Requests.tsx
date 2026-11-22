@@ -1,20 +1,13 @@
 import { Fragment, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, type RequestLogEntry } from "../api/client";
+import { ago } from "../lib/time";
 import { ok } from "../ui/toast";
 
 function statusTone(s: number): string {
   if (s >= 500) return "err";
   if (s >= 400) return "warn";
   return "run";
-}
-
-function ago(t: string): string {
-  const s = Math.max(0, Math.floor((Date.now() - new Date(t).getTime()) / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
 }
 
 function csvField(s: string): string {
