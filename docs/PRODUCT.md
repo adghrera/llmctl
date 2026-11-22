@@ -131,7 +131,9 @@ GitHub release, or file list. No recompile.
 - Replicas of one model are load-balanced least-loaded-first (F113), and a
   replica whose connection fails is retried on the next replica
   automatically (F070). The Instances page shows each instance's in-flight
-  request count. An optional per-instance "max parallel" cap (Vars dialog)
+  request count and has a Chat button that deep-links to the Chat page with
+  that instance's model preselected (`/chat?model=`, F362). An optional
+  per-instance "max parallel" cap (Vars dialog)
   sheds excess requests with 503 instead of overloading a backend (F114).
 
 ### Web UI

@@ -456,6 +456,11 @@ export default function Instances() {
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
                       Logs
                     </button>
+                    <Link to={`/chat?model=${encodeURIComponent(i.modelId)}`}>
+                      <button className="btn sm" style={{ marginRight: 6 }} title="open the Chat page with this model">
+                        Chat
+                      </button>
+                    </Link>
                     <Link to={`/requests?instance=${encodeURIComponent(i.id)}`}>
                       <button className="btn sm" style={{ marginRight: 6 }} title="gateway requests served by this instance">
                         Req{i.served ? ` ${i.served}` : ""}

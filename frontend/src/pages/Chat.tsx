@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
@@ -21,7 +22,9 @@ const APPROVAL_STORAGE = "llmctl.chat.approval";
 export default function Chat() {
   const { instances } = useStore();
   const running = instances.filter((i) => i.status === "running");
-  const [model, setModel] = useState("");
+  // `?model=` deep-link from the Instances page preselects the model (F362).
+  const [params] = useSearchParams();
+  const [model, setModel] = useState(() => params.get("model") ?? "");
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) ?? "");
   const [agentMode, setAgentMode] = useState(() => localStorage.getItem(AGENT_STORAGE) === "1");
   const [requireApproval, setRequireApproval] = useState(
@@ -217,9 +220,12 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs]);
 
-  // Default to the first running instance.
+  // Default to the first running instance; also fall back if a deep-linked
+  // or selected model stops running (F362).
   useEffect(() => {
-    if (!model && running.length) setModel(running[0].modelId);
+    if (running.length && !running.some((i) => i.modelId === model)) {
+      setModel(running[0].modelId);
+    }
   }, [running, model]);
 
   const updateLast = (fn: (m: Msg) => Msg) =>
