@@ -252,7 +252,7 @@ Usage:
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add|export|enable|disable|delete <id>
-  llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
+  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json|-csv|-out FILE] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove|enable|disable|test <id …> | mcp export|import
@@ -5839,6 +5839,7 @@ func cmdMemory(args []string) error {
 		n := fs.Int("n", 30, "number of entries")
 		jsonOut := fs.Bool("json", false, "print the entries as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the memory entries as CSV (F401)")
+		outFile := fs.String("out", "", "write the memory entries JSON to this file instead of stdout (F490)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/memory")
 		if err != nil {
@@ -5882,10 +5883,18 @@ func cmdMemory(args []string) error {
 		if len(list) > *n {
 			list = list[:*n]
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F490)
 			b, err := json.Marshal(list)
 			if err != nil {
 				return err
+			}
+			if *outFile != "" {
+				b = append(b, '\n')
+				if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+				return nil
 			}
 			fmt.Println(string(b))
 			return nil
