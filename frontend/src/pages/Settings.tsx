@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [whSecret, setWhSecret] = useState("");
   const [whLog, setWhLog] = useState<WebhookDelivery[]>([]);
   const [whEvent, setWhEvent] = useState("");
+  const [testEvent, setTestEvent] = useState(""); // custom test-event name (F592)
   const loadWhLog = () => api.webhookLog().then(setWhLog).catch(() => setWhLog([]));
   const [busy, setBusy] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
@@ -239,8 +240,8 @@ export default function SettingsPage() {
     if (busy) return;
     setBusy(true);
     try {
-      const r = await api.testNotifyWebhook();
-      if (r.ok) ok("test notification delivered");
+      const r = await api.testNotifyWebhook(testEvent.trim() || undefined);
+      if (r.ok) ok(testEvent.trim() ? `test "${testEvent.trim()}" delivered` : "test notification delivered");
       else err(`webhook failed: ${r.error}`);
       loadWhLog();
     } catch (e) {
@@ -469,6 +470,14 @@ export default function SettingsPage() {
               <button className="btn primary" disabled={busy} onClick={saveWebhook}>
                 Save
               </button>
+              <input
+                className="oc-input"
+                style={{ width: 160 }}
+                placeholder="test (event name)"
+                title="event name for the test payload (CLI: llmctl webhooks test -event E)"
+                value={testEvent}
+                onChange={(e) => setTestEvent(e.target.value)}
+              />
               <button className="btn" disabled={busy || !webhook.trim()} onClick={testWebhook}>
                 Test
               </button>

@@ -834,8 +834,14 @@ export const api = {
   settings: () => req<Settings>("/settings"),
   updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number; logLevel?: string; backupKeep?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
-  testNotifyWebhook: () =>
-    req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),
+  testNotifyWebhook: (event?: string, message?: string) =>
+    req<{ ok: boolean; error?: string }>("/settings/notify-test", {
+      method: "POST",
+      body: JSON.stringify({
+        ...(event ? { event } : {}),
+        ...(message ? { message } : {}),
+      }),
+    }),
   webhookLog: () =>
     req<WebhookDelivery[]>("/webhook/log"),
   restoreBackup: (file: File) => {
