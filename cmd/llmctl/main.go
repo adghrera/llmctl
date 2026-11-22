@@ -235,7 +235,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID] [-kb ID]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -6026,6 +6026,7 @@ func cmdChat(args []string) error {
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
 	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
+	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -6188,6 +6189,35 @@ func cmdChat(args []string) error {
 		}
 		if strings.TrimSpace(*system) != "" && len(contMsgs) == 0 {
 			hist = append(hist, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		if *kbFlag != "" {
+			code, out, err := cc.Post("/api/v1/knowledge-bases/"+url.PathEscape(*kbFlag)+"/search",
+				map[string]any{"q": oneShot, "limit": 3})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("kb search: %s", out)
+			}
+			var hits []struct {
+				Filename  string  `json:"filename"`
+				Score     float64 `json:"score"`
+				ChunkText string  `json:"chunk_text"`
+			}
+			if err := json.Unmarshal(out, &hits); err != nil {
+				return err
+			}
+			if len(hits) > 0 {
+				var sb strings.Builder
+				fmt.Fprintf(&sb, "Relevant context from knowledge base %q:\n\n", *kbFlag)
+				for i, h := range hits {
+					if i > 0 {
+						sb.WriteString("\n\n---\n\n")
+					}
+					fmt.Fprintf(&sb, "Document: %s (relevance: %.1f%%)\n%s", h.Filename, h.Score*100, h.ChunkText)
+				}
+				hist = append(hist, map[string]any{"role": "user", "content": sb.String()})
+			}
 		}
 		hist = append(hist, map[string]any{"role": "user", "content": oneShot})
 		b, _ := json.Marshal(map[string]any{"model": model, "messages": hist, "stream": true})
