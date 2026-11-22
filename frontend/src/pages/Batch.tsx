@@ -9,6 +9,8 @@ export default function Batch() {
   const [model, setModel] = useState("");
   const [key, setKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
   const [system, setSystem] = useState("");
+  const [maxTok, setMaxTok] = useState("");
+  const [temp, setTemp] = useState("");
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<BatchResult[] | null>(null);
@@ -35,6 +37,8 @@ export default function Batch() {
         model,
         prompts: list,
         system: system.trim() || undefined,
+        maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
+        temperature: temp.trim() !== "" ? Number(temp) : undefined,
       });
       setResults(r.results);
       setMeta(`${r.ok} ok, ${r.failed} failed — ${r.concurrency} concurrent`);
@@ -77,6 +81,28 @@ export default function Batch() {
           value={system}
           onChange={(e) => setSystem(e.target.value)}
         />
+        <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <input
+            style={{ width: 130 }}
+            type="number"
+            min={1}
+            placeholder="max tokens"
+            title="max tokens per completion (empty = model default)"
+            value={maxTok}
+            onChange={(e) => setMaxTok(e.target.value)}
+          />
+          <input
+            style={{ width: 130 }}
+            type="number"
+            step="0.1"
+            min={0}
+            max={2}
+            placeholder="temperature"
+            title="sampling temperature (empty = model default)"
+            value={temp}
+            onChange={(e) => setTemp(e.target.value)}
+          />
+        </div>
         <textarea
           rows={6}
           style={{ width: "100%", marginBottom: 8, fontFamily: "monospace", fontSize: 12 }}

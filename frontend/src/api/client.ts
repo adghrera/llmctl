@@ -605,7 +605,7 @@ export const api = {
     req<{ ok: boolean }>(`/aliases/${encodeURIComponent(alias)}`, { method: "DELETE" }),
   batch: (
     key: string,
-    body: { model: string; prompts: string[]; system?: string; maxTokens?: number; concurrency?: number }
+    body: { model: string; prompts: string[]; system?: string; maxTokens?: number; temperature?: number; concurrency?: number }
   ) =>
     fetch("/api/v1/batch", {
       method: "POST",
@@ -628,6 +628,8 @@ export const api = {
       messages: { role: string; content: string }[];
       schema: Record<string, unknown>;
       maxRetries?: number;
+      maxTokens?: number;
+      temperature?: number;
     }
   ) =>
     fetch("/api/v1/structured", {

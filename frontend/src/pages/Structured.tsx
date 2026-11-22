@@ -20,6 +20,8 @@ export default function Structured() {
   const [key, setKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
   const [prompt, setPrompt] = useState("Extract the movie described: 'Dune (2021), a sci-fi epic directed by Denis Villeneuve.'");
   const [schema, setSchema] = useState(EXAMPLE_SCHEMA);
+  const [maxTok, setMaxTok] = useState("");
+  const [temp, setTemp] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
   const [meta, setMeta] = useState<string>("");
@@ -48,6 +50,8 @@ export default function Structured() {
         model,
         messages: [{ role: "user", content: prompt }],
         schema: parsedSchema,
+        maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
+        temperature: temp.trim() !== "" ? Number(temp) : undefined,
       });
       if (r.ok) {
         setResult(JSON.stringify(r.json, null, 2));
@@ -94,6 +98,28 @@ export default function Structured() {
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Prompt / text to extract from"
         />
+        <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <input
+            style={{ width: 130 }}
+            type="number"
+            min={1}
+            placeholder="max tokens"
+            title="max tokens per attempt (empty = model default)"
+            value={maxTok}
+            onChange={(e) => setMaxTok(e.target.value)}
+          />
+          <input
+            style={{ width: 130 }}
+            type="number"
+            step="0.1"
+            min={0}
+            max={2}
+            placeholder="temperature"
+            title="sampling temperature (empty = model default)"
+            value={temp}
+            onChange={(e) => setTemp(e.target.value)}
+          />
+        </div>
         <textarea
           rows={10}
           style={{ width: "100%", fontFamily: "monospace", fontSize: 12, marginBottom: 8 }}

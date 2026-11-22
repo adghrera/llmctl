@@ -189,10 +189,12 @@ toggle for a light theme (choice remembered). Tabs:
 - **Structured output** — give a prompt and a JSON Schema; llmctl asks the
   model for JSON only, validates the reply against the schema and retries
   with the validation error appended until it matches (or gives up with the
-  raw reply). REST: POST /api/v1/structured. Dedicated Structured page.
+  raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
+  optional max-tokens/temperature inputs (F359).
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
-  order. REST: POST /api/v1/batch. Dedicated Batch page. CLI:
+  order. REST: POST /api/v1/batch. Dedicated Batch page with optional
+  max-tokens/temperature inputs (F359). CLI:
   `llmctl batch -model ID [-file F|piped stdin|prompts…] [-key K] [-json]`
   (F224).
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
@@ -266,7 +268,8 @@ toggle for a light theme (choice remembered). Tabs:
   agent chat, relevant memories are searched using the last user message and
   injected as system context. Dedicated Memory page to add/delete entries.
 - **Model comparison** — send the same prompt to multiple running instances
-  simultaneously and view responses side by side on the Compare page.
+  simultaneously and view responses side by side on the Compare page, with
+  optional max-tokens/temperature inputs (F359).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
   CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301);
   add `-json` for a machine-readable `[{model, reply|error}]` array (F314).

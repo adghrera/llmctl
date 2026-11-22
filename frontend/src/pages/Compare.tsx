@@ -9,6 +9,8 @@ export default function Compare() {
   const [results, setResults] = useState<Record<string, { content: string; error?: string; done: boolean }>>({});
   const [streaming, setStreaming] = useState(false);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
+  const [maxTok, setMaxTok] = useState("");
+  const [temp, setTemp] = useState("");
 
   const load = () =>
     api
@@ -58,6 +60,8 @@ export default function Compare() {
             model: inst.modelId,
             messages: [{ role: "user", content: prompt }],
             stream: true,
+            ...(Number(maxTok) > 0 ? { max_tokens: Number(maxTok) } : {}),
+            ...(temp.trim() !== "" ? { temperature: Number(temp) } : {}),
           });
           const resp = await fetch("/v1/chat/completions", {
             method: "POST",
@@ -129,6 +133,28 @@ export default function Compare() {
           <button className="btn sm" onClick={() => localStorage.setItem("llmctl.chat.key", apiKey)}>
             Save key
           </button>
+        </div>
+        <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <input
+            style={{ width: 130 }}
+            type="number"
+            min={1}
+            placeholder="max tokens"
+            title="max tokens per response (empty = model default)"
+            value={maxTok}
+            onChange={(e) => setMaxTok(e.target.value)}
+          />
+          <input
+            style={{ width: 130 }}
+            type="number"
+            step="0.1"
+            min={0}
+            max={2}
+            placeholder="temperature"
+            title="sampling temperature (empty = model default)"
+            value={temp}
+            onChange={(e) => setTemp(e.target.value)}
+          />
         </div>
         <div style={{ marginBottom: 10 }}>
           <strong>Select instances:</strong>{" "}
