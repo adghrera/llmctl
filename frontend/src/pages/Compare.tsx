@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, Instance, FileEntry } from "../api/client";
 import { err, ok } from "../ui/toast";
 
@@ -14,6 +14,8 @@ export default function Compare() {
   const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [fileId, setFileId] = useState("");
+  const [localFile, setLocalFile] = useState<{ name: string; text: string } | null>(null); // local-file context, CLI `compare -file` twin (F733)
+  const localFileRef = useRef<HTMLInputElement>(null);
 
   const load = () =>
     api
@@ -57,7 +59,9 @@ export default function Compare() {
     // Optional uploaded-file context, sent to every model like CLI
     // `compare -file` (F672); fetched once before the fan-out.
     let fileCtx = "";
-    if (fileId) {
+    if (localFile) {
+      fileCtx = `File: ${localFile.name}\n\n${localFile.text}`;
+    } else if (fileId) {
       try {
         const entry = files.find((f) => f.id === fileId);
         const content = await api.getFileContent(fileId);
@@ -199,6 +203,34 @@ export default function Compare() {
               ))}
             </select>
           )}
+          <button
+            className="btn sm"
+            title={localFile ? "remove the local-file context" : "load a local text file as context for every model (CLI: llmctl compare -file)"}
+            onClick={() => {
+              if (localFile) {
+                setLocalFile(null);
+                ok("local-file context removed");
+              } else {
+                localFileRef.current?.click();
+              }
+            }}
+          >
+            {localFile ? `File: ${localFile.name} ✕` : "Load file"}
+          </button>
+          <input
+            ref={localFileRef}
+            type="file"
+            accept=".txt,.md,.json,.csv,.log,text/plain,application/json"
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (!f) return;
+              setLocalFile({ name: f.name, text: await f.text() });
+              setFileId(""); // local file wins over the uploaded-file dropdown
+              ok(`loaded ${f.name} as compare context`);
+            }}
+          />
         </div>
         <div style={{ marginBottom: 10 }}>
           <strong>Select instances:</strong>{" "}

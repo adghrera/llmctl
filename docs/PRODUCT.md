@@ -357,7 +357,8 @@ toggle for a light theme (choice remembered). Tabs:
   simultaneously and view responses side by side on the Compare page, with
   optional max-tokens/temperature inputs (F359), a persisted system-prompt
   input matching `compare -system` (F668), an attach-file dropdown matching
-  `compare -file` (F672) and a Results Export JSON
+  `compare -file` (F672), a "Load file" button attaching a local text file as
+  context (twin of `-file`, F733) and a Results Export JSON
   button matching `llmctl compare --json` shape (F431) plus an Export CSV
   button matching `llmctl compare --csv` (F607).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
