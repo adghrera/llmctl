@@ -137,7 +137,9 @@ GitHub release, or file list. No recompile.
   automatically (F070). The Instances page shows each instance's in-flight
   request count and has a Chat button that deep-links to the Chat page with
   that instance's model preselected (`/chat?model=`, F362) and an Export CSV
-  button matching `llmctl ps --csv` (F406). An optional
+  button matching `llmctl ps --csv` (F406). Its log viewer (stderr/stdout
+  tails, download) has a Follow toggle that keeps tailing new lines every 2s,
+  the UI counterpart of `llmctl logs -f` (F422). An optional
   per-instance "max parallel" cap (Vars dialog)
   sheds excess requests with 503 instead of overloading a backend (F114).
 

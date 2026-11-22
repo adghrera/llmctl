@@ -38,6 +38,8 @@ export default function Instances() {
   const [logStream, setLogStream] = useState<"stdout" | "stderr">("stderr");
   const [logData, setLogData] = useState<InstanceLogTail | null>(null);
   const [logBusy, setLogBusy] = useState(false);
+  const [logFollow, setLogFollow] = useState(false);
+  const logPreRef = useRef<HTMLPreElement>(null);
   const [varsFor, setVarsFor] = useState<string | null>(null);
   const [varsText, setVarsText] = useState("");
   const [varsCap, setVarsCap] = useState(0);
@@ -93,21 +95,37 @@ export default function Instances() {
     }
   };
 
-  const loadLogs = async (id: string, stream: "stdout" | "stderr") => {
-    setLogBusy(true);
+  const loadLogs = async (id: string, stream: "stdout" | "stderr", silent = false) => {
+    if (!silent) setLogBusy(true);
     try {
       setLogData(await api.instanceLogs(id, stream));
     } catch (e) {
-      err(e instanceof Error ? e.message : String(e));
-      setLogData(null);
+      if (!silent) err(e instanceof Error ? e.message : String(e));
+      if (!silent) setLogData(null);
     } finally {
-      setLogBusy(false);
+      if (!silent) setLogBusy(false);
     }
   };
+
+  // Follow mode: poll the log tail every 2s, like `llmctl logs -f` (F422).
+  useEffect(() => {
+    if (!logFollow || !logFor) return;
+    const t = setInterval(() => void loadLogs(logFor, logStream, true), 2000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logFollow, logFor, logStream]);
+
+  // Keep the newest lines visible while following.
+  useEffect(() => {
+    if (logFollow && logPreRef.current) {
+      logPreRef.current.scrollTop = logPreRef.current.scrollHeight;
+    }
+  }, [logData, logFollow]);
 
   const openLogs = (id: string) => {
     setLogFor(id);
     setLogStream("stderr");
+    setLogFollow(false);
     void loadLogs(id, "stderr");
   };
 
@@ -733,6 +751,13 @@ export default function Instances() {
               >
                 stdout
               </button>
+              <button
+                className={`btn sm${logFollow ? " primary" : ""}`}
+                title="keep tailing new log lines every 2s (CLI: llmctl logs -f)"
+                onClick={() => setLogFollow((v) => !v)}
+              >
+                {logFollow ? "Following" : "Follow"}
+              </button>
               <button className="btn sm" disabled={logBusy} onClick={() => void loadLogs(logFor, logStream)}>
                 {logBusy ? "Loading…" : "Refresh"}
               </button>
@@ -749,6 +774,7 @@ export default function Instances() {
             </div>
           </div>
           <pre
+            ref={logPreRef}
             className="mono"
             style={{
               marginTop: 10,
