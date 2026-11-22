@@ -231,7 +231,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|delete|delete-all …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|export-all|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
@@ -4174,6 +4174,85 @@ func cmdChats(args []string) error {
 			return fmt.Errorf("chat rename: %s", out)
 		}
 		fmt.Printf("renamed chat %s to %q\n", rfs.Arg(0), conv["title"])
+		return nil
+	}
+	if len(args) > 0 && args[0] == "prune" {
+		// Bulk-delete old saved chats (F333). Dry-run unless -yes; pinned
+		// chats are never pruned.
+		pfs := flag.NewFlagSet("chats prune", flag.ExitOnError)
+		before := pfs.String("before", "", "prune chats last updated before this date (YYYY-MM-DD)")
+		older := pfs.Int("older-than", 0, "prune chats last updated more than N days ago")
+		yes := pfs.Bool("yes", false, "actually delete (default is a dry run)")
+		pfs.Parse(reorderFlags(args[1:]))
+		if *before == "" && *older == 0 {
+			return fmt.Errorf("refusing to prune everything — pass -before YYYY-MM-DD and/or -older-than N")
+		}
+		var cutoff time.Time
+		if *before != "" {
+			t, err := time.Parse("2006-01-02", *before)
+			if err != nil {
+				return fmt.Errorf("-before: %w", err)
+			}
+			cutoff = t
+		}
+		if *older > 0 {
+			c := time.Now().AddDate(0, 0, -*older)
+			if cutoff.IsZero() || c.After(cutoff) {
+				cutoff = c
+			}
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats returned %d: %s", code, out)
+		}
+		type chatRow struct {
+			ID        string    `json:"id"`
+			Title     string    `json:"title"`
+			Pinned    bool      `json:"pinned"`
+			UpdatedAt time.Time `json:"updatedAt"`
+		}
+		var list []chatRow
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		var doomed []chatRow
+		var skippedPinned int
+		for _, c := range list {
+			if !c.UpdatedAt.Before(cutoff) {
+				continue
+			}
+			if c.Pinned {
+				skippedPinned++
+				continue
+			}
+			doomed = append(doomed, c)
+		}
+		if len(doomed) == 0 {
+			fmt.Printf("no chats older than %s (pinned skipped: %d)\n", cutoff.Format("2006-01-02"), skippedPinned)
+			return nil
+		}
+		if !*yes {
+			fmt.Printf("would delete %d chat(s) older than %s (pinned skipped: %d):\n", len(doomed), cutoff.Format("2006-01-02"), skippedPinned)
+			for _, c := range doomed {
+				fmt.Printf("  %s  %s  %s\n", c.ID, c.UpdatedAt.Format("2006-01-02"), c.Title)
+			}
+			fmt.Println("re-run with -yes to delete")
+			return nil
+		}
+		n := 0
+		for _, c := range doomed {
+			if code, _, err := cc.Delete("/api/v1/chats/" + url.PathEscape(c.ID)); err == nil && code == 200 {
+				n++
+			}
+		}
+		fmt.Printf("pruned %d/%d chat(s) (pinned skipped: %d)\n", n, len(doomed), skippedPinned)
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete-all" {

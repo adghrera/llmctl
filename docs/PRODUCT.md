@@ -297,7 +297,9 @@ toggle for a light theme (choice remembered). Tabs:
    `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
    `chats pin|unpin <id>` (pinned chats sort first, F310; the Chat page
    shows a 📌 marker and a Pin/Unpin button, F311),
-   `chats delete <id>`, and `chats delete-all -yes` manage them
+   `chats delete <id>`, `chats prune -before D [-older-than N] [-yes]`
+   (bulk-delete old chats, pinned skipped, dry-run by default, F333), and
+   `chats delete-all -yes` manage them
    (over the chat-store API, F244, F267, F269, F295, F299, F310).
  - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs
    (filter matches id/name/description/tags); `skills show|enable|disable|delete <id>`
