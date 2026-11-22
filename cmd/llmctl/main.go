@@ -255,7 +255,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL]|restore <name>|verify <name> [-json]|download <name>|delete <name>] [-json|-csv|-out FILE on list]
+  llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name> [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
@@ -4400,12 +4400,20 @@ func cmdBackups(args []string) error {
 		}
 		return nil
 	case "restore":
-		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl backups restore <name>")
+		rrfs := flag.NewFlagSet("backups restore", flag.ExitOnError)
+		rrjson := rrfs.Bool("json", false, "print the raw response JSON (F546)")
+		rrfs.Parse(reorderFlags(rest))
+		if rrfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backups restore <name> [-json]")
 		}
-		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(rest[0])+"/restore", nil)
+		code, out, err := cc.Post("/api/v1/backups/"+url.PathEscape(rrfs.Arg(0))+"/restore", nil)
 		if err != nil {
 			return err
+		}
+		if *rrjson && code == 200 { // stdout stays parseable (F546)
+			fmt.Fprintln(os.Stderr, "NOTE: restart the daemon (llmctl down && llmctl up) to load the restored state")
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Println(string(out))
 		if code != 200 {
@@ -4416,9 +4424,10 @@ func cmdBackups(args []string) error {
 	case "download":
 		dfs := flag.NewFlagSet("backups download", flag.ExitOnError)
 		outFile := dfs.String("out", "", "write to this file (default: the backup name)")
+		djson := dfs.Bool("json", false, "print {file,bytes} as JSON (F546)")
 		dfs.Parse(reorderFlags(rest))
 		if dfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl backups download <name> [-out file]")
+			return fmt.Errorf("usage: llmctl backups download <name> [-out file] [-json]")
 		}
 		name := dfs.Arg(0)
 		dest := *outFile
@@ -4435,12 +4444,30 @@ func cmdBackups(args []string) error {
 		if err := os.WriteFile(dest, body, 0o644); err != nil {
 			return err
 		}
+		if *djson {
+			b, _ := json.Marshal(map[string]any{"file": dest, "bytes": len(body)})
+			fmt.Println(string(b))
+			return nil
+		}
 		fmt.Printf("downloaded %s to %s (%s)\n", name, dest, fmtSize(int64(len(body))))
 		return nil
 	case "delete":
-		code, out, err := cc.Delete("/api/v1/backups/" + url.PathEscape(rest[0]))
+		bdfs := flag.NewFlagSet("backups delete", flag.ExitOnError)
+		bdjson := bdfs.Bool("json", false, "print the raw response JSON (F546)")
+		bdfs.Parse(reorderFlags(rest))
+		if bdfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl backups delete <name> [-json]")
+		}
+		code, out, err := cc.Delete("/api/v1/backups/" + url.PathEscape(bdfs.Arg(0)))
 		if err != nil {
 			return err
+		}
+		if *bdjson {
+			fmt.Print(string(out))
+			if code != 200 {
+				return fmt.Errorf("backup delete returned %d", code)
+			}
+			return nil
 		}
 		fmt.Println(string(out))
 		if code != 200 {
@@ -5611,6 +5638,7 @@ func cmdChats(args []string) error {
 	if len(args) > 0 && args[0] == "delete-all" {
 		dafs := flag.NewFlagSet("chats delete-all", flag.ExitOnError)
 		yes := dafs.Bool("yes", false, "confirm deletion of every saved chat")
+		dajson := dafs.Bool("json", false, "print {deleted,total} as JSON (F546)")
 		dafs.Parse(reorderFlags(args[1:]))
 		if !*yes {
 			return fmt.Errorf("refusing to delete every saved chat without -yes")
@@ -5633,6 +5661,10 @@ func cmdChats(args []string) error {
 			return err
 		}
 		if len(list) == 0 {
+			if *dajson {
+				fmt.Println(`{"deleted":0,"total":0}`)
+				return nil
+			}
 			fmt.Println("no saved chats")
 			return nil
 		}
@@ -5641,6 +5673,11 @@ func cmdChats(args []string) error {
 			if code, _, err := cc.Delete("/api/v1/chats/" + url.PathEscape(c.ID)); err == nil && code == 200 {
 				n++
 			}
+		}
+		if *dajson {
+			b, _ := json.Marshal(map[string]int{"deleted": n, "total": len(list)})
+			fmt.Println(string(b))
+			return nil
 		}
 		fmt.Printf("deleted %d/%d saved chats\n", n, len(list))
 		return nil

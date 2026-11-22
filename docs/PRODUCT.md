@@ -644,6 +644,7 @@ llmctl catalog install <id> [-json] | kb embed <kb> … [-json]   (print the raw
 llmctl presets|scheduler|memory|mcp|prompts|autostart import <file.json> [-json]   (print {"created","skipped"} as JSON; per-item skip notices move to stderr, F542)
 llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json]   (print the raw response / result JSON with -json, F544)
 llmctl backup [file] [-json] | backup verify <file> [-json] | restore <file> [-json]   (print {file,bytes} / {file,entries,ok} / {restored,home} as JSON, F545)
+llmctl backups restore|download|delete … [-json] | chats delete-all -yes [-json]   (raw response / {file,bytes} / {deleted,total} with -json, F546)
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
