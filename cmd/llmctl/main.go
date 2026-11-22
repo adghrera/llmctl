@@ -233,7 +233,7 @@ Usage:
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json]   recent webhook delivery attempts
-  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
+  llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
@@ -6740,8 +6740,13 @@ func cmdPrompts(args []string) error {
 		fmt.Printf("%s (%s)\n\n%s\n", p.Name, p.ID, p.Content)
 		return nil
 	}
+	// Accept "list" as an explicit subcommand (F382), like chats does.
+	if len(args) > 0 && args[0] == "list" {
+		args = args[1:]
+	}
 	fs := flag.NewFlagSet("prompts", flag.ExitOnError)
 	category := fs.String("category", "", "only this category")
+	csvOut := fs.Bool("csv", false, "output the prompt list as CSV (F382)")
 	jsonOut := fs.Bool("json", false, "print the prompts as JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	filter := strings.ToLower(fs.Arg(0))
@@ -6789,8 +6794,23 @@ func cmdPrompts(args []string) error {
 		return nil
 	}
 	if len(shown) == 0 {
+		if *csvOut { // keep the stream parseable (F382)
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "category", "name", "description"})
+			w.Flush()
+			return w.Error()
+		}
 		fmt.Println("no prompts match")
 		return nil
+	}
+	if *csvOut { // F382
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"id", "category", "name", "description"})
+		for _, p := range shown {
+			_ = w.Write([]string{p.ID, p.Category, p.Name, p.Description})
+		}
+		w.Flush()
+		return w.Error()
 	}
 	fmt.Printf("%-16s %-12s %-22s %s\n", "ID", "CATEGORY", "NAME", "DESCRIPTION")
 	for _, p := range shown {

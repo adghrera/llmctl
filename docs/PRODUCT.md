@@ -303,7 +303,10 @@ toggle for a light theme (choice remembered). Tabs:
   button that opens the Chat page with the template pre-filled (F300), and a
   per-template "Render" preview that fills {{input}} and extra {{k}} vars
   live (F361). CLI:
-   `llmctl prompts [filter] [-category X] [-json]` and
+   `llmctl prompts [list] [filter] [-category X] [-json] [-csv]` (the `list`
+   word is accepted as an explicit subcommand, and `--csv` exports the
+   filtered list as id,category,name,description, header-only when empty, F382)
+   and
    `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
    piped stdin] [-var k=v …]` (renders the template with {{input}} and any
    {{k}} placeholders filled, for scripts)
