@@ -277,7 +277,9 @@ toggle for a light theme (choice remembered). Tabs:
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb show|docs|delete <id>` and
    `kb add-doc <kb-id> <path> [-name X]` upload documents and
-   `kb search <kb-id> <query> [-limit N] [-json]` runs RAG search (F247, F250, F268).
+   `kb search <kb-id> <query> [-limit N] [-json]` runs RAG search and
+   `kb embed <kb-id> -url U -model M [-key K] | -clear` configures semantic
+   search (F247, F250, F268, F272).
  - **Tools CLI** — `llmctl tools [-json]` lists installed tools;
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` execute one from the shell (F248, F250).

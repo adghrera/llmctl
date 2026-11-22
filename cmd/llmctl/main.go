@@ -203,7 +203,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | chats show|search|export|fork|delete …
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|search|delete …
-  llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|delete …
+  llmctl kb [filter] [-json] | kb show|create|docs|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl cost [-keys] [-json]
@@ -3396,11 +3396,48 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "docs", "add-doc", "search", "delete":
+		case "list", "show", "create", "docs", "add-doc", "search", "embed", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "embed":
+		efs := flag.NewFlagSet("kb embed", flag.ExitOnError)
+		urlF := efs.String("url", "", "embeddings endpoint (base like http://host:port/v1 or full /embeddings URL)")
+		modelF := efs.String("model", "", "embedding model name")
+		keyF := efs.String("key", "", "bearer key for the endpoint")
+		clearF := efs.Bool("clear", false, "remove the embedding config (fall back to TF-IDF)")
+		efs.Parse(reorderFlags(rest))
+		if efs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl kb embed <kb-id> [-url U -model M [-key K]] | -clear")
+		}
+		kbID := efs.Arg(0)
+		body := map[string]any{}
+		if *clearF {
+			body = map[string]any{"url": "", "model": ""}
+		} else {
+			if *urlF == "" || *modelF == "" {
+				return fmt.Errorf("kb embed needs -url and -model (or -clear)")
+			}
+			body["url"] = *urlF
+			body["model"] = *modelF
+			if *keyF != "" {
+				body["apiKey"] = *keyF
+			}
+		}
+		code, out, err := cc.Do("PUT", "/api/v1/knowledge-bases/"+url.PathEscape(kbID)+"/embed", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb embed: %s", out)
+		}
+		if *clearF {
+			fmt.Printf("knowledge base %s embedding config cleared (TF-IDF search)\n", kbID)
+			return nil
+		}
+		fmt.Printf("knowledge base %s now uses embeddings (%s)\n", kbID, *modelF)
+		return nil
 	case "search":
 		sfs := flag.NewFlagSet("kb search", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw search JSON (for scripts)")
