@@ -77,7 +77,33 @@ export default function MCP() {
   return (
     <>
       <div className="card">
-        <h2>MCP Servers</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>MCP Servers</h2>
+          <button
+            className="btn sm"
+            disabled={servers.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl mcp list --csv` (F405).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "id,name,enabled,command",
+                ...servers.map((s) =>
+                  [s.id, s.name, String(s.enabled), [s.command, ...(s.args ?? [])].join(" ")]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-mcp-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
+        </div>
         <p className="muted small" style={{ margin: "4px 0 12px" }}>
           Model Context Protocol servers launched as local processes. Their
           tools are offered to the agent as <span className="mono">mcp:&lt;id&gt;:&lt;tool&gt;</span>.

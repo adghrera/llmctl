@@ -159,7 +159,8 @@ toggle for a light theme (choice remembered). Tabs:
   (F318) and instances + API keys (F364), each result linking to its page.
   `llmctl chats search` /
   `memory search` cover the CLI side (F267).
-- **Backends** — install/uninstall built-ins, add plugin backends (JSON).
+- **Backends** — install/uninstall built-ins, add plugin backends (JSON),
+  Export CSV on the list (F404).
 - **Models** — HuggingFace search + file picker, download with live progress.
   The installed-models table has a live text filter (id/backend/path, F332)
   and an Export CSV button for the filtered list (same columns as
@@ -257,7 +258,7 @@ toggle for a light theme (choice remembered). Tabs:
   processes (command + args). llmctl performs the MCP handshake, lists each
   server's tools, and offers them to the agent as
   `mcp:<server>:<tool>`. The MCP page supports add / enable / test (shows the
-  advertised tools) / delete. REST: /api/v1/mcp.
+  advertised tools) / delete, plus Export CSV on the server list (F405). REST: /api/v1/mcp.
 - **Skills** — create reusable prompt templates invoked in chat via
   `/s.<short_name> <text>`. Each skill has a short name, display name,
   description, prompt template (with {{input}} and {{conversation}} placeholders),
@@ -365,7 +366,8 @@ toggle for a light theme (choice remembered). Tabs:
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`)
    execute one from the shell (F248, F250, F338).
- - **MCP CLI** — `llmctl mcp [-json]` lists configured MCP servers;
+ - **MCP CLI** — `llmctl mcp [-json] [-csv]` lists configured MCP servers
+   (`--csv` exports id,name,enabled,command, F403);
    `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`,
    `mcp test <id>` (connect and list advertised tools) and
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,

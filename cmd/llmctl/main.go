@@ -239,7 +239,7 @@ Usage:
   llmctl memory [filter] [-n 30] [-json|-csv] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json|-csv] | tools show|install|enable|disable|run|delete <id>
-  llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
+  llmctl mcp [-json|-csv] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
@@ -6258,6 +6258,7 @@ func cmdMcp(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("mcp", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the servers as JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the MCP server list as CSV (F403)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/mcp")
 		if err != nil {
@@ -6279,6 +6280,19 @@ func cmdMcp(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *csvOut { // F403: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "name", "enabled", "command"})
+			for _, s := range list {
+				cmd := s.Command
+				if len(s.Args) > 0 {
+					cmd += " " + strings.Join(s.Args, " ")
+				}
+				_ = w.Write([]string{s.ID, s.Name, strconv.FormatBool(s.Enabled), cmd})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(list) == 0 {
 			fmt.Println("no MCP servers configured")

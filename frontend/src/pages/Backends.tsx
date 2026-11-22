@@ -63,6 +63,30 @@ export default function Backends() {
         <div className="row">
           <h2>Backends</h2>
           <div className="spacer" />
+          <button
+            className="btn"
+            disabled={backends.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl backends list --csv` (F404).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const rows = [
+                "id,transport,kind,installed,version,description",
+                ...backends.map((b) =>
+                  [b.id, b.transport, b.kind, String(b.installed), b.version || "", b.description]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-backends-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
           <button className="btn" onClick={() => setShowPlugin((s) => !s)}>
             {showPlugin ? "Cancel" : "+ Add plugin backend"}
           </button>
