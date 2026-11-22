@@ -488,6 +488,8 @@ llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|stdin|prom
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
                                      print the streamed reply, exit; for scripts, F277)
+                                    (-agent with -prompt: tool-using agent loop, prints [tool …]
+                                     lines and step count, F285)
 llmctl version
 ```
 

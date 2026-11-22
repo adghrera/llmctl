@@ -228,7 +228,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -5563,6 +5563,7 @@ func cmdChat(args []string) error {
 	keyFlag := fs.String("key", "", "API key (if auth is enabled)")
 	system := fs.String("system", "", "system prompt prepended to the conversation (F188)")
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
+	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -5615,6 +5616,77 @@ func cmdChat(args []string) error {
 
 	// Get API key.
 	key := *keyFlag
+	if *agentMode {
+		text := *prompt
+		if text == "" {
+			if fi, _ := os.Stdin.Stat(); fi.Mode()&os.ModeCharDevice == 0 {
+				if b, err := io.ReadAll(os.Stdin); err == nil {
+					text = strings.TrimSpace(string(b))
+				}
+			}
+		}
+		if text == "" {
+			return fmt.Errorf("-agent: no prompt (use -prompt or pipe text to stdin)")
+		}
+		body, _ := json.Marshal(map[string]any{
+			"model":    model,
+			"messages": []map[string]string{{"role": "user", "content": text}},
+		})
+		req, err := http.NewRequest(http.MethodPost, cc.Base+"/api/v1/chat/agent", strings.NewReader(string(body)))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		if key != "" {
+			req.Header.Set("Authorization", "Bearer "+key)
+		}
+		hc := &http.Client{Timeout: 10 * time.Minute}
+		resp, err := hc.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			b, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("agent chat returned %d: %s", resp.StatusCode, string(b))
+		}
+		rd := bufio.NewReader(resp.Body)
+		for {
+			l, err := rd.ReadString('\n')
+			if err != nil {
+				break
+			}
+			l = strings.TrimSpace(l)
+			if !strings.HasPrefix(l, "data:") {
+				continue
+			}
+			var ev struct {
+				Type    string `json:"type"`
+				Content string `json:"content"`
+				Name    string `json:"name"`
+				Query   string `json:"query"`
+				Error   string `json:"error"`
+				Steps   int    `json:"steps"`
+			}
+			if json.Unmarshal([]byte(strings.TrimSpace(l[5:])), &ev) != nil {
+				continue
+			}
+			switch ev.Type {
+			case "delta":
+				fmt.Print(ev.Content)
+			case "tool":
+				fmt.Printf("\n[tool %s: %s]\n", ev.Name, ev.Query)
+			case "error":
+				fmt.Fprintln(os.Stderr, "\nerror:", ev.Error)
+				return fmt.Errorf("agent failed")
+			case "done":
+				fmt.Printf("\n[done in %d step(s)]\n", ev.Steps)
+				return nil
+			}
+		}
+		return nil
+	}
 	oneShot := *prompt
 	if oneShot == "" {
 		if fi, _ := os.Stdin.Stat(); fi.Mode()&os.ModeCharDevice == 0 {
