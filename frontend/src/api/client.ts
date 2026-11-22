@@ -768,6 +768,8 @@ export const api = {
     req<PromptTemplate>("/prompts", { method: "POST", body: JSON.stringify(body) }),
   deletePrompt: (id: string) =>
     req<{ ok: boolean }>(`/prompts/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  updatePrompt: (id: string, body: { name?: string; category?: string; description?: string; content?: string }) =>
+    req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   promptCategories: () => req<string[]>("/prompts/categories"),
   prompt: (id: string) => req<PromptTemplate>(`/prompts/${encodeURIComponent(id)}`),
   presets: () => req<PresetSpec[]>("/presets"),

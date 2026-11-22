@@ -10,10 +10,33 @@ export default function Prompts() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [copied, setCopied] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nf, setNf] = useState({ id: "", name: "", category: "", description: "", content: "" });
 
-  const createTemplate = async () => {
+  const saveTemplate = async () => {
+    if (editing) {
+      if (!nf.name || !nf.content) {
+        err("name and content are required");
+        return;
+      }
+      setBusy(true);
+      try {
+        await api.updatePrompt(editing, {
+          name: nf.name,
+          category: nf.category,
+          description: nf.description,
+          content: nf.content,
+        });
+        ok(`template ${editing} updated`);
+        closeForm();
+        await load();
+      } catch (e) {
+        err(e instanceof Error ? e.message : String(e));
+      }
+      setBusy(false);
+      return;
+    }
     if (!nf.id || !nf.name || !nf.content) {
       err("id, name and content are required");
       return;
@@ -22,13 +45,24 @@ export default function Prompts() {
     try {
       await api.createPrompt(nf);
       ok(`template ${nf.id} created`);
-      setAdding(false);
-      setNf({ id: "", name: "", category: "", description: "", content: "" });
+      closeForm();
       await load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     }
     setBusy(false);
+  };
+
+  const closeForm = () => {
+    setAdding(false);
+    setEditing(null);
+    setNf({ id: "", name: "", category: "", description: "", content: "" });
+  };
+
+  const startEdit = (t: PromptTemplate) => {
+    setEditing(t.id);
+    setNf({ id: t.id, name: t.name, category: t.category, description: t.description, content: t.content });
+    setAdding(true);
   };
 
   const deleteTemplate = async (id: string) => {
@@ -104,7 +138,7 @@ export default function Prompts() {
           >
             All
           </button>
-          <button className="btn sm primary" onClick={() => setAdding(!adding)}>
+          <button className="btn sm primary" onClick={() => (adding ? closeForm() : setAdding(true))}>
             {adding ? "Cancel" : "New template"}
           </button>
         </div>
@@ -112,12 +146,13 @@ export default function Prompts() {
 
       {adding && (
         <div className="card">
-          <h2>New custom template</h2>
+          <h2>{editing ? `Edit template ${editing}` : "New custom template"}</h2>
           <div className="row" style={{ gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <input
               className="input"
               placeholder="id (lowercase, dashes)"
               value={nf.id}
+              disabled={!!editing}
               onChange={(e) => setNf({ ...nf, id: e.target.value })}
               style={{ width: 180 }}
             />
@@ -151,8 +186,8 @@ export default function Prompts() {
             rows={4}
             style={{ width: "100%", fontFamily: "monospace", fontSize: 12, marginBottom: 8 }}
           />
-          <button className="btn primary" disabled={busy} onClick={createTemplate}>
-            Create template
+          <button className="btn primary" disabled={busy} onClick={saveTemplate}>
+            {editing ? "Save changes" : "Create template"}
           </button>
         </div>
       )}
@@ -239,9 +274,14 @@ export default function Prompts() {
               Insert into chat
             </button>
             {t.custom && (
-              <button className="btn sm danger" onClick={() => deleteTemplate(t.id)}>
-                Delete
-              </button>
+              <>
+                <button className="btn sm" onClick={() => startEdit(t)}>
+                  Edit
+                </button>{" "}
+                <button className="btn sm danger" onClick={() => deleteTemplate(t.id)}>
+                  Delete
+                </button>
+              </>
             )}
           </div>
         ))}
