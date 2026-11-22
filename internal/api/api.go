@@ -2039,9 +2039,24 @@ func (s *Server) testNotifyWebhook(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "no notify webhook configured")
 		return
 	}
+	// Optional body picks the event name/message so receivers can be tested
+	// with realistic payloads (F591, llmctl webhooks test -event …).
+	var req struct {
+		Event   string `json:"event"`
+		Message string `json:"message"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	event := strings.TrimSpace(req.Event)
+	if event == "" {
+		event = "test"
+	}
+	message := strings.TrimSpace(req.Message)
+	if message == "" {
+		message = "llmctl test notification"
+	}
 	payload := map[string]any{
-		"event":   "test",
-		"message": "llmctl test notification",
+		"event":   event,
+		"message": message,
 		"time":    time.Now().UTC().Format(time.RFC3339),
 	}
 	if err := webhook.PostWithSecret(r.Context(), url, payload, st.Settings.NotifyWebhookSecret); err != nil {

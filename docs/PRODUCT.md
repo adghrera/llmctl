@@ -649,7 +649,7 @@ llmctl backups [list|create [-name LABEL]|restore <name>|prune [-keep N]|verify 
 llmctl usage [-n 14] [-key ID | -keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]   (-out writes the usage JSON — raw, or the -model-filtered one — to a file, F474; -watch N reprints the view every N seconds, F587)
 llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]  (-watch N: live refresh every N seconds; -model M: filter the table; --csv: one-shot CSV export; -out writes the raw JSON to a file, refreshed each -watch tick, F469)
 llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE]   (-out writes the raw JSON to a file, F468)
-llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]    recent delivery attempts / send a test event (F447; -out writes the delivery-log JSON, F478; -watch N live-tails new deliveries, F556; test prints a delivery confirmation, -json for raw, F573)
+llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]    recent delivery attempts / send a test event (F447; -out writes the delivery-log JSON, F478; -watch N live-tails new deliveries, F556; test prints a delivery confirmation, -json for raw, F573; test -event/-message send a custom payload, F591)
 llmctl prompts [filter] [-category X] [-json] [-out FILE] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json]   (run renders the template and sends it to the gateway, F579; -save keeps the exchange as a saved chat, F583; -chat continues one, F584)
 llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list, F485]
 llmctl skills|memory|kb|tools delete <id> [-json] | mcp remove <id> [-json]   (delete/remove print the raw response with -json, F536)
@@ -668,7 +668,7 @@ llmctl requests -stats -by day   per-UTC-day aggregate rows added to the model/k
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook   (set prints the changed flags, `-json` prints the raw updated settings, F581)
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
-                 | settings test-webhook [-json] (send a test event; prints a delivery confirmation, F574)
+                 | settings test-webhook [-event E] [-message M] [-json] (send a test event, optionally with a custom event name/message; prints a delivery confirmation, F574, F591)
 llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|stdin|prompts…] [-json] [-out FILE]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,

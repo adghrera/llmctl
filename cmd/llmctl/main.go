@@ -268,7 +268,7 @@ Usage:
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
-  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-json]   recent webhook delivery attempts / send a test event
+  llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-save TITLE | -chat ID] [-json] | prompts categories | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show|add [-json]|export|enable|disable [-json]|delete <id> [-json]
@@ -278,7 +278,7 @@ Usage:
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
-  llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-json]
+  llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
@@ -5782,12 +5782,21 @@ func cmdWebhooks(args []string) error {
 	if len(args) > 0 && args[0] == "test" { // F447: discoverable twin of settings test-webhook
 		tfs := flag.NewFlagSet("webhooks test", flag.ExitOnError)
 		tjson := tfs.Bool("json", false, "print the raw response JSON (F573)")
+		tev := tfs.String("event", "", "event name to send (default \"test\"; F591)")
+		tmsg := tfs.String("message", "", "message text to send (F591)")
 		tfs.Parse(reorderFlags(args[1:]))
 		cc, err := daemon.NewControlClient()
 		if err != nil {
 			return err
 		}
-		code, out, err := cc.Post("/api/v1/settings/notify-test", map[string]any{})
+		body := map[string]any{}
+		if *tev != "" {
+			body["event"] = *tev
+		}
+		if *tmsg != "" {
+			body["message"] = *tmsg
+		}
+		code, out, err := cc.Post("/api/v1/settings/notify-test", body)
 		if err != nil {
 			return err
 		}
@@ -9252,8 +9261,17 @@ func cmdSettings(args []string) error {
 	if len(args) > 0 && args[0] == "test-webhook" {
 		twfs := flag.NewFlagSet("settings test-webhook", flag.ExitOnError)
 		twjson := twfs.Bool("json", false, "print the raw response JSON (F574)")
+		twev := twfs.String("event", "", "event name to send (default \"test\"; F591)")
+		twmsg := twfs.String("message", "", "message text to send (F591)")
 		twfs.Parse(reorderFlags(args[1:]))
-		code, out, err := cc.Post("/api/v1/settings/notify-test", map[string]any{})
+		body := map[string]any{}
+		if *twev != "" {
+			body["event"] = *twev
+		}
+		if *twmsg != "" {
+			body["message"] = *twmsg
+		}
+		code, out, err := cc.Post("/api/v1/settings/notify-test", body)
 		if err != nil {
 			return err
 		}
