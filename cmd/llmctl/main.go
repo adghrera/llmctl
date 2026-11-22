@@ -56,6 +56,10 @@ func main() {
 		err = cmdKey(args)
 	case "autostart":
 		err = cmdAutoStart(args)
+	case "requests":
+		err = cmdRequests(args)
+	case "backups":
+		err = cmdBackups(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -111,6 +115,8 @@ Usage:
   llmctl scheduler list
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
+  llmctl backups [list|create|delete <name>]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -655,6 +661,129 @@ func cmdScheduler(args []string) error {
 		return printOut(code, out, 200)
 	default:
 		return fmt.Errorf("unknown scheduler subcommand %q", sub)
+	}
+}
+
+// cmdRequests prints recent gateway requests (newest first).
+func cmdRequests(args []string) error {
+	fs := flag.NewFlagSet("requests", flag.ExitOnError)
+	model := fs.String("model", "", "filter by model id")
+	status := fs.String("status", "", "status class (4, 5) or exact code (404)")
+	minMs := fs.Int("min-ms", 0, "minimum latency in ms")
+	n := fs.Int("n", 20, "number of entries")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	q := url.Values{}
+	q.Set("limit", strconv.Itoa(*n))
+	if *model != "" {
+		q.Set("model", *model)
+	}
+	if *status != "" {
+		q.Set("status", *status)
+	}
+	if *minMs > 0 {
+		q.Set("minMs", strconv.Itoa(*minMs))
+	}
+	code, out, err := cc.Get("/api/v1/requests?" + q.Encode())
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("requests returned %d: %s", code, out)
+	}
+	var entries []struct {
+		Time      time.Time `json:"time"`
+		Model     string    `json:"model"`
+		Key       string    `json:"key"`
+		Status    int       `json:"status"`
+		LatencyMs float64   `json:"latencyMs"`
+		PromptTok int64     `json:"promptTok"`
+		CompTok   int64     `json:"compTok"`
+		Stream    bool      `json:"stream"`
+	}
+	if err := json.Unmarshal(out, &entries); err != nil {
+		return err
+	}
+	if len(entries) == 0 {
+		fmt.Println("no requests yet")
+		return nil
+	}
+	fmt.Printf("%-19s %-16s %-10s %5s %9s %7s %7s %s\n", "TIME", "MODEL", "KEY", "CODE", "MS", "IN", "OUT", "STREAM")
+	for _, e := range entries {
+		stream := ""
+		if e.Stream {
+			stream = "stream"
+		}
+		fmt.Printf("%-19s %-16s %-10s %5d %9.0f %7d %7d %s\n",
+			e.Time.Local().Format("2006-01-02 15:04:05"), e.Model, e.Key, e.Status, e.LatencyMs, e.PromptTok, e.CompTok, stream)
+	}
+	return nil
+}
+
+// cmdBackups lists, creates or deletes state snapshots in ~/.llmctl/backups.
+func cmdBackups(args []string) error {
+	sub := "list"
+	rest := args
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		sub, rest = args[0], args[1:]
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	switch sub {
+	case "list":
+		code, out, err := cc.Get("/api/v1/backups")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("backups list returned %d: %s", code, out)
+		}
+		var bs []struct {
+			Name    string `json:"name"`
+			Size    int64  `json:"size"`
+			Created string `json:"created"`
+		}
+		if err := json.Unmarshal(out, &bs); err != nil {
+			return err
+		}
+		if len(bs) == 0 {
+			fmt.Println("no snapshots (create one: llmctl backups create)")
+			return nil
+		}
+		for _, b := range bs {
+			fmt.Printf("%-34s %10d bytes  %s\n", b.Name, b.Size, b.Created)
+		}
+		return nil
+	case "create":
+		code, out, err := cc.Post("/api/v1/backups", nil)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 201 {
+			return fmt.Errorf("backup create returned %d", code)
+		}
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl backups delete <name>")
+		}
+		code, out, err := cc.Delete("/api/v1/backups/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("backup delete returned %d", code)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unknown backups subcommand %q (list|create|delete)", sub)
 	}
 }
 

@@ -264,6 +264,8 @@ llmctl restart <instance>
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl key generate|list|revoke
 llmctl scheduler list|add|run|enable|disable|delete
+llmctl requests [--model ID] [--status 4|404] [--min-ms N] [-n 20]
+llmctl backups [list|create|delete <name>]
 llmctl chat [--model ID] [--key KEY]
 llmctl version
 ```

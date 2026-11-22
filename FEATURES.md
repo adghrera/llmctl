@@ -99,6 +99,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F087 | P2 | 87 | instances | Crash auto-restart | COMPLETED | Per-instance `autoRestart` (start flag, `POST /instances/{id}/autorestart` toggle, "Auto" button on the Instances page): a crashed owned process is relaunched after 5 s, max 3× per 5 min, then gives up with a lastError. Clean stops never trigger it. Verified live: kill -9 → new pid; 4th crash → gave up; clean stop stayed down. |
 | F088 | P2 | 88 | backups | Create snapshot on demand | COMPLETED | `POST /api/v1/backups` writes a state snapshot immediately (shared `backup.CreateSnapshot` helper with the scheduler path, keep-7 pruning); "Create snapshot now" button in Settings. Verified live: 201 + downloadable archive, pruning kept 7 of 9. |
 | F089 | P2 | 89 | gateway | Per-key model allowlists | COMPLETED | `allowedModels` on API keys (create flag, `PATCH /api/v1/keys/{id}`, Keys page column + editor): the gateway returns 403 for models outside the list; alias names are resolved before checking; empty = all. Verified live incl. alias resolution both ways. |
+| F090 | P2 | 90 | cli | `requests` + `backups` commands | COMPLETED | `llmctl requests [--model] [--status] [--min-ms] [-n]` prints the (filtered) request log as a table; `llmctl backups [list\|create\|delete <name>]` manages state snapshots. Verified live against the running daemon. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
