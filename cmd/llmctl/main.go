@@ -225,7 +225,7 @@ Usage:
   llmctl models price <model-id> <in-per-M> <out-per-M> [-out FILE]
   llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo> [-json] [-out FILE]
-  llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
+  llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...] [-json]
   llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance> | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
@@ -3149,11 +3149,12 @@ func cmdStart(args []string) error {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
 	backend := fs.String("backend", "", "backend id")
 	instance := fs.String("instance", "", "instance name")
+	jsonOut := fs.Bool("json", false, "print the raw started-instance JSON (F534)")
 	var vars stringList
 	fs.Var(&vars, "var", "parameter k=v (repeatable)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl start <model> [--backend id] [--instance name] [--var k=v ...]")
+		return fmt.Errorf("usage: llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]")
 	}
 	model := fs.Arg(0)
 	cc, err := daemon.NewControlClient()
@@ -3169,6 +3170,10 @@ func cmdStart(args []string) error {
 	json.Unmarshal(out, &inst)
 	if code != 200 {
 		return fmt.Errorf("start failed: %s", string(out))
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
 	}
 	transport := fmt.Sprint(inst["transport"])
 	if transport == "stdio" {
