@@ -69,6 +69,8 @@ func main() {
 		err = cmdComplete(args)
 	case "compare":
 		err = cmdCompare(args)
+	case "count":
+		err = cmdCount(args)
 	case "bench":
 		err = cmdBench(args)
 	case "note":
@@ -167,6 +169,7 @@ Usage:
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-json] <prompt>
+  llmctl count <text> [-file F] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json]   (benchmark + comparison table)
   llmctl disk [-json]
@@ -1515,6 +1518,75 @@ func cmdCompare(args []string) error {
 	if *jsonOut {
 		b, _ := json.Marshal(results)
 		fmt.Println(string(b))
+	}
+	return nil
+}
+
+// cmdCount estimates tokens for text locally (~4 chars/token, the same
+// heuristic the chat context meter uses) — handy for sizing prompts before
+// sending them (F317).
+func cmdCount(args []string) error {
+	fs := flag.NewFlagSet("count", flag.ExitOnError)
+	file := fs.String("file", "", "read the text from this file")
+	model := fs.String("model", "", "also show the share of this model's context window")
+	jsonOut := fs.Bool("json", false, "print the counts as JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	text := strings.Join(fs.Args(), " ")
+	if text == "" && *file != "" {
+		b, err := os.ReadFile(*file)
+		if err != nil {
+			return err
+		}
+		text = string(b)
+	}
+	if text == "" {
+		if fi, _ := os.Stdin.Stat(); fi.Mode()&os.ModeCharDevice == 0 {
+			b, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return err
+			}
+			text = string(b)
+		}
+	}
+	if strings.TrimSpace(text) == "" {
+		return fmt.Errorf("usage: llmctl count <text> | llmctl count -file F | echo … | llmctl count")
+	}
+	chars := len(text)
+	words := len(strings.Fields(text))
+	tokens := (chars + 3) / 4
+	ctx := 0
+	if *model != "" {
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/models/" + url.PathEscape(*model))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("model %s: %s", *model, out)
+		}
+		var m struct {
+			CtxSize int `json:"ctxSize"`
+		}
+		json.Unmarshal(out, &m)
+		ctx = m.CtxSize
+	}
+	if *jsonOut {
+		b, _ := json.Marshal(map[string]any{
+			"chars": chars, "words": words, "est_tokens": tokens,
+			"model": *model, "ctx_tokens": ctx,
+		})
+		fmt.Println(string(b))
+		return nil
+	}
+	fmt.Printf("chars: %d  words: %d  est. tokens: %d (~4 chars/token)\n", chars, words, tokens)
+	if ctx > 0 {
+		fmt.Printf("model %s context: %d tokens — this text is %.1f%% of it\n",
+			*model, ctx, 100*float64(tokens)/float64(ctx))
+	} else if *model != "" {
+		fmt.Printf("model %s has no context size set (llmctl models ctx %s <tokens>)\n", *model, *model)
 	}
 	return nil
 }
