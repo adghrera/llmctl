@@ -140,7 +140,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json]
   llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv]
   llmctl metrics [-watch N]
@@ -1089,6 +1089,7 @@ func cmdRequests(args []string) error {
 	id := fs.String("id", "", "show the single request with this id")
 	n := fs.Int("n", 20, "number of entries")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
+	jsonOut := fs.Bool("json", false, "print the raw requests JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1142,6 +1143,10 @@ func cmdRequests(args []string) error {
 	}
 	if code != 200 {
 		return fmt.Errorf("requests returned %d: %s", code, out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
 	}
 	var entries []struct {
 		ID        string    `json:"id"`
