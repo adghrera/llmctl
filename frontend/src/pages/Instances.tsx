@@ -51,10 +51,16 @@ export default function Instances() {
   const [autoStart, setAutoStart] = useState(false);
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false); // live-poll the instance table (CLI `ps -watch`, F612)
+  const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `ps -tag` twin (F708)
 
   useEffect(() => {
     api.autoStart().then(setAutoSpecs).catch(() => setAutoSpecs([]));
   }, []);
+
+  const instTags = Array.from(new Set(instances.flatMap((i) => i.tags ?? []))).sort();
+  const shownInstances = tagFilter
+    ? instances.filter((i) => (i.tags ?? []).includes(tagFilter))
+    : instances;
 
   // Poll the instance list while the toggle is on (F612), so starting/
   // stopping instances and uptime counters update without a reload.
@@ -678,6 +684,22 @@ export default function Instances() {
           >
             {showStats ? "Show list" : "Stats"}
           </button>
+          {instTags.length > 0 && (
+            <select
+              className="oc-input"
+              style={{ width: "auto", fontSize: 12 }}
+              title="filter by tag — CLI: llmctl ps -tag (F708)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {instTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          )}
           {instances.some((i) => i.status === "running" && !i.attached) && (
             <>
               <button className="btn sm" disabled={busy === "restart-all"} onClick={restartAll}>
@@ -744,7 +766,7 @@ export default function Instances() {
               </tr>
             </thead>
             <tbody>
-              {instances.map((i) => (
+              {shownInstances.map((i) => (
                 <tr key={i.id}>
                   <td className="mono">
                     {i.id}
