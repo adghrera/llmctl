@@ -103,6 +103,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F091 | P2 | 91 | instances | Vars editor | COMPLETED | `PUT /api/v1/instances/{id}/vars` replaces an instance's stored start vars (JSON); a "Vars" button on the Instances page opens a JSON editor; running instances report `restartRequired` and apply the new vars on next restart. Verified live (store round-trip, 404, restart semantics). |
 | F092 | P2 | 92 | gateway | Request IDs | COMPLETED | Every gateway request carries an `X-Request-Id` (client-provided or minted), logged on each request-log entry and shown in the Requests page, CSV export and `llmctl requests`. Verified live: generated, reused, persisted, displayed. |
 | F093 | P3 | 93 | daemon | Daemon log rotation | COMPLETED | `llmctl.log` is rotated to `llmctl.log.1` at daemon start when it exceeds 5 MiB (one generation kept), so the slog file cannot grow unbounded. Verified live: 5 MiB file rotated, small file untouched. |
+| F094 | P3 | 94 | settings | Webhook test button | COMPLETED | `POST /api/v1/settings/notify-test` posts a `{"event":"test"}` payload to the configured notify webhook; Settings page gained a "Test" button showing delivery result or error. Verified live: delivered to a local hook, error surfaced for unreachable URL, 400 when unset. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

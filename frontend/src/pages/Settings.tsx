@@ -96,6 +96,20 @@ export default function SettingsPage() {
     }
   };
 
+  const testWebhook = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.testNotifyWebhook();
+      if (r.ok) ok("test notification delivered");
+      else err(`webhook failed: ${r.error}`);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const restore = async () => {
     if (!restoreFile) return;
     if (!window.confirm("Restore will overwrite current config, chats, knowledge bases, memory and more. Continue?")) return;
@@ -190,6 +204,9 @@ export default function SettingsPage() {
               />
               <button className="btn primary" disabled={busy} onClick={saveWebhook}>
                 Save
+              </button>
+              <button className="btn" disabled={busy || !webhook.trim()} onClick={testWebhook}>
+                Test
               </button>
             </div>
             <p className="muted small" style={{ margin: 0 }}>

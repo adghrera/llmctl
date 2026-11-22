@@ -696,6 +696,8 @@ export const api = {
   settings: () => req<Settings>("/settings"),
   updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; allowCORS?: boolean; startupTimeoutSec?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
+  testNotifyWebhook: () =>
+    req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),
   restoreBackup: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);

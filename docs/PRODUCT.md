@@ -236,7 +236,7 @@ toggle for a light theme (choice remembered). Tabs:
   Raise for very large models on slow storage.
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
-  silent).
+  silent). A "Test" button sends a test event to verify the endpoint.
 - **CORS** — Settings → "CORS (gateway)": when ON, the gateway answers
   cross-origin preflights (OPTIONS → 204) and sends Access-Control-Allow-*
   headers so browser apps can call /v1/* directly.

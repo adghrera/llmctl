@@ -38,6 +38,7 @@ import (
 	"llmctl/internal/proxy"
 	"llmctl/internal/store"
 	"llmctl/internal/supervisor"
+	"llmctl/internal/webhook"
 	"llmctl/internal/websearch"
 	"llmctl/internal/downloader"
 	"llmctl/internal/mcp"
@@ -214,6 +215,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/keys/{id}", s.revokeKey)
 	// Settings
 	m.HandleFunc("GET /api/v1/settings", s.getSettings)
+	m.HandleFunc("POST /api/v1/settings/notify-test", s.testNotifyWebhook)
 	m.HandleFunc("PATCH /api/v1/settings", s.updateSettings)
 	return s.recoverer(m)
 }
@@ -1295,6 +1297,28 @@ type settingsView struct {
 	NotifyWebhook     string `json:"notifyWebhook"`
 	AllowCORS         bool   `json:"allowCORS"`
 	StartupTimeoutSec int    `json:"startupTimeoutSec"`
+}
+
+// testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
+// test event to the configured notify webhook and reports the outcome
+// (F094).
+func (s *Server) testNotifyWebhook(w http.ResponseWriter, r *http.Request) {
+	st, _ := s.store.Load()
+	url := strings.TrimSpace(st.Settings.NotifyWebhook)
+	if url == "" {
+		writeErr(w, 400, "no notify webhook configured")
+		return
+	}
+	payload := map[string]any{
+		"event":   "test",
+		"message": "llmctl test notification",
+		"time":    time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := webhook.Post(r.Context(), url, payload); err != nil {
+		writeJSON(w, 200, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
