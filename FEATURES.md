@@ -505,6 +505,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F492 | P3 | 492 | cli | `chats list -out FILE` | COMPLETED | `llmctl chats -out FILE` writes the chat list JSON (honoring filter and -n) to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (143 B), plain, -json and --csv unchanged. |
 | F493 | P3 | 493 | cli | `presets list -out FILE` | COMPLETED | `llmctl presets list -out FILE` writes the raw presets JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload, plain, -json and --csv unchanged. |
 | F494 | P3 | 494 | cli | `autostart list -out FILE` | COMPLETED | `llmctl autostart list -out FILE` writes the raw autostart JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (92 B), plain and -json unchanged. |
+| F495 | P3 | 495 | cli | `scheduler list -out FILE` | COMPLETED | `llmctl scheduler list -out FILE` writes the raw scheduler JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json and the human table are unchanged. Verified live with a temporary task: -out wrote the exact payload (373 B), plain and -json unchanged; task deleted after. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

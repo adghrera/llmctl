@@ -236,7 +236,7 @@ Usage:
   llmctl autostart export [-out FILE] | autostart import <file.json>
   llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...]|start <name>|delete <name>|export|import
   llmctl catalog list [-json|-csv] | install <id>
-  llmctl scheduler list
+  llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
@@ -3335,6 +3335,7 @@ func cmdScheduler(args []string) error {
 		fs := flag.NewFlagSet("scheduler list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw scheduler JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the schedule table as CSV (F376)")
+		outFile := fs.String("out", "", "write the raw scheduler JSON to this file instead of stdout (F495)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler")
 		if err != nil {
@@ -3342,6 +3343,13 @@ func cmdScheduler(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("scheduler list returned %d: %s", code, out)
+		}
+		if *outFile != "" { // F495: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			return nil
 		}
 		if *jsonOut {
 			fmt.Print(string(out))
