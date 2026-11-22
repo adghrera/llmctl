@@ -429,7 +429,8 @@ toggle for a light theme (choice remembered). Tabs:
    search (F247, F250, F268, F272, F291, F320).
  - **Tools CLI** — `llmctl tools [-json] [-csv] [-out FILE]` lists installed tools
    (`--csv` exports id,enabled,sandbox,runtime,name,description, F389);
-   `tools install <dir>` installs a local pack, `tools show <id> [-out FILE]|enable|disable|delete <id>`
+   `tools install <dir|https://…/tool.zip> [-id ID]` installs a local pack or a
+   packaged .zip over HTTP (custom id supported, F657), `tools show <id> [-out FILE]|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` (or `-args -` for stdin / `-args-file F`;
    `-out FILE` writes the result to a file, F458)
    execute one from the shell (F248, F250, F338); `tools sandbox <id> <on|off>`

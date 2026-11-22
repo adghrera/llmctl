@@ -277,7 +277,7 @@ Usage:
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|embed [-json]|delete [-json] …
-  llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
+  llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list]
@@ -8790,15 +8790,25 @@ func cmdTools(args []string) error {
 	case "install":
 		tifs := flag.NewFlagSet("tools install", flag.ExitOnError)
 		tijson := tifs.Bool("json", false, "print the raw installed-tool JSON (F540)")
+		tiid := tifs.String("id", "", "install under this id instead of the derived one (F657)")
 		tifs.Parse(reorderFlags(rest))
 		if tifs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl tools install <dir> [-json]")
+			return fmt.Errorf("usage: llmctl tools install <dir|https://…/tool.zip> [-id ID] [-json]")
 		}
-		abs, err := filepath.Abs(tifs.Arg(0))
-		if err != nil {
-			return err
+		body := map[string]any{}
+		if arg := tifs.Arg(0); strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://") {
+			body["url"] = arg // F657: install a packaged .zip over HTTP, like the Tools page
+		} else {
+			abs, err := filepath.Abs(arg)
+			if err != nil {
+				return err
+			}
+			body["dir"] = abs
 		}
-		code, out, err := cc.Post("/api/v1/tools/install", map[string]any{"dir": abs})
+		if *tiid != "" {
+			body["id"] = *tiid
+		}
+		code, out, err := cc.Post("/api/v1/tools/install", body)
 		if err != nil {
 			return err
 		}
