@@ -647,13 +647,13 @@ export default function Instances() {
               // Same columns as `llmctl ps --csv` (F406).
               const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
               const rows = [
-                "id,model,backend,transport,port,status,uptime_s,served,restarts,note",
+                "id,model,backend,transport,port,status,uptime_s,served,restarts,note,tags",
                 ...instances.map((i) => {
                   const up = i.startedAt ? Math.max(0, Math.floor((Date.now() - new Date(i.startedAt).getTime()) / 1000)) : 0;
                   return [
                     i.id, i.modelId, i.backendId || "", i.transport, String(i.port || ""),
                     i.status, String(i.status === "running" ? up : 0), String(i.served ?? 0),
-                    String(i.restartCount ?? 0), i.note || "",
+                    String(i.restartCount ?? 0), i.note || "", (i.tags ?? []).join(";"),
                   ]
                     .map(esc)
                     .join(",");

@@ -2787,6 +2787,7 @@ func cmdPS(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the raw instances JSON (for scripts)")
 	outFile := fs.String("out", "", "write the raw instances JSON to this file instead of stdout (F467)")
 	stats := fs.Bool("stats", false, "aggregate the instances per model instead of listing them (F629)")
+	tagF := fs.String("tag", "", "only instances carrying this tag (F675)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -2796,6 +2797,27 @@ func cmdPS(args []string) error {
 		_, out, err := cc.Get("/api/v1/instances")
 		if err != nil {
 			return err
+		}
+		if *tagF != "" { // F675: exact tag filter, twin of models list -tag;
+			// applied before every output mode so -json/-csv/-out/-stats agree
+			var insts []map[string]any
+			if err := json.Unmarshal(out, &insts); err != nil {
+				return err
+			}
+			keep := insts[:0]
+			for _, i := range insts {
+				tags, _ := i["tags"].([]any)
+				for _, t := range tags {
+					if t == *tagF {
+						keep = append(keep, i)
+						break
+					}
+				}
+			}
+			insts = keep
+			if out, err = json.Marshal(insts); err != nil {
+				return err
+			}
 		}
 		if *stats { // F629: one row per model (replicas, running, served, restarts)
 			var insts []struct {
@@ -2911,6 +2933,7 @@ func printPS(out []byte, csvOut bool) error {
 		Served       int64     `json:"served"`
 		RestartCount int       `json:"restartCount"`
 		Note         string    `json:"note"`
+		Tags         []string  `json:"tags"`
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
 		return err
@@ -2918,7 +2941,7 @@ func printPS(out []byte, csvOut bool) error {
 	if len(list) == 0 {
 		if csvOut { // keep the stream parseable (F373)
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "model", "backend", "transport", "port", "status", "uptime_s", "served", "restarts", "note"})
+			_ = w.Write([]string{"id", "model", "backend", "transport", "port", "status", "uptime_s", "served", "restarts", "note", "tags"})
 			w.Flush()
 			return w.Error()
 		}
@@ -2927,19 +2950,20 @@ func printPS(out []byte, csvOut bool) error {
 	}
 	if csvOut { // F373
 		w := csv.NewWriter(os.Stdout)
-		_ = w.Write([]string{"id", "model", "backend", "transport", "port", "status", "uptime_s", "served", "restarts", "note"})
+		_ = w.Write([]string{"id", "model", "backend", "transport", "port", "status", "uptime_s", "served", "restarts", "note", "tags"})
 		for _, i := range list {
 			up := int64(0)
 			if i.Status == "running" && !i.StartedAt.IsZero() {
 				up = int64(time.Since(i.StartedAt).Seconds())
 			}
 			_ = w.Write([]string{i.ID, i.ModelID, i.BackendID, i.Transport, strconv.Itoa(i.Port), i.Status,
-				strconv.FormatInt(up, 10), strconv.FormatInt(i.Served, 10), strconv.Itoa(i.RestartCount), i.Note})
+				strconv.FormatInt(up, 10), strconv.FormatInt(i.Served, 10), strconv.Itoa(i.RestartCount), i.Note,
+				strings.Join(i.Tags, ";")})
 		}
 		w.Flush()
 		return w.Error()
 	}
-	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %-9s %-8s %6s %8s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS", "UPTIME", "SERVED", "RESTARTS", "NOTE")
+	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %-9s %-8s %6s %8s %-40s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS", "UPTIME", "SERVED", "RESTARTS", "NOTE", "TAGS")
 	for _, i := range list {
 		up := ""
 		if i.Status == "running" && !i.StartedAt.IsZero() {
@@ -2949,8 +2973,8 @@ func printPS(out []byte, csvOut bool) error {
 		if len(note) > 40 {
 			note = note[:37] + "..."
 		}
-		fmt.Printf("%-28s %-24s %-12s %-8s %-7v %-9s %-8s %6d %8d %s\n",
-			i.ID, i.ModelID, i.BackendID, i.Transport, i.Port, i.Status, up, i.Served, i.RestartCount, note)
+		fmt.Printf("%-28s %-24s %-12s %-8s %-7v %-9s %-8s %6d %8d %-40s %s\n",
+			i.ID, i.ModelID, i.BackendID, i.Transport, i.Port, i.Status, up, i.Served, i.RestartCount, note, strings.Join(i.Tags, ","))
 	}
 	return nil
 }
