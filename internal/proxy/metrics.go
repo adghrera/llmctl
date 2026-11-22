@@ -364,6 +364,31 @@ func (m *metricsCollector) seedDailyKeys(daily map[string]map[string]*store.Dail
 	}
 }
 
+// pruneDaily drops daily rollup entries older than keepDays UTC days
+// (0 = default 90, negative = keep forever) (F168). ISO date strings sort
+// lexicographically, so a string compare is a valid date compare.
+func (m *metricsCollector) pruneDaily(keepDays int) {
+	if keepDays == 0 {
+		keepDays = 90
+	}
+	if keepDays < 0 {
+		return
+	}
+	cutoff := time.Now().UTC().AddDate(0, 0, -keepDays).Format("2006-01-02")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for day := range m.daily {
+		if day < cutoff {
+			delete(m.daily, day)
+		}
+	}
+	for day := range m.dailyKeys {
+		if day < cutoff {
+			delete(m.dailyKeys, day)
+		}
+	}
+}
+
 // dailyKeyUsage returns a deep copy of the per-key daily rollup (F126).
 func (m *metricsCollector) dailyKeyUsage() map[string]map[string]*store.DailyModelUsage {
 	m.mu.Lock()

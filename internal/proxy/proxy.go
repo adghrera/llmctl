@@ -980,6 +980,9 @@ func (s *Server) SeedDailyKeys(daily map[string]map[string]*store.DailyModelUsag
 	s.collector.seedDailyKeys(daily)
 }
 
+// PruneDaily drops daily rollup days older than keepDays (F168).
+func (s *Server) PruneDaily(keepDays int) { s.collector.pruneDaily(keepDays) }
+
 // KeyTotalTokens exposes one key counter's token total for quota checks (F074).
 func (s *Server) KeyTotalTokens(prefix string) int64 { return s.collector.keyTotalTokens(prefix) }
 

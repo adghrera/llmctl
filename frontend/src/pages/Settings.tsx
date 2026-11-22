@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const [startupSec, setStartupSec] = useState(0);
   const [maxBodyMB, setMaxBodyMB] = useState(0);
   const [rateRPS, setRateRPS] = useState(0);
+  const [usageRetentionDays, setUsageRetentionDays] = useState(0);
   const [rateBurst, setRateBurst] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [whEvents, setWhEvents] = useState("");
@@ -32,6 +33,7 @@ export default function SettingsPage() {
       setStartupSec(s.startupTimeoutSec || 0);
       setMaxBodyMB(s.maxBodyMB || 0);
       setRateRPS(s.rateRPS || 0);
+      setUsageRetentionDays(s.usageRetentionDays ?? 0);
       setRateBurst(s.rateBurst || 0);
       setWebhook(s.notifyWebhook || "");
       setWhEvents((s.notifyEvents || []).join(", "));
@@ -103,6 +105,26 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ rateRPS, rateBurst });
       setSettings(r);
       ok((r.rateRPS ?? 0) > 0 ? `default rate: ${r.rateRPS} rps / burst ${r.rateBurst}` : "default rate back to CLI defaults");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveRetention = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ usageRetentionDays });
+      setSettings(r);
+      ok(
+        (r.usageRetentionDays ?? 0) === -1
+          ? "usage history kept forever"
+          : (r.usageRetentionDays ?? 0) > 0
+            ? `usage history kept ${r.usageRetentionDays} days`
+            : "usage history retention back to default (90 days)",
+      );
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -316,6 +338,27 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               Fallback per-key rate limit for keys without their own limit.
               0 uses the CLI defaults (20 rps, burst 60).
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Usage retention</h3>
+              <div className="spacer" />
+              <input
+                type="number"
+                min={-1}
+                style={{ width: 90 }}
+                value={usageRetentionDays}
+                onChange={(e) => setUsageRetentionDays(Math.max(-1, Number(e.target.value) || 0))}
+              />
+              <span className="muted small">days</span>
+              <button className="btn primary" disabled={busy} onClick={saveRetention}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              How many UTC days of daily usage history are kept; older days are
+              pruned. 0 = default (90), -1 = keep forever.
             </p>
           </div>
           <div>

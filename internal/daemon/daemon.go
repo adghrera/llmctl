@@ -467,6 +467,9 @@ func syncPricing(st *store.Store, gw *proxy.Server) {
 // state file (F080, F097).
 func flushUsage(st *store.Store, gw *proxy.Server, logger *slog.Logger) {
 	syncPricing(st, gw)
+	if cur, err := st.Load(); err == nil && cur.Settings != nil {
+		gw.PruneDaily(cur.Settings.UsageRetentionDays) // rollup retention (F168)
+	}
 	usage := gw.KeyUsage()
 	daily := gw.DailyUsage()
 	dailyKeys := gw.DailyKeyUsage()

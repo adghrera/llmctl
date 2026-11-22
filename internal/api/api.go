@@ -1788,6 +1788,9 @@ type settingsView struct {
 	MaxBodyMB           int      `json:"maxBodyMB"`
 	RateRPS             float64  `json:"rateRPS"`   // gateway default rps, 0 = CLI default (F152)
 	RateBurst           int      `json:"rateBurst"` // gateway default burst, 0 = CLI default (F152)
+	// UsageRetentionDays: UTC days of daily rollups kept; 0 = default 90,
+	// -1 = keep forever (F168).
+	UsageRetentionDays int `json:"usageRetentionDays"`
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1832,6 +1835,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		MaxBodyMB:           st.Settings.MaxBodyMB,
 		RateRPS:             st.Settings.RateRPS,
 		RateBurst:           st.Settings.RateBurst,
+		UsageRetentionDays:  st.Settings.UsageRetentionDays,
 	})
 }
 
@@ -1845,8 +1849,9 @@ type updateSettingsReq struct {
 	StartupTimeoutSec   *int      `json:"startupTimeoutSec"`
 	StartOnDemand       *bool     `json:"startOnDemand"`
 	MaxBodyMB           *int      `json:"maxBodyMB"`
-	RateRPS             *float64  `json:"rateRPS"`   // gateway default rps, 0 = CLI default (F152)
-	RateBurst           *int      `json:"rateBurst"` // gateway default burst, 0 = CLI default (F152)
+	RateRPS             *float64  `json:"rateRPS"`            // gateway default rps, 0 = CLI default (F152)
+	RateBurst           *int      `json:"rateBurst"`          // gateway default burst, 0 = CLI default (F152)
+	UsageRetentionDays  *int      `json:"usageRetentionDays"` // rollup days kept; 0 = default 90, -1 = forever (F168)
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1869,6 +1874,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.RateRPS != nil && *req.RateRPS < 0 || req.RateBurst != nil && *req.RateBurst < 0 {
 		writeErr(w, 400, "rateRPS and rateBurst must be >= 0 (0 = default)")
+		return
+	}
+	if req.UsageRetentionDays != nil && (*req.UsageRetentionDays < -1 || *req.UsageRetentionDays > 36500) {
+		writeErr(w, 400, "usageRetentionDays must be -1 (keep forever), 0 (default 90) or 1–36500")
 		return
 	}
 	s.store.Update(func(st *store.State) error {
@@ -1911,6 +1920,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.RateBurst != nil {
 			st.Settings.RateBurst = *req.RateBurst
 		}
+		if req.UsageRetentionDays != nil {
+			st.Settings.UsageRetentionDays = *req.UsageRetentionDays // applied at next flush (F168)
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1941,6 +1953,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		MaxBodyMB:           st.Settings.MaxBodyMB,
 		RateRPS:             st.Settings.RateRPS,
 		RateBurst:           st.Settings.RateBurst,
+		UsageRetentionDays:  st.Settings.UsageRetentionDays,
 	})
 }
 

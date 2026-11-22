@@ -147,6 +147,9 @@ type Settings struct {
 	// at runtime (0 = CLI default / 20 rps, 60 burst) (F152).
 	RateRPS   float64 `json:"rateRPS,omitempty"`
 	RateBurst int     `json:"rateBurst,omitempty"`
+	// UsageRetentionDays bounds how many UTC days of daily usage rollups are
+	// kept (older days pruned at flush); 0 = default 90, -1 = keep forever (F168).
+	UsageRetentionDays int `json:"usageRetentionDays,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

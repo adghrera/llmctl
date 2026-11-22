@@ -450,6 +450,7 @@ export interface Settings {  requireAuth: boolean;
   startOnDemand?: boolean;
   rateRPS?: number;
   rateBurst?: number;
+  usageRetentionDays?: number;
 }
 
 export class ApiError extends Error {
@@ -773,7 +774,7 @@ export const api = {
     req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}/reset-usage`, { method: "POST" }),
   pruneKeys: () => req<{ ok: boolean; removed: string[] }>("/keys/prune", { method: "POST" }),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   testNotifyWebhook: () =>
     req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),

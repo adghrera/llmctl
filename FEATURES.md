@@ -177,6 +177,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F165 | P3 | 165 | keys | Single-key lookup | COMPLETED | `GET /api/v1/keys/{id}` returns one key's full view (usage, quota, expiry, today cost) and `llmctl key show <id>` pretty-prints it — scripts no longer need to scan the whole list. Verified live: CLI show displayed quota usage, expiry, last-used and today's cost for a freshly used key; unknown id → 404. |
 | F166 | P3 | 166 | models | Single-model lookup | COMPLETED | `GET /api/v1/models/{id}` returns one model's view (backend, path, ctx, price, idle-unload, instances, running) and `llmctl models show <id>` pretty-prints it. Verified live: show for the running `so` model, unknown id → 404, `/models/{id}/metadata` route unaffected. |
 | F167 | P3 | 167 | keys | Expired-key pruning | COMPLETED | `POST /api/v1/keys/prune` deletes every key past its expiry (F135) plus its usage record; `llmctl key prune` and a "Prune expired" button (shown only when expired keys exist) expose it. Verified live: backdated key removed, unexpired key kept, second prune is a no-op. |
+| F168 | P2 | 168 | usage | Rollup retention | COMPLETED | `settings.usageRetentionDays` bounds how many UTC days of daily usage rollups (per-model and per-key) are kept; older days are pruned at every usage flush (30 s + shutdown). 0 = default 90, -1 = keep forever; Settings page row added. Verified live: day-10 entry pruned with retention 3, kept with -1, invalid -2 → 400. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
