@@ -148,7 +148,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler runs [-n 20]
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats]
   llmctl backups [list|create|restore <name>|delete <name>]
   llmctl usage [-n 14] [-key ID] [-keys] [--csv] [--json]
   llmctl metrics [-watch N] [-json]
@@ -1181,6 +1181,7 @@ func cmdRequests(args []string) error {
 	n := fs.Int("n", 20, "number of entries")
 	watch := fs.Int("watch", 0, "poll every N seconds and print new requests until Ctrl-C (0 = print once)")
 	csvOut := fs.Bool("csv", false, "output CSV instead of a table")
+	stats := fs.Bool("stats", false, "print aggregate stats (count, errors, latency percentiles, tokens, cost) instead of the table")
 	jsonOut := fs.Bool("json", false, "print the raw requests JSON (for scripts)")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
@@ -1263,6 +1264,47 @@ func cmdRequests(args []string) error {
 		if *watch <= 0 {
 			return nil
 		}
+	}
+	if *stats {
+		var errs int
+		lats := make([]float64, 0, len(entries))
+		var in, outTok int64
+		var cost float64
+		for _, e := range entries {
+			if e.Status >= 400 {
+				errs++
+			}
+			lats = append(lats, e.LatencyMs)
+			in += e.PromptTok
+			outTok += e.CompTok
+			cost += e.Cost
+		}
+		sort.Float64s(lats)
+		pct := func(p float64) float64 {
+			if len(lats) == 0 {
+				return 0
+			}
+			i := int(p * float64(len(lats)-1))
+			return lats[i]
+		}
+		var avg float64
+		for _, l := range lats {
+			avg += l
+		}
+		if len(lats) > 0 {
+			avg /= float64(len(lats))
+		}
+		errRate := 0.0
+		if len(entries) > 0 {
+			errRate = 100 * float64(errs) / float64(len(entries))
+		}
+		fmt.Printf("requests:  %d (%d errors, %.1f%%)\n", len(entries), errs, errRate)
+		fmt.Printf("latency:   avg %.0f ms  p50 %.0f  p95 %.0f  max %.0f\n", avg, pct(0.5), pct(0.95), pct(1.0))
+		fmt.Printf("tokens:    %d in, %d out\n", in, outTok)
+		if cost > 0 {
+			fmt.Printf("cost:      $%.4f\n", cost)
+		}
+		return nil
 	}
 	if *csvOut {
 		w := csv.NewWriter(os.Stdout)

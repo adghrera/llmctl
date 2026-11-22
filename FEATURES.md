@@ -236,6 +236,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F224 | P3 | 224 | cli | `llmctl batch` | COMPLETED | New CLI over the batch API: prompts from args, `-file` (one per line) or piped stdin; `-model -system -max-tokens -concurrency -key` (gateway bearer) and `-json` for raw output; table shows ✓/✗ per prompt + totals. Verified live against a JSON stub: 2-prompt stdin run and `-json` both pass. |
 | F225 | P3 | 225 | cli | `scheduler runs -json` | COMPLETED | `llmctl scheduler runs -json` prints the run log as JSON (honors `-n`, prints `[]` when empty). Verified live: empty ring and table mode both behave. |
 | F226 | P3 | 226 | cli | `backends list` / `models show` / `models aliases` `-json` | COMPLETED | The remaining list commands gained `-json` for scripting, completing raw-JSON output across the CLI. Verified live: all three parse as JSON; table modes unchanged. |
+| F227 | P3 | 227 | cli | `requests -stats` | COMPLETED | `llmctl requests -stats` prints aggregates over the (filtered) request log: count, error count/rate, avg/p50/p95/max latency, total tokens and cost. Verified live: full log and `-status 4` filter both compute correctly. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
