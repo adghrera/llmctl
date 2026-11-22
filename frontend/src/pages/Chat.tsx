@@ -62,6 +62,7 @@ export default function Chat() {
   convIdRef.current = convId;
 
   const loadChats = () => api.chats().then(setChats).catch(() => setChats([]));
+  const [showStats, setShowStats] = useState(false); // per-model rollup (CLI `chats -stats` parity, F633)
   const loadKBs = () => api.knowledgeBases().then(setKBs).catch(() => setKBs([]));
   useEffect(() => {
     loadChats();
@@ -454,6 +455,15 @@ export default function Chat() {
           <div className="row" style={{ gap: 6 }}>
             <button
               className="btn sm"
+              aria-pressed={showStats}
+              disabled={chats.length === 0}
+              title="group conversations per model — CLI: llmctl chats -stats (F633)"
+              onClick={() => setShowStats(!showStats)}
+            >
+              {showStats ? "Show list" : "Stats"}
+            </button>
+            <button
+              className="btn sm"
               disabled={streaming || chats.length === 0}
               title="download the conversation list as CSV (CLI: llmctl chats list --csv)"
               onClick={() => {
@@ -565,7 +575,49 @@ export default function Chat() {
         {!searchQuery.trim() && chats.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>no saved conversations yet</div>
         )}
-        {!searchQuery.trim() && chats.length > 0 && (
+        {!searchQuery.trim() && chats.length > 0 && showStats && (
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Chats</th>
+                <th>Msgs</th>
+                <th>Tokens</th>
+                <th>Last</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                // Same rollup as `llmctl chats -stats` (F633): one row per
+                // model, sorted by tokens.
+                const by = new Map<string, { chats: number; msgs: number; tokens: number; last: string }>();
+                for (const c of chats) {
+                  const m = c.model || "(none)";
+                  const g = by.get(m) ?? { chats: 0, msgs: 0, tokens: 0, last: "" };
+                  g.chats++;
+                  g.msgs += c.messages ?? 0;
+                  g.tokens += c.tokens ?? 0;
+                  if ((c.updatedAt || "") > g.last) g.last = c.updatedAt || "";
+                  by.set(m, g);
+                }
+                return [...by.entries()]
+                  .sort((a, b) => b[1].tokens - a[1].tokens)
+                  .map(([model, g]) => (
+                    <tr key={model}>
+                      <td>{model}</td>
+                      <td>{g.chats}</td>
+                      <td>{g.msgs}</td>
+                      <td>{g.tokens}</td>
+                      <td className="muted" style={{ fontSize: 12 }}>
+                        {g.last ? new Date(g.last).toLocaleString() : ""}
+                      </td>
+                    </tr>
+                  ));
+              })()}
+            </tbody>
+          </table>
+        )}
+        {!searchQuery.trim() && chats.length > 0 && !showStats && (
           <table>
             <tbody>
               {chats.map((c) => (

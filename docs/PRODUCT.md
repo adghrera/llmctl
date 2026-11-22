@@ -332,7 +332,9 @@ toggle for a light theme (choice remembered). Tabs:
   Import button in the Conversations header that uploads an export file
   verbatim (tools/system included) under a fresh id and opens it (F369,
   plus an "Export CSV" button there downloading the conversation list —
-  id,title,model,messages,updated_at, same columns as `chats list --csv`, F392).
+  id,title,model,messages,updated_at, same columns as `chats list --csv`, F392 —
+  and a Stats toggle rolling the list up per model (chats, messages, tokens,
+  last updated), mirroring `chats -stats` (F633).
   replacing the earlier field-picking section); CLI twin `chats import` (F368).
 - **Prompt templates** — curated built-in prompt templates (code review,
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
