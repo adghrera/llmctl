@@ -4005,9 +4005,12 @@ func cmdChats(args []string) error {
 	if len(args) > 0 && args[0] == "show" {
 		sfs := flag.NewFlagSet("chats show", flag.ExitOnError)
 		sjson := sfs.Bool("json", false, "print the raw chat JSON (for scripts)")
+		last := sfs.Int("last", 0, "show only the last N messages (0 = all)")
+		grep := sfs.String("grep", "", "show only messages whose content contains this (case-insensitive)")
+		full := sfs.Bool("full", false, "print full message text (no 100-char preview truncation)")
 		sfs.Parse(reorderFlags(args[1:]))
 		if sfs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl chats show <id> [-json]")
+			return fmt.Errorf("usage: llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full]")
 		}
 		cc, err := daemon.NewControlClient()
 		if err != nil {
@@ -4042,9 +4045,26 @@ func cmdChats(args []string) error {
 		}
 		fmt.Printf("id:      %s\ntitle:   %s\nmodel:   %s\nupdated: %s\ntokens:  %d\n\n",
 			ch.ID, ch.Title, ch.Model, ch.UpdatedAt, ch.Context.UsedTokens)
-		for _, m := range ch.Messages {
+		msgs := ch.Messages
+		if *grep != "" {
+			g := strings.ToLower(*grep)
+			var kept []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			}
+			for _, m := range msgs {
+				if strings.Contains(strings.ToLower(m.Content), g) {
+					kept = append(kept, m)
+				}
+			}
+			msgs = kept
+		}
+		if *last > 0 && len(msgs) > *last {
+			msgs = msgs[len(msgs)-*last:]
+		}
+		for _, m := range msgs {
 			c := strings.TrimSpace(m.Content)
-			if len(c) > 100 {
+			if !*full && len(c) > 100 {
 				c = c[:100] + "…"
 			}
 			fmt.Printf("[%s] %s\n", m.Role, strings.ReplaceAll(c, "\n", " "))
