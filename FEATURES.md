@@ -91,6 +91,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F079 | P2 | 79 | gateway | Request-log filters | COMPLETED | `GET /api/v1/requests` accepts `model`, `status` (class `4` or exact `404`), `minMs`, `stream=1\|0` filters (combinable). Requests page gained model/status/latency/stream filter controls with a Clear button; CSV export exports the filtered view. Verified live against mixed traffic. |
 | F080 | P2 | 80 | gateway | Persistent per-key usage | COMPLETED | Per-key token counters are flushed to `state.json` (`keyUsage`, 30 s ticker + on shutdown) and re-seeded into the gateway at startup, so per-key quotas (F074) and the Keys page usage survive daemon restarts. Verified live: usage persisted across two restarts and a spent quota still returned 429 after restart. |
 | F081 | P2 | 81 | cli | `logs` + `restart` commands | COMPLETED | `llmctl logs <instance> [--stream stderr\|stdout] [--tail N]` prints the log tail; `llmctl restart <instance>` restarts in place (same id/port). Both thin clients over the existing API. Verified live (log output, pid change, usage errors). |
+| F082 | P2 | 82 | gateway | CORS support | COMPLETED | `settings.allowCORS` (Settings toggle, runtime, persisted): the gateway answers OPTIONS preflights with 204 and sends `Access-Control-Allow-*` headers so browser apps can call `/v1/*` cross-origin. Verified live: off → 405, on → 204 + headers, survives restart. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

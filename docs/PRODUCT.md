@@ -221,6 +221,9 @@ toggle for a light theme (choice remembered). Tabs:
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
   silent).
+- **CORS** — Settings → "CORS (gateway)": when ON, the gateway answers
+  cross-origin preflights (OPTIONS → 204) and sends Access-Control-Allow-*
+  headers so browser apps can call /v1/* directly.
 - **Backup & Restore** — Settings page downloads the whole state (config,
   keys, chats, knowledge bases, memory, skills, tools, scheduler, plugins) as
   one .tar.gz and restores it back; also `llmctl backup [file]` /

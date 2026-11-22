@@ -399,6 +399,7 @@ export interface Settings {
   requireAuth: boolean;
   idleUnloadMin: number;
   notifyWebhook?: string;
+  allowCORS?: boolean;
 }
 
 export class ApiError extends Error {
@@ -671,7 +672,7 @@ export const api = {
     }),
   revokeKey: (id: string) => req<{ ok: boolean }>(`/keys/${encodeURIComponent(id)}`, { method: "DELETE" }),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; allowCORS?: boolean }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   restoreBackup: (file: File) => {
     const fd = new FormData();

@@ -23,7 +23,7 @@ export default function SettingsPage() {
     }).catch(() => {});
   }, []);
 
-  const toggle = async (key: "requireAuth") => {
+  const toggle = async (key: "requireAuth" | "allowCORS") => {
     if (busy) return;
     setBusy(true);
     try {
@@ -142,6 +142,24 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               Receives a JSON POST when an instance crashes or is idle-unloaded.
               Empty disables notifications.
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>CORS (gateway)</h3>
+              <div className="spacer" />
+              <button
+                className={`btn ${settings?.allowCORS ? "primary" : ""}`}
+                disabled={busy}
+                onClick={() => toggle("allowCORS")}
+              >
+                {settings?.allowCORS ? "ON" : "OFF"}
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              When ON, the gateway answers cross-origin preflights and sends
+              Access-Control-Allow-* headers so browser apps can call /v1/*
+              directly.
             </p>
           </div>
         </div>

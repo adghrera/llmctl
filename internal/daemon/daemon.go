@@ -124,11 +124,13 @@ func Run(ctx context.Context, opts Options) error {
 	// Defaults to OFF so a fresh install works without an API key; flip it
 	// ON in Settings (or via --api-key) to require Authorization on /v1/*.
 	requireAuth := false
+	allowCORS := false
 	s, err := store.Open()
 	if err == nil {
 		state, loadErr := s.Load()
 		if loadErr == nil && state.Settings != nil {
 			requireAuth = state.Settings.RequireAuth
+			allowCORS = state.Settings.AllowCORS
 		}
 	}
 
@@ -137,6 +139,7 @@ func Run(ctx context.Context, opts Options) error {
 		APIKeys:     opts.APIKeys,
 		KeyCheck:    nil, // mgmt.KeyCheck set below
 		RequireAuth: requireAuth,
+		AllowCORS:   allowCORS,
 		RateRPS:     opts.RateRPS,
 		RateBurst:   opts.RateBurst,
 		MaxInflight: opts.MaxInflight,

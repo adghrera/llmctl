@@ -1131,6 +1131,7 @@ type settingsView struct {
 	RequireAuth   bool   `json:"requireAuth"`
 	IdleUnloadMin int    `json:"idleUnloadMin"`
 	NotifyWebhook string `json:"notifyWebhook"`
+	AllowCORS     bool   `json:"allowCORS"`
 }
 
 func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
@@ -1139,6 +1140,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		RequireAuth:   st.Settings.RequireAuth,
 		IdleUnloadMin: st.Settings.IdleUnloadMin,
 		NotifyWebhook: st.Settings.NotifyWebhook,
+		AllowCORS:     st.Settings.AllowCORS,
 	})
 }
 
@@ -1146,6 +1148,7 @@ type updateSettingsReq struct {
 	RequireAuth   *bool   `json:"requireAuth"`
 	IdleUnloadMin *int    `json:"idleUnloadMin"`
 	NotifyWebhook *string `json:"notifyWebhook"`
+	AllowCORS     *bool   `json:"allowCORS"`
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1168,11 +1171,17 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.NotifyWebhook != nil {
 			st.Settings.NotifyWebhook = strings.TrimSpace(*req.NotifyWebhook)
 		}
+		if req.AllowCORS != nil {
+			st.Settings.AllowCORS = *req.AllowCORS
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
 	if req.RequireAuth != nil && s.gw != nil {
 		s.gw.SetRequireAuth(*req.RequireAuth)
+	}
+	if req.AllowCORS != nil && s.gw != nil {
+		s.gw.SetAllowCORS(*req.AllowCORS)
 	}
 	// Return updated settings.
 	st, _ := s.store.Load()
@@ -1180,6 +1189,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		RequireAuth:   st.Settings.RequireAuth,
 		IdleUnloadMin: st.Settings.IdleUnloadMin,
 		NotifyWebhook: st.Settings.NotifyWebhook,
+		AllowCORS:     st.Settings.AllowCORS,
 	})
 }
 

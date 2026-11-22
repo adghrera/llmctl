@@ -31,6 +31,7 @@ type Server struct {
 	apiKeys      [][]byte // pre-encoded; empty list = auth disabled
 	keyCheck     func(string) *store.APIKeyRecord // hashed-key verifier (overrides apiKeys)
 	requireAuth  *atomic.Bool // if false, no key needed (auth disabled globally)
+	allowCORS    *atomic.Bool // if true, CORS headers + OPTIONS preflight (F082)
 	limiter      *rateLimiter
 	router       *Router
 	logger       *slog.Logger
@@ -49,6 +50,7 @@ type Config struct {
 	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
 	KeyCheck    func(token string) *store.APIKeyRecord
 	RequireAuth bool // if false, auth is disabled regardless of keys
+	AllowCORS   bool // if true, gateway sends CORS headers + answers OPTIONS (F082)
 	RateRPS     float64 // sustained requests/sec per client
 	RateBurst   int
 	MaxInflight int
@@ -90,6 +92,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		apiKeys:     keys,
 		keyCheck:    cfg.KeyCheck,
 		requireAuth: &atomic.Bool{},
+		allowCORS:   &atomic.Bool{},
 		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
 		router:      router,
 		logger:      cfg.Logger,
@@ -97,6 +100,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		collector:   newMetricsCollector(),
 	}
 	s.requireAuth.Store(requireAuth)
+	s.allowCORS.Store(cfg.AllowCORS)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /v1/models", s.auth(s.listModels))
@@ -104,7 +108,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	mux.HandleFunc("POST /v1/completions", s.auth(s.proxyCompletions))
 	mux.HandleFunc("POST /v1/embeddings", s.auth(s.proxyEmbeddings))
 	mux.HandleFunc("GET /v1/ws", s.auth(s.handleWS))
-	ts := s.recoverer(s.metrics(mux))
+	ts := s.recoverer(s.metrics(s.cors(mux)))
 	s.handler = ts
 	s.httpSrv = &http.Server{
 		Addr:              cfg.Addr,
@@ -623,6 +627,31 @@ func GenerateKey() string {
 // SetRequireAuth updates the gateway's auth requirement at runtime.
 func (s *Server) SetRequireAuth(on bool) {
 	s.requireAuth.Store(on)
+}
+
+// SetAllowCORS toggles CORS headers + OPTIONS preflight at runtime (F082).
+func (s *Server) SetAllowCORS(on bool) {
+	s.allowCORS.Store(on)
+}
+
+// cors answers cross-origin preflights and adds Access-Control-Allow-*
+// headers when AllowCORS is enabled; otherwise it is a no-op (F082).
+func (s *Server) cors(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.allowCORS.Load() {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // SetKeyCheck updates the hashed-key verifier at runtime.

@@ -93,6 +93,9 @@ type Settings struct {
 	// NotifyWebhook receives JSON POSTs for instance events (crashed,
 	// idle-unloaded). Empty = disabled (F073).
 	NotifyWebhook string `json:"notifyWebhook,omitempty"`
+	// AllowCORS makes the gateway answer OPTIONS preflights and send
+	// Access-Control-Allow-* headers so browser apps can call it directly.
+	AllowCORS bool `json:"allowCORS"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.
