@@ -186,7 +186,7 @@ Usage:
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
-  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt>
+  llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv]   (benchmark + comparison table)
@@ -1604,7 +1604,11 @@ func cmdCompare(args []string) error {
 	maxTok := fs.Int("max-tokens", 0, "max tokens per response (0 = model default)")
 	temp := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F343)")
 	jsonOut := fs.Bool("json", false, "print [{model, reply} | {model, error}] as one JSON array instead of streamed text (F314)")
+	outFile := fs.String("out", "", "write the JSON array to this file instead of stdout (implies -json, F454)")
 	fs.Parse(reorderFlags(args))
+	if *outFile != "" {
+		*jsonOut = true // -out implies the JSON shape
+	}
 	if *modelsFlag == "" {
 		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] [-temperature T] <prompt>  (or pipe stdin)")
 	}
@@ -1716,6 +1720,13 @@ func cmdCompare(args []string) error {
 	}
 	if *jsonOut {
 		b, _ := json.Marshal(results)
+		if *outFile != "" { // F454: JSON array to a file, stdout stays clean
+			if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+			return nil
+		}
 		fmt.Println(string(b))
 	}
 	return nil

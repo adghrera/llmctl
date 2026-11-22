@@ -307,7 +307,8 @@ toggle for a light theme (choice remembered). Tabs:
   button matching `llmctl compare --json` shape (F431).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
   CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301);
-  add `-json` for a machine-readable `[{model, reply|error}]` array (F314).
+  add `-json` for a machine-readable `[{model, reply|error}]` array (F314),
+  or `-out FILE` to write that array to a file (F454).
 - **Export/import conversations** — GET /api/v1/chats/{id}/export?format=json|markdown
   downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a
   conversation JSON body for import. Frontend: Export JSON/MD buttons per
@@ -565,7 +566,7 @@ llmctl search <query> [-max N] [-json] [--csv]      (keyless web search; --csv e
 llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] <prompt>   (schema-validated JSON, F279, F344)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
 llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
-llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] <prompt> (CLI twin of Compare page, F301, F314, F343)
+llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
 llmctl bench -models A,B [-n N] [-conc C] [-json|--csv]       (multi-model comparison table; --csv one row per model, F426, F303, F315)
