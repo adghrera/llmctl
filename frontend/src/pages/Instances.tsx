@@ -453,7 +453,7 @@ export default function Instances() {
                     </button>
                     <Link to={`/requests?instance=${encodeURIComponent(i.id)}`}>
                       <button className="btn sm" style={{ marginRight: 6 }} title="gateway requests served by this instance">
-                        Req
+                        Req{i.served ? ` ${i.served}` : ""}
                       </button>
                     </Link>
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel, i.note)}>

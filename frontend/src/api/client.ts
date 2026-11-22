@@ -47,6 +47,7 @@ export interface Instance {
   startedAt: string;
   lastUsed?: string;
   inflight?: number;
+  served?: number;
   maxParallel?: number;
   note?: string;
   vars?: Record<string, string>;

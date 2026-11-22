@@ -681,6 +681,8 @@ type instanceView struct {
 	MaxParallel int `json:"maxParallel,omitempty"`
 	// Note: free-text user annotation (F119).
 	Note string `json:"note,omitempty"`
+	// Served: requests this instance has served since daemon start (F150).
+	Served int64 `json:"served,omitempty"`
 }
 
 func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
@@ -698,6 +700,7 @@ func (s *Server) listInstances(w http.ResponseWriter, r *http.Request) {
 		if s.gw != nil {
 			v.LastUsed = s.gw.ModelLastUsed(i.ModelID)
 			v.Inflight = s.gw.InstInflight(i.ID)
+			v.Served = s.gw.InstanceRequests(i.ID)
 		}
 		out = append(out, v)
 	}

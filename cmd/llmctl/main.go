@@ -272,6 +272,7 @@ func cmdPS(args []string) error {
 		Port      int       `json:"port"`
 		Status    string    `json:"status"`
 		StartedAt time.Time `json:"startedAt"`
+		Served    int64     `json:"served"`
 		Note      string    `json:"note"`
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
@@ -281,7 +282,7 @@ func cmdPS(args []string) error {
 		fmt.Println("no instances (start one: llmctl start <model-id>)")
 		return nil
 	}
-	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %-9s %-8s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS", "UPTIME", "NOTE")
+	fmt.Printf("%-28s %-24s %-12s %-8s %-7s %-9s %-8s %6s %s\n", "INSTANCE", "MODEL", "BACKEND", "TRANS", "PORT", "STATUS", "UPTIME", "SERVED", "NOTE")
 	for _, i := range list {
 		up := ""
 		if i.Status == "running" && !i.StartedAt.IsZero() {
@@ -291,8 +292,8 @@ func cmdPS(args []string) error {
 		if len(note) > 40 {
 			note = note[:37] + "..."
 		}
-		fmt.Printf("%-28s %-24s %-12s %-8s %-7v %-9s %-8s %s\n",
-			i.ID, i.ModelID, i.BackendID, i.Transport, i.Port, i.Status, up, note)
+		fmt.Printf("%-28s %-24s %-12s %-8s %-7v %-9s %-8s %6d %s\n",
+			i.ID, i.ModelID, i.BackendID, i.Transport, i.Port, i.Status, up, i.Served, note)
 	}
 	return nil
 }

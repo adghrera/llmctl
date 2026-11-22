@@ -957,6 +957,12 @@ func (s *Server) KeyDailyCost(keyID string) float64 {
 	return s.collector.keyDailyCost(keyID)
 }
 
+// InstanceRequests returns requests served by one instance since daemon
+// start (F150).
+func (s *Server) InstanceRequests(instance string) int64 {
+	return s.collector.instRequests(instance)
+}
+
 // SeedDailyKeys restores the per-key daily rollup at startup (F126).
 func (s *Server) SeedDailyKeys(daily map[string]map[string]*store.DailyModelUsage) {
 	s.collector.seedDailyKeys(daily)

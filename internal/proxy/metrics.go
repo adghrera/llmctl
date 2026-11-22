@@ -34,6 +34,7 @@ type metricsCollector struct {
 	pricing     map[string]cost.ModelPricing
 	daily       map[string]map[string]*store.DailyModelUsage // UTC date -> model (F097)
 	dailyKeys   map[string]map[string]*store.DailyModelUsage // UTC date -> key id (F126)
+	instCount   map[string]int64                             // instance id -> served requests since start (F150)
 }
 
 type modelMt struct {
@@ -76,6 +77,7 @@ func newMetricsCollector() *metricsCollector {
 		pricing:     make(map[string]cost.ModelPricing),
 		daily:       map[string]map[string]*store.DailyModelUsage{},
 		dailyKeys:   map[string]map[string]*store.DailyModelUsage{},
+		instCount:   map[string]int64{},
 	}
 }
 
@@ -164,6 +166,10 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 	du.Prompt += pTok
 	du.Comp += cTok
 	du.Cost += float64(pTok)/1e6*m.pricingFor(model).InputPerM + float64(cTok)/1e6*m.pricingFor(model).OutputPerM
+	// Per-instance served-request counter (F150).
+	if instance != "" && status < 400 {
+		m.instCount[instance]++
+	}
 	// Daily per-key rollup (F126): UTC date -> key id -> counters.
 	if key != "" {
 		kc := m.dailyKeys[day]
@@ -357,6 +363,14 @@ func (m *metricsCollector) keyDailyCost(keyID string) float64 {
 		return u.Cost
 	}
 	return 0
+}
+
+// instRequests returns how many requests an instance has served since daemon
+// start (F150).
+func (m *metricsCollector) instRequests(instance string) int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.instCount[instance]
 }
 
 func copyDaily(in map[string]map[string]*store.DailyModelUsage) map[string]map[string]*store.DailyModelUsage {
