@@ -237,7 +237,7 @@ Usage:
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
-  llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
+  llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json]
@@ -5452,6 +5452,7 @@ func cmdKb(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("kb", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the knowledge bases as JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the knowledge-base list as CSV (F379)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/knowledge-bases")
 		if err != nil {
@@ -5500,8 +5501,23 @@ func cmdKb(args []string) error {
 			return nil
 		}
 		if len(list) == 0 {
+			if *csvOut { // keep the stream parseable (F379)
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"id", "name", "docs", "description"})
+				w.Flush()
+				return w.Error()
+			}
 			fmt.Println("no knowledge bases")
 			return nil
+		}
+		if *csvOut { // F379
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "name", "docs", "description"})
+			for _, kb := range list {
+				_ = w.Write([]string{kb.KB.ID, kb.KB.Name, strconv.Itoa(kb.KB.DocCount), kb.KB.Description})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("%-20s %-24s %-5s %s\n", "ID", "NAME", "DOCS", "DESCRIPTION")
 		for _, kb := range list {

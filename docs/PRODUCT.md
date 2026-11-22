@@ -334,7 +334,7 @@ toggle for a light theme (choice remembered). Tabs:
    [-tags a,b]`, `memory show <id>`, `memory search <query> [-json]`,
    `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321).
- - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
+ - **KB CLI** — `llmctl kb [filter] [--csv] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
    `kb show <id> [-json]` (human view: description, doc list, search mode —
    embeddings vs TF-IDF — F366), `kb docs|delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
