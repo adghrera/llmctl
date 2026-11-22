@@ -18,6 +18,7 @@ export default function Scheduler() {
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
   const [runStats, setRunStats] = useState(false); // per-task rollup (CLI `scheduler runs -stats` parity, F602)
+  const [autoRuns, setAutoRuns] = useState(false); // live-refresh the run ring (F608)
 
   const load = () =>
     api
@@ -38,6 +39,14 @@ export default function Scheduler() {
     api.schedulerRuns().then(setRuns).catch(() => setRuns([]));
     api.knowledgeBases().then(setKbs).catch(() => setKbs([]));
   }, []);
+
+  // Live-refresh the Recent Runs ring while the toggle is on (F608),
+  // mirroring the Requests page's auto-refresh pattern.
+  useEffect(() => {
+    if (!autoRuns) return;
+    const t = setInterval(() => api.schedulerRuns().then(setRuns).catch(() => {}), 5000);
+    return () => clearInterval(t);
+  }, [autoRuns]);
 
   // JSON export/import, same shapes as `llmctl scheduler export|import` (F412).
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -461,6 +470,10 @@ export default function Scheduler() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Recent Runs</h2>
             <div className="row" style={{ gap: 6 }}>
+            <label style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }} title="poll every 5s while a task fires (F608)">
+              <input type="checkbox" checked={autoRuns} onChange={(e) => setAutoRuns(e.target.checked)} />
+              Auto-refresh
+            </label>
             <button
               className="btn sm"
               aria-pressed={runStats}
