@@ -231,7 +231,7 @@ Usage:
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id>
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|pin|unpin|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
-  llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
+  llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
@@ -4349,11 +4349,96 @@ func cmdMemory(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "update", "delete", "search":
+		case "list", "show", "add", "update", "delete", "search", "export", "import":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "export":
+		// Dump all memory entries as a JSON array (feed to `memory import`, F321).
+		efs := flag.NewFlagSet("memory export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/memory")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory export: %s", out)
+		}
+		var list []struct {
+			Entry struct {
+				Content string   `json:"content"`
+				Tags    []string `json:"tags,omitempty"`
+				Source  string   `json:"source,omitempty"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		type memOut struct {
+			Content string   `json:"content"`
+			Tags    []string `json:"tags,omitempty"`
+			Source  string   `json:"source,omitempty"`
+		}
+		recs := []memOut{}
+		for _, r := range list {
+			recs = append(recs, memOut{Content: r.Entry.Content, Tags: r.Entry.Tags, Source: r.Entry.Source})
+		}
+		data, err := json.MarshalIndent(recs, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d memory entries to %s\n", len(recs), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	case "import":
+		// Bulk-create entries from a `memory export` file (F321).
+		ifs := flag.NewFlagSet("memory import", flag.ExitOnError)
+		ifs.Parse(reorderFlags(rest))
+		if ifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl memory import <file.json>")
+		}
+		data, err := os.ReadFile(ifs.Arg(0))
+		if err != nil {
+			return err
+		}
+		var entries []struct {
+			Content string   `json:"content"`
+			Tags    []string `json:"tags,omitempty"`
+			Source  string   `json:"source,omitempty"`
+		}
+		if err := json.Unmarshal(data, &entries); err != nil {
+			return fmt.Errorf("import file: %w", err)
+		}
+		var created, skipped int
+		for _, e := range entries {
+			if strings.TrimSpace(e.Content) == "" {
+				skipped++
+				continue
+			}
+			code, out, err := cc.Post("/api/v1/memory", map[string]any{
+				"content": e.Content, "tags": e.Tags, "source": e.Source,
+			})
+			if err != nil {
+				return err
+			}
+			if code != 201 {
+				fmt.Printf("  skip: %s\n", out)
+				skipped++
+				continue
+			}
+			created++
+		}
+		fmt.Printf("imported %d entries (%d skipped)\n", created, skipped)
+		return nil
 	case "update":
 		ufs := flag.NewFlagSet("memory update", flag.ExitOnError)
 		content := ufs.String("content", "", "new content")

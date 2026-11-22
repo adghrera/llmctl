@@ -298,7 +298,8 @@ toggle for a light theme (choice remembered). Tabs:
  - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
    `memory add "<text>" [-tags a,b]`, `memory update <id> [-content C]
    [-tags a,b]`, `memory show <id>`, `memory search <query> [-json]`,
-   `memory delete <id>` (F246, F267, F289).
+   `memory delete <id>`; `memory export [-out F]` / `memory import FILE`
+   move entries between instances (F246, F267, F289, F321).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb update <id> [-name N] [-desc D]`,
    `kb show|docs|delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
