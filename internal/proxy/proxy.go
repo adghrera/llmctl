@@ -172,6 +172,10 @@ func (s *Server) RequestByID(id string) (RequestLogEntry, bool) {
 	return s.collector.reqLog.byID(id)
 }
 
+// Addr returns the gateway's configured listen address (e.g. ":8080" or
+// "127.0.0.1:8080") for diagnostics (F183).
+func (s *Server) Addr() string { return s.addr }
+
 // ListenAndServe blocks serving until ctx is cancelled.
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	ln, err := net.Listen("tcp", s.addr)

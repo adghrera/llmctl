@@ -360,7 +360,8 @@ llmctl status [-json]              (version, uptime, running instances with
                                     uptime, gateway auth, today's usage;
                                     -json = raw)
 llmctl doctor                      (health sweep: state dir, backends, models,
-                                    instances, gateway, backups; exit ≠0 on errors)
+                                    instances, gateway, backups, security (warns when the gateway is
+                                    bound to a public address with auth off, F183); exit ≠0 on errors)
 llmctl ps                          (shows uptime and per-instance notes)
 llmctl backends list|install|uninstall|add|remove
 llmctl models list|show|install|remove|hf-search|hf-files   (list shows price and idle-unload;

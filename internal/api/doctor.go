@@ -2,10 +2,12 @@ package api
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"llmctl/internal/disk"
@@ -129,6 +131,25 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		default:
 			resp.Body.Close()
 			add("gateway", "ok", "responding on /v1/models")
+		}
+	}
+
+	// Security: gateway exposure (F183). Auth off is fine on loopback, but a
+	// public bind with no auth lets anyone on the network call the gateway.
+	if s.gw != nil {
+		host := s.gw.Addr()
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		host = strings.ToLower(strings.TrimSpace(host))
+		loopbackOnly := host == "127.0.0.1" || host == "::1" || host == "localhost"
+		switch {
+		case st.Settings.RequireAuth:
+			add("security", "ok", "gateway requires API keys")
+		case loopbackOnly:
+			add("security", "ok", "no auth, but bound to loopback only ("+s.gw.Addr()+")")
+		default:
+			add("security", "warn", "no auth and bound to "+s.gw.Addr()+" — enable Require API Key or bind to 127.0.0.1")
 		}
 	}
 

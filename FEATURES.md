@@ -192,6 +192,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F180 | P3 | 180 | cli | Model alias management | COMPLETED | `llmctl models aliases` lists gateway aliases; `models alias <name> <id>` and `models unalias <name>` create/remove them (backed by the existing `/api/v1/aliases` endpoints). Verified live: added `chat -> so`, gateway advertised it on /v1/models, removed it again. |
 | F181 | P3 | 181 | backups | Configurable snapshot retention | COMPLETED | `settings.backupKeep` (0 = default 7) sets how many snapshots are kept in `~/.llmctl/backups`; on-demand and scheduled (keep unset) snapshots prune to it, editable on the Settings page. Verified live: -1/1001 → 400, set 2 → creating 4 pruned to 2, value persists across restart. |
 | F182 | P3 | 182 | keys | Lifetime totals in `key show` | COMPLETED | `GET /api/v1/keys/{id}` now reports lifetime totals (requests, errors, prompt/completion tokens, cost) summed over the retained per-key daily rollups, and `llmctl key show` prints a `lifetime:` line. Verified live: 3 streaming requests → `3 reqs · 63 in · 21 out · $0.0105`. |
+| F183 | P3 | 183 | doctor | Gateway exposure check | COMPLETED | `llmctl doctor` / `GET /api/v1/doctor` added a `security` check: ok when the gateway requires API keys or is bound to loopback only, warn when auth is off on a public bind (0.0.0.0/::/LAN IP). Verified live: warn on 0.0.0.0 + no auth, ok with auth on, ok on 127.0.0.1 bind. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
