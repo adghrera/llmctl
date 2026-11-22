@@ -242,7 +242,7 @@ Usage:
   llmctl key revoke <id>
   llmctl key reset-usage <id>
   llmctl autostart list [--csv] [-out FILE]
-  llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
+  llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
   llmctl autostart remove <model>
   llmctl autostart export [-out FILE] | autostart import <file.json>
   llmctl presets list [-json|-csv|-out FILE]|save -name N -model ID [...] [-json]|start <name> [-json]|delete <name>|export|import
@@ -8794,11 +8794,12 @@ func cmdAutoStart(args []string) error {
 		backend := fs.String("backend", "", "backend id")
 		instance := fs.String("instance", "", "instance name")
 		port := fs.Int("port", 0, "fixed port (0 = auto)")
+		jsonOut := fs.Bool("json", false, "print the raw response JSON (F526)")
 		var vars stringList
 		fs.Var(&vars, "var", "parameter k=v (repeatable)")
 		fs.Parse(reorderFlags(rest))
 		if fs.NArg() == 0 {
-			return fmt.Errorf("usage: llmctl autostart add <model> [--backend id] [--instance name] [--port N] [--var k=v ...]")
+			return fmt.Errorf("usage: llmctl autostart add <model> [--backend id] [--instance name] [--port N] [--var k=v ...] [-json]")
 		}
 		body := map[string]any{
 			"modelId":   fs.Arg(0),
@@ -8813,6 +8814,10 @@ func cmdAutoStart(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("add failed: %s", string(out))
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		fmt.Printf("auto-start enabled for %q (relaunches when the daemon starts)\n", fs.Arg(0))
 		return nil
