@@ -130,7 +130,8 @@ GitHub release, or file list. No recompile.
 Embedded SPA (no CDN deps — works offline). Dark by default with a header
 toggle for a light theme (choice remembered). Tabs:
 - **Overview** — status counts, a Health card showing only failing doctor
-  checks (or "all N checks passed", F241), a "Today (UTC)" usage card (requests, errors,
+  checks (or "all N checks passed", F241; the full list with a re-run button
+  lives on the Settings page, F253), a "Today (UTC)" usage card (requests, errors,
   tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
   usage, disk usage
   (model bytes + free space), running instances, active jobs, and a recent

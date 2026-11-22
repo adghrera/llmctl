@@ -23,9 +23,11 @@ export default function SettingsPage() {
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
   const [snapBusy, setSnapBusy] = useState(false);
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
 
   useEffect(() => {
     api.backups().then(setBackups).catch(() => setBackups([]));
+    api.doctor().then(setHealth).catch(() => setHealth(null));
     loadWhLog();
   }, []);
 
@@ -256,6 +258,38 @@ export default function SettingsPage() {
 
   return (
     <>
+      {health && (
+        <div className="card">
+          <h2>System health</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {health.checks.map((c) => (
+                <tr key={c.name}>
+                  <td>
+                    <span className={`badge ${c.status === "ok" ? "ok" : c.status === "error" ? "err" : "warn"}`}>{c.status}</span>{" "}
+                    <span className="mono" style={{ fontSize: 12 }}>{c.name}</span>
+                  </td>
+                  <td className="muted" style={{ fontSize: 12 }}>{c.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn sm" onClick={() => api.doctor().then(setHealth).catch(() => {})}>
+              Re-run checks
+            </button>
+            <span className="muted" style={{ fontSize: 12 }}>
+              also available as <span className="mono">llmctl doctor</span>
+            </span>
+          </div>
+        </div>
+      )}
       <div className="card">
         <h2>Gateway Settings</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
