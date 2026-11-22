@@ -257,7 +257,7 @@ Usage:
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|status]] [--csv on list and stats] [-out FILE]
-  llmctl backups [list|create [-name LABEL]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
+  llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE]
@@ -4639,6 +4639,7 @@ func cmdBackups(args []string) error {
 	case "create":
 		cfs := flag.NewFlagSet("backups create", flag.ExitOnError)
 		label := cfs.String("name", "", "label embedded in the backup file name (F443)")
+		cjson := cfs.Bool("json", false, "print the raw created-backup JSON (F564)")
 		cfs.Parse(reorderFlags(rest))
 		var body any
 		if *label != "" {
@@ -4648,10 +4649,21 @@ func cmdBackups(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
 		if code != 201 {
-			return fmt.Errorf("backup create returned %d", code)
+			return fmt.Errorf("backup create returned %d: %s", code, out)
 		}
+		if *cjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		var bv struct {
+			Name string `json:"name"`
+			Size int64  `json:"size"`
+		}
+		if err := json.Unmarshal(out, &bv); err != nil {
+			return err
+		}
+		fmt.Printf("backup %s written (%s)\n", bv.Name, fmtSize(bv.Size))
 		return nil
 	case "restore":
 		rrfs := flag.NewFlagSet("backups restore", flag.ExitOnError)
@@ -4664,15 +4676,21 @@ func cmdBackups(args []string) error {
 		if err != nil {
 			return err
 		}
-		if *rrjson && code == 200 { // stdout stays parseable (F546)
+		if code != 200 {
+			return fmt.Errorf("restore returned %d: %s", code, out)
+		}
+		if *rrjson { // stdout stays parseable (F546)
 			fmt.Fprintln(os.Stderr, "NOTE: restart the daemon (llmctl down && llmctl up) to load the restored state")
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Println(string(out))
-		if code != 200 {
-			return fmt.Errorf("restore returned %d", code)
+		var rr struct {
+			Files int `json:"files"`
 		}
+		if err := json.Unmarshal(out, &rr); err != nil {
+			return err
+		}
+		fmt.Printf("restored %s — %d file(s) imported\n", rrfs.Arg(0), rr.Files)
 		fmt.Println("NOTE: restart the daemon (llmctl down && llmctl up) to load the restored state")
 		return nil
 	case "download":
@@ -4716,17 +4734,14 @@ func cmdBackups(args []string) error {
 		if err != nil {
 			return err
 		}
+		if code != 200 {
+			return fmt.Errorf("backup delete returned %d: %s", code, out)
+		}
 		if *bdjson {
 			fmt.Print(string(out))
-			if code != 200 {
-				return fmt.Errorf("backup delete returned %d", code)
-			}
 			return nil
 		}
-		fmt.Println(string(out))
-		if code != 200 {
-			return fmt.Errorf("backup delete returned %d", code)
-		}
+		fmt.Printf("backup %s deleted\n", bdfs.Arg(0))
 		return nil
 	case "verify":
 		vfs := flag.NewFlagSet("backups verify", flag.ExitOnError)
