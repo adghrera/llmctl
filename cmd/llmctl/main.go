@@ -174,8 +174,8 @@ Usage:
   llmctl chats [filter] [-n 20] [-json] | llmctl chats show <id> [-json]
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|delete …
-  llmctl kb [filter] [-json] | kb show|create|docs|delete …
-  llmctl tools [-json] | tools show|enable|disable|run|delete <id>
+  llmctl kb [filter] [-json] | kb show|create|docs|add-doc|delete …
+  llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
@@ -2536,7 +2536,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "docs", "delete":
+		case "list", "show", "create", "docs", "add-doc", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -2645,6 +2645,39 @@ func cmdKb(args []string) error {
 			fmt.Printf("%-18s %-40s %d\n", d.ID, d.Filename, d.Size)
 		}
 		return nil
+	case "add-doc":
+		dfs := flag.NewFlagSet("kb add-doc", flag.ExitOnError)
+		name := dfs.String("name", "", "store under this filename (default: the file's base name)")
+		dfs.Parse(reorderFlags(rest))
+		if dfs.NArg() < 2 {
+			return fmt.Errorf("usage: llmctl kb add-doc <kb-id> <path> [-name X]")
+		}
+		f, err := os.Open(dfs.Arg(1))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		storeName := filepath.Base(dfs.Arg(1))
+		if *name != "" {
+			storeName = *name
+		}
+		code, out, err := multipartPost(cc, "/api/v1/knowledge-bases/"+url.PathEscape(dfs.Arg(0))+"/documents", storeName, f)
+		if err != nil {
+			return err
+		}
+		if code != 201 && code != 200 {
+			return fmt.Errorf("add-doc returned %d: %s", code, out)
+		}
+		var rec struct {
+			ID       string `json:"id"`
+			Filename string `json:"filename"`
+			Size     int64  `json:"size"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil {
+			return err
+		}
+		fmt.Printf("added %s (%d bytes) as %s\n", rec.Filename, rec.Size, rec.ID)
+		return nil
 	case "create":
 		cfs := flag.NewFlagSet("kb create", flag.ExitOnError)
 		desc := cfs.String("desc", "", "description")
@@ -2681,8 +2714,35 @@ func cmdKb(args []string) error {
 		fmt.Printf("deleted knowledge base %s\n", rest[0])
 		return nil
 	default:
-		return fmt.Errorf("unknown kb subcommand %q (list|show|create|docs|delete)", sub)
+		return fmt.Errorf("unknown kb subcommand %q (list|show|create|docs|add-doc|delete)", sub)
 	}
+}
+
+// multipartPost posts a file as multipart/form-data field "file" to path and
+// returns the response body (F250).
+func multipartPost(cc *daemon.ControlClient, path, filename string, r io.Reader) (int, []byte, error) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, err := mw.CreateFormFile("file", filename)
+	if err != nil {
+		return 0, nil, err
+	}
+	if _, err := io.Copy(part, r); err != nil {
+		return 0, nil, err
+	}
+	mw.Close()
+	req, err := http.NewRequest("POST", cc.Base+path, &buf)
+	if err != nil {
+		return 0, nil, err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	out, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, out, nil
 }
 
 // cmdTools lists and manages installed tools (F248).
@@ -2694,7 +2754,7 @@ func cmdTools(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "enable", "disable", "run", "delete":
+		case "list", "show", "install", "enable", "disable", "run", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -2748,11 +2808,31 @@ func cmdTools(args []string) error {
 			fmt.Printf("%-20s %-4s %-8s %-9s %s\n", t.ID, on, sb, rt, t.Manifest.Description)
 		}
 		return nil
+	case "install":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl tools install <dir>")
+		}
+		abs, err := filepath.Abs(rest[0])
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Post("/api/v1/tools/install", map[string]any{"dir": abs})
+		if err != nil {
+			return err
+		}
+		if code != 201 && code != 200 {
+			return fmt.Errorf("install returned %d: %s", code, out)
+		}
+		var rec struct {
+			ID string `json:"id"`
+		}
+		json.Unmarshal(out, &rec)
+		fmt.Printf("installed tool %s\n", rec.ID)
+		return nil
 	case "show":
 		if len(rest) == 0 {
 			return fmt.Errorf("usage: llmctl tools show <id>")
 		}
-		// No single-tool GET endpoint; filter the list (F248).
 		code, out, err := cc.Get("/api/v1/tools")
 		if err != nil {
 			return err
@@ -2842,7 +2922,7 @@ func cmdTools(args []string) error {
 		fmt.Printf("deleted tool %s\n", rest[0])
 		return nil
 	default:
-		return fmt.Errorf("unknown tools subcommand %q (list|show|enable|disable|run|delete)", sub)
+		return fmt.Errorf("unknown tools subcommand %q (list|show|install|enable|disable|run|delete)", sub)
 	}
 }
 
@@ -3104,29 +3184,12 @@ func cmdFiles(args []string) error {
 		if *name != "" {
 			storeName = *name
 		}
-		var buf bytes.Buffer
-		mw := multipart.NewWriter(&buf)
-		part, err := mw.CreateFormFile("file", storeName)
+		code, out, err := multipartPost(cc, "/api/v1/files", storeName, f)
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(part, f); err != nil {
-			return err
-		}
-		mw.Close()
-		req, err := http.NewRequest("POST", cc.Base+"/api/v1/files", &buf)
-		if err != nil {
-			return err
-		}
-		req.Header.Set("Content-Type", mw.FormDataContentType())
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		out, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode != 201 {
-			return fmt.Errorf("upload returned %d: %s", resp.StatusCode, out)
+		if code != 201 {
+			return fmt.Errorf("upload returned %d: %s", code, out)
 		}
 		if *ujson {
 			fmt.Print(string(out))

@@ -265,10 +265,11 @@ toggle for a light theme (choice remembered). Tabs:
    `memory add "<text>" [-tags a,b]`, `memory show <id>`, `memory delete <id>`
    (F246).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
-   `kb create <name> [-desc X]`, `kb show|docs|delete <id>` (F247).
+   `kb create <name> [-desc X]`, `kb show|docs|delete <id>` and
+   `kb add-doc <kb-id> <path> [-name X]` upload documents (F247, F250).
  - **Tools CLI** — `llmctl tools [-json]` lists installed tools;
-   `tools show|enable|disable|delete <id>` and `tools run <id> -args '<json>'`
-   execute one from the shell (F248).
+   `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
+   and `tools run <id> -args '<json>'` execute one from the shell (F248, F250).
  - **MCP CLI** — `llmctl mcp [-json]` lists configured MCP servers;
    `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`
    and `mcp test <id>` (connect and list advertised tools) (F249).
