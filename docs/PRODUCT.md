@@ -633,13 +633,13 @@ llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-watch N: live refresh; --cs
 llmctl backends list|install|uninstall|add|remove   (`list --csv` exports id,transport,kind,installed,version,description, F388; mutations print one-line confirmations, `-json` for raw, F566; install `--wait` blocks until the job finishes, F576)
 llmctl catalog list [-json|-csv] | install <id> [--wait]      (curated model picker, F266; `list --csv` exports id,name,backend,size_gb,quant,tags, F387; install `--wait` blocks until the download finishes, F576)
 llmctl presets list [-json|-csv]|save|start|delete|export|import  (named start recipes, F265, F328; save/start -json print the raw response, F524, F525)
-llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -out FILE writes the raw JSON, F479; install `--wait` blocks until the download finishes, F576,
+llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export, -json for the raw array, -out FILE writes the raw JSON, F479; install `--wait` blocks until the download finishes, F576,
 llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE] (register an existing local GGUF, F275; -ctx sets the default context window and -json prints the raw created-model JSON, F551; -out writes it to a file, F513)
 llmctl models rename <id> <new-id> [-json]           (change a model id; aliases follow, F284; -json prints the raw response, F523)
                                     price and idle-unload; show also lists aliases pointing at the
                                     model (F367); list/show/aliases/hf-search/hf-files --json for scripts;
                                     remove --file also deletes a registered external file)
-llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180; `aliases --csv` exports alias,model, F385; `aliases -out FILE` writes the raw JSON, F498; alias/unalias accept -json, F519)
+llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases, F180; `aliases --csv` exports alias,model, F385; `aliases -json` prints the raw array, `aliases -out FILE` writes the raw JSON, F498; alias/unalias accept -json, F519)
 llmctl models probe [-json] [-out FILE]              (what /v1/models serves now, F252; -out writes the raw JSON, F501)
 llmctl models routable [-key K] [-json|-csv|-out FILE]  (what /v1/models serves for one key, via the gateway — reflects the key's allowlist, F337; --csv exports id,owned_by, F407; -out writes the raw JSON, F499)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json] [-out FILE]   (model settings, F255; human summary by default, -json prints the raw response and -out writes it to a file, F520–F522, F560)

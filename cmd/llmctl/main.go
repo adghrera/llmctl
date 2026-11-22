@@ -203,9 +203,9 @@ Usage:
   llmctl jobs show <job-id> [-json] [-out FILE]
   llmctl jobs clear [-json]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
-  llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
-  llmctl embed -model ID [-json] [-out FILE] <text>
-  llmctl complete -model ID [-json] [-out FILE] <prompt>
+  llmctl structured -model ID -schema file.json [-key K] [-max-tokens N] [-temperature T] [-out FILE] <prompt>
+  llmctl embed -model ID [-key K] [-json] [-out FILE] <text>
+  llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [--csv] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
@@ -217,7 +217,7 @@ Usage:
   llmctl backends uninstall <id> [-json]
   llmctl backends add <plugin.json> [-json]
   llmctl backends remove <id> [-json]
-  llmctl models list [--csv] [-out FILE]
+  llmctl models list [-json] [--csv] [-out FILE]
   llmctl models show <id> [-json] [-out FILE]
   llmctl models probe [-json] [-out FILE]
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never> [-json|-out FILE]
@@ -225,7 +225,7 @@ Usage:
   llmctl models unused [--csv] [-out FILE]
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE]
-  llmctl models aliases [--csv] [-out FILE]
+  llmctl models aliases [-json] [--csv] [-out FILE]
   llmctl models alias <name> <model-id> [-json]
   llmctl models unalias <name> [-json]
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID] [-json] [-out FILE] [--wait]
@@ -247,10 +247,10 @@ Usage:
   llmctl key update <id> [-name X] [-quota N] [-models a,b] … [-json]
   llmctl key disable <id> [-json] / llmctl key enable <id> [-json]
   llmctl key rotate <id> [-json] [-out FILE]
-  llmctl key list [--csv] [-out FILE]
+  llmctl key list [-json] [--csv] [-out FILE]
   llmctl key revoke <id> [-json]
   llmctl key reset-usage <id> [-json]
-  llmctl autostart list [--csv] [-out FILE]
+  llmctl autostart list [-json] [--csv] [-out FILE]
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...] [-json]
   llmctl autostart remove <model> [-json]
   llmctl autostart export [-out FILE] | autostart import <file.json> [-json]
@@ -259,7 +259,7 @@ Usage:
   llmctl scheduler list [-json|-csv|-out FILE]
   llmctl scheduler show <id> [-json] [-out FILE]
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
-  llmctl scheduler run|enable|disable|delete <id>
+  llmctl scheduler run|enable|disable <id> | delete <id> [-json]
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
