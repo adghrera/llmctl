@@ -409,6 +409,7 @@ llmctl files [list|cat <id>|delete <id>] [-json]
 llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
+                 | settings test-webhook (send a test event)
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
 llmctl version
 ```

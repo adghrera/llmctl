@@ -154,7 +154,7 @@ Usage:
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl files [list|cat <id>|delete <id>] [-json]
-  llmctl settings [-json] | llmctl settings set <flags>
+  llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -2007,6 +2007,17 @@ func cmdSettings(args []string) error {
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
+	}
+	if len(args) > 0 && args[0] == "test-webhook" {
+		code, out, err := cc.Post("/api/v1/settings/notify-test", map[string]any{})
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		if code != 200 {
+			return fmt.Errorf("notify-test returned %d", code)
+		}
+		return nil
 	}
 	if len(args) > 0 && args[0] == "set" {
 		fs := flag.NewFlagSet("settings set", flag.ExitOnError)
