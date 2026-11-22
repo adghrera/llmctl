@@ -331,6 +331,39 @@ export default function SettingsPage() {
             <button className="btn sm" onClick={() => api.doctor().then(setHealth).catch(() => {})}>
               Re-run checks
             </button>
+            <button
+              className="btn sm"
+              title="download the checks as CSV — same columns as llmctl doctor --csv (F724)"
+              onClick={() => {
+                const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                const rows = [
+                  "name,status,detail",
+                  ...health.checks.map((c) => [c.name, c.status, c.detail || ""].map(esc).join(",")),
+                ];
+                const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-doctor-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export CSV
+            </button>
+            <button
+              className="btn sm"
+              title="download the checks as JSON (CLI: llmctl doctor -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(health, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-doctor-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+              }}
+            >
+              Export JSON
+            </button>
             <span className="muted" style={{ fontSize: 12 }}>
               also available as <span className="mono">llmctl doctor</span>
             </span>
