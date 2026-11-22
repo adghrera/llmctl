@@ -209,7 +209,8 @@ toggle for a light theme (choice remembered). Tabs:
   the page, and from the CLI with `llmctl presets list|save|duplicate|start|delete|export|import` (F265, F328; `duplicate` copies a preset's model/instance/backend/port/vars under a new name, F648);
   `presets list --csv` exports name,model,instance,backend,port,vars (`;`-joined k=v, raw values) (F386),
   and the Instances page Saved-configs card has matching Export CSV /
-  Export JSON / Import JSON buttons (F399, F413).
+  Export JSON / Import JSON buttons (F399, F413) and a per-row Duplicate
+  button (F649).
 - **Chat** — pick a running model, enter/generate an API key, send messages,
   stream tokens live (SSE), multi-turn history. A "Copy cURL" button in the
   sampling options copies a ready-to-run curl for the conversation's next

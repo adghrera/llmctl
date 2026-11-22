@@ -355,6 +355,23 @@ export default function Instances() {
     }
   };
 
+  // Duplicate a preset under a new name — UI twin of `llmctl presets duplicate` (F649).
+  const duplicatePreset = async (p: PresetSpec) => {
+    const name = window.prompt("Name for the copy:", `${p.name} copy`);
+    if (name === null) return;
+    const finalName = name.trim() || `${p.name} copy`;
+    setBusy(`p:${p.name}`);
+    try {
+      await api.savePreset({ ...p, name: finalName });
+      ok(`preset "${finalName}" created`);
+      await loadPresets();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const loadPresetIntoForm = (p: PresetSpec) => {
     setModel(p.modelId);
     if (p.backendId) setBackend(p.backendId);
@@ -498,6 +515,7 @@ export default function Instances() {
                   <td className="mono muted">{p.vars && Object.keys(p.vars).length ? JSON.stringify(p.vars) : "—"}</td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button className="btn sm" onClick={() => loadPresetIntoForm(p)}>Edit</button>{" "}
+                    <button className="btn sm" title="duplicate this preset under a new name (CLI: llmctl presets duplicate)" onClick={() => duplicatePreset(p)}>Duplicate</button>{" "}
                     <button className="btn sm primary" disabled={busy === `p:${p.name}`} onClick={() => startPreset(p.name)}>
                       Start
                     </button>{" "}
