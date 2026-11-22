@@ -324,7 +324,42 @@ export default function Keys() {
         )}
       </div>
       <div className="card">
-        <h2>API keys</h2>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>API keys</h2>
+          <button
+            className="btn sm"
+            disabled={shownKeys.length === 0}
+            onClick={() => {
+              // Same columns as `llmctl key list --csv` (F374/F375).
+              const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+              const head = ["id", "name", "prefix", "disabled", "expires_at", "last_used", "used_tokens", "token_quota", "used_requests", "max_requests", "used_cost_usd", "today_cost_usd", "daily_cost_budget_usd", "note"];
+              const rows = [
+                head.join(","),
+                ...shownKeys.map((k) =>
+                  [
+                    k.id, k.name || "", k.prefix || "", String(!!k.disabled),
+                    k.expiresAt ? new Date(k.expiresAt).toISOString() : "",
+                    k.lastUsed ? new Date(k.lastUsed).toISOString() : "",
+                    String(k.usedTokens ?? 0), String(k.tokenQuota ?? 0),
+                    String(k.usedRequests ?? 0), String(k.maxRequests ?? 0),
+                    (k.usedCost ?? 0).toFixed(4), (k.todayCost ?? 0).toFixed(4),
+                    (k.dailyCostBudgetUSD ?? 0).toFixed(4), k.note || "",
+                  ]
+                    .map(esc)
+                    .join(",")
+                ),
+              ];
+              const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-keys-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export CSV
+          </button>
+        </div>
         <input
           className="input"
           placeholder="Filter by name, id or prefix…"
