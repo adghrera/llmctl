@@ -17,6 +17,7 @@ export default function Scheduler() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
+  const [runStats, setRunStats] = useState(false); // per-task rollup (CLI `scheduler runs -stats` parity, F602)
 
   const load = () =>
     api
@@ -459,6 +460,15 @@ export default function Scheduler() {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Recent Runs</h2>
+            <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              aria-pressed={runStats}
+              title="group the run log per task — CLI: llmctl scheduler runs -stats (F602)"
+              onClick={() => setRunStats(!runStats)}
+            >
+              {runStats ? "Show list" : "Stats"}
+            </button>
             <button
               className="btn sm"
               onClick={() => {
@@ -482,7 +492,53 @@ export default function Scheduler() {
             >
               Export CSV
             </button>
+            </div>
           </div>
+          {runStats ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Kind</th>
+                  <th>Count</th>
+                  <th>OK</th>
+                  <th>Errors</th>
+                  <th>Avg</th>
+                  <th>Last</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const by = new Map<string, { kind: string; count: number; ok: number; sum: number; last: string }>();
+                  for (const r of runs) {
+                    const g = by.get(r.name) ?? { kind: r.kind, count: 0, ok: 0, sum: 0, last: "" };
+                    g.count++;
+                    if (r.status === "ok") g.ok++;
+                    g.sum += r.durationMs;
+                    if (r.time > g.last) g.last = r.time;
+                    by.set(r.name, g);
+                  }
+                  return [...by.entries()]
+                    .sort((a, b) => (a[1].last < b[1].last ? 1 : -1))
+                    .map(([name, g]) => (
+                      <tr key={name}>
+                        <td>{name}</td>
+                        <td className="muted">{g.kind}</td>
+                        <td>{g.count}</td>
+                        <td>{g.ok}</td>
+                        <td>{g.count - g.ok}</td>
+                        <td className="muted" style={{ fontSize: 12 }}>
+                          {Math.round(g.sum / g.count) < 1000
+                            ? `${Math.round(g.sum / g.count)} ms`
+                            : `${(g.sum / g.count / 1000).toFixed(1)} s`}
+                        </td>
+                        <td className="muted" style={{ fontSize: 12 }}>{new Date(g.last).toLocaleString()}</td>
+                      </tr>
+                    ));
+                })()}
+              </tbody>
+            </table>
+          ) : (
           <table>
             <thead>
               <tr>
@@ -513,6 +569,7 @@ export default function Scheduler() {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       )}
     </div>

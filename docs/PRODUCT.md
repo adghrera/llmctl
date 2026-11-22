@@ -462,7 +462,8 @@ toggle for a light theme (choice remembered). Tabs:
   `scheduler runs --csv` (F418, F419); `scheduler runs -out FILE` writes the
   run-log JSON to a file (F476); `scheduler runs -watch N` live-tails new runs
   every N seconds (F555); `scheduler runs -stats` rolls the log up per task —
-  count, ok/errors, average duration, last run (F601). Each task row also shows its most
+  count, ok/errors, average duration, last run (F601), with a matching Stats
+  toggle on the Scheduler page (F602). Each task row also shows its most
    recent run's status (ok/error badge) from that ring, in the Scheduler page
    and `llmctl scheduler list` (F184), plus an "Export CSV" button on the
    task list with the same columns as `scheduler list --csv` (F391).
