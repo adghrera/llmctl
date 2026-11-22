@@ -25,6 +25,12 @@ export default function SettingsPage() {
   const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
   const [snapLabel, setSnapLabel] = useState("");
   const [snapBusy, setSnapBusy] = useState(false);
+  // API console state (F589, UI counterpart of `llmctl api`).
+  const [apiMethod, setApiMethod] = useState("GET");
+  const [apiPath, setApiPath] = useState("/api/v1/status");
+  const [apiBody, setApiBody] = useState("");
+  const [apiResult, setApiResult] = useState("");
+  const [apiBusy, setApiBusy] = useState(false);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof api.doctor>> | null>(null);
 
   useEffect(() => {
@@ -805,6 +811,73 @@ export default function SettingsPage() {
           </table>
         ) : (
           <div className="empty">no scheduled backups yet</div>
+        )}
+      </div>
+      <div className="card">
+        <h2>API console</h2>
+        <p className="muted small" style={{ margin: "4px 0 12px" }}>
+          Send any request to the management API — the browser counterpart of
+          <code> llmctl api &lt;METHOD&gt; /path [-d JSON]</code> (F589).
+        </p>
+        <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+          <select className="oc-input" style={{ width: 100 }} value={apiMethod} onChange={(e) => setApiMethod(e.target.value)}>
+            {["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+          <input
+            className="oc-input"
+            style={{ flex: 1 }}
+            placeholder="/api/v1/status"
+            value={apiPath}
+            onChange={(e) => setApiPath(e.target.value)}
+          />
+          <button
+            className="btn primary"
+            disabled={apiBusy || !apiPath.startsWith("/")}
+            onClick={async () => {
+              setApiBusy(true);
+              try {
+                const opts: RequestInit = { method: apiMethod };
+                if (apiBody && apiMethod !== "GET") {
+                  opts.headers = { "Content-Type": "application/json" };
+                  opts.body = apiBody;
+                }
+                const r = await fetch(apiPath, opts);
+                const text = await r.text();
+                let pretty = text;
+                try {
+                  pretty = JSON.stringify(JSON.parse(text), null, 2);
+                } catch {
+                  /* keep raw text */
+                }
+                setApiResult(`${r.status} ${r.statusText}\n\n${pretty}`);
+              } catch (e) {
+                setApiResult(`error: ${e instanceof Error ? e.message : String(e)}`);
+              } finally {
+                setApiBusy(false);
+              }
+            }}
+          >
+            {apiBusy ? "Sending…" : "Send"}
+          </button>
+        </div>
+        {(apiMethod === "POST" || apiMethod === "PUT" || apiMethod === "PATCH") && (
+          <textarea
+            className="oc-input"
+            style={{ width: "100%", minHeight: 60, fontFamily: "var(--font-mono)", fontSize: 12 }}
+            placeholder='request body (JSON), e.g. {"name":"demo"}'
+            value={apiBody}
+            onChange={(e) => setApiBody(e.target.value)}
+          />
+        )}
+        {apiResult && (
+          <pre
+            className="mono"
+            style={{ marginTop: 10, maxHeight: 300, overflow: "auto", fontSize: 12, whiteSpace: "pre-wrap" }}
+          >
+            {apiResult}
+          </pre>
         )}
       </div>
     </>

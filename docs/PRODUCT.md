@@ -564,6 +564,10 @@ toggle for a light theme (choice remembered). Tabs:
   Export CSV button matching `backups list --csv` (F398).
   `llmctl backups list --csv` exports the snapshot inventory
   (name,size_bytes,created), header-only when empty (F383).
+- **API console** — a Settings page card that sends any METHOD + /path (with an
+  optional JSON body for POST/PUT/PATCH) straight to the management API and
+  pretty-prints the status and response, the browser counterpart of
+  `llmctl api` (F589).
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
 survives the periodic UI re-render.
