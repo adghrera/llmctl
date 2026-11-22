@@ -175,7 +175,7 @@ Usage:
   llmctl models hf-search <query>
   llmctl models hf-files <repo>
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
-  llmctl stop <instance> [--force]
+  llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance>
   llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
@@ -1640,13 +1640,25 @@ func cmdStart(args []string) error {
 func cmdStop(args []string) error {
 	fs := flag.NewFlagSet("stop", flag.ExitOnError)
 	force := fs.Bool("force", false, "force kill")
+	all := fs.Bool("all", false, "stop every running instance (F278)")
 	fs.Parse(reorderFlags(args))
-	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl stop <instance> [--force]")
+	if fs.NArg() == 0 && !*all {
+		return fmt.Errorf("usage: llmctl stop <instance> [--force] | llmctl stop --all")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
+	}
+	if *all {
+		code, out, err := cc.Post("/api/v1/instances/stop-all", nil)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("stop --all returned %d: %s", code, out)
+		}
+		fmt.Println(string(out))
+		return nil
 	}
 	path := "/api/v1/instances/" + fs.Arg(0)
 	if *force {

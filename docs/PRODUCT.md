@@ -448,6 +448,7 @@ llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|nev
 llmctl models metadata <id> [-json]                     (GGUF header metadata, F268)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
+llmctl stop --all                          (stop every running instance, attached ones stay, F278)
 llmctl restart <instance>
 llmctl maxparallel <instance> <n>   (concurrent-request cap, 0 = unlimited, F270)
 llmctl note <instance> <text>            (free-text annotation, F271)
