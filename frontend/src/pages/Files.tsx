@@ -8,6 +8,7 @@ export default function Files() {
   const [busy, setBusy] = useState(false);
   const [contentView, setContentView] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [showStats, setShowStats] = useState(false); // per-content-type rollup (CLI `files -stats` parity, F637)
   const [dragOver, setDragOver] = useState(false);
 
   const load = () =>
@@ -141,6 +142,15 @@ export default function Files() {
           )}
           <button
             className="btn sm"
+            aria-pressed={showStats}
+            disabled={shown.length === 0}
+            title="group files per content type — CLI: llmctl files -stats (F637)"
+            onClick={() => setShowStats(!showStats)}
+          >
+            {showStats ? "Show list" : "Stats"}
+          </button>
+          <button
+            className="btn sm"
             disabled={shown.length === 0}
             onClick={() => {
               // Same columns as `llmctl files list --csv` (F397); filter-aware.
@@ -172,7 +182,46 @@ export default function Files() {
             No files uploaded yet.
           </div>
         )}
-        {files.length > 0 && (
+        {files.length > 0 && showStats && (
+          <table>
+            <thead>
+              <tr>
+                <th>Content type</th>
+                <th>Files</th>
+                <th>Bytes</th>
+                <th>Last</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                // Same rollup as `llmctl files -stats` (F637): one row per
+                // content type, sorted by total bytes.
+                const by = new Map<string, { files: number; bytes: number; last: string }>();
+                for (const f of shown) {
+                  const ct = f.entry.contentType || "(none)";
+                  const g = by.get(ct) ?? { files: 0, bytes: 0, last: "" };
+                  g.files++;
+                  g.bytes += f.entry.size ?? 0;
+                  if ((f.entry.created_at || "") > g.last) g.last = f.entry.created_at || "";
+                  by.set(ct, g);
+                }
+                return [...by.entries()]
+                  .sort((a, b) => b[1].bytes - a[1].bytes)
+                  .map(([ct, g]) => (
+                    <tr key={ct}>
+                      <td>{ct}</td>
+                      <td>{g.files}</td>
+                      <td>{(g.bytes / 1024).toFixed(1)} KB</td>
+                      <td className="muted" style={{ fontSize: 12 }}>
+                        {g.last ? new Date(g.last).toLocaleString() : ""}
+                      </td>
+                    </tr>
+                  ));
+              })()}
+            </tbody>
+          </table>
+        )}
+        {files.length > 0 && !showStats && (
           <table>
             <thead>
               <tr>

@@ -442,7 +442,8 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id}.
   In chat, `/file <filename>` injects file content as a user message.
   Dedicated Files page for upload/list/delete, with a filename text filter
-  (F356), an Export CSV button (filter-aware, F397), and drag-and-drop upload —
+  (F356), an Export CSV button (filter-aware, F397), a Stats toggle rolling the
+  list up per content type mirroring `files -stats` (F637), and drag-and-drop upload —
   drop a file onto the upload card to upload it directly (F452). Text files are stored as-is;
   PDF and DOCX uploads have their text extracted automatically (F053).
 - **Cost tracking** — track token usage and estimate costs per API key and per
