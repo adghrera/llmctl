@@ -189,6 +189,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F177 | P3 | 177 | gateway | `/v1/models` respects key allowlist | COMPLETED | A key with a model allowlist (F089) now only sees the models it may call in `GET /v1/models` — aliases are resolved before checking, so an alias pointing at an allowed model stays visible. Verified live: key allowed=[so] sees so + its fast alias; key allowed=[other] sees only fast (→ so) and not so. |
 | F178 | P3 | 178 | cli | Instance uptime in `status` | COMPLETED | `/api/v1/status` now lists running instances (id, model, uptimeSec) and `llmctl status` prints one line per running instance with its uptime. Verified live: `so so up 2s` line and the JSON field. |
 | F179 | P3 | 179 | cli | `metrics -watch` | COMPLETED | `llmctl metrics -watch N` clears the screen and reprints the metrics snapshot every N seconds until Ctrl-C. Verified live: 4 refreshes in 4 s at `-watch 1`, fresh counters each pass. |
+| F180 | P3 | 180 | cli | Model alias management | COMPLETED | `llmctl models aliases` lists gateway aliases; `models alias <name> <id>` and `models unalias <name>` create/remove them (backed by the existing `/api/v1/aliases` endpoints). Verified live: added `chat -> so`, gateway advertised it on /v1/models, removed it again. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

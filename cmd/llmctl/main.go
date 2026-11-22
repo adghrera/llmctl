@@ -110,6 +110,9 @@ Usage:
   llmctl backends remove <id>
   llmctl models list
   llmctl models show <id>
+  llmctl models aliases
+  llmctl models alias <name> <model-id>
+  llmctl models unalias <name>
   llmctl models install <repo-or-url> [--file f.gguf] [--rev main] [--backend llama.cpp] [--id ID]
   llmctl models remove <id> [--file]
   llmctl models ctx <model-id> <tokens|0>
@@ -505,6 +508,55 @@ func cmdModels(args []string) error {
 			fmt.Printf("%-40s %-12s %-10v %-9s %-14s %-7s %v\n", m.ID, m.BackendID, m.SizeBytes, ctxv, price, idle, m.Running)
 		}
 		return nil
+	case "aliases":
+		code, out, err := cc.Get("/api/v1/aliases")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("aliases returned %d: %s", code, out)
+		}
+		var als []struct {
+			Alias string `json:"alias"`
+			Model string `json:"model"`
+		}
+		if err := json.Unmarshal(out, &als); err != nil {
+			return err
+		}
+		if len(als) == 0 {
+			fmt.Println("no aliases (add one: llmctl models alias <name> <model-id>)")
+			return nil
+		}
+		for _, a := range als {
+			fmt.Printf("%-16s -> %s\n", a.Alias, a.Model)
+		}
+		return nil
+	case "alias":
+		if len(rest) < 2 {
+			return fmt.Errorf("usage: llmctl models alias <name> <model-id>")
+		}
+		code, out, err := cc.Post("/api/v1/aliases", map[string]string{"alias": rest[0], "model": rest[1]})
+		if err != nil {
+			return err
+		}
+		if code != 200 && code != 201 {
+			return fmt.Errorf("alias returned %d: %s", code, out)
+		}
+		fmt.Printf("alias %s -> %s\n", rest[0], rest[1])
+		return nil
+	case "unalias":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl models unalias <name>")
+		}
+		code, out, err := cc.Delete("/api/v1/aliases/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("unalias returned %d: %s", code, out)
+		}
+		fmt.Printf("removed alias %s\n", rest[0])
+		return nil
 	case "show":
 		if len(rest) == 0 {
 			return fmt.Errorf("usage: llmctl models show <id>")
@@ -670,7 +722,7 @@ func cmdModels(args []string) error {
 		}
 		return nil
 	default:
-		return fmt.Errorf("unknown models subcommand: %s", sub)
+		return fmt.Errorf("unknown models subcommand: %s (list|show|aliases|alias|unalias|install|remove)", sub)
 	}
 }
 
