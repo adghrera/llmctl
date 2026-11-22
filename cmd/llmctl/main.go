@@ -2272,15 +2272,15 @@ var llmSubCommands = map[string]string{
 	"files":     "list upload cat delete",
 	"jobs":      "wait show clear",
 	"kb":        "list show create update docs doc add-doc export search embed delete",
-	"key":       "generate show note enable disable rotate list revoke prune reset-usage",
+	"key":       "generate show note update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import",
-	"models":    "list show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
+	"models":    "list stats show add rename probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save start delete export import",
 	"prompts":   "list show render run categories add update delete export import",
 	"scheduler": "list show add update run runs enable disable delete export import",
 	"settings":  "set test-webhook",
-	"skills":    "list show add export import enable disable delete",
+	"skills":    "list show add export enable disable delete",
 	"tools":     "list show install enable disable run delete",
 }
 
@@ -7318,7 +7318,7 @@ func cmdSkills(args []string) error {
 		fmt.Printf("deleted skill %s\n", sdfs.Arg(0))
 		return nil
 	default:
-		return fmt.Errorf("unknown skills subcommand %q (list|show|enable|disable|delete)", sub)
+		return fmt.Errorf("unknown skills subcommand %q (list|show|add|export|enable|disable|delete)", sub)
 	}
 }
 
