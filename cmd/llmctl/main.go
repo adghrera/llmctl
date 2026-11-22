@@ -236,7 +236,7 @@ Usage:
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
-  llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
+  llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …> | mcp export|import
   llmctl cost [-keys] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
@@ -5445,11 +5445,85 @@ func cmdMcp(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "add", "remove", "enable", "disable", "test":
+		case "list", "add", "remove", "enable", "disable", "test", "export", "import":
 			sub, rest = args[0], args[1:]
 		}
 	}
 	switch sub {
+	case "export":
+		// Dump all MCP server configs as a JSON array (feed to `mcp import`,
+		// F330). NOTE: the file may contain env values that hold secrets.
+		efs := flag.NewFlagSet("mcp export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/mcp")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("mcp export: %s", out)
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(list, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d MCP servers to %s (may contain secrets in env)\n", len(list), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	case "import":
+		// Recreate MCP servers from an `mcp export` file (F330). Fresh ids;
+		// the create endpoint forces enabled, so a disabled source is
+		// re-disabled afterwards.
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl mcp import <file.json>")
+		}
+		data, err := os.ReadFile(rest[0])
+		if err != nil {
+			return err
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(data, &list); err != nil {
+			return fmt.Errorf("import file: %w", err)
+		}
+		var created, skipped int
+		for _, s := range list {
+			delete(s, "id") // the store mints its own ids
+			wantEnabled := true
+			if v, ok := s["enabled"].(bool); ok {
+				wantEnabled = v
+			}
+			delete(s, "enabled") // create forces enabled=true
+			code, out, err := cc.Post("/api/v1/mcp", s)
+			if err != nil {
+				return err
+			}
+			if code != 201 && code != 200 {
+				fmt.Printf("  skip %v: %s\n", s["name"], out)
+				skipped++
+				continue
+			}
+			var rec struct {
+				ID string `json:"id"`
+			}
+			json.Unmarshal(out, &rec)
+			if !wantEnabled && rec.ID != "" {
+				cc.Do("POST", "/api/v1/mcp/"+url.PathEscape(rec.ID)+"/enabled", map[string]any{"enabled": false})
+			}
+			created++
+		}
+		fmt.Printf("imported %d MCP servers (%d skipped)\n", created, skipped)
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("mcp", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the servers as JSON (for scripts)")

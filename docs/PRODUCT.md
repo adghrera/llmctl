@@ -320,8 +320,10 @@ toggle for a light theme (choice remembered). Tabs:
    `tools install <dir>` installs a local pack, `tools show|enable|disable|delete <id>`
    and `tools run <id> -args '<json>'` execute one from the shell (F248, F250).
  - **MCP CLI** — `llmctl mcp [-json]` lists configured MCP servers;
-   `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`
-   and `mcp test <id>` (connect and list advertised tools) (F249).
+   `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`,
+   `mcp test <id>` (connect and list advertised tools) and
+   `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
+   enabled state preserved, F330) (F249).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
    per-model table; `-keys` shows per-key costs with names, `-json` emits
    `{totals, groups}` (F251).
