@@ -90,6 +90,8 @@ func main() {
 		err = cmdTools(args)
 	case "mcp":
 		err = cmdMcp(args)
+	case "cost":
+		err = cmdCost(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -177,6 +179,7 @@ Usage:
   llmctl kb [filter] [-json] | kb show|create|docs|add-doc|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
   llmctl mcp [-json] | mcp add|remove|enable|disable|test <id …>
+  llmctl cost [-keys] [-json]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -3065,6 +3068,128 @@ func cmdMcp(args []string) error {
 	default:
 		return fmt.Errorf("unknown mcp subcommand %q (list|add|remove|enable|disable|test)", sub)
 	}
+}
+
+// cmdCost prints token/cost totals from the gateway counters (F251).
+func cmdCost(args []string) error {
+	fs := flag.NewFlagSet("cost", flag.ExitOnError)
+	byKey := fs.Bool("keys", false, "show per-key costs instead of per-model")
+	jsonOut := fs.Bool("json", false, "print the raw cost JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, sum, err := cc.Get("/api/v1/cost")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("cost returned %d: %s", code, sum)
+	}
+	var totals struct {
+		CostUSD      float64 `json:"cost_usd"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		TotalTokens  int64   `json:"total_tokens"`
+	}
+	if err := json.Unmarshal(sum, &totals); err != nil {
+		return err
+	}
+	groupPath := "/api/v1/cost/models"
+	if *byKey {
+		groupPath = "/api/v1/cost/keys"
+	}
+	code, groups, err := cc.Get(groupPath)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("cost %s returned %d: %s", groupPath, code, groups)
+	}
+	if *jsonOut {
+		var payload struct {
+			Totals json.RawMessage `json:"totals"`
+			Groups json.RawMessage `json:"groups"`
+		}
+		payload.Totals = json.RawMessage(sum)
+		payload.Groups = json.RawMessage(groups)
+		b, err := json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
+	}
+	fmt.Printf("total: $%.4f — %d tokens (in %d / out %d)\n\n",
+		totals.CostUSD, totals.TotalTokens, totals.InputTokens, totals.OutputTokens)
+	var usage map[string]struct {
+		InputTok  int64   `json:"input_tokens"`
+		OutputTok int64   `json:"output_tokens"`
+		TotalTok  int64   `json:"total_tokens"`
+		Requests  int64   `json:"requests"`
+		Cost      float64 `json:"cost_usd"`
+	}
+	if err := json.Unmarshal(groups, &usage); err != nil {
+		return err
+	}
+	if len(usage) == 0 {
+		fmt.Println("no cost recorded yet")
+		return nil
+	}
+	// Optional friendly names for key ids (F251).
+	names := map[string]string{}
+	if *byKey {
+		if code, kout, err := cc.Get("/api/v1/keys"); err == nil && code == 200 {
+			var keys []struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			}
+			if json.Unmarshal(kout, &keys) == nil {
+				for _, k := range keys {
+					names[k.ID] = k.Name
+				}
+			}
+		}
+	}
+	type row struct {
+		id string
+		u  struct {
+			InputTok  int64   `json:"input_tokens"`
+			OutputTok int64   `json:"output_tokens"`
+			TotalTok  int64   `json:"total_tokens"`
+			Requests  int64   `json:"requests"`
+			Cost      float64 `json:"cost_usd"`
+		}
+	}
+	rows := []row{}
+	for id, u := range usage {
+		r := row{id: id}
+		r.u = u
+		rows = append(rows, r)
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].u.Cost > rows[j].u.Cost })
+	label := "MODEL"
+	if *byKey {
+		label = "KEY"
+	}
+	fmt.Printf("%-20s %-28s %-8s %-10s %-9s %s\n", label, "NAME", "REQS", "TOKENS", "IN/OUT", "COST USD")
+	for _, r := range rows {
+		id := r.id
+		if id == "" {
+			id = "(unknown)" // requests that failed before model resolution
+		}
+		name := names[r.id]
+		if name == "" {
+			name = "-"
+		}
+		if len(name) > 28 {
+			name = name[:28]
+		}
+		fmt.Printf("%-20s %-28s %-8d %-10d %d/%-8d %.4f\n",
+			id, name, r.u.Requests, r.u.TotalTok, r.u.InputTok, r.u.OutputTok, r.u.Cost)
+	}
+	return nil
 }
 
 // cmdPrompts lists the built-in prompt library (F218).

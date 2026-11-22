@@ -273,6 +273,9 @@ toggle for a light theme (choice remembered). Tabs:
  - **MCP CLI** — `llmctl mcp [-json]` lists configured MCP servers;
    `mcp add <name> <command> [-args 'a b']`, `mcp remove|enable|disable <id>`
    and `mcp test <id>` (connect and list advertised tools) (F249).
+ - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
+   per-model table; `-keys` shows per-key costs with names, `-json` emits
+   `{totals, groups}` (F251).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).
