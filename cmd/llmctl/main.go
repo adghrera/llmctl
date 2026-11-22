@@ -227,7 +227,7 @@ Usage:
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete|delete-all …
-  llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
+  llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
@@ -3965,7 +3965,7 @@ func cmdSkills(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "enable", "disable", "delete":
+		case "list", "show", "add", "export", "enable", "disable", "delete":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -4085,6 +4085,41 @@ func cmdSkills(args []string) error {
 			return fmt.Errorf("skill %s: %s", rest[0], out)
 		}
 		fmt.Print(string(out))
+		return nil
+	case "export":
+		// Dump a skill's manifest JSON (feed it to `skills add` elsewhere, F305).
+		efs := flag.NewFlagSet("skills export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(rest))
+		if efs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills export <id> [-out file]")
+		}
+		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(efs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skill %s: %s", efs.Arg(0), out)
+		}
+		var rec struct {
+			Manifest map[string]any `json:"manifest"`
+		}
+		if err := json.Unmarshal(out, &rec); err != nil || rec.Manifest == nil {
+			return fmt.Errorf("skills export: unexpected response: %s", out)
+		}
+		data, err := json.MarshalIndent(rec.Manifest, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported skill %s to %s\n", efs.Arg(0), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
 		return nil
 	case "enable", "disable":
 		if len(rest) == 0 {
