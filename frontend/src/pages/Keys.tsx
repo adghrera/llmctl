@@ -429,6 +429,21 @@ export default function Keys() {
           >
             Export CSV
           </button>
+          <button
+            className="btn sm"
+            disabled={shownKeys.length === 0}
+            title="download the key list as JSON (CLI: llmctl key list -json)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(shownKeys, null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-keys-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export JSON
+          </button>
         </div>
         <input
           className="input"
