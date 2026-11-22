@@ -179,6 +179,35 @@ func exportChatMarkdown(c *chatstore.Conversation) string {
 
 // forkChat handles POST /api/v1/chats/{id}/fork.
 // Body: {"forkAt": <number of leading messages to keep>, "title": "<new title>"}
+// pinChat handles POST /api/v1/chats/{id}/pin (F310): body {"pinned": bool}.
+func (s *Server) pinChat(w http.ResponseWriter, r *http.Request) {
+	if s.chats == nil {
+		writeErr(w, 503, "chat store unavailable")
+		return
+	}
+	var req struct {
+		Pinned *bool `json:"pinned"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON: "+err.Error())
+		return
+	}
+	if req.Pinned == nil {
+		writeErr(w, 400, "pinned (bool) is required")
+		return
+	}
+	c, err := s.chats.SetPinned(r.PathValue("id"), *req.Pinned)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "invalid chat id") {
+			writeErr(w, 404, err.Error())
+			return
+		}
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "id": c.ID, "pinned": c.Pinned})
+}
+
 func (s *Server) forkChat(w http.ResponseWriter, r *http.Request) {
 	if s.chats == nil {
 		writeErr(w, 503, "chat store unavailable")

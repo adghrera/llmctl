@@ -226,7 +226,7 @@ Usage:
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id>
-  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete|delete-all …
+  llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|pin|unpin|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
   llmctl kb [filter] [-json] | kb show|create|update|docs|add-doc|search|embed|delete …
@@ -3858,6 +3858,29 @@ func cmdChats(args []string) error {
 			}
 		}
 		fmt.Printf("deleted %d/%d saved chats\n", n, len(list))
+		return nil
+	}
+	if len(args) > 0 && (args[0] == "pin" || args[0] == "unpin") {
+		if len(args) < 2 {
+			return fmt.Errorf("usage: llmctl chats %s <id>", args[0])
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Post("/api/v1/chats/"+url.PathEscape(args[1])+"/pin",
+			map[string]any{"pinned": args[0] == "pin"})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chat %s: %s", args[0], out)
+		}
+		word := "unpinned"
+		if args[0] == "pin" {
+			word = "pinned"
+		}
+		fmt.Printf("%s chat %s\n", word, args[1])
 		return nil
 	}
 	if len(args) > 0 && args[0] == "delete" {

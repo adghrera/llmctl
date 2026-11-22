@@ -51,6 +51,7 @@ type Conversation struct {
 	Model     string    `json:"model,omitempty"`
 	AgentMode bool      `json:"agentMode,omitempty"`
 	System    string    `json:"system,omitempty"` // per-conversation system prompt (F063)
+	Pinned    bool      `json:"pinned,omitempty"` // pinned chats sort first (F310)
 	Messages  []Message `json:"messages"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -61,9 +62,9 @@ type Conversation struct {
 // ConversationContext reports how much of the model's context window a
 // conversation has consumed.
 type ConversationContext struct {
-	UsedTokens int     `json:"usedTokens"`   // total tokens across all messages
-	LimitTokens int    `json:"limitTokens"`  // model's CtxSize (0 = unknown/backend default)
-	Pct        float64 `json:"pct"`          // usedTokens / limitTokens * 100
+	UsedTokens  int     `json:"usedTokens"`  // total tokens across all messages
+	LimitTokens int     `json:"limitTokens"` // model's CtxSize (0 = unknown/backend default)
+	Pct         float64 `json:"pct"`         // usedTokens / limitTokens * 100
 }
 
 // Summary is the list-view shape (no message bodies).
@@ -72,6 +73,7 @@ type Summary struct {
 	Title     string    `json:"title"`
 	Model     string    `json:"model,omitempty"`
 	AgentMode bool      `json:"agentMode,omitempty"`
+	Pinned    bool      `json:"pinned,omitempty"`
 	Messages  int       `json:"messages"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -182,10 +184,37 @@ func (s *Store) List() ([]Summary, error) {
 		if err != nil {
 			continue // skip corrupt files in listings
 		}
-		out = append(out, Summary{ID: c.ID, Title: c.Title, Model: c.Model, AgentMode: c.AgentMode, Messages: len(c.Messages), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
+		out = append(out, Summary{ID: c.ID, Title: c.Title, Model: c.Model, AgentMode: c.AgentMode, Pinned: c.Pinned, Messages: len(c.Messages), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt.After(out[j].UpdatedAt) })
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Pinned != out[j].Pinned {
+			return out[i].Pinned // pinned chats first (F310)
+		}
+		return out[i].UpdatedAt.After(out[j].UpdatedAt)
+	})
 	return out, nil
+}
+
+// SetPinned toggles the pinned flag without touching UpdatedAt (F310).
+func (s *Store) SetPinned(id string, pinned bool) (*Conversation, error) {
+	c, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	c.Pinned = pinned
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	tmp := s.path(id) + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return nil, err
+	}
+	if err := os.Rename(tmp, s.path(id)); err != nil {
+		os.Remove(tmp)
+		return nil, err
+	}
+	return c, nil
 }
 
 func (s *Store) Delete(id string) error {
@@ -223,18 +252,18 @@ func (s *Store) Fork(id string, forkAt int, title string) (*Conversation, error)
 
 // SearchResult is one match from a conversation search.
 type SearchResult struct {
-	ConversationID string   `json:"conversationId"`
-	Title          string   `json:"title"`
-	Model          string   `json:"model,omitempty"`
+	ConversationID string    `json:"conversationId"`
+	Title          string    `json:"title"`
+	Model          string    `json:"model,omitempty"`
 	UpdatedAt      time.Time `json:"updatedAt"`
-	Matches        []Match  `json:"matches"`
+	Matches        []Match   `json:"matches"`
 }
 
 // Match is one matching location within a conversation.
 type Match struct {
-	Role     string `json:"role"`     // "user" | "assistant"
-	Content  string `json:"content"`  // snippet around the match
-	Index    int    `json:"index"`    // message index
+	Role    string `json:"role"`    // "user" | "assistant"
+	Content string `json:"content"` // snippet around the match
+	Index   int    `json:"index"`   // message index
 }
 
 // Search finds conversations whose title or message content contains q
