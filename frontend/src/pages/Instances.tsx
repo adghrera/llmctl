@@ -449,8 +449,8 @@ export default function Instances() {
                   <td className="muted" style={{ fontSize: 12 }}>
                     {i.status === "running" && i.startedAt ? uptime(i.startedAt) : "—"}
                   </td>
-                  <td className="muted" style={{ fontSize: 12 }}>
-                    {i.lastUsed ? new Date(i.lastUsed).toLocaleTimeString() : "—"}
+                  <td className="muted" style={{ fontSize: 12 }} title={i.lastUsed ? new Date(i.lastUsed).toLocaleString() : ""}>
+                    {i.lastUsed ? `idle ${uptime(i.lastUsed)}` : "—"}
                   </td>
                   <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openLogs(i.id)}>
