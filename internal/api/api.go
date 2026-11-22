@@ -47,30 +47,31 @@ import (
 
 // Server is the management API.
 type Server struct {
-	store      *store.Store
-	reg        *backend.Registry
-	sv         *supervisor.Supervisor
-	jobs       *jobs.Manager
-	logger     *slog.Logger
-	gwPort     int                    // gateway port, for building client URLs
-	gw         *proxy.Server          // gateway handle, for runtime setting changes
-	started    time.Time              // API server start, for uptime (F156)
-	searcher   *websearch.Searcher    // keyless web search (F021)
-	agentTool  agent.Tool             // web_search tool override (tests); nil = WebSearchTool{searcher}
-	chats      *chatstore.Store       // persisted chat conversations (F025)
-	tools      *toolstore.Store       // installed agent tools (F033)
-	skills     *skills.Store          // user-defined skill templates (F036)
-	memory     *memory.Store          // persistent agent memory entries (F040)
-	files      *files.Store           // user-uploaded files (F044)
-	cost       *cost.Tracker          // token usage and cost tracking (F045)
-	sched      *scheduler.Store       // scheduled agent tasks (F046)
-	schedRun   func(scheduler.Record) // daemon-provided "run this task now" hook (F084)
-	events     *events.Ring           // recent daemon events feed (F099)
-	rag        *rag.Store             // knowledge bases for RAG (F047)
-	mcpSt      *mcp.Store             // MCP server configs (F054)
-	mcpReg     *mcp.Registry          // live MCP connections (F054)
-	approvals  *pendingApprovals      // tool calls awaiting user approval (F055)
-	shutdownFn func()                 // triggers graceful daemon exit
+	store         *store.Store
+	reg           *backend.Registry
+	sv            *supervisor.Supervisor
+	jobs          *jobs.Manager
+	logger        *slog.Logger
+	gwPort        int                    // gateway port, for building client URLs
+	gw            *proxy.Server          // gateway handle, for runtime setting changes
+	started       time.Time              // API server start, for uptime (F156)
+	searcher      *websearch.Searcher    // keyless web search (F021)
+	agentTool     agent.Tool             // web_search tool override (tests); nil = WebSearchTool{searcher}
+	chats         *chatstore.Store       // persisted chat conversations (F025)
+	tools         *toolstore.Store       // installed agent tools (F033)
+	skills        *skills.Store          // user-defined skill templates (F036)
+	memory        *memory.Store          // persistent agent memory entries (F040)
+	files         *files.Store           // user-uploaded files (F044)
+	cost          *cost.Tracker          // token usage and cost tracking (F045)
+	sched         *scheduler.Store       // scheduled agent tasks (F046)
+	schedRun      func(scheduler.Record) // daemon-provided "run this task now" hook (F084)
+	applyLogLevel func(string) error     // daemon-provided log-level setter (F171)
+	events        *events.Ring           // recent daemon events feed (F099)
+	rag           *rag.Store             // knowledge bases for RAG (F047)
+	mcpSt         *mcp.Store             // MCP server configs (F054)
+	mcpReg        *mcp.Registry          // live MCP connections (F054)
+	approvals     *pendingApprovals      // tool calls awaiting user approval (F055)
+	shutdownFn    func()                 // triggers graceful daemon exit
 }
 
 func New(st *store.Store, reg *backend.Registry, sv *supervisor.Supervisor, jm *jobs.Manager, logger *slog.Logger, gwPort int, gw *proxy.Server, shutdown func()) *Server {
@@ -1776,6 +1777,9 @@ func (s *Server) pruneKeys(w http.ResponseWriter, r *http.Request) {
 
 // ---- settings ----
 
+// SetApplyLogLevel wires the daemon's runtime log-level setter (F171).
+func (s *Server) SetApplyLogLevel(fn func(string) error) { s.applyLogLevel = fn }
+
 type settingsView struct {
 	RequireAuth         bool     `json:"requireAuth"`
 	IdleUnloadMin       int      `json:"idleUnloadMin"`
@@ -1790,7 +1794,8 @@ type settingsView struct {
 	RateBurst           int      `json:"rateBurst"` // gateway default burst, 0 = CLI default (F152)
 	// UsageRetentionDays: UTC days of daily rollups kept; 0 = default 90,
 	// -1 = keep forever (F168).
-	UsageRetentionDays int `json:"usageRetentionDays"`
+	UsageRetentionDays int    `json:"usageRetentionDays"`
+	LogLevel           string `json:"logLevel"` // daemon verbosity; "" = info (F171)
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1836,6 +1841,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		RateRPS:             st.Settings.RateRPS,
 		RateBurst:           st.Settings.RateBurst,
 		UsageRetentionDays:  st.Settings.UsageRetentionDays,
+		LogLevel:            st.Settings.LogLevel,
 	})
 }
 
@@ -1852,6 +1858,7 @@ type updateSettingsReq struct {
 	RateRPS             *float64  `json:"rateRPS"`            // gateway default rps, 0 = CLI default (F152)
 	RateBurst           *int      `json:"rateBurst"`          // gateway default burst, 0 = CLI default (F152)
 	UsageRetentionDays  *int      `json:"usageRetentionDays"` // rollup days kept; 0 = default 90, -1 = forever (F168)
+	LogLevel            *string   `json:"logLevel"`           // daemon verbosity: debug|info|warn|error (F171)
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1879,6 +1886,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if req.UsageRetentionDays != nil && (*req.UsageRetentionDays < -1 || *req.UsageRetentionDays > 36500) {
 		writeErr(w, 400, "usageRetentionDays must be -1 (keep forever), 0 (default 90) or 1–36500")
 		return
+	}
+	if req.LogLevel != nil {
+		switch strings.ToLower(strings.TrimSpace(*req.LogLevel)) {
+		case "", "info", "debug", "warn", "warning", "error":
+		default:
+			writeErr(w, 400, "logLevel must be debug, info, warn or error")
+			return
+		}
 	}
 	s.store.Update(func(st *store.State) error {
 		if req.RequireAuth != nil {
@@ -1923,6 +1938,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.UsageRetentionDays != nil {
 			st.Settings.UsageRetentionDays = *req.UsageRetentionDays // applied at next flush (F168)
 		}
+		if req.LogLevel != nil {
+			st.Settings.LogLevel = strings.ToLower(strings.TrimSpace(*req.LogLevel)) // persisted (F171)
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -1939,6 +1957,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		st, _ := s.store.Load() // apply the persisted pair (0 = defaults) (F152)
 		s.gw.SetRateDefault(st.Settings.RateRPS, st.Settings.RateBurst)
 	}
+	if req.LogLevel != nil && s.applyLogLevel != nil {
+		s.applyLogLevel(*req.LogLevel) // validation already passed (F171)
+	}
 	// Return updated settings.
 	st, _ := s.store.Load()
 	writeJSON(w, 200, settingsView{
@@ -1954,6 +1975,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		RateRPS:             st.Settings.RateRPS,
 		RateBurst:           st.Settings.RateBurst,
 		UsageRetentionDays:  st.Settings.UsageRetentionDays,
+		LogLevel:            st.Settings.LogLevel,
 	})
 }
 

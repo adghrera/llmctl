@@ -9,6 +9,7 @@ export default function SettingsPage() {
   const [maxBodyMB, setMaxBodyMB] = useState(0);
   const [rateRPS, setRateRPS] = useState(0);
   const [usageRetentionDays, setUsageRetentionDays] = useState(0);
+  const [logLevel, setLogLevel] = useState("info");
   const [rateBurst, setRateBurst] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [whEvents, setWhEvents] = useState("");
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       setMaxBodyMB(s.maxBodyMB || 0);
       setRateRPS(s.rateRPS || 0);
       setUsageRetentionDays(s.usageRetentionDays ?? 0);
+      setLogLevel(s.logLevel || "info");
       setRateBurst(s.rateBurst || 0);
       setWebhook(s.notifyWebhook || "");
       setWhEvents((s.notifyEvents || []).join(", "));
@@ -125,6 +127,20 @@ export default function SettingsPage() {
             ? `usage history kept ${r.usageRetentionDays} days`
             : "usage history retention back to default (90 days)",
       );
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveLogLevel = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ logLevel });
+      setSettings(r);
+      ok(`daemon log level: ${r.logLevel || "info"}`);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -359,6 +375,25 @@ export default function SettingsPage() {
             <p className="muted small" style={{ margin: 0 }}>
               How many UTC days of daily usage history are kept; older days are
               pruned. 0 = default (90), -1 = keep forever.
+            </p>
+          </div>
+          <div>
+            <div className="row" style={{ marginBottom: 8, alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: 14 }}>Daemon log level</h3>
+              <div className="spacer" />
+              <select className="oc-input" style={{ width: 110 }} value={logLevel} onChange={(e) => setLogLevel(e.target.value)}>
+                <option value="info">info</option>
+                <option value="debug">debug</option>
+                <option value="warn">warn</option>
+                <option value="error">error</option>
+              </select>
+              <button className="btn primary" disabled={busy} onClick={saveLogLevel}>
+                Save
+              </button>
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Verbosity of the daemon log (~/.llmctl/daemon.log). Takes effect
+              immediately and persists across restarts.
             </p>
           </div>
           <div>

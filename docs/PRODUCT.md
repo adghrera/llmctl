@@ -315,6 +315,9 @@ toggle for a light theme (choice remembered). Tabs:
   Raise for very large models on slow storage.
 - **Max request body** — Settings → "Max request body" (MiB, 0 = default 64):
   gateway requests with a larger body are rejected with 413 (F121).
+ - **Daemon log level** — Settings → "Daemon log level" (debug/info/warn/error):
+   verbosity of `~/.llmctl/llmctl.log`, changeable at runtime and persisted;
+   debug adds a per-request trace line on the gateway (F171).
 - **Notify webhook** — Settings → "Notify webhook": a URL that receives a
   JSON POST when an instance crashes or is idle-unloaded (clean stops stay
   silent). A "Test" button sends a test event to verify the endpoint. An

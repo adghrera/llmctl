@@ -233,6 +233,8 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 			ttftMs = float64(rec.firstWrite.Sub(start).Microseconds()) / 1000.0
 		}
 		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, holder.Instance, rec.status, float64(time.Since(start).Microseconds())/1000.0, ttftMs, holder.Stream, rec.buf.Bytes(), rid)
+		s.logger.Debug("gateway request", "id", rid, "model", holder.Model, "instance", holder.Instance,
+			"status", rec.status, "ms", time.Since(start).Milliseconds(), "stream", holder.Stream)
 	})
 }
 

@@ -142,6 +142,9 @@ func Run(ctx context.Context, opts Options) error {
 			if state.Settings.RateBurst > 0 {
 				rateBurst = state.Settings.RateBurst
 			}
+			if err := SetLogLevel(state.Settings.LogLevel); err != nil { // log verbosity (F171)
+				logger.Warn("applying log level failed", "error", err)
+			}
 		}
 	}
 
@@ -164,6 +167,7 @@ func Run(ctx context.Context, opts Options) error {
 	gw.SetMaxBodyMB(maxBodyMB) // gateway body cap from settings (F121)
 
 	mgmt := api.New(st, reg, sv, jm, logger, gwPort, gw, cancel)
+	mgmt.SetApplyLogLevel(SetLogLevel) // runtime log verbosity (F171)
 	// Wire the key checker after mgmt is created (circular ref).
 	gw.SetKeyCheck(mgmt.KeyCheck)
 
@@ -341,13 +345,36 @@ func rotateDaemonLog() {
 	os.Rename(paths.DaemonLog(), paths.DaemonLog()+".1")
 }
 
+// daemonLevel lets the log verbosity be changed at runtime via settings (F171).
+var daemonLevel slog.LevelVar
+
 func newLogger() *slog.Logger {
 	rotateDaemonLog()
 	f, err := os.OpenFile(paths.DaemonLog(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
-		return slog.New(slog.NewTextHandler(os.Stderr, nil))
+		return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: &daemonLevel}))
 	}
-	return slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	return slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{Level: &daemonLevel}))
+}
+
+// SetLogLevel changes the daemon's log verbosity at runtime: "" or "info",
+// "debug", "warn", "error" (F171).
+func SetLogLevel(name string) error {
+	var lvl slog.Level
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", "info":
+		lvl = slog.LevelInfo
+	case "debug":
+		lvl = slog.LevelDebug
+	case "warn", "warning":
+		lvl = slog.LevelWarn
+	case "error":
+		lvl = slog.LevelError
+	default:
+		return fmt.Errorf("unknown log level %q (want debug, info, warn or error)", name)
+	}
+	daemonLevel.Set(lvl)
+	return nil
 }
 
 // ControlClient is used by the CLI to talk to a running daemon.

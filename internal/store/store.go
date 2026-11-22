@@ -150,6 +150,9 @@ type Settings struct {
 	// UsageRetentionDays bounds how many UTC days of daily usage rollups are
 	// kept (older days pruned at flush); 0 = default 90, -1 = keep forever (F168).
 	UsageRetentionDays int `json:"usageRetentionDays,omitempty"`
+	// LogLevel is the daemon log verbosity: "", "info", "debug", "warn",
+	// "error" (empty = info) (F171).
+	LogLevel string `json:"logLevel,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.
