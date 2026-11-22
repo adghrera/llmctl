@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useStore } from "./state/store";
 import Overview from "./pages/Overview";
+import Search from "./pages/Search";
 import Backends from "./pages/Backends";
 import Models from "./pages/Models";
 import Instances from "./pages/Instances";
@@ -26,6 +27,7 @@ import { Toasts } from "./ui/toast";
 
 const NAV = [
   { to: "/", label: "Overview", end: true },
+  { to: "/search", label: "Search" },
   { to: "/backends", label: "Backends" },
   { to: "/models", label: "Models" },
   { to: "/instances", label: "Instances" },
@@ -88,6 +90,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Overview />} />
+          <Route path="/search" element={<Search />} />
           <Route path="/backends" element={<Backends />} />
           <Route path="/models" element={<Models />} />
           <Route path="/instances" element={<Instances />} />

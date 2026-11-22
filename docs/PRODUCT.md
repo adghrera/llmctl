@@ -142,6 +142,10 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl events -kind …`). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173). `llmctl events -watch N` live-tails
    the feed, printing new events every N seconds (F187).
+- **Search** — one box across local resources (F283): fan-out over the
+  existing endpoints to find models (id/backend/path), saved chats (full-text
+  with snippets), memory entries and knowledge bases, each result linking to
+  its page. `llmctl chats search` / `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON).
 - **Models** — HuggingFace search + file picker, download with live progress.
   Aliases map stable names (e.g. `chat`) to model ids so gateway clients
