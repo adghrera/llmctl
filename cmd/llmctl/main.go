@@ -236,7 +236,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID] [-kb ID]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -6285,6 +6285,7 @@ func cmdChat(args []string) error {
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
 	contChat := fs.String("chat", "", "with -prompt: continue this saved chat — its history is sent and the reply is appended to it (F297)")
+	contLast := fs.Bool("continue", false, "with -prompt: continue the most recently updated saved chat (F312)")
 	kbFlag := fs.String("kb", "", "with -prompt: prepend the top knowledge-base matches for the prompt as context (like the Chat UI)")
 	fs.Parse(reorderFlags(args))
 
@@ -6422,6 +6423,34 @@ func cmdChat(args []string) error {
 		hist := []map[string]any{}
 		var contMsgs []map[string]string
 		var contTitle string
+		if *contLast && *contChat == "" {
+			// Resolve the most recently updated chat (F312). The list is
+			// pinned-first, so scan for the newest updatedAt ourselves.
+			code, out, err := cc.Get("/api/v1/chats")
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("chats list: %s", out)
+			}
+			var chats []struct {
+				ID        string    `json:"id"`
+				UpdatedAt time.Time `json:"updatedAt"`
+			}
+			if err := json.Unmarshal(out, &chats); err != nil {
+				return err
+			}
+			var best time.Time
+			for _, c := range chats {
+				if c.UpdatedAt.After(best) {
+					best, *contChat = c.UpdatedAt, c.ID
+				}
+			}
+			if *contChat == "" {
+				return fmt.Errorf("no saved chats to continue")
+			}
+			fmt.Fprintf(os.Stderr, "continuing chat %s\n", *contChat)
+		}
 		if *contChat != "" {
 			code, out, err := cc.Get("/api/v1/chats/" + url.PathEscape(*contChat))
 			if err != nil {
