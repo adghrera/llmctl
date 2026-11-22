@@ -79,6 +79,8 @@ func main() {
 		err = cmdFiles(args)
 	case "settings":
 		err = cmdSettings(args)
+	case "batch":
+		err = cmdBatch(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -155,6 +157,7 @@ Usage:
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl files [list|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
+  llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -2138,6 +2141,111 @@ func cmdSettings(args []string) error {
 	for _, k := range keys {
 		fmt.Printf("%-22s %v\n", k+":", v[k])
 	}
+	return nil
+}
+
+// cmdBatch runs many prompts through the gateway in one call (F224).
+// Prompts come from args, -file (one per line) or piped stdin.
+func cmdBatch(args []string) error {
+	fs := flag.NewFlagSet("batch", flag.ExitOnError)
+	model := fs.String("model", "", "model id (required)")
+	system := fs.String("system", "", "system prompt")
+	maxTokens := fs.Int("max-tokens", 0, "max tokens per completion")
+	concurrency := fs.Int("concurrency", 4, "parallel requests (max 8)")
+	key := fs.String("key", "", "gateway API key (needed when auth is on)")
+	file := fs.String("file", "", "read prompts from this file, one per line")
+	jsonOut := fs.Bool("json", false, "print the raw batch JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+
+	var prompts []string
+	add := func(s string) {
+		if s = strings.TrimSpace(s); s != "" {
+			prompts = append(prompts, s)
+		}
+	}
+	if *file != "" {
+		b, err := os.ReadFile(*file)
+		if err != nil {
+			return err
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			add(line)
+		}
+	} else if fi, _ := os.Stdin.Stat(); fi != nil && fi.Mode()&os.ModeCharDevice == 0 {
+		sc := bufio.NewScanner(os.Stdin)
+		for sc.Scan() {
+			add(sc.Text())
+		}
+	}
+	for _, a := range fs.Args() {
+		add(a)
+	}
+	if *model == "" || len(prompts) == 0 {
+		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-file F|piped stdin|prompts…]")
+	}
+	body := map[string]any{
+		"model": *model, "prompts": prompts, "concurrency": *concurrency,
+	}
+	if *system != "" {
+		body["system"] = *system
+	}
+	if *maxTokens > 0 {
+		body["maxTokens"] = *maxTokens
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	b, _ := json.Marshal(body)
+	req, err := http.NewRequest("POST", cc.Base+"/api/v1/batch", strings.NewReader(string(b)))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if *key != "" {
+		req.Header.Set("Authorization", "Bearer "+*key)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	out, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("batch returned %d: %s", resp.StatusCode, out)
+	}
+	if *jsonOut {
+		fmt.Println(string(out))
+		return nil
+	}
+	var res struct {
+		OK      int `json:"ok"`
+		Failed  int `json:"failed"`
+		Results []struct {
+			Prompt  string `json:"prompt"`
+			Content string `json:"content"`
+			Error   string `json:"error"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	for _, r := range res.Results {
+		p := r.Prompt
+		if len(p) > 40 {
+			p = p[:40] + "…"
+		}
+		if r.Error != "" {
+			fmt.Printf("✗ %-42s %s\n", p, r.Error)
+			continue
+		}
+		c := strings.TrimSpace(r.Content)
+		if len(c) > 120 {
+			c = c[:120] + "…"
+		}
+		fmt.Printf("✓ %-42s %s\n", p, strings.ReplaceAll(c, "\n", " "))
+	}
+	fmt.Printf("%d ok, %d failed\n", res.OK, res.Failed)
 	return nil
 }
 

@@ -172,7 +172,9 @@ toggle for a light theme (choice remembered). Tabs:
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page.
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
-  order. REST: POST /api/v1/batch. Dedicated Batch page.
+  order. REST: POST /api/v1/batch. Dedicated Batch page. CLI:
+  `llmctl batch -model ID [-file F|piped stdin|prompts…] [-key K] [-json]`
+  (F224).
 - **Usage** — per-model token bar chart (from /api/v1/metrics) and
   per-conversation token table (from /api/v1/chats). Shows prompt/completion
   totals, request counts, per-model latency percentiles (p50/p95/p99) and
@@ -411,6 +413,7 @@ llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
                  | settings test-webhook (send a test event)
+llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|stdin|prompts…] [-json]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
 llmctl version
 ```
