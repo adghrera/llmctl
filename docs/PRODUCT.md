@@ -443,6 +443,7 @@ llmctl models metadata <id> [-json]                     (GGUF header metadata, F
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
+llmctl maxparallel <instance> <n>   (concurrent-request cap, 0 = unlimited, F270)
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
 llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;

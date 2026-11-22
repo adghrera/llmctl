@@ -54,6 +54,8 @@ func main() {
 		err = cmdPresets(args)
 	case "catalog":
 		err = cmdCatalog(args)
+	case "maxparallel":
+		err = cmdMaxParallel(args)
 	case "ps":
 		err = cmdPS(args)
 	case "backends":
@@ -162,6 +164,7 @@ Usage:
   llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...]
   llmctl stop <instance> [--force]
   llmctl restart <instance>
+  llmctl maxparallel <instance> <n>   (0 = unlimited)
   llmctl logs <instance> [--stream stderr|stdout] [--tail N]
   llmctl logs -daemon [--tail N]
   llmctl key generate [name] [-json]
@@ -736,6 +739,36 @@ func cmdCatalog(args []string) error {
 	default:
 		return fmt.Errorf("unknown catalog subcommand: %s (list|install)", sub)
 	}
+}
+
+// cmdMaxParallel caps how many simultaneous gateway requests an instance
+// serves (PATCH /api/v1/instances/{id}/maxparallel, F270).
+func cmdMaxParallel(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: llmctl maxparallel <instance-id> <n>  (0 = unlimited)")
+	}
+	n, err := strconv.Atoi(args[1])
+	if err != nil || n < 0 {
+		return fmt.Errorf("invalid maxParallel: %s (must be >= 0)", args[1])
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(args[0])+"/maxparallel",
+		map[string]any{"maxParallel": n})
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("maxparallel: %s", out)
+	}
+	label := "unlimited"
+	if n > 0 {
+		label = strconv.Itoa(n)
+	}
+	fmt.Printf("instance %s now serves at most %s concurrent request(s)\n", args[0], label)
+	return nil
 }
 
 func cmdPS(args []string) error {
