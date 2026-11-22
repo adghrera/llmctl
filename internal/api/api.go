@@ -156,6 +156,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("POST /api/v1/files", s.uploadFile)
 	m.HandleFunc("GET /api/v1/files/{id}/content", s.getFileContent)
 	m.HandleFunc("DELETE /api/v1/files/{id}", s.deleteFile)
+	m.HandleFunc("PATCH /api/v1/files/{id}/tags", s.setFileTags)
 	// Knowledge bases (F047)
 	m.HandleFunc("GET /api/v1/knowledge-bases", s.listKBs)
 	m.HandleFunc("POST /api/v1/knowledge-bases", s.createKB)

@@ -27,15 +27,16 @@ type Entry struct {
 	Filename    string    `json:"filename"`
 	ContentType string    `json:"contentType"`
 	Size        int64     `json:"size"`
-	Source      string    `json:"source"` // "upload"
+	Source      string    `json:"source"`         // "upload"
+	Tags        []string  `json:"tags,omitempty"` // free-form labels (F700)
 	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Record is an entry with its on-disk directory.
 type Record struct {
-	ID   string `json:"id"`
-	Dir  string `json:"dir"`
-	Entry Entry `json:"entry"`
+	ID    string `json:"id"`
+	Dir   string `json:"dir"`
+	Entry Entry  `json:"entry"`
 }
 
 // Store manages uploaded files on disk.
@@ -79,8 +80,8 @@ func (s *Store) load(id string) (*Record, error) {
 		e.ID = id
 	}
 	return &Record{
-		ID:   e.ID,
-		Dir:  dir,
+		ID:    e.ID,
+		Dir:   dir,
 		Entry: e,
 	}, nil
 }
@@ -122,6 +123,20 @@ func (s *Store) Get(id string) (*Record, error) {
 		return nil, fmt.Errorf("invalid file id")
 	}
 	return s.load(id)
+}
+
+// SetTags replaces the free-form tag list of one file and persists the
+// updated entry (F700).
+func (s *Store) SetTags(id string, tags []string) (*Record, error) {
+	rec, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	rec.Entry.Tags = tags
+	if err := writeJSON(filepath.Join(rec.Dir, "entry.json"), rec.Entry); err != nil {
+		return nil, err
+	}
+	return rec, nil
 }
 
 // ContentPath returns the path to the stored file content.

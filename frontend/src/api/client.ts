@@ -220,6 +220,7 @@ export interface FileEntry {
     contentType: string;
     size: number;
     source: string;
+    tags?: string[]; // free-form labels (F700)
     created_at: string;
   };
   source: string;
@@ -741,6 +742,11 @@ export const api = {
   searchMemory: (q: string, limit = 10) =>
     req<MemoryEntry[]>(`/memory/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   files: () => req<FileEntry[]>("/files"),
+  setFileTags: (id: string, tags: string[]) =>
+    req<FileEntry>(`/files/${encodeURIComponent(id)}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tags }),
+    }),
   uploadFile: (formData: FormData) =>
     fetch("/api/v1/files", {
       method: "POST",

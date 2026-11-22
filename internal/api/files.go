@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -115,6 +116,40 @@ func (s *Server) deleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// setFileTags handles PATCH /api/v1/files/{id}/tags (F700): replaces the
+// free-form tag list of one uploaded file.
+func (s *Server) setFileTags(w http.ResponseWriter, r *http.Request) {
+	ts, err := s.fileStore()
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	tags := cleanTags(req.Tags)
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	for _, t := range tags {
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+	}
+	rec, err := ts.SetTags(r.PathValue("id"), tags)
+	if err != nil {
+		writeErr(w, statusForFile(err), err.Error())
+		return
+	}
+	writeJSON(w, 200, rec)
 }
 
 func statusForFile(err error) int {

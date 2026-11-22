@@ -8,6 +8,7 @@ export default function Files() {
   const [busy, setBusy] = useState(false);
   const [contentView, setContentView] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI -tag twin (F700)
   const [showStats, setShowStats] = useState(false); // per-content-type rollup (CLI `files -stats` parity, F637)
   const [dragOver, setDragOver] = useState(false);
 
@@ -59,6 +60,20 @@ export default function Files() {
     }
   };
 
+  // Free-form tags, comma-separated in the prompt (F700); empty clears.
+  const tagFile = async (f: FileEntry) => {
+    const next = window.prompt(`Tags for "${f.entry.filename}" (comma-separated, empty clears):`, (f.entry.tags ?? []).join(", "));
+    if (next == null) return;
+    const tags = next.split(",").map((t) => t.trim()).filter(Boolean);
+    try {
+      await api.setFileTags(f.id, tags);
+      ok(tags.length ? `tags set: ${tags.join(", ")}` : "tags cleared");
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const viewContent = async (f: FileEntry) => {
     if (!isTextFile(f.entry.contentType, f.entry.filename)) {
       err("file is not text-based");
@@ -76,9 +91,11 @@ export default function Files() {
   };
 
   // Filename text filter (case-insensitive substring) for the files table,
-  // matching the other list-page filters (F356).
+  // matching the other list-page filters (F356), plus the tag filter (F700).
   const low = filter.trim().toLowerCase();
-  const shown = low ? files.filter((f) => f.entry.filename.toLowerCase().includes(low)) : files;
+  const fileTags = Array.from(new Set(files.flatMap((f) => f.entry.tags ?? []))).sort();
+  let shown = low ? files.filter((f) => f.entry.filename.toLowerCase().includes(low)) : files;
+  if (tagFilter) shown = shown.filter((f) => (f.entry.tags ?? []).includes(tagFilter));
 
   return (
     <>
@@ -140,6 +157,22 @@ export default function Files() {
               onChange={(e) => setFilter(e.target.value)}
             />
           )}
+          {fileTags.length > 0 && (
+            <select
+              className="oc-input"
+              style={{ width: "auto", fontSize: 12 }}
+              title="filter by tag — CLI: llmctl files list -tag (F700)"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+            >
+              <option value="">all tags</option>
+              {fileTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             className="btn sm"
             aria-pressed={showStats}
@@ -156,11 +189,11 @@ export default function Files() {
               // Same columns as `llmctl files list --csv` (F397); filter-aware.
               const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
               const rows = [
-                "id,filename,content_type,size_bytes,source,created_at",
+                "id,filename,content_type,size_bytes,source,tags,created_at",
                 ...shown.map((f) =>
                   [
                     f.entry.id, f.entry.filename, f.entry.contentType,
-                    String(f.entry.size), f.entry.source, f.entry.created_at,
+                    String(f.entry.size), f.entry.source, (f.entry.tags ?? []).join(" "), f.entry.created_at,
                   ]
                     .map(esc)
                     .join(",")
@@ -236,6 +269,21 @@ export default function Files() {
                 <tr key={f.id}>
                   <td>
                     <b>{f.entry.filename}</b>
+                    {(f.entry.tags ?? []).map((t) => (
+                      <span
+                        key={t}
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 10,
+                          opacity: 0.8,
+                          background: "rgba(120,200,120,0.15)",
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                        }}
+                      >
+                        {t}
+                      </span>
+                    ))}
                   </td>
                   <td style={{ fontSize: 12, opacity: 0.7 }}>
                     {f.entry.contentType}
@@ -252,6 +300,13 @@ export default function Files() {
                         View
                       </button>
                     )}
+                    <button
+                      className="btn sm"
+                      title="edit tags (CLI: llmctl files tag)"
+                      onClick={() => tagFile(f)}
+                    >
+                      Tag
+                    </button>
                     <button
                       className="btn sm danger"
                       onClick={() => remove(f)}

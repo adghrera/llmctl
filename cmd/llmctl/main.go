@@ -289,7 +289,7 @@ Usage:
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
-  llmctl files [list|upload <path>|cat <id> [-out FILE]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list]
+  llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
@@ -2458,7 +2458,7 @@ var llmSubCommands = map[string]string{
 	"backups":   "list create restore verify prune download delete",
 	"catalog":   "list install",
 	"chats":     "list show search export export-all import fork rename pin unpin tag retag prune delete delete-all",
-	"files":     "list upload cat delete",
+	"files":     "list upload cat tag delete",
 	"jobs":      "wait show clear",
 	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete",
 	"key":       "generate duplicate show note tag retag update enable disable rotate list revoke prune reset-usage",
@@ -11311,6 +11311,40 @@ func cmdFiles(args []string) error {
 		sub, rest = args[0], args[1:]
 	}
 	switch sub {
+	case "tag":
+		// Replace a file's free-form tags (F700); empty clears.
+		tgfs := flag.NewFlagSet("files tag", flag.ExitOnError)
+		tgjson := tgfs.Bool("json", false, "print the raw response JSON")
+		tgfs.Parse(reorderFlags(rest))
+		if tgfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl files tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tgfs.NArg() > 1 {
+			for _, t := range strings.Split(tgfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/files/"+url.PathEscape(tgfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("files tag returned %d: %s", code, out)
+		}
+		if *tgjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("file %s tags cleared\n", tgfs.Arg(0))
+		} else {
+			fmt.Printf("file %s tags: %s\n", tgfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
 	case "upload":
 		ufs := flag.NewFlagSet("files upload", flag.ExitOnError)
 		name := ufs.String("name", "", "store under this filename (default: the file's base name)")
@@ -11358,6 +11392,7 @@ func cmdFiles(args []string) error {
 		csvOut := fs.Bool("csv", false, "output the file list as CSV (F381)")
 		outFile := fs.String("out", "", "write the raw files JSON to this file instead of stdout (F485)")
 		stats := fs.Bool("stats", false, "aggregate the files per content type instead of listing them (F631)")
+		tagF := fs.String("tag", "", "only files carrying this tag (F700)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/files")
 		if err != nil {
@@ -11365,6 +11400,30 @@ func cmdFiles(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("files returned %d: %s", code, out)
+		}
+		if *tagF != "" { // filter raw JSON so -json/-out keep every field (F700)
+			var raw []map[string]any
+			if err := json.Unmarshal(out, &raw); err != nil {
+				return err
+			}
+			keep := raw[:0]
+			for _, f := range raw {
+				e, _ := f["entry"].(map[string]any)
+				tags, _ := e["tags"].([]any)
+				found := false
+				for _, t := range tags {
+					if t == *tagF {
+						found = true
+						break
+					}
+				}
+				if found {
+					keep = append(keep, f)
+				}
+			}
+			if out, err = json.Marshal(keep); err != nil {
+				return err
+			}
 		}
 		if *stats { // F631: one row per content type (files, bytes, last upload)
 			var fl []struct {
@@ -11469,6 +11528,7 @@ func cmdFiles(args []string) error {
 				ContentType string    `json:"contentType"`
 				Size        int64     `json:"size"`
 				Source      string    `json:"source"`
+				Tags        []string  `json:"tags"`
 				CreatedAt   time.Time `json:"created_at"`
 			} `json:"entry"`
 		}
@@ -11478,7 +11538,7 @@ func cmdFiles(args []string) error {
 		if len(list) == 0 {
 			if *csvOut { // keep the stream parseable (F381)
 				w := csv.NewWriter(os.Stdout)
-				_ = w.Write([]string{"id", "filename", "content_type", "size_bytes", "source", "created_at"})
+				_ = w.Write([]string{"id", "filename", "content_type", "size_bytes", "source", "tags", "created_at"})
 				w.Flush()
 				return w.Error()
 			}
@@ -11487,19 +11547,19 @@ func cmdFiles(args []string) error {
 		}
 		if *csvOut { // F381
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "filename", "content_type", "size_bytes", "source", "created_at"})
+			_ = w.Write([]string{"id", "filename", "content_type", "size_bytes", "source", "tags", "created_at"})
 			for _, f := range list {
 				_ = w.Write([]string{f.ID, f.Entry.Filename, f.Entry.ContentType,
-					strconv.FormatInt(f.Entry.Size, 10), f.Entry.Source,
+					strconv.FormatInt(f.Entry.Size, 10), f.Entry.Source, strings.Join(f.Entry.Tags, " "),
 					f.Entry.CreatedAt.UTC().Format(time.RFC3339)})
 			}
 			w.Flush()
 			return w.Error()
 		}
-		fmt.Printf("%-16s %10s  %-28s %-8s %-17s %s\n", "ID", "SIZE", "TYPE", "SOURCE", "CREATED", "FILENAME")
+		fmt.Printf("%-16s %10s  %-28s %-8s %-17s %-16s %s\n", "ID", "SIZE", "TYPE", "SOURCE", "CREATED", "TAGS", "FILENAME")
 		for _, f := range list {
-			fmt.Printf("%-16s %10s  %-28s %-8s %-17s %s\n", f.ID, fmtSize(f.Entry.Size), f.Entry.ContentType, f.Entry.Source,
-				f.Entry.CreatedAt.Local().Format("2006-01-02 15:04:05"), f.Entry.Filename)
+			fmt.Printf("%-16s %10s  %-28s %-8s %-17s %-16s %s\n", f.ID, fmtSize(f.Entry.Size), f.Entry.ContentType, f.Entry.Source,
+				f.Entry.CreatedAt.Local().Format("2006-01-02 15:04:05"), strings.Join(f.Entry.Tags, ","), f.Entry.Filename)
 		}
 		return nil
 	case "cat":
