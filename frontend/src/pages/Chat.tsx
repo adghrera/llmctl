@@ -244,6 +244,20 @@ export default function Chat() {
     }
   };
 
+  // free-form tags, comma-separated in the prompt (F676); empty clears.
+  const tagChat = async (id: string, current: string[]) => {
+    const next = window.prompt(`Tags for this chat (comma-separated, empty clears):`, current.join(", "));
+    if (next == null) return;
+    const tags = next.split(",").map((t) => t.trim()).filter(Boolean);
+    try {
+      await api.setChatTags(id, tags);
+      ok(tags.length ? `tags set: ${tags.join(", ")}` : "tags cleared");
+      await loadChats();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const forkChat = async (id: string, forkAt: number, title: string) => {
     try {
       const c = await api.forkChat(id, { forkAt, title });
@@ -511,9 +525,9 @@ export default function Chat() {
                 // Same columns as `llmctl chats list --csv` (F392).
                 const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
                 const rows = [
-                  "id,title,model,messages,tokens,updated_at",
+                  "id,title,model,messages,tokens,updated_at,tags",
                   ...chats.map((c) =>
-                    [c.id, c.title, c.model || "", String(c.messages ?? 0), String(c.tokens ?? 0), c.updatedAt || ""]
+                    [c.id, c.title, c.model || "", String(c.messages ?? 0), String(c.tokens ?? 0), c.updatedAt || "", (c.tags ?? []).join(";")]
                       .map(esc)
                       .join(",")
                   ),
@@ -686,6 +700,7 @@ export default function Chat() {
                     {c.agentMode && <span className="badge">agent</span>}
                     <div className="muted" style={{ fontSize: 12 }}>
                       {c.model} · {c.messages} msgs · {c.tokens ?? 0} tok · <span title={new Date(c.updatedAt).toLocaleString()}>{ago(c.updatedAt)}</span>
+                      {c.tags?.length ? <span title={c.tags.join(", ")}> · {(c.tags || []).join(", ")}</span> : null}
                     </div>
                   </td>
                   <td style={{ textAlign: "right", verticalAlign: "middle" }}>
@@ -694,6 +709,9 @@ export default function Chat() {
                     </button>{" "}
                     <button className="btn sm" disabled={streaming} onClick={() => renameChat(c.id, c.title || "")}>
                       Rename
+                    </button>{" "}
+                    <button className="btn sm" disabled={streaming} onClick={() => tagChat(c.id, c.tags ?? [])}>
+                      Tag
                     </button>{" "}
                     <button className="btn sm danger" disabled={streaming} onClick={() => removeChat(c.id)}>
                       Delete

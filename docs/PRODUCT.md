@@ -408,6 +408,9 @@ toggle for a light theme (choice remembered). Tabs:
    `chats fork <id> [-at N] [-title T]`, `chats rename <id> <title>`,
    `chats pin|unpin <id>` (pinned chats sort first, F310; the Chat page
    shows a 📌 marker and a Pin/Unpin button, F311),
+   `chats tag <id> [a,b]` / `chats retag <old> <new> | retag -rm <tag>` label
+   chats with free-form tags (shown in the sidebar and `--csv`, filterable with
+   `chats list -tag T`; the Chat page has a Tag button per chat, F676),
    `chats delete <id>`, `chats prune -before D [-older-than N] [-yes]`
    (bulk-delete old chats, pinned skipped, dry-run by default, F333), and
    `chats delete-all -yes` manage them

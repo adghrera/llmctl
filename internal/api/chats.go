@@ -208,6 +208,51 @@ func (s *Server) pinChat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true, "id": c.ID, "pinned": c.Pinned})
 }
 
+// setChatTags handles PATCH /api/v1/chats/{id}/tags (F676): body
+// {"tags": [...]} replaces the chat's free-form tag list, the chat twin of
+// model/kb/instance tags. Tags are trimmed, deduped and capped (20 × 40).
+func (s *Server) setChatTags(w http.ResponseWriter, r *http.Request) {
+	if s.chats == nil {
+		writeErr(w, 503, "chat store unavailable")
+		return
+	}
+	var req struct {
+		Tags []string `json:"tags"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON body")
+		return
+	}
+	seen := map[string]bool{}
+	tags := []string{}
+	for _, t := range req.Tags {
+		t = strings.TrimSpace(t)
+		if t == "" || seen[t] {
+			continue
+		}
+		if len(t) > 40 {
+			writeErr(w, 400, "tag too long (max 40 chars): "+t)
+			return
+		}
+		seen[t] = true
+		tags = append(tags, t)
+	}
+	if len(tags) > 20 {
+		writeErr(w, 400, "too many tags (max 20)")
+		return
+	}
+	c, err := s.chats.SetTags(r.PathValue("id"), tags)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "invalid chat id") {
+			writeErr(w, 404, err.Error())
+			return
+		}
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "id": c.ID, "tags": c.Tags})
+}
+
 func (s *Server) forkChat(w http.ResponseWriter, r *http.Request) {
 	if s.chats == nil {
 		writeErr(w, 503, "chat store unavailable")

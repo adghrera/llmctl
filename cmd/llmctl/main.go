@@ -280,7 +280,7 @@ Usage:
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
-  llmctl chats [filter] [-n 20] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|prune [-json]|delete [-json]|delete-all …
+  llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
@@ -2455,7 +2455,7 @@ var llmSubCommands = map[string]string{
 	"backends":  "list install uninstall add remove",
 	"backups":   "list create restore verify prune download delete",
 	"catalog":   "list install",
-	"chats":     "list show search export export-all import fork rename pin unpin prune delete delete-all",
+	"chats":     "list show search export export-all import fork rename pin unpin tag retag prune delete delete-all",
 	"files":     "list upload cat delete",
 	"jobs":      "wait show clear",
 	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete",
@@ -7385,6 +7385,112 @@ func cmdChats(args []string) error {
 		fmt.Printf("%s chat %s\n", word, pufs.Arg(0))
 		return nil
 	}
+	if len(args) > 0 && args[0] == "tag" {
+		// Replace a chat's tags (comma-separated); empty clears (F676).
+		tgfs := flag.NewFlagSet("chats tag", flag.ExitOnError)
+		tgjson := tgfs.Bool("json", false, "print the raw response JSON")
+		tgfs.Parse(reorderFlags(args[1:]))
+		if tgfs.NArg() < 1 {
+			return fmt.Errorf("usage: llmctl chats tag <id> [a,b,c] [-json]  (empty clears)")
+		}
+		var tags []string
+		if tgfs.NArg() > 1 {
+			for _, t := range strings.Split(tgfs.Arg(1), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tags = append(tags, t)
+				}
+			}
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/chats/"+url.PathEscape(tgfs.Arg(0))+"/tags",
+			map[string]any{"tags": tags})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats tag: %s", out)
+		}
+		if *tgjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		if len(tags) == 0 {
+			fmt.Printf("chat %s tags cleared\n", tgfs.Arg(0))
+		} else {
+			fmt.Printf("chat %s tags: %s\n", tgfs.Arg(0), strings.Join(tags, ", "))
+		}
+		return nil
+	}
+	if len(args) > 0 && args[0] == "retag" {
+		// Bulk-rename or drop a tag across all chats (F676), twin of
+		// `models retag`; the tag rules live in the tags endpoint.
+		rtfs := flag.NewFlagSet("chats retag", flag.ExitOnError)
+		rtrm := rtfs.Bool("rm", false, "drop the tag instead of renaming it")
+		rtjson := rtfs.Bool("json", false, "print the count as JSON")
+		rtfs.Parse(reorderFlags(args[1:]))
+		if rtfs.NArg() < 1 || (!*rtrm && rtfs.NArg() < 2) {
+			return fmt.Errorf("usage: llmctl chats retag <old-tag> <new-tag> | chats retag -rm <tag> [-json]")
+		}
+		oldTag, newTag := rtfs.Arg(0), rtfs.Arg(1)
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/chats")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("chats returned %d: %s", code, out)
+		}
+		var cs []struct {
+			ID   string   `json:"id"`
+			Tags []string `json:"tags"`
+		}
+		if err := json.Unmarshal(out, &cs); err != nil {
+			return err
+		}
+		changed := 0
+		for _, c := range cs {
+			found := false
+			var tags []string
+			for _, t := range c.Tags {
+				if t != oldTag {
+					tags = append(tags, t)
+					continue
+				}
+				found = true
+				if !*rtrm {
+					tags = append(tags, newTag)
+				}
+			}
+			if !found {
+				continue
+			}
+			code, out, err := cc.Do("PATCH", "/api/v1/chats/"+url.PathEscape(c.ID)+"/tags",
+				map[string]any{"tags": tags})
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("chats retag on %s: %s", c.ID, out)
+			}
+			changed++
+		}
+		if *rtjson {
+			fmt.Printf("{\"changed\": %d}\n", changed)
+			return nil
+		}
+		if *rtrm {
+			fmt.Printf("removed tag %q from %d chat(s)\n", oldTag, changed)
+		} else {
+			fmt.Printf("renamed tag %q -> %q on %d chat(s)\n", oldTag, newTag, changed)
+		}
+		return nil
+	}
 	if len(args) > 0 && args[0] == "delete" {
 		cdfs := flag.NewFlagSet("chats delete", flag.ExitOnError)
 		cdjson := cdfs.Bool("json", false, "print the raw response JSON (F538)")
@@ -7416,6 +7522,7 @@ func cmdChats(args []string) error {
 	csvOut := fs.Bool("csv", false, "output the chat list as CSV (F378)")
 	outFile := fs.String("out", "", "write the chat list JSON to this file instead of stdout (F492)")
 	stats := fs.Bool("stats", false, "aggregate the chats per model instead of listing them (F625)")
+	tagF := fs.String("tag", "", "only chats carrying this tag (F676)")
 	// Accept "list" as an explicit subcommand: llmctl chats list [filter].
 	if len(args) > 0 && args[0] == "list" {
 		args = args[1:]
@@ -7437,24 +7544,38 @@ func cmdChats(args []string) error {
 		filter = strings.ToLower(fs.Arg(0))
 	}
 	var list []struct {
-		ID        string `json:"id"`
-		Title     string `json:"title"`
-		Model     string `json:"model"`
-		Messages  int    `json:"messages"`
-		Tokens    int    `json:"tokens"` // total token usage (F603)
-		UpdatedAt string `json:"updatedAt"`
+		ID        string   `json:"id"`
+		Title     string   `json:"title"`
+		Model     string   `json:"model"`
+		Tags      []string `json:"tags"`
+		Messages  int      `json:"messages"`
+		Tokens    int      `json:"tokens"` // total token usage (F603)
+		UpdatedAt string   `json:"updatedAt"`
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
 		return err
 	}
+	if *tagF != "" { // F676: exact tag filter, twin of models list -tag
+		keep := list[:0]
+		for _, c := range list {
+			for _, t := range c.Tags {
+				if t == *tagF {
+					keep = append(keep, c)
+					break
+				}
+			}
+		}
+		list = keep
+	}
 	if filter != "" {
 		var keep []struct {
-			ID        string `json:"id"`
-			Title     string `json:"title"`
-			Model     string `json:"model"`
-			Messages  int    `json:"messages"`
-			Tokens    int    `json:"tokens"`
-			UpdatedAt string `json:"updatedAt"`
+			ID        string   `json:"id"`
+			Title     string   `json:"title"`
+			Model     string   `json:"model"`
+			Tags      []string `json:"tags"`
+			Messages  int      `json:"messages"`
+			Tokens    int      `json:"tokens"`
+			UpdatedAt string   `json:"updatedAt"`
 		}
 		for _, c := range list {
 			if strings.Contains(strings.ToLower(c.Title), filter) || strings.Contains(strings.ToLower(c.Model), filter) {
@@ -7561,7 +7682,7 @@ func cmdChats(args []string) error {
 	if len(list) == 0 {
 		if *csvOut { // keep the stream parseable (F378)
 			w := csv.NewWriter(os.Stdout)
-			_ = w.Write([]string{"id", "title", "model", "messages", "updated_at"})
+			_ = w.Write([]string{"id", "title", "model", "messages", "updated_at", "tags"})
 			w.Flush()
 			return w.Error()
 		}
@@ -7570,14 +7691,14 @@ func cmdChats(args []string) error {
 	}
 	if *csvOut { // F378
 		w := csv.NewWriter(os.Stdout)
-		_ = w.Write([]string{"id", "title", "model", "messages", "tokens", "updated_at"})
+		_ = w.Write([]string{"id", "title", "model", "messages", "tokens", "updated_at", "tags"})
 		for _, c := range list {
-			_ = w.Write([]string{c.ID, c.Title, c.Model, strconv.Itoa(c.Messages), strconv.Itoa(c.Tokens), c.UpdatedAt})
+			_ = w.Write([]string{c.ID, c.Title, c.Model, strconv.Itoa(c.Messages), strconv.Itoa(c.Tokens), c.UpdatedAt, strings.Join(c.Tags, ";")})
 		}
 		w.Flush()
 		return w.Error()
 	}
-	fmt.Printf("%-18s %-14s %-4s %7s %-14s %s\n", "ID", "MODEL", "MSGS", "TOKENS", "UPDATED", "TITLE")
+	fmt.Printf("%-18s %-14s %-4s %7s %-14s %-48s %s\n", "ID", "MODEL", "MSGS", "TOKENS", "UPDATED", "TITLE", "TAGS")
 	for _, c := range list {
 		updated := c.UpdatedAt
 		if t, err := time.Parse(time.RFC3339, c.UpdatedAt); err == nil {
@@ -7587,7 +7708,7 @@ func cmdChats(args []string) error {
 		if len(title) > 48 {
 			title = title[:48] + "…"
 		}
-		fmt.Printf("%-18s %-14s %-4d %7d %-14s %s\n", c.ID, c.Model, c.Messages, c.Tokens, updated, title)
+		fmt.Printf("%-18s %-14s %-4d %7d %-14s %-48s %s\n", c.ID, c.Model, c.Messages, c.Tokens, updated, title, strings.Join(c.Tags, ","))
 	}
 	return nil
 }

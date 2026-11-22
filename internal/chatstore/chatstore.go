@@ -52,6 +52,7 @@ type Conversation struct {
 	AgentMode bool      `json:"agentMode,omitempty"`
 	System    string    `json:"system,omitempty"` // per-conversation system prompt (F063)
 	Pinned    bool      `json:"pinned,omitempty"` // pinned chats sort first (F310)
+	Tags      []string  `json:"tags,omitempty"`   // free-form labels for grouping (F676)
 	Messages  []Message `json:"messages"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -74,6 +75,7 @@ type Summary struct {
 	Model     string    `json:"model,omitempty"`
 	AgentMode bool      `json:"agentMode,omitempty"`
 	Pinned    bool      `json:"pinned,omitempty"`
+	Tags      []string  `json:"tags,omitempty"` // free-form labels (F676)
 	Messages  int       `json:"messages"`
 	Tokens    int       `json:"tokens,omitempty"` // total token usage across messages (F603)
 	CreatedAt time.Time `json:"createdAt"`
@@ -185,7 +187,7 @@ func (s *Store) List() ([]Summary, error) {
 		if err != nil {
 			continue // skip corrupt files in listings
 		}
-		out = append(out, Summary{ID: c.ID, Title: c.Title, Model: c.Model, AgentMode: c.AgentMode, Pinned: c.Pinned, Messages: len(c.Messages), Tokens: ConversationTokens(c.Messages), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
+		out = append(out, Summary{ID: c.ID, Title: c.Title, Model: c.Model, AgentMode: c.AgentMode, Pinned: c.Pinned, Tags: c.Tags, Messages: len(c.Messages), Tokens: ConversationTokens(c.Messages), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Pinned != out[j].Pinned {
@@ -203,6 +205,29 @@ func (s *Store) SetPinned(id string, pinned bool) (*Conversation, error) {
 		return nil, err
 	}
 	c.Pinned = pinned
+	b, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	tmp := s.path(id) + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return nil, err
+	}
+	if err := os.Rename(tmp, s.path(id)); err != nil {
+		os.Remove(tmp)
+		return nil, err
+	}
+	return c, nil
+}
+
+// SetTags replaces the tag list without touching UpdatedAt (F676), the chat
+// twin of SetPinned.
+func (s *Store) SetTags(id string, tags []string) (*Conversation, error) {
+	c, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	c.Tags = tags
 	b, err := json.Marshal(c)
 	if err != nil {
 		return nil, err

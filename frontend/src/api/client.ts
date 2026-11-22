@@ -316,6 +316,7 @@ export interface ChatConversation {
   model?: string;
   agentMode?: boolean;
   system?: string;
+  tags?: string[]; // free-form labels (F676)
   messages: ChatMessage[];
   createdAt: string;
   updatedAt: string;
@@ -332,6 +333,7 @@ export interface ChatSummary {
   model?: string;
   agentMode?: boolean;
   pinned?: boolean;
+  tags?: string[]; // free-form labels (F676)
   messages: number;
   tokens?: number; // total token usage (F603, F604)
   createdAt: string;
@@ -694,6 +696,11 @@ export const api = {
   deleteChat: (id: string) => req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}`, { method: "DELETE" }),
   pinChat: (id: string, pinned: boolean) =>
     req<{ ok: boolean }>(`/chats/${encodeURIComponent(id)}/pin`, { method: "POST", body: JSON.stringify({ pinned }) }),
+  setChatTags: (id: string, tags: string[]) =>
+    req<{ ok: boolean; tags: string[] }>(`/chats/${encodeURIComponent(id)}/tags`, {
+      method: "PATCH",
+      body: JSON.stringify({ tags }),
+    }),
   forkChat: (id: string, body: { forkAt: number; title?: string }) =>
     req<ChatConversation>(`/chats/${encodeURIComponent(id)}/fork`, {
       method: "POST",
