@@ -323,7 +323,7 @@ export default function Keys() {
             </thead>
             <tbody>
               {keys.map((k) => (
-                <tr key={k.id}>
+                <tr key={k.id} style={k.disabled ? { opacity: 0.55 } : undefined}>
                   <td>
                     {renameFor === k.id ? (
                       <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>

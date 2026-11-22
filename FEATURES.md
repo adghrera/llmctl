@@ -220,6 +220,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F208 | P3 | 208 | ui | Relative idle time on Instances | COMPLETED | The Instances page "last used" column now shows `idle 5m`-style relative time (absolute timestamp in the tooltip) instead of a clock time. Verified live: served bundle contains the `idle ${…}` template. |
 | F209 | P3 | 209 | cli | `usage` totals row | COMPLETED | `llmctl usage` (per-model table mode) now ends with a `total` line summing requests/errors/tokens/cost across the window. Verified live: totals match the per-day rows. |
 | F210 | P3 | 210 | cli | `scheduler add -webhook/-keep` | COMPLETED | `llmctl scheduler add` gained `-webhook URL` (per-task result webhook) and `-keep N` (backup retention), matching the API spec. Verified live: a backup task created with both flags shows `webhook_url` and `keep` in the API. |
+| F211 | P3 | 211 | ui | Dim disabled key rows | COMPLETED | Disabled keys now render at reduced opacity in the Keys table, complementing the "off" badge (F195) and toggle (F205). Verified live: served bundle contains the opacity style. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
