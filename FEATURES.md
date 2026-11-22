@@ -761,6 +761,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F748 | P3 | 748 | webhooks | Webhook log Export JSON | COMPLETED | The Settings webhook delivery log gained an Export JSON button beside Export CSV (filter-aware, follows the failed-only and event filters) — UI twin of `llmctl webhooks -json`. Verified live: served bundle carries the button. |
 | F749 | P3 | 749 | webhooks | Webhook log Stats toggle | COMPLETED | The Settings webhook delivery list gained a Stats toggle rolling the log up per event (total/ok/failed/last) — UI twin of `llmctl webhooks -stats`, filter-aware. Verified live: served bundle carries the toggle. |
 | F750 | P3 | 750 | chats | Chat message Save-as-prompt | COMPLETED | Each Chat message gained a →P button that stores the message text as a reusable prompt template (id prompted) — UI twin of `llmctl prompts add`, the reverse of the Prompts page "Insert into chat" (F300). Verified live: served bundle carries the button. |
+| F751 | P3 | 751 | jobs | jobs -stats roll-up | COMPLETED | `llmctl jobs -stats` aggregates the job list per kind (total/running/done/error/last update), with -json/-out/--csv variants — completes the -stats family for every list command. Verified live: table/CSV/JSON against a real install job (running then error). |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

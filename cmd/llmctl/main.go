@@ -202,7 +202,7 @@ Usage:
   llmctl status [-json] [-watch N] [-out FILE]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE] [-watch N]
-  llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
+  llmctl jobs [-json] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]
   llmctl jobs show <job-id> [-json] [-out FILE]
   llmctl jobs clear [-json]
@@ -1519,6 +1519,7 @@ func cmdJobs(args []string) error {
 	fs := flag.NewFlagSet("jobs", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the job list as CSV (F427)")
+	stats := fs.Bool("stats", false, "aggregate the jobs per kind instead of listing them (F751)")
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	outFile := fs.String("out", "", "write the raw jobs JSON to this file instead of stdout (F477)")
 	fs.Parse(reorderFlags(args))
@@ -1534,19 +1535,6 @@ func cmdJobs(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("jobs returned %d: %s", code, out)
 		}
-		if *outFile != "" { // F477: latest snapshot to a file (each -watch refresh overwrites)
-			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
-				return err
-			}
-			if *watch <= 0 {
-				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
-			}
-			return nil
-		}
-		if *jsonOut {
-			fmt.Print(string(out))
-			return nil
-		}
 		var list []struct {
 			ID       string    `json:"id"`
 			Kind     string    `json:"kind"`
@@ -1559,6 +1547,90 @@ func cmdJobs(args []string) error {
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
+		}
+		if *stats { // F751: one row per kind (total, running, done, error, last update)
+			type jst struct {
+				Kind    string    `json:"kind"`
+				Total   int       `json:"total"`
+				Running int       `json:"running"`
+				Done    int       `json:"done"`
+				Error   int       `json:"error"`
+				Last    time.Time `json:"last"`
+			}
+			byKind := map[string]*jst{}
+			for _, j := range list {
+				g := byKind[j.Kind]
+				if g == nil {
+					g = &jst{Kind: j.Kind}
+					byKind[j.Kind] = g
+				}
+				g.Total++
+				switch j.Status {
+				case "running":
+					g.Running++
+				case "done":
+					g.Done++
+				case "error":
+					g.Error++
+				}
+				if j.Updated.After(g.Last) {
+					g.Last = j.Updated
+				}
+			}
+			kinds := make([]string, 0, len(byKind))
+			for k := range byKind {
+				kinds = append(kinds, k)
+			}
+			sort.Slice(kinds, func(i, j int) bool { return byKind[kinds[i]].Total > byKind[kinds[j]].Total })
+			rows := make([]jst, 0, len(kinds))
+			for _, k := range kinds {
+				rows = append(rows, *byKind[k])
+			}
+			if *jsonOut || *outFile != "" {
+				b, _ := json.Marshal(rows)
+				if *outFile != "" {
+					if err := os.WriteFile(*outFile, b, 0o644); err != nil {
+						return err
+					}
+					fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b))
+					return nil
+				}
+				fmt.Println(string(b))
+				return nil
+			}
+			if *csvOut {
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"kind", "total", "running", "done", "error", "last"})
+				for _, r := range rows {
+					_ = w.Write([]string{r.Kind, strconv.Itoa(r.Total), strconv.Itoa(r.Running),
+						strconv.Itoa(r.Done), strconv.Itoa(r.Error), r.Last.UTC().Format(time.RFC3339)})
+				}
+				w.Flush()
+				return w.Error()
+			}
+			if len(rows) == 0 {
+				fmt.Println("no jobs (installs appear here: llmctl models install …)")
+				return nil
+			}
+			fmt.Printf("%-16s %5s %7s %5s %5s %s\n", "KIND", "TOTAL", "RUNNING", "DONE", "ERROR", "LAST")
+			for _, r := range rows {
+				fmt.Printf("%-16s %5d %7d %5d %5d %s\n", r.Kind, r.Total, r.Running, r.Done, r.Error,
+					r.Last.UTC().Format(time.RFC3339))
+			}
+			return nil
+		}
+		if *outFile != "" { // F477: latest snapshot to a file (each -watch refresh overwrites)
+			if err := os.WriteFile(*outFile, out, 0o644); err != nil {
+				return err
+			}
+			if *watch <= 0 {
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+			}
+			return nil
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
 		}
 		if *csvOut { // F427: header-only when empty keeps the stream parseable
 			w := csv.NewWriter(os.Stdout)
