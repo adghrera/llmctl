@@ -227,6 +227,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F215 | P3 | 215 | keys | Key rotation | COMPLETED | `POST /api/v1/keys/{id}/rotate` + `llmctl key rotate <id>` + a Rotate button on the Keys page replace a key's secret while keeping its id, name, quotas and usage counters; the new secret is shown once (reuses the keybox), the old one fails with 401 immediately. Verified live: old key 200 → rotate → old 401, new 200, same id. |
 | F216 | P3 | 216 | cli | `status -watch N` | COMPLETED | `llmctl status -watch N` live-refreshes the status view every N seconds (clear-screen loop, same pattern as `ps -watch`). Verified live: one-shot, `-json` and `-watch 1` all behave. |
 | F217 | P3 | 217 | cli | `metrics -json` + `webhooks -json` | COMPLETED | `llmctl metrics -json` prints the raw metrics JSON; `llmctl webhooks -json` prints the delivery log as JSON (honors `-n`). Verified live: both parse as JSON; table modes unchanged. |
+| F218 | P3 | 218 | cli | `llmctl prompts` | COMPLETED | New CLI over the existing prompt-library API: `prompts [filter] [-category X] [-json]` lists, `prompts show <id>` prints the template. Verified live: list, filter, category, JSON and show all behave. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

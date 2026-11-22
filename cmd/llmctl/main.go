@@ -73,6 +73,8 @@ func main() {
 		err = cmdEvents(args)
 	case "webhooks":
 		err = cmdWebhooks(args)
+	case "prompts":
+		err = cmdPrompts(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -146,6 +148,7 @@ Usage:
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
+  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -1819,6 +1822,93 @@ func cmdWebhooks(args []string) error {
 		}
 		fmt.Printf("%-14s %-24s %-6s %-5s %s\n",
 			d.Time.Local().Format("01-02 15:04:05"), ev, status, ok, info)
+	}
+	return nil
+}
+
+// cmdPrompts lists the built-in prompt library (F218).
+func cmdPrompts(args []string) error {
+	if len(args) > 0 && args[0] == "show" {
+		if len(args) < 2 {
+			return fmt.Errorf("usage: llmctl prompts show <id>")
+		}
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/prompts/" + url.PathEscape(args[1]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("prompt %q not found (%d)", args[1], code)
+		}
+		var p struct {
+			ID      string `json:"id"`
+			Name    string `json:"name"`
+			Content string `json:"content"`
+		}
+		if err := json.Unmarshal(out, &p); err != nil {
+			return err
+		}
+		fmt.Printf("%s (%s)\n\n%s\n", p.Name, p.ID, p.Content)
+		return nil
+	}
+	fs := flag.NewFlagSet("prompts", flag.ExitOnError)
+	category := fs.String("category", "", "only this category")
+	jsonOut := fs.Bool("json", false, "print the prompts as JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	filter := strings.ToLower(fs.Arg(0))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/prompts")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("prompts returned %d: %s", code, out)
+	}
+	type promptRow struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Category    string `json:"category"`
+	}
+	var list []promptRow
+	if err := json.Unmarshal(out, &list); err != nil {
+		return err
+	}
+	var shown []promptRow
+	for _, p := range list {
+		if *category != "" && !strings.EqualFold(p.Category, *category) {
+			continue
+		}
+		if filter != "" && !strings.Contains(strings.ToLower(p.ID+" "+p.Name+" "+p.Description+" "+p.Category), filter) {
+			continue
+		}
+		shown = append(shown, p)
+	}
+	if *jsonOut {
+		if len(shown) == len(list) {
+			fmt.Print(string(out))
+			return nil
+		}
+		b, err := json.Marshal(shown)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(b))
+		return nil
+	}
+	if len(shown) == 0 {
+		fmt.Println("no prompts match")
+		return nil
+	}
+	fmt.Printf("%-16s %-12s %-22s %s\n", "ID", "CATEGORY", "NAME", "DESCRIPTION")
+	for _, p := range shown {
+		fmt.Printf("%-16s %-12s %-22s %s\n", p.ID, p.Category, p.Name, p.Description)
 	}
 	return nil
 }
