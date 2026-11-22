@@ -217,7 +217,7 @@ Usage:
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
-  llmctl chat [--model ID] [--key KEY]
+  llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -5215,6 +5215,7 @@ func cmdChat(args []string) error {
 	modelFlag := fs.String("model", "", "model id to chat with")
 	keyFlag := fs.String("key", "", "API key (if auth is enabled)")
 	system := fs.String("system", "", "system prompt prepended to the conversation (F188)")
+	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	fs.Parse(reorderFlags(args))
 
 	cc, err := daemon.NewControlClient()
@@ -5267,6 +5268,69 @@ func cmdChat(args []string) error {
 
 	// Get API key.
 	key := *keyFlag
+	oneShot := *prompt
+	if oneShot == "" {
+		if fi, _ := os.Stdin.Stat(); fi.Mode()&os.ModeCharDevice == 0 {
+			// piped stdin in one-shot mode: the prompt is stdin itself
+			if b, err := io.ReadAll(os.Stdin); err == nil {
+				oneShot = strings.TrimSpace(string(b))
+			}
+		}
+	}
+	if oneShot != "" {
+		hist := []map[string]any{}
+		if strings.TrimSpace(*system) != "" {
+			hist = append(hist, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		hist = append(hist, map[string]any{"role": "user", "content": oneShot})
+		b, _ := json.Marshal(map[string]any{"model": model, "messages": hist, "stream": true})
+		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		if key != "" {
+			req.Header.Set("Authorization", "Bearer "+key)
+		}
+		hc := &http.Client{Timeout: 10 * time.Minute}
+		resp, err := hc.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("chat returned %d: %s", resp.StatusCode, string(bodyBytes))
+		}
+		rd := bufio.NewReader(resp.Body)
+		for {
+			l, err := rd.ReadString('\n')
+			if err != nil {
+				break
+			}
+			l = strings.TrimSpace(l)
+			if !strings.HasPrefix(l, "data:") {
+				continue
+			}
+			data := strings.TrimSpace(l[len("data:"):])
+			if data == "[DONE]" {
+				break
+			}
+			var chunk struct {
+				Choices []struct {
+					Delta struct {
+						Content string `json:"content"`
+					} `json:"delta"`
+				} `json:"choices"`
+			}
+			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
+				fmt.Print(chunk.Choices[0].Delta.Content)
+			}
+		}
+		fmt.Println()
+		return nil
+	}
 	if key == "" {
 		fi, _ := os.Stdin.Stat()
 		if fi.Mode()&os.ModeCharDevice != 0 {

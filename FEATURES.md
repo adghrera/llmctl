@@ -286,6 +286,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F274 | P3 | 274 | cli | `llmctl search` | COMPLETED | `llmctl search <query> [-max N] [-json]` exposes the daemon's keyless web search (the agent's web_search backend) on the CLI: numbered title/url/snippet results. Verified live against the real search backend (2 results, snippets, `-json` parses). |
 | F275 | P3 | 275 | cli | `models add` | COMPLETED | `llmctl models add <id> <file> [-backend ID]` registers an existing local GGUF file as a model (POST /api/v1/models) — previously UI-only. Verified live: registered a real file and `models show` confirmed backend/path, duplicate id, invalid id pattern and unreadable file all rejected with clean errors. |
 | F276 | P3 | 276 | cli | `backups download` | COMPLETED | `llmctl backups download <name> [-out file]` pulls a stored snapshot archive to a local file (GET /api/v1/backups/{name}) — the last backup endpoint without a CLI. Verified live: downloaded a real snapshot, `tar tzf` listed its contents, a second download was byte-identical, invalid name rejected. |
+| F277 | P3 | 277 | cli | `chat -prompt` one-shot | COMPLETED | `llmctl chat` gained a non-interactive mode: `-prompt TEXT` (or piped stdin) sends one message to the gateway, streams the reply to stdout and exits — scriptable without the REPL. Verified live through the gateway with a fresh key: `-prompt` and piped-stdin both returned the streamed reply, missing key gives a clean 401 error. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

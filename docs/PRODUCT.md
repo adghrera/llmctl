@@ -476,6 +476,8 @@ llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
                  | settings test-webhook (send a test event)
 llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|stdin|prompts…] [-json]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
+                                    (-prompt TEXT or piped stdin: one-shot mode — send one message,
+                                     print the streamed reply, exit; for scripts, F277)
 llmctl version
 ```
 
