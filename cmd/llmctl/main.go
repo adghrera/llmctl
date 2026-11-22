@@ -8430,6 +8430,7 @@ func cmdKey(args []string) error {
 	case "prune":
 		pfs := flag.NewFlagSet("key prune", flag.ExitOnError)
 		dry := pfs.Bool("dry-run", false, "list expired keys without deleting them")
+		pout := pfs.String("out", "", "write the raw prune-result JSON to this file instead of stdout (F509)")
 		pfs.Parse(reorderFlags(rest))
 		prunePath := "/api/v1/keys/prune"
 		if *dry {
@@ -8441,6 +8442,13 @@ func cmdKey(args []string) error {
 		}
 		if code != 200 {
 			return fmt.Errorf("prune returned %d: %s", code, out)
+		}
+		if *pout != "" { // F509: raw JSON to a file, stdout stays clean
+			if err := os.WriteFile(*pout, out, 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *pout, len(out))
+			return nil
 		}
 		var r struct {
 			Removed []string `json:"removed"`
