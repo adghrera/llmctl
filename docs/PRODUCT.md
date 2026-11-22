@@ -178,7 +178,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Search** — one box across local resources (F283): fan-out over the
   existing endpoints to find models (id/backend/path), saved chats (full-text
   with snippets), memory entries, knowledge bases, prompt templates
-  (F318) and instances + API keys (F364), each result linking to its page.
+  (F318) and instances + API keys (F364), plus skills and scheduler tasks
+  (F698), each result linking to its page.
   An Export CSV button downloads every match as one kind,name,detail file
   (F611). Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439).
   Pressing `?` anywhere outside a text field opens a keyboard-shortcut

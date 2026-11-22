@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api, ApiKey, Instance, KB, MemoryEntry, Model, PromptTemplate, SearchChatResult } from "../api/client";
+import { api, ApiKey, Instance, KB, MemoryEntry, Model, PromptTemplate, SearchChatResult, SkillRecord, ScheduleSpec } from "../api/client";
 
 // Global search across local resources (F283): models, chats, memory,
-// knowledge bases, prompt templates, instances and API keys (F364). Pure
-// client-side fan-out over the existing endpoints.
+// knowledge bases, prompt templates, instances, API keys (F364), skills and
+// scheduler tasks (F698). Pure client-side fan-out over the existing endpoints.
 
 export default function Search() {
   const [params] = useSearchParams();
@@ -17,6 +17,8 @@ export default function Search() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [skills, setSkills] = useState<SkillRecord[]>([]);
+  const [tasks, setTasks] = useState<ScheduleSpec[]>([]);
   const [searched, setSearched] = useState(false);
 
   const run = async (query: string) => {
@@ -25,7 +27,7 @@ export default function Search() {
     setRunning(true);
     setSearched(true);
     const low = t.toLowerCase();
-    const [m, c, mem, kb, pr, inst, ks] = await Promise.allSettled([
+    const [m, c, mem, kb, pr, inst, ks, sk, tk] = await Promise.allSettled([
       api.models().then((all) =>
         all.filter(
           (x) =>
@@ -69,6 +71,26 @@ export default function Search() {
             k.prefix.toLowerCase().includes(low)
         )
       ),
+      api.skills().then((all) =>
+        all.filter(
+          (s) =>
+            s.id.toLowerCase().includes(low) ||
+            (s.manifest.name || "").toLowerCase().includes(low) ||
+            (s.manifest.short_name || "").toLowerCase().includes(low) ||
+            (s.manifest.description || "").toLowerCase().includes(low) ||
+            (s.manifest.tags || []).some((t) => t.toLowerCase().includes(low))
+        )
+      ),
+      api.schedules().then((all) =>
+        all.filter(
+          (t) =>
+            t.name.toLowerCase().includes(low) ||
+            t.cron_expr.toLowerCase().includes(low) ||
+            (t.model || "").toLowerCase().includes(low) ||
+            (t.prompt || "").toLowerCase().includes(low) ||
+            (t.tags || []).some((x) => x.toLowerCase().includes(low))
+        )
+      ),
     ]);
     setModels(m.status === "fulfilled" ? m.value : []);
     setChats(c.status === "fulfilled" ? c.value : []);
@@ -77,6 +99,8 @@ export default function Search() {
     setPrompts(pr.status === "fulfilled" ? pr.value : []);
     setInstances(inst.status === "fulfilled" ? inst.value : []);
     setKeys(ks.status === "fulfilled" ? ks.value : []);
+    setSkills(sk.status === "fulfilled" ? sk.value : []);
+    setTasks(tk.status === "fulfilled" ? tk.value : []);
     setRunning(false);
   };
 
@@ -87,7 +111,7 @@ export default function Search() {
 
   const total =
     models.length + chats.length + memories.length + kbs.length + prompts.length +
-    instances.length + keys.length;
+    instances.length + keys.length + skills.length + tasks.length;
 
   // One CSV across every matched section (kind,name,detail), F611.
   const exportCsv = () => {
@@ -100,6 +124,8 @@ export default function Search() {
     kbs.forEach((k) => rows.push(["kb", k.kb.name, `${k.kb.doc_count} doc(s)`].map(esc).join(",")));
     instances.forEach((i) => rows.push(["instance", i.id, `${i.modelId} ${i.backendId} ${i.status}`].map(esc).join(",")));
     keys.forEach((k) => rows.push(["key", k.name || k.prefix, `${k.prefix}${k.disabled ? " disabled" : ""}`].map(esc).join(",")));
+    skills.forEach((s) => rows.push(["skill", s.manifest.name || s.id, `${s.id}${s.manifest.enabled ? "" : " disabled"}`].map(esc).join(",")));
+    tasks.forEach((t) => rows.push(["task", t.name, `${t.cron_expr} ${t.model || ""}${t.enabled ? "" : " disabled"}`].map(esc).join(",")));
     const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -115,7 +141,7 @@ export default function Search() {
         <div className="row" style={{ gap: 8 }}>
           <input
             style={{ flex: 1 }}
-            placeholder="Search models, chats, memory, knowledge bases, prompts, instances and keys…"
+            placeholder="Search models, chats, memory, knowledge bases, prompts, instances, keys, skills and tasks…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && run(q)}
@@ -237,6 +263,37 @@ export default function Search() {
               <Link to="/keys">{k.name || k.prefix}</Link>
               <span className="muted small">
                 {k.prefix}…{k.disabled ? " · disabled" : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {skills.length > 0 && (
+        <div className="card">
+          <h2>Skills ({skills.length})</h2>
+          {skills.map((s) => (
+            <div className="row" key={s.id} style={{ gap: 8, marginBottom: 4 }}>
+              <Link to="/skills">{s.manifest.name || s.id}</Link>
+              <span className="muted small">
+                {s.id}
+                {(s.manifest.tags || []).length ? ` · ${s.manifest.tags!.join(", ")}` : ""}
+                {s.manifest.enabled ? "" : " · disabled"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {tasks.length > 0 && (
+        <div className="card">
+          <h2>Scheduler Tasks ({tasks.length})</h2>
+          {tasks.map((t) => (
+            <div className="row" key={t.id} style={{ gap: 8, marginBottom: 4 }}>
+              <Link to="/scheduler">{t.name}</Link>
+              <span className="muted small">
+                <code>{t.cron_expr}</code>
+                {t.model ? ` · ${t.model}` : ""}
+                {(t.tags || []).length ? ` · ${t.tags!.join(", ")}` : ""}
+                {t.enabled ? "" : " · disabled"}
               </span>
             </div>
           ))}
