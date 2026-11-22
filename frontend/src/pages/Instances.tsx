@@ -784,7 +784,17 @@ export default function Instances() {
               {shownInstances.map((i) => (
                 <tr key={i.id}>
                   <td className="mono">
-                    {i.id}
+                    <span
+                      style={{ cursor: "pointer" }}
+                      title="click to copy the instance id (llmctl stop <id>, requests -instance)"
+                      onClick={() => {
+                        if (navigator.clipboard) {
+                          void navigator.clipboard.writeText(i.id).then(() => ok(`copied ${i.id}`));
+                        }
+                      }}
+                    >
+                      {i.id}
+                    </span>
                     {i.note ? (
                       <div className="muted" style={{ fontSize: 11, maxWidth: 220 }} title={i.note}>
                         {i.note}

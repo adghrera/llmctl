@@ -223,8 +223,8 @@ toggle for a light theme (choice remembered). Tabs:
   persisted across restarts (F119); it can also carry free-form tags (Vars
   dialog, `llmctl tag <instance> a,b` / `llmctl retag`), shown under the note
   and persisted like notes (F673); running instances show their uptime (F125),
-  have a click-to-copy Port cell (direct endpoint URL, F737), and link to their
-  gateway request history (F132); the Req button shows how
+  have click-to-copy id and Port cells (endpoint URL, F737, F739), and link to
+  their gateway request history (F132); the Req button shows how
   many requests the instance has served since daemon start (F150). Named start
   presets (model + vars + port recipe) can be saved and one-click started from
   the page, and from the CLI with `llmctl presets list|save|duplicate|start|delete|export|import` (F265, F328; `duplicate` copies a preset's model/instance/backend/port/vars under a new name, F648);
