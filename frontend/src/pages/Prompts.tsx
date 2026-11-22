@@ -15,6 +15,17 @@ export default function Prompts() {
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [nf, setNf] = useState({ id: "", name: "", category: "", description: "", content: "" });
+  // Inline render preview (CLI `prompts render -var` parity, F361).
+  const [render, setRender] = useState<{ id: string; input: string; vars: string; out: string } | null>(null);
+
+  const doRender = (t: PromptTemplate, input: string, vars: string): string => {
+    let out = t.content.split("{{input}}").join(input);
+    for (const kv of vars.split(",").map((s) => s.trim()).filter(Boolean)) {
+      const i = kv.indexOf("=");
+      if (i > 0) out = out.split(`{{${kv.slice(0, i).trim()}}}`).join(kv.slice(i + 1));
+    }
+    return out;
+  };
 
   const saveTemplate = async () => {
     if (editing) {
@@ -290,7 +301,75 @@ export default function Prompts() {
               }}
             >
               Insert into chat
+            </button>{" "}
+            <button
+              className="btn sm"
+              onClick={() =>
+                setRender(
+                  render?.id === t.id
+                    ? null
+                    : { id: t.id, input: "", vars: "", out: t.content }
+                )
+              }
+            >
+              {render?.id === t.id ? "Hide render" : "Render"}
             </button>
+            {render?.id === t.id && (
+              <div
+                style={{
+                  border: "1px solid var(--border, #333)",
+                  borderRadius: 4,
+                  padding: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                }}
+              >
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <input
+                    className="input"
+                    style={{ flex: 2, minWidth: 160 }}
+                    placeholder="{{input}} text"
+                    value={render.input}
+                    onChange={(e) =>
+                      setRender({ ...render, input: e.target.value, out: doRender(t, e.target.value, render.vars) })
+                    }
+                  />
+                  <input
+                    className="input"
+                    style={{ flex: 1, minWidth: 140 }}
+                    placeholder="extra vars: k=v, k2=v2"
+                    title="replaces {{k}} with v for each pair"
+                    value={render.vars}
+                    onChange={(e) =>
+                      setRender({ ...render, vars: e.target.value, out: doRender(t, render.input, e.target.value) })
+                    }
+                  />
+                </div>
+                <pre
+                  style={{
+                    margin: 0,
+                    padding: 8,
+                    fontSize: 11,
+                    fontFamily: "monospace",
+                    whiteSpace: "pre-wrap",
+                    background: "rgba(127,127,127,0.08)",
+                    borderRadius: 4,
+                  }}
+                >
+                  {render.out}
+                </pre>
+                <button
+                  className="btn sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(render.out);
+                    ok("rendered text copied");
+                  }}
+                >
+                  Copy rendered
+                </button>
+              </div>
+            )}
             {t.custom && (
               <>
                 <button className="btn sm" onClick={() => startEdit(t)}>

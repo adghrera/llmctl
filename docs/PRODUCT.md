@@ -291,8 +291,10 @@ toggle for a light theme (choice remembered). Tabs:
   between instances (F323).
   REST API: GET /api/v1/prompts,
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
-  page with category filtering, copy-to-clipboard, and an "Insert into chat"
-  button that opens the Chat page with the template pre-filled (F300). CLI:
+  page with category filtering, copy-to-clipboard, an "Insert into chat"
+  button that opens the Chat page with the template pre-filled (F300), and a
+  per-template "Render" preview that fills {{input}} and extra {{k}} vars
+  live (F361). CLI:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
    piped stdin] [-var k=v …]` (renders the template with {{input}} and any
