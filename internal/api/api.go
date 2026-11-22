@@ -1150,7 +1150,7 @@ type keyView struct {
 	CreatedAt     time.Time `json:"createdAt"`
 	TokenQuota    int64    `json:"tokenQuota,omitempty"`
 	UsedTok       int64    `json:"usedTokens"` // tokens spent since daemon start (F074)
-	AllowedModels []string `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
+	AllowedModels []string  `json:"allowedModels,omitempty"` // model allowlist, empty = all (F089)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
