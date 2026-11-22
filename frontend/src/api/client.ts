@@ -452,6 +452,7 @@ export interface Settings {  requireAuth: boolean;
   rateBurst?: number;
   usageRetentionDays?: number;
   logLevel?: string;
+  backupKeep?: number;
 }
 
 export class ApiError extends Error {
@@ -779,7 +780,7 @@ export const api = {
   daemonLog: (bytes = 8000) =>
     req<{ size: number; logs: string }>(`/logs/daemon?bytes=${bytes}`),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number; logLevel?: string }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number; logLevel?: string; backupKeep?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   testNotifyWebhook: () =>
     req<{ ok: boolean; error?: string }>("/settings/notify-test", { method: "POST" }),

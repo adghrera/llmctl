@@ -340,7 +340,8 @@ toggle for a light theme (choice remembered). Tabs:
   one .tar.gz and restores it back; also `llmctl backup [file]` /
   `llmctl restore <file>` on the CLI. Binaries/models/logs are excluded.
   A scheduler task of kind "backup" can snapshot the state automatically on a
-  cron (kept in `~/.llmctl/backups`, pruned to the newest N); the Settings
+  cron (kept in `~/.llmctl/backups`, pruned to the newest N — per-task `keep`
+   or the global `settings.backupKeep`, default 7, F181); the Settings
   page lists those snapshots for download, restore-in-place or deletion, and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
   `llmctl backups restore <name>` or the Restore button, F175, F176).

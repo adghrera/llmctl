@@ -1827,7 +1827,8 @@ type settingsView struct {
 	// UsageRetentionDays: UTC days of daily rollups kept; 0 = default 90,
 	// -1 = keep forever (F168).
 	UsageRetentionDays int    `json:"usageRetentionDays"`
-	LogLevel           string `json:"logLevel"` // daemon verbosity; "" = info (F171)
+	LogLevel           string `json:"logLevel"`   // daemon verbosity; "" = info (F171)
+	BackupKeep         int    `json:"backupKeep"` // snapshots kept; 0 = default 7 (F181)
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -1874,6 +1875,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		RateBurst:           st.Settings.RateBurst,
 		UsageRetentionDays:  st.Settings.UsageRetentionDays,
 		LogLevel:            st.Settings.LogLevel,
+		BackupKeep:          st.Settings.BackupKeep,
 	})
 }
 
@@ -1891,6 +1893,7 @@ type updateSettingsReq struct {
 	RateBurst           *int      `json:"rateBurst"`          // gateway default burst, 0 = CLI default (F152)
 	UsageRetentionDays  *int      `json:"usageRetentionDays"` // rollup days kept; 0 = default 90, -1 = forever (F168)
 	LogLevel            *string   `json:"logLevel"`           // daemon verbosity: debug|info|warn|error (F171)
+	BackupKeep          *int      `json:"backupKeep"`         // snapshots kept; 0 = default 7 (F181)
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -1917,6 +1920,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.UsageRetentionDays != nil && (*req.UsageRetentionDays < -1 || *req.UsageRetentionDays > 36500) {
 		writeErr(w, 400, "usageRetentionDays must be -1 (keep forever), 0 (default 90) or 1–36500")
+		return
+	}
+	if req.BackupKeep != nil && (*req.BackupKeep < 0 || *req.BackupKeep > 1000) {
+		writeErr(w, 400, "backupKeep must be 0 (default 7) or 1–1000")
 		return
 	}
 	if req.LogLevel != nil {
@@ -1973,6 +1980,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if req.LogLevel != nil {
 			st.Settings.LogLevel = strings.ToLower(strings.TrimSpace(*req.LogLevel)) // persisted (F171)
 		}
+		if req.BackupKeep != nil {
+			st.Settings.BackupKeep = *req.BackupKeep // snapshot retention (F181)
+		}
 		return nil
 	})
 	// Apply the change to the gateway immediately (runtime, no restart).
@@ -2008,6 +2018,7 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		RateBurst:           st.Settings.RateBurst,
 		UsageRetentionDays:  st.Settings.UsageRetentionDays,
 		LogLevel:            st.Settings.LogLevel,
+		BackupKeep:          st.Settings.BackupKeep,
 	})
 }
 

@@ -153,6 +153,9 @@ type Settings struct {
 	// LogLevel is the daemon log verbosity: "", "info", "debug", "warn",
 	// "error" (empty = info) (F171).
 	LogLevel string `json:"logLevel,omitempty"`
+	// BackupKeep is how many scheduled/on-demand snapshots are kept in
+	// ~/.llmctl/backups (0 = default 7) (F181).
+	BackupKeep int `json:"backupKeep,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

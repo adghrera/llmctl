@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const [rateRPS, setRateRPS] = useState(0);
   const [usageRetentionDays, setUsageRetentionDays] = useState(0);
   const [logLevel, setLogLevel] = useState("info");
+  const [backupKeep, setBackupKeep] = useState(0);
   const [rateBurst, setRateBurst] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [whEvents, setWhEvents] = useState("");
@@ -36,6 +37,7 @@ export default function SettingsPage() {
       setRateRPS(s.rateRPS || 0);
       setUsageRetentionDays(s.usageRetentionDays ?? 0);
       setLogLevel(s.logLevel || "info");
+      setBackupKeep(s.backupKeep ?? 0);
       setRateBurst(s.rateBurst || 0);
       setWebhook(s.notifyWebhook || "");
       setWhEvents((s.notifyEvents || []).join(", "));
@@ -141,6 +143,20 @@ export default function SettingsPage() {
       const r = await api.updateSettings({ logLevel });
       setSettings(r);
       ok(`daemon log level: ${r.logLevel || "info"}`);
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveBackupKeep = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ backupKeep });
+      setSettings(r);
+      ok(`snapshots kept: ${r.backupKeep || 7}`);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -551,7 +567,25 @@ export default function SettingsPage() {
           <button className="btn primary" disabled={snapBusy} onClick={createSnapshot}>
             {snapBusy ? "Creating…" : "Create snapshot now"}
           </button>
-          <span className="muted small">Keeps the newest 7 snapshots.</span>
+          <span className="muted small">Keeps the newest {backupKeep || 7} snapshots.</span>
+        </div>
+        <div className="row" style={{ marginBottom: 10, alignItems: "center" }}>
+          <label className="muted small" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            Snapshots kept
+            <input
+              className="oc-input"
+              type="number"
+              min={0}
+              max={1000}
+              style={{ width: 80 }}
+              value={backupKeep}
+              onChange={(e) => setBackupKeep(parseInt(e.target.value || "0", 10))}
+            />
+          </label>
+          <button className="btn" disabled={busy} onClick={saveBackupKeep}>
+            Save
+          </button>
+          <span className="muted small">0 = default (7). Applies to new snapshots.</span>
         </div>
         {backups.length ? (
           <table>

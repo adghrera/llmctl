@@ -39,9 +39,13 @@ func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
 }
 
 // createBackupNow handles POST /api/v1/backups — write a snapshot on demand
-// (same pruning as scheduled backups, keep defaults to 7). F088.
+// (same pruning as scheduled backups; keep = settings.backupKeep or 7). F088, F181.
 func (s *Server) createBackupNow(w http.ResponseWriter, r *http.Request) {
-	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), 7)
+	keep := 0
+	if st, err := s.store.Load(); err == nil && st.Settings != nil {
+		keep = st.Settings.BackupKeep
+	}
+	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), keep)
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return

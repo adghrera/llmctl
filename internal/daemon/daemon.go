@@ -659,16 +659,27 @@ func runScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.
 }
 
 // runScheduledBackup writes a state snapshot to $LLMCTL_HOME/backups/ and
-// prunes old ones, keeping the newest keep (default 7). F077.
+// prunes old ones, keeping the newest keep (0 = settings.backupKeep or 7). F077, F181.
 func runScheduledBackup(keep int) (string, error) {
 	if keep <= 0 {
-		keep = 7
+		keep = defaultBackupKeep()
 	}
 	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), keep)
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("backup %s written (%d bytes), keeping %d", name, size, keep), nil
+}
+
+// defaultBackupKeep resolves the snapshot retention: settings.backupKeep when
+// set, else 7 (F181).
+func defaultBackupKeep() int {
+	if st, err := store.Open(); err == nil {
+		if s, err := st.Load(); err == nil && s.Settings != nil && s.Settings.BackupKeep > 0 {
+			return s.Settings.BackupKeep
+		}
+	}
+	return 7
 }
 
 // doScheduledTask runs the chat completion and saves the conversation.
