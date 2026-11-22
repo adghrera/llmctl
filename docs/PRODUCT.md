@@ -406,6 +406,9 @@ llmctl events [-n 20] [-watch N] [-json]
 llmctl webhooks [-n 20] [-json]    recent webhook delivery attempts
 llmctl prompts [filter] [-category X] [-json] | prompts show <id>
 llmctl files [list|cat <id>|delete <id>] [-json]
+llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
+                 -notify-secret -allow-cors -start-on-demand -max-body-mb
+                 -rate-rps -rate-burst -retention-days -log-level -backup-keep
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
 llmctl version
 ```

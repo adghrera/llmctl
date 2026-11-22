@@ -229,6 +229,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F217 | P3 | 217 | cli | `metrics -json` + `webhooks -json` | COMPLETED | `llmctl metrics -json` prints the raw metrics JSON; `llmctl webhooks -json` prints the delivery log as JSON (honors `-n`). Verified live: both parse as JSON; table modes unchanged. |
 | F218 | P3 | 218 | cli | `llmctl prompts` | COMPLETED | New CLI over the existing prompt-library API: `prompts [filter] [-category X] [-json]` lists, `prompts show <id>` prints the template. Verified live: list, filter, category, JSON and show all behave. |
 | F219 | P3 | 219 | cli | `llmctl files` | COMPLETED | New CLI over the uploaded-files API: `files [-json]` lists (human sizes), `files cat <id>` prints content, `files delete <id>` removes. Verified live: upload → list → cat → delete round-trip. |
+| F220 | P3 | 220 | cli | `llmctl settings` | COMPLETED | New CLI over the settings API: `settings [-json]` prints all settings sorted, `settings set <flags>` PATCHes only the flags given (fs.Visit detection, -1/-2 sentinels to skip numeric flags). Verified live: show, json, set backupKeep 9→7, empty-set error. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

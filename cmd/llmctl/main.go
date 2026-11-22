@@ -77,6 +77,8 @@ func main() {
 		err = cmdPrompts(args)
 	case "files":
 		err = cmdFiles(args)
+	case "settings":
+		err = cmdSettings(args)
 	case "scheduler":
 		err = cmdScheduler(args)
 	case "chat":
@@ -152,6 +154,7 @@ Usage:
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
   llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id>
   llmctl files [list|cat <id>|delete <id>] [-json]
+  llmctl settings [-json] | llmctl settings set <flags>
   llmctl chat [--model ID] [--key KEY]
   llmctl backup [file.tar.gz]     export state (config/chats/KBs/memory/…)
   llmctl restore <file.tar.gz>    import a backup into the state dir
@@ -1996,6 +1999,99 @@ func cmdFiles(args []string) error {
 	default:
 		return fmt.Errorf("usage: llmctl files [list|cat <id>|delete <id>] [-json]")
 	}
+}
+
+// cmdSettings shows and edits daemon settings (F220). `settings` prints,
+// `settings set -flag value…` PATCHes only the flags given.
+func cmdSettings(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	if len(args) > 0 && args[0] == "set" {
+		fs := flag.NewFlagSet("settings set", flag.ExitOnError)
+		requireAuth := fs.Bool("require-auth", false, "gateway requires API keys")
+		idleMin := fs.Int("idle-min", -1, "idle unload minutes (-1 = leave)")
+		notifyWebhook := fs.String("notify-webhook", "", "webhook URL for events")
+		notifySecret := fs.String("notify-secret", "", "HMAC secret for the notify webhook")
+		allowCORS := fs.Bool("allow-cors", false, "CORS: * on the API")
+		startOnDemand := fs.Bool("start-on-demand", false, "start instances on request")
+		maxBodyMB := fs.Int("max-body-mb", -1, "max request body MB (-1 = leave)")
+		rateRPS := fs.Float64("rate-rps", -1, "gateway default requests/sec (-1 = leave)")
+		rateBurst := fs.Int("rate-burst", -1, "gateway default burst (-1 = leave)")
+		retentionDays := fs.Int("retention-days", -2, "usage rollup days kept, -1 = forever (-2 = leave)")
+		logLevel := fs.String("log-level", "", "daemon log level: debug|info|warn|error")
+		backupKeep := fs.Int("backup-keep", -1, "snapshots kept (-1 = leave)")
+		fs.Parse(reorderFlags(args[1:]))
+		body := map[string]any{}
+		fs.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "require-auth":
+				body["requireAuth"] = *requireAuth
+			case "idle-min":
+				body["idleUnloadMin"] = *idleMin
+			case "notify-webhook":
+				body["notifyWebhook"] = *notifyWebhook
+			case "notify-secret":
+				body["notifyWebhookSecret"] = *notifySecret
+			case "allow-cors":
+				body["allowCORS"] = *allowCORS
+			case "start-on-demand":
+				body["startOnDemand"] = *startOnDemand
+			case "max-body-mb":
+				body["maxBodyMB"] = *maxBodyMB
+			case "rate-rps":
+				body["rateRPS"] = *rateRPS
+			case "rate-burst":
+				body["rateBurst"] = *rateBurst
+			case "retention-days":
+				body["usageRetentionDays"] = *retentionDays
+			case "log-level":
+				body["logLevel"] = *logLevel
+			case "backup-keep":
+				body["backupKeep"] = *backupKeep
+			}
+		})
+		if len(body) == 0 {
+			return fmt.Errorf("nothing to set (pass at least one -flag)")
+		}
+		code, out, err := cc.Do("PATCH", "/api/v1/settings", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("settings set returned %d: %s", code, out)
+		}
+		fmt.Println("settings updated")
+		return nil
+	}
+	fs := flag.NewFlagSet("settings", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw settings JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	code, out, err := cc.Get("/api/v1/settings")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("settings returned %d: %s", code, out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var v map[string]any
+	if err := json.Unmarshal(out, &v); err != nil {
+		return err
+	}
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf("%-22s %v\n", k+":", v[k])
+	}
+	return nil
 }
 
 func cmdKey(args []string) error {
