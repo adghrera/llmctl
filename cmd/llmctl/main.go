@@ -185,7 +185,7 @@ Usage:
   llmctl search <query> [-max N] [-json] [--csv]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] <prompt>
   llmctl embed -model ID <text>
-  llmctl complete -model ID <prompt>
+  llmctl complete -model ID [-json] [-out FILE] <prompt>
   llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt>
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C]
@@ -1548,6 +1548,7 @@ func cmdComplete(args []string) error {
 	maxTok := fs.Int("max-tokens", 256, "max tokens to generate")
 	temp := fs.Float64("temperature", 0.7, "sampling temperature")
 	jsonOut := fs.Bool("json", false, "print the raw completions JSON (for scripts)")
+	outFile := fs.String("out", "", "write the completion text to this file instead of stdout (F455)")
 	fs.Parse(reorderFlags(args))
 	if *model == "" {
 		return fmt.Errorf("usage: llmctl complete -model ID [-key K] [-max-tokens N] [-temperature T] [-json] <prompt>  (or pipe stdin)")
@@ -1588,6 +1589,17 @@ func cmdComplete(args []string) error {
 	}
 	if err := json.Unmarshal(out, &res); err != nil || len(res.Choices) == 0 {
 		return fmt.Errorf("complete: unexpected response: %s", out)
+	}
+	if *outFile != "" { // F455: completion text only, for scripts
+		text := res.Choices[0].Text
+		if !strings.HasSuffix(text, "\n") {
+			text += "\n"
+		}
+		if err := os.WriteFile(*outFile, []byte(text), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(text))
+		return nil
 	}
 	fmt.Print(res.Choices[0].Text)
 	if !strings.HasSuffix(res.Choices[0].Text, "\n") {

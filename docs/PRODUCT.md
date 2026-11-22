@@ -565,7 +565,7 @@ llmctl jobs [-json] [--csv] [-watch N]              (background install jobs; --
 llmctl search <query> [-max N] [-json] [--csv]      (keyless web search; --csv exports rank,title,url,snippet, F428, F274)
 llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] <prompt>   (schema-validated JSON, F279, F344)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
-llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
+llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-json] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json]   (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
