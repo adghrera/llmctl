@@ -46,6 +46,10 @@ func main() {
 		err = cmdStatus(args)
 	case "doctor":
 		err = cmdDoctor(args)
+	case "gpu":
+		err = cmdGPU(args)
+	case "disk":
+		err = cmdDisk(args)
 	case "ps":
 		err = cmdPS(args)
 	case "backends":
@@ -129,6 +133,8 @@ Usage:
   llmctl down
   llmctl status [-json] [-watch N]
   llmctl doctor [-json] [-quiet] [-check NAME]...
+  llmctl gpu [-json]
+  llmctl disk [-json]
   llmctl ps [-watch N] [-json]
   llmctl backends list [-json]
   llmctl backends install <id> [--asset <hint>]
@@ -420,6 +426,88 @@ func cmdDoctor(args []string) error {
 			fmt.Println("doctor: all checks passed")
 		}
 	}
+	return nil
+}
+
+// cmdGPU prints GPU inventory from the daemon's probe (GET /api/v1/gpu).
+func cmdGPU(args []string) error {
+	fs := flag.NewFlagSet("gpu", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw GPU JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/gpu")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("gpu returned %d: %s", code, out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var res struct {
+		GPUs []struct {
+			Vendor     string `json:"vendor"`
+			Name       string `json:"name"`
+			TotalBytes int64  `json:"total_bytes"`
+			UsedBytes  int64  `json:"used_bytes"`
+		} `json:"gpus"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	if len(res.GPUs) == 0 {
+		fmt.Println("no GPUs detected")
+		return nil
+	}
+	fmt.Printf("%-8s %-32s %10s %10s %6s\n", "VENDOR", "NAME", "TOTAL", "USED", "%")
+	for _, g := range res.GPUs {
+		pct := 0.0
+		if g.TotalBytes > 0 {
+			pct = 100 * float64(g.UsedBytes) / float64(g.TotalBytes)
+		}
+		fmt.Printf("%-8s %-32s %10s %10s %5.1f%%\n", g.Vendor, g.Name, fmtSize(g.TotalBytes), fmtSize(g.UsedBytes), pct)
+	}
+	return nil
+}
+
+// cmdDisk prints model-disk usage from the daemon (GET /api/v1/disk).
+func cmdDisk(args []string) error {
+	fs := flag.NewFlagSet("disk", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw disk JSON (for scripts)")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/disk")
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("disk returned %d: %s", code, out)
+	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	var res struct {
+		Dir         string `json:"dir"`
+		TotalBytes  int64  `json:"totalBytes"`
+		FreeBytes   int64  `json:"freeBytes"`
+		ModelsBytes int64  `json:"modelsBytes"`
+		ModelsCount int    `json:"modelsCount"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return err
+	}
+	fmt.Printf("dir:     %s\n", res.Dir)
+	fmt.Printf("models:  %d file(s), %s\n", res.ModelsCount, fmtSize(res.ModelsBytes))
+	fmt.Printf("volume:  %s free of %s\n", fmtSize(res.FreeBytes), fmtSize(res.TotalBytes))
 	return nil
 }
 
