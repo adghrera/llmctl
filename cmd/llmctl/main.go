@@ -211,7 +211,7 @@ Usage:
   llmctl bench -model ID [-n N] [-conc C]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
   llmctl disk [-json] [--csv] [-out FILE] [-watch N]
-  llmctl ps [-watch N] [--csv] [-json] [-out FILE]
+  llmctl ps [-watch N] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl backends list [-json|-csv|-out FILE]
   llmctl backends install <id> [--asset <hint>] [-json] [--wait]
   llmctl backends uninstall <id> [-json]
@@ -266,7 +266,7 @@ Usage:
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
-  llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]
+  llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json] [-out FILE] [-stats]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json] [-watch N] [-out FILE] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-out FILE] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-json] | prompts update <id> [-name N] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
@@ -2619,13 +2619,9 @@ func cmdPS(args []string) error {
 	}
 	// Live view: clear + reprint every interval until interrupted (F194).
 	for {
-		_, out, err := cc.Get("/api/v1/instances")
-		if err != nil {
-			return err
-		}
 		fmt.Print("\x1b[2J\x1b[H") // clear screen
 		fmt.Printf("live instances — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
-		if err := printPS(out, false); err != nil {
+		if err := printOnce(); err != nil { // F620: -json/-out honored each tick
 			return err
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
@@ -5378,16 +5374,9 @@ func cmdMetrics(args []string) error {
 	}
 	// Live view: clear + reprint every interval until interrupted (F179).
 	for {
-		code, out, err := cc.Get("/api/v1/metrics")
-		if err != nil {
-			return err
-		}
-		if code != 200 {
-			return fmt.Errorf("metrics returned %d: %s", code, out)
-		}
 		fmt.Print("\x1b[2J\x1b[H") // clear screen
 		fmt.Printf("live metrics — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
-		if err := printMetrics(out, *modelF, false); err != nil {
+		if err := printOnce(); err != nil { // F620: -json/-out honored each tick
 			return err
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
