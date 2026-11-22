@@ -369,7 +369,8 @@ llmctl status [-json]              (version, uptime, running instances with
                                     -json = raw)
 llmctl doctor [-json]              (health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is
-                                    bound to a public address with auth off, F183); exit ≠0 on errors)
+                                    bound to a public address with auth off, F183), disk (warns on
+                                    orphaned files in the models dir, F206); exit ≠0 on errors)
 llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also shows uptime, requests served, auto-restart
                                     count and per-instance notes)
 llmctl backends list|install|uninstall|add|remove

@@ -215,6 +215,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F203 | P3 | 203 | cli | `scheduler list -json` | COMPLETED | `llmctl scheduler list -json` prints the raw scheduler JSON (incl. lastRun) for scripts. Verified live: empty list and a created task both parse as JSON. |
 | F204 | P3 | 204 | cli | `autostart list -json` | COMPLETED | `llmctl autostart list -json` prints the raw auto-start JSON for scripts, completing the `-json` set (status/doctor/requests/ps/usage/backups/models/key/scheduler/autostart). Verified live: output parses as JSON (1 entry). |
 | F205 | P3 | 205 | keys | Disable/Enable button in Keys UI | COMPLETED | The Keys page gained a Disable/Enable button per key (PATCH `{"disabled":…}`, same endpoint as the CLI), with the "off" badge from F195 reflecting state. Verified live: served JS bundle contains the toggle strings; PATCH verified in F195. |
+| F206 | P3 | 206 | doctor | Orphaned model-file check | COMPLETED | `llmctl doctor` gained a "disk" check: warns when files under the models dir are not referenced by any model record (count + size + names), ok otherwise. Verified live: an orphan file triggers warn, removing it returns ok. |
 
 ## Shipped (v0.2 architecture, this iteration)
 

@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -82,6 +83,37 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		add("models", "warn", fmt.Sprintf("%d registered, missing files: %v", len(st.Models), gone))
 	} else {
 		add("models", "ok", fmt.Sprintf("%d registered, all files present", len(st.Models)))
+	}
+
+	// Orphaned model files: files under the models dir no record points at
+	// (left behind by external deletes). Warn with count + size (F206).
+	{
+		referenced := map[string]bool{}
+		for _, m := range st.Models {
+			referenced[filepath.Clean(m.Path)] = true
+		}
+		var orphans []string
+		var orphanBytes int64
+		root := paths.ModelsDir()
+		filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil // best-effort: skip unreadable entries
+			}
+			if referenced[filepath.Clean(p)] {
+				return nil
+			}
+			if info, ierr := d.Info(); ierr == nil {
+				orphans = append(orphans, strings.TrimPrefix(p, root+string(os.PathSeparator)))
+				orphanBytes += info.Size()
+			}
+			return nil
+		})
+		if len(orphans) > 0 {
+			add("disk", "warn", fmt.Sprintf("%d orphaned file(s) in models dir (%.1f MiB), not referenced by any model: %v",
+				len(orphans), float64(orphanBytes)/1e6, orphans))
+		} else {
+			add("disk", "ok", "no orphaned files in the models dir")
+		}
 	}
 
 	// Running instances answer their models endpoint.
