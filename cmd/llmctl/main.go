@@ -226,6 +226,7 @@ Usage:
   llmctl models stats [-json] [--csv] [-out FILE]   (per-backend roll-up: models, running, total size)
   llmctl models routable [-key K] [-json|-csv|-out FILE]   (what the gateway advertises on /v1/models)
   llmctl models add <id> <file> [-backend ID] [-ctx N] [-json] [-out FILE]
+  llmctl models rename <id> <new-id> [-json]   (change a model id; aliases follow)
   llmctl models aliases [-json] [--csv] [-out FILE]
   llmctl models alias <name> <model-id> [-json]
   llmctl models unalias <name> [-json]
