@@ -239,7 +239,7 @@ Usage:
   llmctl stop <instance> [--force] | llmctl stop --all [--json]
   llmctl restart <instance> [-json] | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
-  llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
+  llmctl note <instance> [text] [-json] (empty text clears) | autorestart <instance> <on|off> [-json] | setvars <instance> [-var k=v…] [-json]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
@@ -1211,8 +1211,8 @@ func cmdNote(args []string) error {
 	fs := flag.NewFlagSet("note", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw response JSON (F529)")
 	fs.Parse(reorderFlags(args))
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: llmctl note <instance-id> <text…> [-json]")
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: llmctl note <instance-id> [text…] [-json]  (empty text clears)")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1229,6 +1229,10 @@ func cmdNote(args []string) error {
 	}
 	if *jsonOut {
 		fmt.Print(string(out))
+		return nil
+	}
+	if strings.TrimSpace(note) == "" {
+		fmt.Printf("instance %s note cleared\n", fs.Arg(0))
 		return nil
 	}
 	fmt.Printf("instance %s note set\n", fs.Arg(0))
