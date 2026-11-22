@@ -481,6 +481,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F468 | P3 | 468 | cli | `events -out FILE` | COMPLETED | `llmctl events -out FILE` writes the raw events JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json, -watch and the human table are unchanged. Verified live: -out wrote the exact API payload ([] with a fresh daemon — same bytes as -json), plain path unchanged. |
 | F469 | P3 | 469 | cli | `metrics -out FILE` | COMPLETED | `llmctl metrics -out FILE` writes the raw metrics JSON to the file (stdout stays clean, notice on stderr; with -watch the file is refreshed each tick without notices), for scripting; --csv, -json and the human table are unchanged. Verified live: -out wrote the exact payload (634 B), plain and -json unchanged. |
 | F470 | P3 | 470 | cli | `cost -out FILE` | COMPLETED | `llmctl cost -out FILE` writes the `{totals, groups}` cost JSON to the file (stdout stays clean, notice on stderr), for scripting; --csv, -json, -keys, -model, -key and the human table are unchanged. Verified live: -out wrote the exact payload (337 B), plain and -json unchanged. |
+| F471 | P3 | 471 | cli | `settings -out FILE` | COMPLETED | `llmctl settings -out FILE` writes the raw settings JSON to the file (stdout stays clean, notice on stderr), handy for config backups; -json and the human key/value list are unchanged. Verified live: -out wrote the exact payload (241 B), plain and -json unchanged. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

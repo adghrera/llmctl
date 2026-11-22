@@ -629,7 +629,7 @@ llmctl events [-n 20] [-watch N] [-kind K] [-model M] [-json] [-out FILE]   (-ou
 llmctl webhooks [-n 20] [-event E] [--csv] [-json] | webhooks test    recent delivery attempts / send a test event (F447)
 llmctl prompts [filter] [-category X] [-json] | prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file]
 llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json]
-llmctl settings [-json] | settings set -require-auth -idle-min -notify-webhook
+llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
                  | settings test-webhook (send a test event)
