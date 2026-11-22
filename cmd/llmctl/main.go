@@ -1019,6 +1019,7 @@ func cmdUsage(args []string) error {
 	fs := flag.NewFlagSet("usage", flag.ExitOnError)
 	n := fs.Int("n", 14, "number of days")
 	key := fs.String("key", "", "show per-key daily usage for this key id instead of per-model")
+	keysFlag := fs.Bool("keys", false, "show daily usage for all keys instead of per-model")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
@@ -1054,6 +1055,66 @@ func cmdUsage(args []string) error {
 		for _, day := range days {
 			for id, u := range kd[day] {
 				fmt.Printf("%s  key %s  %6d reqs %4d err %10d in %10d out", day, id, u.Requests, u.Errors, u.Prompt, u.Comp)
+				if u.Cost > 0 {
+					fmt.Printf("  $%.4f", u.Cost)
+				}
+				fmt.Println()
+			}
+		}
+		return nil
+	}
+	if *keysFlag {
+		code, out, err := cc.Get("/api/v1/usage/keys?days=" + strconv.Itoa(*n))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("usage returned %d: %s", code, out)
+		}
+		var kd map[string]map[string]struct {
+			Requests int64   `json:"requests"`
+			Errors   int64   `json:"errors"`
+			Prompt   int64   `json:"prompt"`
+			Comp     int64   `json:"comp"`
+			Cost     float64 `json:"cost"`
+		}
+		if err := json.Unmarshal(out, &kd); err != nil {
+			return err
+		}
+		if len(kd) == 0 {
+			fmt.Println("no per-key usage recorded yet")
+			return nil
+		}
+		names := map[string]string{} // key id -> name for readable output
+		if code, kout, err := cc.Get("/api/v1/keys"); err == nil && code == 200 {
+			var kl []struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			}
+			if json.Unmarshal(kout, &kl) == nil {
+				for _, k := range kl {
+					names[k.ID] = k.Name
+				}
+			}
+		}
+		days := make([]string, 0, len(kd))
+		for d := range kd {
+			days = append(days, d)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(days)))
+		for _, day := range days {
+			ids := make([]string, 0, len(kd[day]))
+			for id := range kd[day] {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			for _, id := range ids {
+				u := kd[day][id]
+				name := names[id]
+				if name == "" {
+					name = "(revoked)"
+				}
+				fmt.Printf("%s  %-14s %-16s %6d reqs %4d err %10d in %10d out", day, id[:min(12, len(id))], name, u.Requests, u.Errors, u.Prompt, u.Comp)
 				if u.Cost > 0 {
 					fmt.Printf("  $%.4f", u.Cost)
 				}
