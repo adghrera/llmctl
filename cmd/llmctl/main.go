@@ -190,7 +190,7 @@ func usage() {
 
 Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
-  llmctl down
+  llmctl down [-json]
   llmctl status [-json] [-watch N] [-out FILE]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE]
@@ -326,6 +326,9 @@ func cmdUp(args []string) error {
 }
 
 func cmdDown(args []string) error {
+	fs := flag.NewFlagSet("down", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw response JSON (F568)")
+	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
@@ -334,10 +337,14 @@ func cmdDown(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(out))
 	if code != 200 {
-		return fmt.Errorf("shutdown returned %d", code)
+		return fmt.Errorf("shutdown returned %d: %s", code, out)
 	}
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	fmt.Println("daemon stopped")
 	return nil
 }
 
