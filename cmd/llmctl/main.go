@@ -67,6 +67,8 @@ func main() {
 		err = cmdEmbed(args)
 	case "complete":
 		err = cmdComplete(args)
+	case "compare":
+		err = cmdCompare(args)
 	case "bench":
 		err = cmdBench(args)
 	case "note":
@@ -164,6 +166,7 @@ Usage:
   llmctl structured -model ID -schema file.json <prompt>
   llmctl embed -model ID <text>
   llmctl complete -model ID <prompt>
+  llmctl compare -models A,B [-system S] [-max-tokens N] <prompt>
   llmctl bench -model ID [-n N] [-conc C]
   llmctl disk [-json]
   llmctl ps [-watch N] [-json]
@@ -1308,6 +1311,99 @@ func cmdComplete(args []string) error {
 	fmt.Print(res.Choices[0].Text)
 	if !strings.HasSuffix(res.Choices[0].Text, "\n") {
 		fmt.Println()
+	}
+	return nil
+}
+
+func cmdCompare(args []string) error {
+	fs := flag.NewFlagSet("compare", flag.ExitOnError)
+	modelsFlag := fs.String("models", "", "comma-separated model ids or aliases (required)")
+	keyF := fs.String("key", "", "gateway API key (if auth is enabled)")
+	system := fs.String("system", "", "system prompt prepended to the conversation")
+	maxTok := fs.Int("max-tokens", 0, "max tokens per response (0 = model default)")
+	fs.Parse(reorderFlags(args))
+	if *modelsFlag == "" {
+		return fmt.Errorf("usage: llmctl compare -models A,B [-key K] [-system S] [-max-tokens N] <prompt>  (or pipe stdin)")
+	}
+	prompt := strings.Join(fs.Args(), " ")
+	if prompt == "" {
+		if b, err := io.ReadAll(os.Stdin); err == nil {
+			prompt = strings.TrimSpace(string(b))
+		}
+	}
+	if prompt == "" {
+		return fmt.Errorf("no prompt (pass it as an argument or pipe it to stdin)")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	for _, m := range strings.Split(*modelsFlag, ",") {
+		m = strings.TrimSpace(m)
+		if m == "" {
+			continue
+		}
+		msgs := []map[string]string{}
+		if strings.TrimSpace(*system) != "" {
+			msgs = append(msgs, map[string]string{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		msgs = append(msgs, map[string]string{"role": "user", "content": prompt})
+		body := map[string]any{"model": m, "messages": msgs}
+		if *maxTok > 0 {
+			body["max_tokens"] = *maxTok
+		}
+		fmt.Printf("=== %s ===\n", m)
+		body["stream"] = true
+		b, _ := json.Marshal(body)
+		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
+		if err != nil {
+			fmt.Printf("error: %v\n\n", err)
+			continue
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		if *keyF != "" {
+			req.Header.Set("Authorization", "Bearer "+*keyF)
+		}
+		hc := &http.Client{Timeout: 10 * time.Minute}
+		resp, err := hc.Do(req)
+		if err != nil {
+			fmt.Printf("error: %v\n\n", err)
+			continue
+		}
+		if resp.StatusCode != 200 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			fmt.Printf("error: %s\n\n", string(bodyBytes))
+			continue
+		}
+		rd := bufio.NewReader(resp.Body)
+		for {
+			l, err := rd.ReadString('\n')
+			if err != nil {
+				break
+			}
+			l = strings.TrimSpace(l)
+			if !strings.HasPrefix(l, "data:") {
+				continue
+			}
+			data := strings.TrimSpace(l[len("data:"):])
+			if data == "[DONE]" {
+				break
+			}
+			var chunk struct {
+				Choices []struct {
+					Delta struct {
+						Content string `json:"content"`
+					} `json:"delta"`
+				} `json:"choices"`
+			}
+			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
+				fmt.Print(chunk.Choices[0].Delta.Content)
+			}
+		}
+		resp.Body.Close()
+		fmt.Print("\n\n")
 	}
 	return nil
 }

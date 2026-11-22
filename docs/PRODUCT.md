@@ -257,6 +257,7 @@ toggle for a light theme (choice remembered). Tabs:
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page.
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
+  CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301).
 - **Export/import conversations** — GET /api/v1/chats/{id}/export?format=json|markdown
   downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a
   conversation JSON body for import. Frontend: Export JSON/MD buttons per
@@ -442,6 +443,7 @@ llmctl search <query> [-max N] [-json]             (keyless web search, F274)
 llmctl structured -model ID -schema f.json [-key K] <prompt>   (schema-validated JSON, F279)
 llmctl embed -model ID [-key K] [-json] <text>                 (gateway embeddings, F281)
 llmctl complete -model ID [-key K] [-json] <prompt>            (gateway text completions, F287)
+llmctl compare -models A,B [-system S] [-max-tokens N] <prompt> (CLI twin of Compare page, F301)
 llmctl bench -model ID [-key K] [-n N] [-conc C]              (latency/throughput benchmark, F282)
 llmctl disk [-json]                                (model dir + volume disk usage)
                                     health sweep: state dir, backends, models,
