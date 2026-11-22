@@ -41,6 +41,13 @@ func newRateLimiter(rps float64, burst int, getLimits func(string) (float64, int
 	return &rateLimiter{rps: rps, burst: burst, created: map[string]*limiter{}, getLimits: getLimits}
 }
 
+// setGetLimits replaces the per-key limit lookup after construction (F130).
+func (rl *rateLimiter) setGetLimits(fn func(string) (float64, int)) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.getLimits = fn
+}
+
 // allow reports whether the request with the given key is allowed.
 // key can be empty, meaning the request is not authenticated and should use the default limits.
 func (rl *rateLimiter) allow(key string) bool {

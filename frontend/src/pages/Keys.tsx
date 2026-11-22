@@ -11,6 +11,8 @@ export default function Keys() {
   const [models, setModels] = useState("");
   const [conc, setConc] = useState(0);
   const [maxReq, setMaxReq] = useState(0);
+  const [rps, setRps] = useState(0);
+  const [burst, setBurst] = useState(0);
   const [created, setCreated] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
@@ -36,13 +38,15 @@ export default function Keys() {
     setBusy(true);
     try {
       const allowed = models.split(",").map((s) => s.trim()).filter(Boolean);
-      const r = await api.createKey(name, quota, allowed, conc, maxReq);
+      const r = await api.createKey(name, quota, allowed, conc, maxReq, rps, burst);
       setCreated(r.key);
       setName("");
       setQuota(0);
       setModels("");
       setConc(0);
       setMaxReq(0);
+      setRps(0);
+      setBurst(0);
       ok(`created key ${r.prefix}…`);
       await refreshOne("keys");
     } catch (e) {
@@ -143,6 +147,25 @@ export default function Keys() {
             value={maxReq || ""}
             onChange={(e) => setMaxReq(Math.max(0, Number(e.target.value) || 0))}
           />
+          <input
+            type="number"
+            min={0}
+            step={0.1}
+            style={{ width: 90 }}
+            placeholder="rps"
+            title="Sustained requests/sec limit (0 = gateway default)"
+            value={rps || ""}
+            onChange={(e) => setRps(Math.max(0, Number(e.target.value) || 0))}
+          />
+          <input
+            type="number"
+            min={0}
+            style={{ width: 90 }}
+            placeholder="burst"
+            title="Request burst size (0 = gateway default)"
+            value={burst || ""}
+            onChange={(e) => setBurst(Math.max(0, Number(e.target.value) || 0))}
+          />
           <button className="btn primary" disabled={busy || !name} onClick={create}>
             Create
           </button>
@@ -191,6 +214,11 @@ export default function Keys() {
                     {k.usedCost ? <span className="muted"> · ${k.usedCost.toFixed(4)}</span> : null}
                     {k.maxRequests ? (
                       <span className="muted"> · {k.usedRequests ?? 0}/{k.maxRequests} reqs</span>
+                    ) : null}
+                    {k.rateRPS ? (
+                      <span className="muted" title={`rate limit: ${k.rateRPS} req/s (burst ${k.rateBurst || "default"})`}>
+                        {" "}{k.rateRPS}/s
+                      </span>
                     ) : null}
                   </td>
                   <td className="mono">

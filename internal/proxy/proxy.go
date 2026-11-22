@@ -832,6 +832,17 @@ func (s *Server) cors(next http.Handler) http.Handler {
 // SetKeyCheck updates the hashed-key verifier at runtime.
 func (s *Server) SetKeyCheck(fn func(string) *store.APIKeyRecord) {
 	s.keyCheck = fn
+	// Per-key rate limits (F130): the limiter reads rps/burst from the key
+	// record; wire it here too because the daemon sets the checker after
+	// NewServer, when the limiter was already constructed.
+	if fn != nil {
+		s.limiter.setGetLimits(func(token string) (float64, int) {
+			if rec := fn(token); rec != nil {
+				return rec.RateRPS, rec.RateBurst
+			}
+			return 0, 0
+		})
+	}
 }
 
 // SetStartHook installs a cold-start attempt used when no running instance

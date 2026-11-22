@@ -1408,13 +1408,15 @@ type keyView struct {
 	MaxConcurrent int       `json:"maxConcurrent,omitempty"` // in-flight cap, 0 = unlimited (F095)
 	MaxRequests   int64     `json:"maxRequests,omitempty"`   // total request cap, 0 = unlimited (F105)
 	UsedReqs      int64     `json:"usedRequests"`            // requests made since daemon start (F105)
+	RateRPS       float64   `json:"rateRPS,omitempty"`       // sustained req/s, 0 = default (F130)
+	RateBurst     int       `json:"rateBurst,omitempty"`     // burst size, 0 = default (F130)
 }
 
 func (s *Server) listKeys(w http.ResponseWriter, r *http.Request) {
 	st, _ := s.store.Load()
 	out := []keyView{}
 	for _, k := range st.APIKeys {
-		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests}
+		v := keyView{ID: k.ID, Name: k.Name, Prefix: k.Prefix, CreatedAt: k.CreatedAt, TokenQuota: k.TokenQuota, AllowedModels: k.AllowedModels, MaxConcurrent: k.MaxConcurrent, MaxRequests: k.MaxRequests, RateRPS: k.RateRPS, RateBurst: k.RateBurst}
 		if s.gw != nil {
 			if ku, ok := s.gw.KeyUsage()[k.ID]; ok { // counters key on the key id (F109)
 				v.UsedTok = ku.TotalTok
@@ -1433,6 +1435,8 @@ type createKeyReq struct {
 	AllowedModels []string `json:"allowedModels"` // empty = all models (F089)
 	MaxConcurrent int      `json:"maxConcurrent"` // 0 = unlimited (F095)
 	MaxRequests   int64    `json:"maxRequests"`   // 0 = unlimited (F105)
+	RateRPS       float64  `json:"rateRPS"`       // sustained req/s, 0 = gateway default (F130)
+	RateBurst     int      `json:"rateBurst"`     // burst size, 0 = gateway default (F130)
 }
 
 // updateKey handles PATCH /api/v1/keys/{id} — edit a key's model allowlist
@@ -1440,8 +1444,10 @@ type createKeyReq struct {
 func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var req struct {
-		AllowedModels []string `json:"allowedModels"`
-		MaxConcurrent *int     `json:"maxConcurrent"`
+		AllowedModels []string  `json:"allowedModels"`
+		MaxConcurrent *int      `json:"maxConcurrent"`
+		RateRPS       *float64  `json:"rateRPS"`   // 0 = gateway default (F130)
+		RateBurst     *int      `json:"rateBurst"` // 0 = gateway default (F130)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")
@@ -1449,6 +1455,10 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.MaxConcurrent != nil && *req.MaxConcurrent < 0 {
 		writeErr(w, 400, "maxConcurrent must be >= 0")
+		return
+	}
+	if req.RateRPS != nil && *req.RateRPS < 0 || req.RateBurst != nil && *req.RateBurst < 0 {
+		writeErr(w, 400, "rateRPS and rateBurst must be >= 0")
 		return
 	}
 	st, _ := s.store.Load()
@@ -1462,6 +1472,12 @@ func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 			k.AllowedModels = list
 			if req.MaxConcurrent != nil {
 				k.MaxConcurrent = *req.MaxConcurrent
+			}
+			if req.RateRPS != nil {
+				k.RateRPS = *req.RateRPS
+			}
+			if req.RateBurst != nil {
+				k.RateBurst = *req.RateBurst
 			}
 		}
 		return nil
@@ -1497,6 +1513,10 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "tokenQuota must be >= 0")
 		return
 	}
+	if req.RateRPS < 0 || req.RateBurst < 0 {
+		writeErr(w, 400, "rateRPS and rateBurst must be >= 0")
+		return
+	}
 	plaintext := generateKey()
 	sum := sha256.Sum256([]byte(plaintext))
 	id := newID()
@@ -1511,8 +1531,8 @@ func (s *Server) createKey(w http.ResponseWriter, r *http.Request) {
 			Hash:          hex.EncodeToString(sum[:]),
 			Prefix:        prefix,
 			CreatedAt:     time.Now(),
-			RateRPS:       0, // use default
-			RateBurst:     0, // use default
+			RateRPS:       req.RateRPS,   // 0 = gateway default (F130)
+			RateBurst:     req.RateBurst, // 0 = gateway default (F130)
 			TokenQuota:    req.TokenQuota,
 			AllowedModels: normalizeModelList(req.AllowedModels),
 			MaxConcurrent: req.MaxConcurrent,
