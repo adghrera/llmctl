@@ -328,8 +328,10 @@ toggle for a light theme (choice remembered). Tabs:
    (bulk-delete old chats, pinned skipped, dry-run by default, F333), and
    `chats delete-all -yes` manage them
    (over the chat-store API, F244, F267, F269, F295, F299, F310).
- - **Skills CLI** — `llmctl skills [filter] [-json]` lists skill packs
-   (filter matches id/name/description/tags); `skills show|enable|disable|delete <id>`
+ - **Skills CLI** — `llmctl skills [filter] [-json] [-csv]` lists skill packs
+   (filter matches id/name/description/tags; `--csv` exports
+   id,enabled,name,description,tags with tags joined by `;`, header-only
+   when empty, F384); `skills show|enable|disable|delete <id>`
    manages them, `skills add <manifest.json>` creates one from a JSON
    manifest and `skills export <id> [-out f]` dumps one back out (F245, F288, F305).
  - **Memory CLI** — `llmctl memory [filter] [-json]` lists memory entries;
@@ -493,6 +495,8 @@ toggle for a light theme (choice remembered). Tabs:
   and
   "Create snapshot now" writes one on demand (`POST /api/v1/backups`; restore via
   `llmctl backups restore <name>` or the Restore button, F175, F176).
+  `llmctl backups list --csv` exports the snapshot inventory
+  (name,size_bytes,created), header-only when empty (F383).
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
 survives the periodic UI re-render.

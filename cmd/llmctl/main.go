@@ -228,14 +228,14 @@ Usage:
   llmctl scheduler runs [-n 20]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]]
-  llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>]
+  llmctl backups [list|create|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-model ID] [--csv] [--json]
   llmctl metrics [-watch N] [-model M] [--csv] [-json]
   llmctl events [-n 20] [-kind K] [-model M] [-csv] [-json]
   llmctl webhooks [-n 20] [-event E] [--csv] [-json]   recent webhook delivery attempts
   llmctl prompts [list] [filter] [-category X] [-json] [-csv] | llmctl prompts show <id> | prompts render <id> [-input TEXT] [-var k=v…] | prompts categories | prompts add <id> -name N [-content T] | prompts update <id> [-name N] | prompts delete <id> | prompts export|import
   llmctl chats [filter] [-n 20] [--csv] [-json] | chats list [filter] | chats show|search|export|export-all|import|fork|rename|pin|unpin|prune|delete|delete-all …
-  llmctl skills [filter] [-json] | skills show|add|export|enable|disable|delete <id>
+  llmctl skills [filter] [-json] [-csv] | skills show|add|export|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|export|import|delete …
   llmctl kb [filter] [--csv] [-json] | kb show|create|update|docs|doc|add-doc|export|search|embed|delete …
   llmctl tools [-json] | tools show|install|enable|disable|run|delete <id>
@@ -3583,6 +3583,7 @@ func cmdBackups(args []string) error {
 	switch sub {
 	case "list":
 		jsonOut := fs.Bool("json", false, "print the raw backups JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the backup list as CSV (F383)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/backups")
 		if err != nil {
@@ -3602,6 +3603,15 @@ func cmdBackups(args []string) error {
 		}
 		if err := json.Unmarshal(out, &bs); err != nil {
 			return err
+		}
+		if *csvOut { // F383: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"name", "size_bytes", "created"})
+			for _, b := range bs {
+				_ = w.Write([]string{b.Name, strconv.FormatInt(b.Size, 10), b.Created})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(bs) == 0 {
 			fmt.Println("no snapshots (create one: llmctl backups create)")
@@ -4920,6 +4930,7 @@ func cmdSkills(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("skills", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the skills as JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the skill list as CSV (F384)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/skills")
 		if err != nil {
@@ -4973,6 +4984,19 @@ func cmdSkills(args []string) error {
 			}
 			fmt.Println(string(b))
 			return nil
+		}
+		if *csvOut { // F384: header-only when empty keeps the stream parseable
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "enabled", "name", "description", "tags"})
+			for _, s := range list {
+				enabled := "off"
+				if s.Manifest.Enabled {
+					enabled = "on"
+				}
+				_ = w.Write([]string{s.Manifest.ID, enabled, s.Manifest.Name, s.Manifest.Description, strings.Join(s.Manifest.Tags, ";")})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		if len(list) == 0 {
 			fmt.Println("no skills installed")
