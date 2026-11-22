@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"llmctl/internal/backup"
 	"llmctl/internal/paths"
 )
 
@@ -35,6 +36,20 @@ func (s *Server) listBackups(w http.ResponseWriter, r *http.Request) {
 		out = append(out, backupView{Name: filepath.Base(m), Size: fi.Size(), Created: fi.ModTime().UTC().Format(time.RFC3339)})
 	}
 	writeJSON(w, 200, out)
+}
+
+// createBackupNow handles POST /api/v1/backups — write a snapshot on demand
+// (same pruning as scheduled backups, keep defaults to 7). F088.
+func (s *Server) createBackupNow(w http.ResponseWriter, r *http.Request) {
+	name, size, err := backup.CreateSnapshot(paths.BackupsDir(), 7)
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 201, backupView{
+		Name: name, Size: size,
+		Created: time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 // backupPath resolves and validates a snapshot name inside the backups dir.

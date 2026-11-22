@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -168,4 +169,46 @@ func Restore(r io.Reader) (int, error) {
 		}
 	}
 	return count, nil
+}
+
+// CreateSnapshot writes a timestamped snapshot (llmctl-YYYYMMDD-HHMMSS.tar.gz)
+// into dir and prunes old ones, keeping the newest keep. Returns the file name
+// and size. Shared by the scheduler backup kind (F077) and the on-demand
+// POST /api/v1/backups endpoint (F088).
+func CreateSnapshot(dir string, keep int) (string, int64, error) {
+	if keep <= 0 {
+		keep = 7
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", 0, fmt.Errorf("backups dir: %w", err)
+	}
+	name := "llmctl-" + time.Now().UTC().Format("20060102-150405") + ".tar.gz"
+	path := filepath.Join(dir, name)
+	f, err := os.Create(path)
+	if err != nil {
+		return "", 0, fmt.Errorf("create backup: %w", err)
+	}
+	if err := Create(f); err != nil {
+		f.Close()
+		os.Remove(path)
+		return "", 0, fmt.Errorf("backup write: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", 0, fmt.Errorf("close backup: %w", err)
+	}
+	matches, _ := filepath.Glob(filepath.Join(dir, "llmctl-*.tar.gz"))
+	sort.Strings(matches)
+	for len(matches) > keep {
+		if err := os.Remove(matches[0]); err == nil {
+			matches = matches[1:]
+		} else {
+			break
+		}
+	}
+	fi, _ := os.Stat(path)
+	size := int64(0)
+	if fi != nil {
+		size = fi.Size()
+	}
+	return name, size, nil
 }

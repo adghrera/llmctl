@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
+  const [snapBusy, setSnapBusy] = useState(false);
 
   useEffect(() => {
     api.backups().then(setBackups).catch(() => setBackups([]));
@@ -79,6 +80,19 @@ export default function SettingsPage() {
       err(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const createSnapshot = async () => {
+    setSnapBusy(true);
+    try {
+      const b = await api.createBackup();
+      ok(`snapshot ${b.name} created`);
+      api.backups().then(setBackups).catch(() => {});
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSnapBusy(false);
     }
   };
 
@@ -239,6 +253,12 @@ export default function SettingsPage() {
           Snapshots created by scheduler tasks of kind "backup"
           (~/.llmctl/backups). Create one on the Scheduler page.
         </p>
+        <div className="row" style={{ marginBottom: 10 }}>
+          <button className="btn primary" disabled={snapBusy} onClick={createSnapshot}>
+            {snapBusy ? "Creating…" : "Create snapshot now"}
+          </button>
+          <span className="muted small">Keeps the newest 7 snapshots.</span>
+        </div>
         {backups.length ? (
           <table>
             <thead>

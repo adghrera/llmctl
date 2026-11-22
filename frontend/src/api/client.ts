@@ -480,6 +480,7 @@ export const api = {
       "/disk",
     ),
   backups: () => req<{ name: string; size: number; created: string }[]>("/backups"),
+  createBackup: () => req<{ name: string; size: number; created: string }>("/backups", { method: "POST" }),
   deleteBackup: (name: string) => req<{ ok: boolean }>(`/backups/${encodeURIComponent(name)}`, { method: "DELETE" }),
   requests: (
     limit = 100,

@@ -179,6 +179,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/gpu", s.gpuInfo)
 	m.HandleFunc("GET /api/v1/disk", s.diskUsage)
 	m.HandleFunc("GET /api/v1/backups", s.listBackups)
+	m.HandleFunc("POST /api/v1/backups", s.createBackupNow)
 	m.HandleFunc("GET /api/v1/backups/{name}", s.downloadBackupFile)
 	m.HandleFunc("DELETE /api/v1/backups/{name}", s.deleteBackupFile)
 	// MCP servers (F054)

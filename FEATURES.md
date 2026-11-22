@@ -97,6 +97,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F085 | P2 | 85 | instances | Configurable startup timeout | COMPLETED | `settings.startupTimeoutSec` (Settings field, 0 = default 240 s) bounds how long an instance start waits for the backend to become healthy. Verified live: 2 s timeout made a dead-port attach fail in 2 s instead of 240 s; validation + persistence checked. |
 | F086 | P2 | 86 | gateway | Persistent request log | COMPLETED | Every gateway request is appended to `~/.llmctl/requests.jsonl`; at startup the recent-requests ring is re-seeded from it (trimmed to the newest 1000 lines), so the Requests page keeps history across daemon restarts. Verified live: entries survived restart, file trimmed 1167→1000, ring re-seeded to 256. |
 | F087 | P2 | 87 | instances | Crash auto-restart | COMPLETED | Per-instance `autoRestart` (start flag, `POST /instances/{id}/autorestart` toggle, "Auto" button on the Instances page): a crashed owned process is relaunched after 5 s, max 3× per 5 min, then gives up with a lastError. Clean stops never trigger it. Verified live: kill -9 → new pid; 4th crash → gave up; clean stop stayed down. |
+| F088 | P2 | 88 | backups | Create snapshot on demand | COMPLETED | `POST /api/v1/backups` writes a state snapshot immediately (shared `backup.CreateSnapshot` helper with the scheduler path, keep-7 pruning); "Create snapshot now" button in Settings. Verified live: 201 + downloadable archive, pruning kept 7 of 9. |
 
 ## Shipped (v0.2 architecture, this iteration)
 
