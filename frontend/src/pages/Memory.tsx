@@ -11,6 +11,23 @@ export default function Memory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<MemoryEntry[]>([]);
   const [searching, setSearching] = useState(false);
+  const [copied, setCopied] = useState<Set<string>>(new Set());
+
+  // Copy one entry's content to the clipboard (F441).
+  const copyEntry = async (e: MemoryEntry) => {
+    try {
+      await navigator.clipboard.writeText(e.entry.content);
+      setCopied((prev) => {
+        const next = new Set(prev);
+        next.add(e.id);
+        setTimeout(() => next.delete(e.id), 1500);
+        return next;
+      });
+      ok("copied");
+    } catch {
+      err("clipboard unavailable");
+    }
+  };
 
   const load = () =>
     api
@@ -302,6 +319,13 @@ export default function Memory() {
                         </div>
                       </td>
                       <td style={{ textAlign: "right" }}>
+                        <button
+                          className="btn sm"
+                          title="Copy content"
+                          onClick={() => void copyEntry(e)}
+                        >
+                          {copied.has(e.id) ? "Copied" : "Copy"}
+                        </button>{" "}
                         <button
                           className="btn sm danger"
                           onClick={() => remove(e)}

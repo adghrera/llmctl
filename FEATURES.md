@@ -451,6 +451,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F438 | P3 | 438 | cli | `prompts show -out FILE` | COMPLETED | `llmctl prompts show <id> -out FILE` writes the raw prompt content (plus trailing newline) to the file instead of the stdout name/id header + content, for scripting; the plain path is unchanged. Verified live: created a templated prompt, -out wrote exactly the content, plain show identical, prompt deleted after. |
 | F439 | P3 | 439 | ui | Ctrl+K Search shortcut | COMPLETED | A global keydown listener jumps to the Search page on Ctrl+K / Cmd+K from any page (Shift+Ctrl+K untouched); the Search nav link shows the hint as a tooltip. Verified live: served bundle contains the listener and hint; the navigation call is the same useNavigate the nav links use. |
 | F440 | P3 | 440 | cli | `version --json` | COMPLETED | `llmctl version --json` prints `{"cli":…,"daemon":…}` — the daemon version read from /api/v1/status, empty string when the daemon is not running; the plain one-line output is unchanged. Verified live: plain, --json with daemon up (both 0.2.0) and with no daemon (daemon empty) all correct. |
+| F441 | P3 | 441 | ui | Memory per-entry Copy button | COMPLETED | Each memory entry row has a Copy button (copies the entry content, "Copied" feedback for 1.5s, same pattern as the Prompts copy). Verified live: served bundle contains the button; the clipboard call is the same proven navigator.clipboard path. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

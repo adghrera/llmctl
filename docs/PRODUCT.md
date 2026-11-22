@@ -295,7 +295,8 @@ toggle for a light theme (choice remembered). Tabs:
   GET/POST/GET/PUT/DELETE /api/v1/memory, GET /api/v1/memory/search?q=. During
   agent chat, relevant memories are searched using the last user message and
   injected as system context. Dedicated Memory page to add/delete entries,
-  with an Export CSV button on the entry list (F402).
+  with an Export CSV button on the entry list (F402) and a per-entry Copy
+  button for the content (F441).
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page, with
   optional max-tokens/temperature inputs (F359) and a Results Export JSON
