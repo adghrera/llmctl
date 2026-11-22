@@ -524,7 +524,8 @@ toggle for a light theme (choice remembered). Tabs:
   `llmctl key note <id> <text>` (F186). `llmctl key update <id>` edits any
   of those later — name, note, models, quota, caps, rate, expiry, budget (F254).
   `llmctl key duplicate <id> [name]` issues a fresh key with the same
-  restrictions (default name `<old name> copy`, F650).
+  restrictions (default name `<old name> copy`, F650); the Keys page has a
+  matching per-row Duplicate button (F651).
   Optional per-key model
   allowlist (editable via an inline checkbox editor on the Keys page, F154)
   (403 for other models; aliases resolved before checking; restricted keys

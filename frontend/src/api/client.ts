@@ -807,10 +807,10 @@ export const api = {
   jobs: () => req<Job[]>("/jobs"),
   clearJobs: () => req<{ cleared: number }>("/jobs", { method: "DELETE" }),
   keys: () => req<ApiKey[]>("/keys"),
-  createKey: (name: string, tokenQuota?: number, allowedModels?: string[], maxConcurrent?: number, maxRequests?: number, rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number) =>
+  createKey: (name: string, tokenQuota?: number, allowedModels?: string[], maxConcurrent?: number, maxRequests?: number, rateRPS?: number, rateBurst?: number, expiresInDays?: number, dailyCostBudgetUSD?: number, note?: string) =>
     req<{ id: string; name: string; key: string; prefix: string }>(`/keys`, {
       method: "POST",
-      body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0, allowedModels: allowedModels ?? [], maxConcurrent: maxConcurrent ?? 0, maxRequests: maxRequests ?? 0, rateRPS: rateRPS ?? 0, rateBurst: rateBurst ?? 0, expiresInDays: expiresInDays ?? 0, dailyCostBudgetUSD: dailyCostBudgetUSD ?? 0 }),
+      body: JSON.stringify({ name, tokenQuota: tokenQuota ?? 0, allowedModels: allowedModels ?? [], maxConcurrent: maxConcurrent ?? 0, maxRequests: maxRequests ?? 0, rateRPS: rateRPS ?? 0, rateBurst: rateBurst ?? 0, expiresInDays: expiresInDays ?? 0, dailyCostBudgetUSD: dailyCostBudgetUSD ?? 0, note: note ?? "" }),
     }),
   updateKey: (id: string, body: { allowedModels?: string[]; rateRPS?: number; rateBurst?: number; expiresInDays?: number; dailyCostBudgetUSD?: number; name?: string; note?: string; tokenQuota?: number; maxRequests?: number }) =>
     req<{ ok: boolean; allowedModels: string[] }>(`/keys/${encodeURIComponent(id)}`, {

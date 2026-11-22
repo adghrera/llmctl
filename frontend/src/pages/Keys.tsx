@@ -153,6 +153,30 @@ export default function Keys() {
     }
   };
 
+  // Duplicate a key with the same restrictions — UI twin of `llmctl key duplicate` (F651).
+  const dupKey = async (k: ApiKey) => {
+    const name = window.prompt("Name for the new key:", `${k.name || k.id} copy`);
+    if (name === null) return;
+    setBusy(true);
+    try {
+      const expiresInDays = k.expiresAt
+        ? Math.max(1, Math.ceil((new Date(k.expiresAt).getTime() - Date.now()) / 86400000))
+        : 0;
+      const r = await api.createKey(
+        name.trim() || `${k.name || k.id} copy`,
+        k.tokenQuota, k.allowedModels, k.maxConcurrent, k.maxRequests,
+        k.rateRPS, k.rateBurst, expiresInDays, k.dailyCostBudgetUSD, k.note
+      );
+      setCreated(r.key);
+      ok(`created key ${r.prefix}… (shown once)`);
+      await refreshOne("keys");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const renameKey = async (k: ApiKey) => {
     const name = renameDraft.trim();
     if (!name || busy) return;
@@ -631,6 +655,15 @@ export default function Keys() {
                       onClick={() => rotate(k.id)}
                     >
                       Rotate
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      disabled={busy}
+                      title="issue a fresh key with the same restrictions (CLI: llmctl key duplicate)"
+                      onClick={() => dupKey(k)}
+                    >
+                      Duplicate
                     </button>
                     <button className="btn sm danger" disabled={busy} onClick={() => revoke(k.id)}>
                       Revoke
