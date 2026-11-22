@@ -47,6 +47,8 @@ export default function Requests() {
   const [fStream, setFStream] = useState("");
   const [fKey, setFKey] = useState(params.get("key") || "");
   const [keyNames, setKeyNames] = useState<{ id: string; name: string }[]>([]); // for the key dropdown (F735)
+  const [modelIds, setModelIds] = useState<string[]>([]); // for the model dropdown (F736)
+  const [instanceIds, setInstanceIds] = useState<string[]>([]); // for the instance dropdown (F736)
   const [fInstance, setFInstance] = useState(params.get("instance") || "");
   const [fSince, setFSince] = useState("");
   const [fUntil, setFUntil] = useState("");
@@ -55,6 +57,8 @@ export default function Requests() {
 
   useEffect(() => {
     api.keys().then(setKeyNames).catch(() => {});
+    api.models().then((m) => setModelIds(m.map((x) => x.id).sort())).catch(() => {});
+    api.instances().then((i) => setInstanceIds(i.map((x) => x.id).sort())).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -122,6 +126,21 @@ export default function Requests() {
         </label>
       </div>
       <div className="row" style={{ gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        {modelIds.length > 0 && (
+          <select
+            style={{ width: 150 }}
+            title="filter by model id (CLI: llmctl requests -model, F736)"
+            value={modelIds.includes(fModel) ? fModel : ""}
+            onChange={(e) => setFModel(e.target.value)}
+          >
+            <option value="">all models</option>
+            {modelIds.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           style={{ width: 160 }}
           placeholder="model id"
@@ -173,6 +192,21 @@ export default function Requests() {
           value={fKey}
           onChange={(e) => setFKey(e.target.value)}
         />
+        {instanceIds.length > 0 && (
+          <select
+            style={{ width: 150 }}
+            title="filter by serving instance id (CLI: llmctl requests -instance, F736)"
+            value={instanceIds.includes(fInstance) ? fInstance : ""}
+            onChange={(e) => setFInstance(e.target.value)}
+          >
+            <option value="">all instances</option>
+            {instanceIds.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           style={{ width: 120 }}
           placeholder="instance id"
