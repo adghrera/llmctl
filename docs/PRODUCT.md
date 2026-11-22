@@ -444,6 +444,9 @@ llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl restart <instance>
 llmctl maxparallel <instance> <n>   (concurrent-request cap, 0 = unlimited, F270)
+llmctl note <instance> <text>            (free-text annotation, F271)
+llmctl autorestart <instance> <on|off>   (crash auto-restart toggle, F271)
+llmctl setvars <instance> [-var k=v…]    (replace stored start vars, F271)
 llmctl logs <instance> [--stream stderr|stdout] [--tail N]
 llmctl logs -daemon [--tail N]             (daemon's own log, ~/.llmctl/llmctl.log)
 llmctl key generate|show|note|update|enable|disable|rotate|list|revoke|prune   (generate: -quota -maxreq -models -expires -budget -rps -note;

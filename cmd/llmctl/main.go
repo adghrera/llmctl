@@ -56,6 +56,12 @@ func main() {
 		err = cmdCatalog(args)
 	case "maxparallel":
 		err = cmdMaxParallel(args)
+	case "note":
+		err = cmdNote(args)
+	case "autorestart":
+		err = cmdAutoRestartToggle(args)
+	case "setvars":
+		err = cmdSetVars(args)
 	case "ps":
 		err = cmdPS(args)
 	case "backends":
@@ -165,6 +171,7 @@ Usage:
   llmctl stop <instance> [--force]
   llmctl restart <instance>
   llmctl maxparallel <instance> <n>   (0 = unlimited)
+  llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N]
   llmctl logs -daemon [--tail N]
   llmctl key generate [name] [-json]
@@ -768,6 +775,82 @@ func cmdMaxParallel(args []string) error {
 		label = strconv.Itoa(n)
 	}
 	fmt.Printf("instance %s now serves at most %s concurrent request(s)\n", args[0], label)
+	return nil
+}
+
+// cmdNote sets the free-text note on an instance (PATCH note endpoint, F119).
+func cmdNote(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: llmctl note <instance-id> <text…>")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	note := strings.Join(args[1:], " ")
+	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(args[0])+"/note",
+		map[string]any{"note": note})
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("note: %s", out)
+	}
+	fmt.Printf("instance %s note set\n", args[0])
+	return nil
+}
+
+// cmdAutoRestartToggle toggles crash auto-restart on an instance (F087).
+func cmdAutoRestartToggle(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: llmctl autorestart <instance-id> <on|off>")
+	}
+	on := strings.ToLower(args[1]) == "on"
+	if s := strings.ToLower(args[1]); s != "on" && s != "off" {
+		return fmt.Errorf("expected on or off, got %q", args[1])
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Post("/api/v1/instances/"+url.PathEscape(args[0])+"/autorestart",
+		map[string]any{"enabled": on})
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("autorestart: %s", out)
+	}
+	state := "off"
+	if on {
+		state = "on"
+	}
+	fmt.Printf("instance %s auto-restart %s\n", args[0], state)
+	return nil
+}
+
+// cmdSetVars replaces the stored start vars of an instance (PUT vars, F091).
+func cmdSetVars(args []string) error {
+	fs := flag.NewFlagSet("setvars", flag.ExitOnError)
+	var vars stringList
+	fs.Var(&vars, "var", "parameter k=v (repeatable)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: llmctl setvars <instance-id> [-var k=v ...]")
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Do("PUT", "/api/v1/instances/"+url.PathEscape(fs.Arg(0))+"/vars",
+		map[string]any{"vars": vars.Map()})
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("setvars: %s", out)
+	}
+	fmt.Printf("instance %s vars updated (restart to apply)\n", fs.Arg(0))
 	return nil
 }
 
