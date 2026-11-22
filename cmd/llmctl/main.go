@@ -6668,11 +6668,12 @@ func cmdMcp(args []string) error {
 		return nil
 	case "test":
 		if len(rest) == 0 {
-			return fmt.Errorf("usage: llmctl mcp test <id> [--csv|--json]")
+			return fmt.Errorf("usage: llmctl mcp test <id> [--csv|--json] [-out FILE]")
 		}
 		tfs := flag.NewFlagSet("mcp test", flag.ExitOnError)
 		jsonOut := tfs.Bool("json", false, "print the advertised tools as JSON (for scripts)")
 		csvOut := tfs.Bool("csv", false, "output the advertised tools as CSV (F436)")
+		outFile := tfs.String("out", "", "write the advertised tools JSON to this file instead of stdout (implies -json, F459)")
 		tfs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(rest[0])+"/test", map[string]any{})
 		if err != nil {
@@ -6690,10 +6691,17 @@ func cmdMcp(args []string) error {
 		if err := json.Unmarshal(out, &res); err != nil {
 			return err
 		}
-		if *jsonOut { // F436
+		if *jsonOut || *outFile != "" { // F436; -out implies the JSON shape (F459)
 			b, err := json.Marshal(res.Tools)
 			if err != nil {
 				return err
+			}
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, append(b, '\n'), 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(b)+1)
+				return nil
 			}
 			fmt.Println(string(b))
 			return nil
