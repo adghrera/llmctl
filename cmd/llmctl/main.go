@@ -250,7 +250,7 @@ Usage:
   llmctl backup verify <file>     check any local archive offline
   llmctl restore <file.tar.gz>    import a backup into the state dir
   llmctl version
-  llmctl completion [bash|zsh|fish]  print a shell completion script
+  llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
 web UI (http://127.0.0.1:8080/) on one port.
@@ -1736,8 +1736,38 @@ compdef _llmctl llmctl
 		fmt.Printf(`complete -c llmctl -f
 complete -c llmctl -n __fish_use_subcommand -a "%s"
 %s`, cmds, sb.String())
+	case "powershell", "pwsh":
+		// PowerShell: Register-ArgumentCompleter over the same command and
+		// subcommand tables (F425). Add to $PROFILE to activate.
+		var ps []string
+		for _, c := range llmTopCommands {
+			ps = append(ps, "'"+c+"'")
+		}
+		var sb strings.Builder
+		for _, n := range names {
+			var q []string
+			for _, s := range strings.Fields(llmSubCommands[n]) {
+				q = append(q, "'"+s+"'")
+			}
+			fmt.Fprintf(&sb, "      '%s' { @(%s) }\n", n, strings.Join(q, ", "))
+		}
+		fmt.Printf(`# llmctl completion for PowerShell — add this to $PROFILE:
+#   llmctl completion powershell | Out-String | Invoke-Expression
+Register-ArgumentCompleter -CommandName llmctl -ScriptBlock {
+  param($WordToComplete, $CommandAst, $CursorPosition)
+  $words = @($CommandAst.CommandElements | ForEach-Object { $_.Extent.Text })
+  if ($words.Count -le 1 -or ($words.Count -eq 2 -and $WordToComplete)) {
+    @(%s) | Where-Object { $_ -like "$WordToComplete*" }
+    return
+  }
+  $subs = switch ($words[1]) {
+%s    default { @() }
+  }
+  $subs | Where-Object { $_ -like "$WordToComplete*" }
+}
+`, strings.Join(ps, ", "), sb.String())
 	default:
-		return fmt.Errorf("usage: llmctl completion [bash|zsh|fish]")
+		return fmt.Errorf("usage: llmctl completion [bash|zsh|fish|powershell]")
 	}
 	return nil
 }

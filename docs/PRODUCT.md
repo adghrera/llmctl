@@ -627,7 +627,7 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (interactive REPL: /help /clear /system TEXT /model ID
                                      /kb ID (/kb - detaches) /save [title] /quit, F331, F342)
 llmctl version
-llmctl completion [bash|zsh|fish]                   (print a shell-completion script for llmctl + subcommands, F341, F350, F354)
+llmctl completion [bash|zsh|fish|powershell]         (print a shell-completion script for llmctl + subcommands, F341, F350, F354; powershell adds a Register-ArgumentCompleter for $PROFILE, F425)
 ```
 
 ## Design principles
