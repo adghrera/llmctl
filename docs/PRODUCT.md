@@ -161,7 +161,8 @@ toggle for a light theme (choice remembered). Tabs:
   lives on the Settings page, F253), a "Today (UTC)" usage card (requests, errors,
   tokens, estimated cost from the daily rollup, F134), detected GPUs with VRAM
   usage and Export CSV/JSON buttons (F721), disk usage
-  (model bytes + free space), running instances, active jobs (the Recent jobs
+  (model bytes + free space, with Export CSV/JSON buttons, F722), running
+  instances, active jobs (the Recent jobs
   card has Export CSV / Export JSON matching `llmctl jobs --csv`/`-json`, F433, F719, and a Clear done
   button that drops finished jobs from daemon memory, F586; running jobs show
   a live progress bar plus the job message, F597), and a recent

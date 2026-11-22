@@ -260,7 +260,51 @@ export default function Overview() {
         )}
       </div>
       <div className="card">
-        <h2>Disk</h2>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Disk</h2>
+          {disk && (
+            <div className="row" style={{ gap: 6 }}>
+              <button
+                className="btn sm"
+                title="download the disk report as CSV — same columns as llmctl disk --csv (F722)"
+                onClick={() => {
+                  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                  const rows = [
+                    "dir,models_count,models_bytes,free_bytes,total_bytes",
+                    [
+                      disk.dir, String(disk.modelsCount), String(disk.modelsBytes),
+                      String(disk.freeBytes ?? 0), String(disk.totalBytes ?? 0),
+                    ]
+                      .map(esc)
+                      .join(","),
+                  ];
+                  const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-disk-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                className="btn sm"
+                title="download the disk report as JSON (CLI: llmctl disk -json)"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(disk, null, 2)], { type: "application/json" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-disk-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export JSON
+              </button>
+            </div>
+          )}
+        </div>
         {disk ? (
           <p>
             {disk.modelsCount} model{disk.modelsCount === 1 ? "" : "s"} using{" "}
@@ -275,7 +319,53 @@ export default function Overview() {
         )}
       </div>
       <div className="card">
-        <h2>Gateway metrics</h2>
+        <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0 }}>Gateway metrics</h2>
+          {metrics && Object.keys(metrics.models).length > 0 && (
+            <div className="row" style={{ gap: 6 }}>
+              <button
+                className="btn sm"
+                title="download the per-model metrics table as CSV — same columns as llmctl metrics --csv (F722)"
+                onClick={() => {
+                  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+                  const rows = [
+                    "model,requests,errors,prompt_tokens,completion_tokens",
+                    ...Object.entries(metrics.models).map(([id, m]) =>
+                      [
+                        id, String(m.requests), String(m.errors),
+                        String(m.prompt_tokens), String(m.completion_tokens),
+                      ]
+                        .map(esc)
+                        .join(",")
+                    ),
+                  ];
+                  const blob = new Blob([rows.join("\n") + "\n"], { type: "text/csv" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-metrics-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                className="btn sm"
+                title="download the metrics JSON (CLI: llmctl metrics -json)"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(metrics, null, 2)], { type: "application/json" });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = `llmctl-metrics-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+                  a.click();
+                  URL.revokeObjectURL(a.href);
+                }}
+              >
+                Export JSON
+              </button>
+            </div>
+          )}
+        </div>
         {metrics ? (
           <>
             <div className="row" style={{ gap: 24, flexWrap: "wrap" }}>
