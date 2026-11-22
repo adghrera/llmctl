@@ -100,6 +100,14 @@ export default function App() {
         <button
           className="btn sm"
           style={{ marginLeft: 12 }}
+          title="Keyboard shortcuts (?)"
+          onClick={() => setHelpOpen((v) => !v)}
+        >
+          ?
+        </button>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 12 }}
           title={light ? "Switch to dark theme" : "Switch to light theme"}
           onClick={toggleTheme}
         >

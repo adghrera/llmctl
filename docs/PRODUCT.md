@@ -171,7 +171,8 @@ toggle for a light theme (choice remembered). Tabs:
   (F318) and instances + API keys (F364), each result linking to its page.
   Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439).
   Pressing `?` anywhere outside a text field opens a keyboard-shortcut
-  cheat-sheet overlay; Esc or a backdrop click closes it (F514).
+  cheat-sheet overlay; Esc or a backdrop click closes it (F514). A `?`
+  button in the header opens the same overlay (F515).
   `llmctl chats search` /
   `memory search` cover the CLI side (F267).
 - **Backends** — install/uninstall built-ins, add plugin backends (JSON),
