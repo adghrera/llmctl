@@ -229,7 +229,8 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/requests/{id} for a single request by its id (F104, F106).
 - **Tools** — install agent tools from a URL (.zip) or a local folder
   (`~/.llmctl/tools/<id>/`, described by `llmctl-tool.json` with a Python
-  `def run(args)` entry). Tools run inside the llm-sandbox framework
+  `def run(args)` entry, or a `command` entry that reads its args JSON on stdin
+  and prints the result on stdout, F339). Tools run inside the llm-sandbox framework
   (container, no network, memory & PID caps) by default; a per-tool toggle
   opts out to host execution. List, enable/disable, test-run with args, and
   uninstall. Enabled tools join the agent's tool set in Chat.

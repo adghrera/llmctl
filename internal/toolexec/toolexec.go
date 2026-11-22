@@ -100,6 +100,8 @@ func runHost(ctx context.Context, rec *toolstore.Record, argsJSON string, timeou
 	case "command":
 		cmd = exec.CommandContext(ctx, entry)
 		cmd.Dir = rec.Dir
+		// Command-runtime tools receive their args JSON on stdin (F339).
+		cmd.Stdin = strings.NewReader(argsJSON)
 	default: // python
 		py, err := pythonExe()
 		if err != nil {
