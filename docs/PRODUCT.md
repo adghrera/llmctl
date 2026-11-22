@@ -77,7 +77,8 @@ GitHub release, or file list. No recompile.
   request for a model that has an auto-start declaration (`llmctl autostart
   add`) but no running instance cold-starts it; the request waits for the
   backend to become healthy. Concurrent requests for the same cold model
-  start it only once.
+  start it only once. `llmctl autostart export [-out F]` / `autostart import
+  FILE` move these declarations between instances (F329).
 - Logs per instance under `~/.llmctl/logs/<instance>/`, viewable in the UI
   with one-click full-file download (F075).
 

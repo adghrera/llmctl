@@ -214,6 +214,7 @@ Usage:
   llmctl autostart list
   llmctl autostart add <model> [--backend ID] [--instance NAME] [--port N] [--var k=v ...]
   llmctl autostart remove <model>
+  llmctl autostart export [-out FILE] | autostart import <file.json>
   llmctl presets list|save -name N -model ID [...]|start <name>|delete <name>|export|import
   llmctl catalog list [-json] | install <id>
   llmctl scheduler list
@@ -6812,7 +6813,7 @@ func urlEscape(s string) string {
 
 func cmdAutoStart(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: llmctl autostart <list|add|remove>")
+		return fmt.Errorf("usage: llmctl autostart <list|add|remove|export|import>")
 	}
 	sub, rest := args[0], args[1:]
 	cc, err := daemon.NewControlClient()
@@ -6820,6 +6821,65 @@ func cmdAutoStart(args []string) error {
 		return err
 	}
 	switch sub {
+	case "export":
+		// Dump all auto-start entries as a JSON array (feed to `autostart import`, F329).
+		efs := flag.NewFlagSet("autostart export", flag.ExitOnError)
+		outFile := efs.String("out", "", "write to this file instead of stdout")
+		efs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/autostart")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("autostart export: %s", out)
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(list, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *outFile != "" {
+			if err := os.WriteFile(*outFile, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d auto-start entries to %s\n", len(list), *outFile)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	case "import":
+		// Re-create auto-start entries from an `autostart export` file (F329);
+		// same-model entries are replaced (the POST upserts).
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl autostart import <file.json>")
+		}
+		data, err := os.ReadFile(rest[0])
+		if err != nil {
+			return err
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(data, &list); err != nil {
+			return fmt.Errorf("import file: %w", err)
+		}
+		var created, skipped int
+		for _, s := range list {
+			code, out, err := cc.Post("/api/v1/autostart", s)
+			if err != nil {
+				return err
+			}
+			if code/100 != 2 {
+				fmt.Printf("  skip %v: %s\n", s["modelId"], out)
+				skipped++
+				continue
+			}
+			created++
+		}
+		fmt.Printf("imported %d auto-start entries (%d skipped)\n", created, skipped)
+		return nil
 	case "list":
 		fs := flag.NewFlagSet("autostart list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw autostart JSON (for scripts)")
