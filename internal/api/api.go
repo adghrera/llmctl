@@ -1156,6 +1156,7 @@ func (s *Server) dailyKeyUsage(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, daily)
 }
+
 // first (F099). ?limit=N caps the response; ?kind= keeps only that event
 // kind, e.g. instance.crashed (F116).
 func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
@@ -1444,10 +1445,10 @@ type createKeyReq struct {
 func (s *Server) updateKey(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var req struct {
-		AllowedModels []string  `json:"allowedModels"`
-		MaxConcurrent *int      `json:"maxConcurrent"`
-		RateRPS       *float64  `json:"rateRPS"`   // 0 = gateway default (F130)
-		RateBurst     *int      `json:"rateBurst"` // 0 = gateway default (F130)
+		AllowedModels []string `json:"allowedModels"`
+		MaxConcurrent *int     `json:"maxConcurrent"`
+		RateRPS       *float64 `json:"rateRPS"`   // 0 = gateway default (F130)
+		RateBurst     *int     `json:"rateBurst"` // 0 = gateway default (F130)
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
 		writeErr(w, 400, "invalid JSON body")

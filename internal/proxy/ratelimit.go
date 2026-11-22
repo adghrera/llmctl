@@ -8,11 +8,11 @@ import (
 // rateLimiter is a sharded token bucket per client key. Sized for many
 // concurrent clients: 64 shards, LRU-ish eviction of idle buckets.
 type rateLimiter struct {
-	mu      sync.Mutex
-	shards  [64]*bucketShard
-	rps     float64
-	burst   int
-	created map[string]*limiter
+	mu        sync.Mutex
+	shards    [64]*bucketShard
+	rps       float64
+	burst     int
+	created   map[string]*limiter
 	getLimits func(string) (float64, int) // returns (rps, burst) for the key; (0,0) means use default
 }
 

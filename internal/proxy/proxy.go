@@ -31,9 +31,9 @@ import (
 // Server is the gateway.
 type Server struct {
 	addr         string
-	apiKeys      [][]byte // pre-encoded; empty list = auth disabled
+	apiKeys      [][]byte                         // pre-encoded; empty list = auth disabled
 	keyCheck     func(string) *store.APIKeyRecord // hashed-key verifier (overrides apiKeys)
-	requireAuth  *atomic.Bool // if false, no key needed (auth disabled globally)
+	requireAuth  *atomic.Bool                     // if false, no key needed (auth disabled globally)
 	allowCORS    *atomic.Bool                     // if true, CORS headers + OPTIONS preflight (F082)
 	limiter      *rateLimiter
 	router       *Router
@@ -55,11 +55,11 @@ type Server struct {
 
 // Config for NewServer.
 type Config struct {
-	Addr        string
-	APIKeys     []string // static keys (tests, simple setups)
+	Addr    string
+	APIKeys []string // static keys (tests, simple setups)
 	// KeyCheck, when non-nil, is the authoritative verifier (hashed keys).
 	KeyCheck    func(token string) *store.APIKeyRecord
-	RequireAuth bool // if false, auth is disabled regardless of keys
+	RequireAuth bool    // if false, auth is disabled regardless of keys
 	AllowCORS   bool    // if true, gateway sends CORS headers + answers OPTIONS (F082)
 	RateRPS     float64 // sustained requests/sec per client
 	RateBurst   int
@@ -101,14 +101,14 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		getLimits = func(string) (float64, int) { return 0, 0 }
 	}
 	s := &Server{
-		addr:        cfg.Addr,
-		apiKeys:     keys,
-		keyCheck:    cfg.KeyCheck,
-		requireAuth: &atomic.Bool{},
-		allowCORS:   &atomic.Bool{},
-		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
-		router:      router,
-		logger:      cfg.Logger,
+		addr:         cfg.Addr,
+		apiKeys:      keys,
+		keyCheck:     cfg.KeyCheck,
+		requireAuth:  &atomic.Bool{},
+		allowCORS:    &atomic.Bool{},
+		limiter:      newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
+		router:       router,
+		logger:       cfg.Logger,
 		maxInflight:  int64(cfg.MaxInflight),
 		collector:    newMetricsCollector(),
 		keyInflight:  map[string]*atomic.Int64{},
@@ -410,9 +410,15 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
 
-func (s *Server) proxyChat(w http.ResponseWriter, r *http.Request)      { s.proxyAny(w, r, "/v1/chat/completions") }
-func (s *Server) proxyCompletions(w http.ResponseWriter, r *http.Request) { s.proxyAny(w, r, "/v1/completions") }
-func (s *Server) proxyEmbeddings(w http.ResponseWriter, r *http.Request) { s.proxyAny(w, r, "/v1/embeddings") }
+func (s *Server) proxyChat(w http.ResponseWriter, r *http.Request) {
+	s.proxyAny(w, r, "/v1/chat/completions")
+}
+func (s *Server) proxyCompletions(w http.ResponseWriter, r *http.Request) {
+	s.proxyAny(w, r, "/v1/completions")
+}
+func (s *Server) proxyEmbeddings(w http.ResponseWriter, r *http.Request) {
+	s.proxyAny(w, r, "/v1/embeddings")
+}
 
 // proxyAny peeks the "model" field, resolves an upstream, and streams the
 // request through. HTTP instances are reverse-proxied (SSE framing preserved
