@@ -612,7 +612,7 @@ llmctl stop <instance> [--force]
 llmctl stop --all                          (stop every running instance, attached ones stay, F278)
 llmctl restart <instance> | llmctl restart --all   (--all restarts each running instance, reporting per-instance failures, F445)
 llmctl maxparallel <instance> <n>   (concurrent-request cap, 0 = unlimited, F270)
-llmctl note <instance> <text>            (free-text annotation, F271)
+llmctl note <instance> <text> [-json]        (free-text annotation, F271; -json prints the raw response, F529)
 llmctl autorestart <instance> <on|off>   (crash auto-restart toggle, F271)
 llmctl setvars <instance> [-var k=v…]    (replace stored start vars, F271)
 llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]

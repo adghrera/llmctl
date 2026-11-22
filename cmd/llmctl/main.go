@@ -229,7 +229,7 @@ Usage:
   llmctl stop <instance> [--force] | llmctl stop --all
   llmctl restart <instance> | llmctl restart --all
   llmctl maxparallel <instance> <n>   (0 = unlimited)
-  llmctl note <instance> <text> | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
+  llmctl note <instance> <text> [-json] | autorestart <instance> <on|off> | setvars <instance> [-var k=v…]
   llmctl logs <instance> [--stream stderr|stdout] [--tail N] [-out FILE] [-f]
   llmctl logs -daemon [--tail N] [-json] [-out FILE] [-f]
   llmctl key generate [name] [-json] [-out FILE]
@@ -1037,15 +1037,18 @@ func cmdMaxParallel(args []string) error {
 
 // cmdNote sets the free-text note on an instance (PATCH note endpoint, F119).
 func cmdNote(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: llmctl note <instance-id> <text…>")
+	fs := flag.NewFlagSet("note", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw response JSON (F529)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: llmctl note <instance-id> <text…> [-json]")
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
-	note := strings.Join(args[1:], " ")
-	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(args[0])+"/note",
+	note := strings.Join(fs.Args()[1:], " ")
+	code, out, err := cc.Do("PATCH", "/api/v1/instances/"+url.PathEscape(fs.Arg(0))+"/note",
 		map[string]any{"note": note})
 	if err != nil {
 		return err
@@ -1053,7 +1056,11 @@ func cmdNote(args []string) error {
 	if code != 200 {
 		return fmt.Errorf("note: %s", out)
 	}
-	fmt.Printf("instance %s note set\n", args[0])
+	if *jsonOut {
+		fmt.Print(string(out))
+		return nil
+	}
+	fmt.Printf("instance %s note set\n", fs.Arg(0))
 	return nil
 }
 
