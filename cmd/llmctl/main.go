@@ -277,7 +277,7 @@ Usage:
   llmctl mcp [-json|-csv|-out FILE] | mcp add|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-model M] [-key K] [--csv] [-json] [-out FILE]
   llmctl files [list|upload <path>|cat <id>|delete <id>] [--csv] [-json] [-out FILE on list]
-  llmctl settings [-json] [-out FILE] | llmctl settings set <flags> | settings test-webhook [-json]
+  llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
                                      interactive REPL supports /help /clear /system TEXT /model ID /save [title] /quit (F331)
@@ -9115,9 +9115,14 @@ func cmdSettings(args []string) error {
 		retentionDays := fs.Int("retention-days", -2, "usage rollup days kept, -1 = forever (-2 = leave)")
 		logLevel := fs.String("log-level", "", "daemon log level: debug|info|warn|error")
 		backupKeep := fs.Int("backup-keep", -1, "snapshots kept (-1 = leave)")
+		sjson := fs.Bool("json", false, "print the raw updated settings JSON (F581)")
 		fs.Parse(reorderFlags(args[1:]))
 		body := map[string]any{}
+		changed := []string{} // F581: echo which flags actually changed
 		fs.Visit(func(f *flag.Flag) {
+			if f.Name != "json" {
+				changed = append(changed, f.Name+"="+f.Value.String())
+			}
 			switch f.Name {
 			case "require-auth":
 				body["requireAuth"] = *requireAuth
@@ -9155,7 +9160,12 @@ func cmdSettings(args []string) error {
 		if code != 200 {
 			return fmt.Errorf("settings set returned %d: %s", code, out)
 		}
-		fmt.Println("settings updated")
+		if *sjson {
+			fmt.Print(string(out))
+			return nil
+		}
+		sort.Strings(changed)
+		fmt.Printf("settings updated: %s\n", strings.Join(changed, " "))
 		return nil
 	}
 	fs := flag.NewFlagSet("settings", flag.ExitOnError)
