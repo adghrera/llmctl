@@ -241,7 +241,7 @@ Usage:
   llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID]
   llmctl scheduler run|enable|disable|delete <id>
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID]
-  llmctl scheduler runs [-n 20] [--csv]
+  llmctl scheduler runs [-n 20] [--csv] [-out FILE]
   llmctl scheduler export [-out FILE] | scheduler import <file.json>
   llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL]|restore <name>|verify <name>|download <name>|delete <name>] [-json|-csv|-out FILE on list]
@@ -3567,6 +3567,7 @@ func cmdScheduler(args []string) error {
 		n := fs.Int("n", 20, "number of recent runs")
 		jsonOut := fs.Bool("json", false, "print the run log as JSON (for scripts)")
 		csvOut := fs.Bool("csv", false, "output the run log as CSV (F418)")
+		outFile := fs.String("out", "", "write the run log JSON to this file instead of stdout (F476)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/scheduler/runs")
 		if err != nil {
@@ -3586,19 +3587,26 @@ func cmdScheduler(args []string) error {
 		if err := json.Unmarshal(out, &runs); err != nil {
 			return err
 		}
-		if *jsonOut {
+		if *jsonOut || *outFile != "" { // -out writes the same payload to a file (F476)
 			if len(runs) > *n {
 				runs = runs[:*n]
 			}
-			if len(runs) == 0 {
-				fmt.Println("[]")
+			payload := []byte("[]\n")
+			if len(runs) > 0 {
+				b, err := json.Marshal(runs)
+				if err != nil {
+					return err
+				}
+				payload = append(b, '\n')
+			}
+			if *outFile != "" {
+				if err := os.WriteFile(*outFile, payload, 0o644); err != nil {
+					return err
+				}
+				fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(payload))
 				return nil
 			}
-			b, err := json.Marshal(runs)
-			if err != nil {
-				return err
-			}
-			fmt.Println(string(b))
+			fmt.Print(string(payload))
 			return nil
 		}
 		if *csvOut { // F418: header-only when empty keeps the stream parseable
