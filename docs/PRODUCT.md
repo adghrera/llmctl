@@ -193,7 +193,9 @@ toggle for a light theme (choice remembered). Tabs:
    the last `usageRetentionDays` UTC days (Settings → "Usage retention";
    default 90, -1 = keep forever) (F168).
 - **Requests** — the last 256 gateway requests (time, model, serving instance,
-  key, status, latency, tokens) in an auto-refreshing table, with one-click
+  key, status, latency, tokens) in an auto-refreshing table with a summary bar
+  (count, errors, p50/p95 latency, tokens, cost — the UI twin of
+  `llmctl requests -stats`, F258), with one-click
   CSV export, per-row expand to full JSON detail (F161), and combinable filters (model, status class or exact code like
   404/429 (F153), min latency,
   stream/plain, key prefix or id, and a since/until time range (F189). The serving replica is also echoed to clients as

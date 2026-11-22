@@ -184,6 +184,7 @@ export default function Requests() {
       <p className="muted small" style={{ margin: "0 0 12px" }}>
         Last {entries.length} gateway requests (ring of 256, newest first).
       </p>
+      {entries.length > 0 && <StatsBar entries={entries} />}
       {entries.length === 0 ? (
         <div className="empty">no gateway requests yet</div>
       ) : (
@@ -275,5 +276,30 @@ export default function Requests() {
         </table>
       )}
     </div>
+  );
+}
+
+// StatsBar summarizes the visible ring: count, errors, latency percentiles,
+// tokens and cost — the UI counterpart of `llmctl requests -stats` (F258).
+function StatsBar({ entries }: { entries: RequestLogEntry[] }) {
+  const errors = entries.filter((e) => e.status >= 400).length;
+  const lat = entries.map((e) => e.latencyMs).sort((a, b) => a - b);
+  const pct = (p: number) => (lat.length ? lat[Math.min(lat.length - 1, Math.floor(p * lat.length))] : 0);
+  const tokens = entries.reduce((s, e) => s + e.promptTok + e.compTok, 0);
+  const cost = entries.reduce((s, e) => s + (e.cost || 0), 0);
+  const item = (label: string, value: string) => (
+    <span style={{ marginRight: 16 }}>
+      <span className="muted">{label}</span> <strong>{value}</strong>
+    </span>
+  );
+  return (
+    <p style={{ margin: "0 0 12px", fontSize: 13 }}>
+      {item("requests", String(entries.length))}
+      {item("errors", String(errors))}
+      {item("p50", `${pct(0.5)} ms`)}
+      {item("p95", `${pct(0.95)} ms`)}
+      {item("tokens", tokens.toLocaleString())}
+      {item("cost", cost > 0 ? `$${cost.toFixed(4)}` : "—")}
+    </p>
   );
 }
