@@ -260,7 +260,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Export/import conversations** — GET /api/v1/chats/{id}/export?format=json|markdown
   downloads a conversation as JSON or Markdown. POST /api/v1/chats accepts a
   conversation JSON body for import. Frontend: Export JSON/MD buttons per
-  conversation, Import file-upload button in the Conversations card.
+  conversation, a Rename button (F296) that edits the title in place, and an
+  Import file-upload button in the Conversations card.
 - **Prompt templates** — curated built-in prompt templates (code review,
   explain, summarize, translate, brainstorm, critique, debate, rewrite) stored
   in internal/prompt/templates.go. REST API: GET /api/v1/prompts,

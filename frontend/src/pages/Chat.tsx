@@ -162,6 +162,19 @@ export default function Chat() {
     }
   };
 
+  const renameChat = async (id: string, current: string) => {
+    const t = window.prompt("New title", current);
+    if (t == null || !t.trim()) return;
+    try {
+      const c = await api.getChat(id);
+      await api.saveChat(id, { ...c, title: t.trim() });
+      ok("renamed");
+      await loadChats();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const forkChat = async (id: string, forkAt: number, title: string) => {
     try {
       const c = await api.forkChat(id, { forkAt, title });
@@ -483,6 +496,9 @@ export default function Chat() {
                     </div>
                   </td>
                   <td style={{ textAlign: "right", verticalAlign: "middle" }}>
+                    <button className="btn sm" disabled={streaming} onClick={() => renameChat(c.id, c.title || "")}>
+                      Rename
+                    </button>{" "}
                     <button className="btn sm danger" disabled={streaming} onClick={() => removeChat(c.id)}>
                       Delete
                     </button>{" "}
