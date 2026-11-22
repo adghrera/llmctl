@@ -447,6 +447,7 @@ llmctl models aliases|alias <name> <id>|unalias <name>   (gateway model aliases,
 llmctl models probe [-json]                          (what /v1/models serves now, F252)
 llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>   (model settings, F255)
 llmctl models metadata <id> [-json]                     (GGUF header metadata, F268)
+llmctl models unused                                    (models with no instance + reclaimable size, F280)
 llmctl start <model> [--backend id] [--instance name] [--var k=v ...]
 llmctl stop <instance> [--force]
 llmctl stop --all                          (stop every running instance, attached ones stay, F278)

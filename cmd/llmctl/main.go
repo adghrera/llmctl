@@ -167,6 +167,7 @@ Usage:
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
   llmctl models metadata <id> [-json]
+  llmctl models unused
   llmctl models add <id> <file> [-backend ID]
   llmctl models aliases
   llmctl models alias <name> <model-id>
@@ -1274,6 +1275,52 @@ func cmdModels(args []string) error {
 			return fmt.Errorf("models add: %s", out)
 		}
 		fmt.Printf("model %s registered from %s\n", afs.Arg(0), afs.Arg(1))
+		return nil
+	case "unused":
+		// Models with no running instance and no stored instance record —
+		// cleanup candidates (F280).
+		_, mout, err := cc.Get("/api/v1/models")
+		if err != nil {
+			return err
+		}
+		_, iout, err := cc.Get("/api/v1/instances")
+		if err != nil {
+			return err
+		}
+		var models []struct {
+			ID      string `json:"id"`
+			Size    int64  `json:"sizeBytes"`
+			Running bool   `json:"running"`
+		}
+		var insts []struct {
+			ModelID string `json:"modelId"`
+			Status  string `json:"status"`
+		}
+		if err := json.Unmarshal(mout, &models); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(iout, &insts); err != nil {
+			return err
+		}
+		used := map[string]bool{}
+		for _, i := range insts {
+			used[i.ModelID] = true
+		}
+		var total int64
+		n := 0
+		for _, m := range models {
+			if m.Running || used[m.ID] {
+				continue
+			}
+			fmt.Printf("%-24s %-12s %s\n", m.ID, fmtSize(m.Size), "llmctl models remove "+m.ID)
+			total += m.Size
+			n++
+		}
+		if n == 0 {
+			fmt.Println("every model has a running or stored instance")
+			return nil
+		}
+		fmt.Printf("total: %d unreferenced model(s), %s reclaimable\n", n, fmtSize(total))
 		return nil
 	case "list":
 		fs := flag.NewFlagSet("models list", flag.ExitOnError)
