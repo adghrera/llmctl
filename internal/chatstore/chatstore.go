@@ -75,6 +75,7 @@ type Summary struct {
 	AgentMode bool      `json:"agentMode,omitempty"`
 	Pinned    bool      `json:"pinned,omitempty"`
 	Messages  int       `json:"messages"`
+	Tokens    int       `json:"tokens,omitempty"` // total token usage across messages (F603)
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -184,7 +185,7 @@ func (s *Store) List() ([]Summary, error) {
 		if err != nil {
 			continue // skip corrupt files in listings
 		}
-		out = append(out, Summary{ID: c.ID, Title: c.Title, Model: c.Model, AgentMode: c.AgentMode, Pinned: c.Pinned, Messages: len(c.Messages), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
+		out = append(out, Summary{ID: c.ID, Title: c.Title, Model: c.Model, AgentMode: c.AgentMode, Pinned: c.Pinned, Messages: len(c.Messages), Tokens: ConversationTokens(c.Messages), CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Pinned != out[j].Pinned {

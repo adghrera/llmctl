@@ -360,7 +360,7 @@ toggle for a light theme (choice remembered). Tabs:
    per line; -json prints the raw array, -out writes it to a file, F595)
    (F218, F298, F304).
  - **Chat CLI** — `llmctl chats [filter] [-json] [-out FILE]` (or `chats list [filter]`)
-   lists saved conversations (`--csv` exports the list, F378),
+   lists saved conversations with a per-chat token total (`--csv` exports the list, F378, F603),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]` prints one
    with a message preview,
    `llmctl chats search <query> [-json] [-out FILE]` full-text searches message content

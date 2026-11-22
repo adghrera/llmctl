@@ -6724,6 +6724,7 @@ func cmdChats(args []string) error {
 		Title     string `json:"title"`
 		Model     string `json:"model"`
 		Messages  int    `json:"messages"`
+		Tokens    int    `json:"tokens"` // total token usage (F603)
 		UpdatedAt string `json:"updatedAt"`
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
@@ -6735,6 +6736,7 @@ func cmdChats(args []string) error {
 			Title     string `json:"title"`
 			Model     string `json:"model"`
 			Messages  int    `json:"messages"`
+			Tokens    int    `json:"tokens"`
 			UpdatedAt string `json:"updatedAt"`
 		}
 		for _, c := range list {
@@ -6775,14 +6777,14 @@ func cmdChats(args []string) error {
 	}
 	if *csvOut { // F378
 		w := csv.NewWriter(os.Stdout)
-		_ = w.Write([]string{"id", "title", "model", "messages", "updated_at"})
+		_ = w.Write([]string{"id", "title", "model", "messages", "tokens", "updated_at"})
 		for _, c := range list {
-			_ = w.Write([]string{c.ID, c.Title, c.Model, strconv.Itoa(c.Messages), c.UpdatedAt})
+			_ = w.Write([]string{c.ID, c.Title, c.Model, strconv.Itoa(c.Messages), strconv.Itoa(c.Tokens), c.UpdatedAt})
 		}
 		w.Flush()
 		return w.Error()
 	}
-	fmt.Printf("%-18s %-14s %-4s %-14s %s\n", "ID", "MODEL", "MSGS", "UPDATED", "TITLE")
+	fmt.Printf("%-18s %-14s %-4s %7s %-14s %s\n", "ID", "MODEL", "MSGS", "TOKENS", "UPDATED", "TITLE")
 	for _, c := range list {
 		updated := c.UpdatedAt
 		if t, err := time.Parse(time.RFC3339, c.UpdatedAt); err == nil {
@@ -6792,7 +6794,7 @@ func cmdChats(args []string) error {
 		if len(title) > 48 {
 			title = title[:48] + "…"
 		}
-		fmt.Printf("%-18s %-14s %-4d %-14s %s\n", c.ID, c.Model, c.Messages, updated, title)
+		fmt.Printf("%-18s %-14s %-4d %7d %-14s %s\n", c.ID, c.Model, c.Messages, c.Tokens, updated, title)
 	}
 	return nil
 }
