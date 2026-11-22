@@ -11,6 +11,7 @@ import Tools from "./pages/Tools";
 import Skills from "./pages/Skills";
 import Memory from "./pages/Memory";
 import Compare from "./pages/Compare";
+import Bench from "./pages/Bench";
 import Prompts from "./pages/Prompts";
 import Files from "./pages/Files";
 import Cost from "./pages/Cost";
@@ -36,6 +37,7 @@ const NAV: { to: string; label: string; end?: boolean; title?: string }[] = [
   { to: "/skills", label: "Skills" },
   { to: "/memory", label: "Memory" },
   { to: "/compare", label: "Compare" },
+  { to: "/bench", label: "Bench" },
   { to: "/prompts", label: "Prompts" },
   { to: "/files", label: "Files" },
   { to: "/knowledge-bases", label: "Knowledge Bases" },
@@ -133,6 +135,7 @@ export default function App() {
           <Route path="/skills" element={<Skills />} />
           <Route path="/memory" element={<Memory />} />
           <Route path="/compare" element={<Compare />} />
+          <Route path="/bench" element={<Bench />} />
           <Route path="/prompts" element={<Prompts />} />
           <Route path="/files" element={<Files />} />
           <Route path="/cost" element={<Cost />} />

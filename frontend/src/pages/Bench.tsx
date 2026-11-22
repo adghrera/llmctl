@@ -1,0 +1,241 @@
+import { useEffect, useState } from "react";
+import { api, Instance } from "../api/client";
+import { err, ok } from "../ui/toast";
+
+// Client-side twin of `llmctl bench -models A,B` (F671): fire n requests per
+// instance with a concurrency pool, measure per-request latency and tokens.
+
+interface BenchRow {
+  model: string;
+  ok: number;
+  fail: number;
+  avg: number;
+  p50: number;
+  p95: number;
+  max: number;
+  tokps: number;
+  reqps: number;
+  error?: string;
+  done: boolean;
+}
+
+const pct = (sorted: number[], p: number) => {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  return sorted[idx];
+};
+
+export default function Bench() {
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [prompt, setPrompt] = useState("count to five");
+  const [n, setN] = useState("5");
+  const [conc, setConc] = useState("1");
+  const [rows, setRows] = useState<BenchRow[]>([]);
+  const [running, setRunning] = useState(false);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
+
+  const load = () =>
+    api
+      .instances()
+      .then((list) => setInstances(list.filter((i) => i.status === "running")))
+      .catch((e) => err(e instanceof Error ? e.message : String(e)));
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const benchOne = async (inst: Instance, reqs: number, parallel: number): Promise<BenchRow> => {
+    const row: BenchRow = { model: inst.modelId, ok: 0, fail: 0, avg: 0, p50: 0, p95: 0, max: 0, tokps: 0, reqps: 0, done: false };
+    const times: number[] = [];
+    let tokens = 0;
+    let next = 0;
+    const t0 = performance.now();
+    const worker = async () => {
+      while (true) {
+        const i = next++;
+        if (i >= reqs) return;
+        const t = performance.now();
+        try {
+          const resp = await fetch("/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+            },
+            body: JSON.stringify({
+              model: inst.modelId,
+              messages: [{ role: "user", content: prompt }],
+            }),
+          });
+          const ms = performance.now() - t;
+          const body = await resp.text();
+          if (!resp.ok) {
+            row.fail++;
+            row.error = row.error || `${resp.status}: ${body.slice(0, 80)}`;
+            continue;
+          }
+          try {
+            const j = JSON.parse(body);
+            tokens += j?.usage?.total_tokens ?? 0;
+          } catch {
+            /* SSE or no usage: count the request, no tokens */
+          }
+          row.ok++;
+          times.push(ms);
+        } catch (e) {
+          row.fail++;
+          row.error = row.error || String(e);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, parallel) }, worker));
+    const wall = (performance.now() - t0) / 1000;
+    times.sort((a, b) => a - b);
+    const sum = times.reduce((a, b) => a + b, 0);
+    row.avg = times.length ? sum / times.length : 0;
+    row.p50 = pct(times, 50);
+    row.p95 = pct(times, 95);
+    row.max = times.length ? times[times.length - 1] : 0;
+    row.tokps = wall > 0 ? tokens / wall : 0;
+    row.reqps = wall > 0 ? row.ok / wall : 0;
+    row.done = true;
+    return row;
+  };
+
+  const runBench = async () => {
+    if (selected.size === 0) {
+      err("select at least one instance");
+      return;
+    }
+    const reqs = Math.max(1, Number(n) || 5);
+    const parallel = Math.max(1, Number(conc) || 1);
+    setRunning(true);
+    const chosen = instances.filter((i) => selected.has(i.id));
+    setRows(chosen.map((i) => ({ model: i.modelId, ok: 0, fail: 0, avg: 0, p50: 0, p95: 0, max: 0, tokps: 0, reqps: 0, done: false })));
+    try {
+      for (const inst of chosen) {
+        const row = await benchOne(inst, reqs, parallel);
+        setRows((prev) => prev.map((r) => (r.model === row.model ? row : r)));
+        if (row.ok === 0) err(`${row.model}: ${row.error || "all requests failed"}`);
+        else ok(`${row.model}: ${row.ok}/${reqs} ok, avg ${row.avg.toFixed(0)} ms`);
+      }
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div>
+      <h1>Bench</h1>
+      <p className="muted" style={{ fontSize: 13 }}>
+        Fire repeated requests at running instances and compare latency and throughput —
+        the UI twin of <span className="mono">llmctl bench -models A,B</span> (F671).
+      </p>
+      <div className="card">
+        <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+          <input
+            style={{ width: 80 }}
+            type="number"
+            min={1}
+            title="requests per model"
+            value={n}
+            onChange={(e) => setN(e.target.value)}
+          />
+          <span className="muted" style={{ alignSelf: "center" }}>requests</span>
+          <input
+            style={{ width: 80 }}
+            type="number"
+            min={1}
+            title="concurrent requests"
+            value={conc}
+            onChange={(e) => setConc(e.target.value)}
+          />
+          <span className="muted" style={{ alignSelf: "center" }}>concurrent</span>
+          <input
+            style={{ width: 220 }}
+            placeholder="API key (if auth on)"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <button className="btn sm" onClick={() => localStorage.setItem("llmctl.chat.key", apiKey)}>
+            Save key
+          </button>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <strong>Select instances:</strong>{" "}
+          {selected.size === 0 && <span style={{ opacity: 0.6, fontSize: 12 }}>(none selected)</span>}
+          {instances.map((inst) => (
+            <label key={inst.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginRight: 12, cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(inst.id)} onChange={() => toggle(inst.id)} />
+              {inst.modelId} ({inst.backendId})
+            </label>
+          ))}
+        </div>
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+          <input
+            style={{ flex: 1, minWidth: 200 }}
+            placeholder="prompt for every request"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+          <button className="btn primary" disabled={running || selected.size === 0} onClick={runBench}>
+            {running ? "Benching…" : "Run bench"}
+          </button>
+        </div>
+        {rows.length > 0 && (
+          <div className="oc-table" style={{ overflowX: "auto" }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>MODEL</th>
+                  <th>OK</th>
+                  <th>FAIL</th>
+                  <th>AVG MS</th>
+                  <th>P50 MS</th>
+                  <th>P95 MS</th>
+                  <th>MAX MS</th>
+                  <th>TOK/S</th>
+                  <th>REQ/S</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.model}>
+                    <td className="mono">{r.model}</td>
+                    <td>{r.done ? r.ok : "…"}</td>
+                    <td>{r.done ? r.fail : ""}</td>
+                    <td>{r.done ? r.avg.toFixed(0) : ""}</td>
+                    <td>{r.done ? r.p50.toFixed(0) : ""}</td>
+                    <td>{r.done ? r.p95.toFixed(0) : ""}</td>
+                    <td>{r.done ? r.max.toFixed(0) : ""}</td>
+                    <td>{r.done ? r.tokps.toFixed(0) : ""}</td>
+                    <td>{r.done ? r.reqps.toFixed(2) : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.some((r) => r.done && r.error) && (
+              <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                {rows.filter((r) => r.error).map((r) => (
+                  <div key={r.model}>
+                    {r.model}: {r.error}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

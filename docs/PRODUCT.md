@@ -338,6 +338,9 @@ toggle for a light theme (choice remembered). Tabs:
   button matching `llmctl compare --json` shape (F431) plus an Export CSV
   button matching `llmctl compare --csv` (F607).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
+  A sibling **Bench page** (F671) is the UI twin of `llmctl bench`: pick
+  instances, requests and concurrency, and it measures per-model latency
+  percentiles and throughput client-side against the gateway.
   CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301);
   add `-json` for a machine-readable `[{model, reply|error}]` array (F314),
   or `-out FILE` to write that array to a file (F454).
