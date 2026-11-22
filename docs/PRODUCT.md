@@ -576,6 +576,7 @@ llmctl status [-json] [-watch N] [-out FILE]   (-watch N: live refresh; -json: r
 llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]  (--csv exports name,status,detail (F429); -quiet prints only warn/error lines + a summary; -check keeps matching checks, repeatable; -watch N re-runs the sweep and prints checks as they change, F557; -out writes the JSON to a file, F464)
 llmctl gpu [-json] [--csv] [-out FILE]             (GPU inventory: vendor, name, used/total; --csv adds raw bytes + used_pct, -out writes the raw JSON, F430, F463)
 llmctl jobs [-json] [--csv] [-watch N] [-out FILE]   (background install jobs; --csv exports the job list, -out writes the raw JSON refreshed each -watch tick, F427, F273, F477)
+llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]   (block until the job finishes: exit 0 on done, non-zero on failure; progress prints only when it changes; -json prints the final job JSON; backed by GET /api/v1/jobs/{id}, F575)
 llmctl search <query> [-max N] [-json] [--csv] [-out FILE]  (keyless web search; --csv exports rank,title,url,snippet, -out writes the raw JSON, F428, F274, F462)
 llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] [-out FILE] <prompt>   (schema-validated JSON, F279, F344; -out writes it to a file, F457)
 llmctl embed -model ID [-key K] [-json] [-out FILE] <text>     (gateway embeddings, F281; -out writes the JSON to a file, F456)

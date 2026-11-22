@@ -193,6 +193,7 @@ func (s *Server) Handler() http.Handler {
 	// Jobs
 	m.HandleFunc("GET /api/v1/jobs", s.listJobs)
 	m.HandleFunc("GET /api/v1/jobs/events", s.jobEvents)
+	m.HandleFunc("GET /api/v1/jobs/{id}", s.getJob)
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
 	m.HandleFunc("GET /api/v1/usage/daily", s.dailyUsage)
@@ -1596,6 +1597,17 @@ func tailFile(path string, maxBytes int) ([]byte, int64, error) {
 
 func (s *Server) listJobs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, s.jobs.List())
+}
+
+// getJob returns one tracked job by id (F575) so scripts can poll a single
+// job they started (llmctl jobs wait).
+func (s *Server) getJob(w http.ResponseWriter, r *http.Request) {
+	j, ok := s.jobs.Get(r.PathValue("id"))
+	if !ok {
+		writeErr(w, 404, "no such job")
+		return
+	}
+	writeJSON(w, 200, j)
 }
 
 // jobEvents is an SSE stream of job progress.

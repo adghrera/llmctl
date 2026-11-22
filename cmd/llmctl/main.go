@@ -195,6 +195,7 @@ Usage:
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]
   llmctl gpu [-json] [--csv] [-out FILE]
   llmctl jobs [-json] [--csv] [-watch N] [-out FILE]
+  llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]
   llmctl search <query> [-max N] [-json] [--csv] [-out FILE]
   llmctl structured -model ID -schema file.json [-max-tokens N] [-temperature T] [-out FILE] <prompt>
   llmctl embed -model ID [-json] [-out FILE] <text>
@@ -1229,6 +1230,9 @@ func cmdSetVars(args []string) error {
 // cmdJobs lists background jobs (model/backend installs) tracked by the
 // daemon (GET /api/v1/jobs, F273).
 func cmdJobs(args []string) error {
+	if len(args) > 0 && args[0] == "wait" { // F575: block until a job finishes
+		return cmdJobsWait(args[1:])
+	}
 	fs := flag.NewFlagSet("jobs", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw jobs JSON (for scripts)")
 	csvOut := fs.Bool("csv", false, "output the job list as CSV (F427)")
@@ -1309,6 +1313,79 @@ func cmdJobs(args []string) error {
 			return err
 		}
 		time.Sleep(time.Duration(*watch) * time.Second)
+	}
+}
+
+// cmdJobsWait blocks until one job reaches a terminal state (F575). Exit is
+// non-zero when the job failed, so scripts can chain: install … && wait.
+func cmdJobsWait(args []string) error {
+	fs := flag.NewFlagSet("jobs wait", flag.ExitOnError)
+	timeout := fs.Int("timeout", 0, "give up after N seconds (0 = wait until done)")
+	interval := fs.Int("interval", 1, "poll every N seconds")
+	jsonOut := fs.Bool("json", false, "print the final job JSON instead of progress (for scripts)")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() == 0 {
+		return fmt.Errorf("usage: llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]")
+	}
+	id := fs.Arg(0)
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	var deadline time.Time
+	if *timeout > 0 {
+		deadline = time.Now().Add(time.Duration(*timeout) * time.Second)
+	}
+	type jobRow struct {
+		ID       string  `json:"id"`
+		Kind     string  `json:"kind"`
+		Target   string  `json:"target"`
+		Status   string  `json:"status"`
+		Progress float64 `json:"progress"`
+		Message  string  `json:"message"`
+		Error    string  `json:"error"`
+	}
+	last := ""
+	for {
+		code, out, err := cc.Get("/api/v1/jobs/" + url.PathEscape(id))
+		if err != nil {
+			return err
+		}
+		if code == 404 {
+			return fmt.Errorf("no such job: %s (jobs live in daemon memory — see 'llmctl jobs')", id)
+		}
+		if code != 200 {
+			return fmt.Errorf("jobs wait returned %d: %s", code, out)
+		}
+		var j jobRow
+		if err := json.Unmarshal(out, &j); err != nil {
+			return err
+		}
+		switch j.Status {
+		case "done":
+			if *jsonOut {
+				fmt.Print(string(out))
+			} else {
+				fmt.Printf("job %s done (%s %s)\n", j.ID, j.Kind, j.Target)
+			}
+			return nil
+		case "error":
+			if *jsonOut {
+				fmt.Print(string(out))
+			}
+			return fmt.Errorf("job %s failed: %s", j.ID, j.Error)
+		}
+		if !*jsonOut { // print progress only when it actually changed
+			line := fmt.Sprintf("%s %3.0f%% %s", j.Status, j.Progress*100, j.Message)
+			if line != last {
+				fmt.Println(line)
+				last = line
+			}
+		}
+		if !deadline.IsZero() && time.Now().After(deadline) {
+			return fmt.Errorf("job %s still %s after %ds", j.ID, j.Status, *timeout)
+		}
+		time.Sleep(time.Duration(*interval) * time.Second)
 	}
 }
 
@@ -2531,7 +2608,11 @@ func cmdBackends(args []string) error {
 			fmt.Print(string(out))
 			return nil
 		}
-		fmt.Printf("backend %s install started (track: llmctl status / web UI)\n", bifs.Arg(0))
+		var bj struct {
+			Job string `json:"job"`
+		}
+		json.Unmarshal(out, &bj)
+		fmt.Printf("backend %s install started (job %s) — track: llmctl jobs wait %s\n", bifs.Arg(0), bj.Job, bj.Job)
 		return nil
 	case "uninstall":
 		bufs := flag.NewFlagSet("backends uninstall", flag.ExitOnError)
@@ -3213,7 +3294,7 @@ func cmdModels(args []string) error {
 		if err := json.Unmarshal(out, &jr); err != nil {
 			return err
 		}
-		fmt.Printf("download started for model %s (job %s) — track: web UI or llmctl jobs\n", jr.Model, jr.Job)
+		fmt.Printf("download started for model %s (job %s) — track: llmctl jobs wait %s\n", jr.Model, jr.Job, jr.Job)
 		return nil
 	case "remove":
 		mrfs := flag.NewFlagSet("models remove", flag.ExitOnError)
