@@ -645,6 +645,7 @@ llmctl presets|scheduler|memory|mcp|prompts|autostart import <file.json> [-json]
 llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json]   (print the raw response / result JSON with -json, F544)
 llmctl backup [file] [-json] | backup verify <file> [-json] | restore <file> [-json]   (print {file,bytes} / {file,entries,ok} / {restored,home} as JSON, F545)
 llmctl backups restore|download|delete … [-json] | chats delete-all -yes [-json]   (raw response / {file,bytes} / {deleted,total} with -json, F546)
+llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON | -d-file F|-] [-out FILE]   raw management-API call; body printed verbatim, non-2xx exits non-zero (F547)
 llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -notify-webhook
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep

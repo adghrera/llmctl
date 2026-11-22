@@ -141,6 +141,8 @@ func main() {
 		err = cmdRestore(args)
 	case "completion":
 		err = cmdCompletion(args)
+	case "api":
+		err = cmdApi(args)
 	case "version", "--version", "-v":
 		versionJSON := func() string {
 			daemonVer := ""
@@ -278,6 +280,7 @@ Usage:
   llmctl restore <file.tar.gz> [-json]    import a backup into the state dir
   llmctl version [--json] [-out FILE]
   llmctl completion [bash|zsh|fish|powershell]  print a shell completion script
+  llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON|-d-file F] [-out FILE]   raw management-API call
 
 The daemon serves the gateway (/v1), the management API (/api/v1), and the
 web UI (http://127.0.0.1:8080/) on one port.
@@ -1932,7 +1935,7 @@ var llmTopCommands = []string{
 	"autostart", "requests", "backups", "usage", "metrics", "events",
 	"webhooks", "prompts", "chats", "skills", "memory", "kb", "tools",
 	"mcp", "cost", "files", "settings", "batch", "scheduler", "chat",
-	"backup", "restore", "version", "help", "completion",
+	"backup", "restore", "version", "help", "completion", "api",
 }
 
 // llmSubCommands lists the subcommands of each top-level command that has
@@ -9908,6 +9911,77 @@ func cmdRestore(args []string) error {
 		return nil
 	}
 	fmt.Printf("restored %d file(s) into %s\n", n, paths.Home())
+	return nil
+}
+
+// cmdApi is a raw passthrough to the management API (F547), an escape hatch
+// for scripting and testing endpoints without a dedicated command:
+//
+//	llmctl api GET /api/v1/status
+//	llmctl api POST /api/v1/keys -d '{"name":"ci"}'
+//
+// The response body is printed verbatim; a non-2xx status exits non-zero.
+func cmdApi(args []string) error {
+	fs := flag.NewFlagSet("api", flag.ExitOnError)
+	data := fs.String("d", "", "request body (JSON string)")
+	dataFile := fs.String("d-file", "", "read the request body from this file (- = stdin)")
+	outFile := fs.String("out", "", "write the response body to this file instead of stdout")
+	fs.Parse(reorderFlags(args))
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: llmctl api <GET|POST|PUT|PATCH|DELETE> /path [-d JSON | -d-file F] [-out FILE]")
+	}
+	method := strings.ToUpper(fs.Arg(0))
+	path := fs.Arg(1)
+	if !strings.HasPrefix(path, "/") {
+		return fmt.Errorf("path must start with / (e.g. /api/v1/status)")
+	}
+	switch method {
+	case "GET", "POST", "PUT", "PATCH", "DELETE":
+	default:
+		return fmt.Errorf("unsupported method: %s (use GET, POST, PUT, PATCH or DELETE)", method)
+	}
+	raw := *data
+	if *dataFile != "" {
+		if *dataFile == "-" {
+			b, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return err
+			}
+			raw = string(b)
+		} else {
+			b, err := os.ReadFile(*dataFile)
+			if err != nil {
+				return err
+			}
+			raw = string(b)
+		}
+	}
+	var body any
+	if strings.TrimSpace(raw) != "" {
+		if !json.Valid([]byte(raw)) {
+			return fmt.Errorf("-d/-d-file body is not valid JSON")
+		}
+		body = json.RawMessage(raw)
+	}
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Do(method, path, body)
+	if err != nil {
+		return err
+	}
+	if *outFile != "" {
+		if werr := os.WriteFile(*outFile, out, 0o644); werr != nil {
+			return werr
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out))
+	} else if len(out) > 0 {
+		fmt.Println(strings.TrimRight(string(out), "\n"))
+	}
+	if code/100 != 2 {
+		return fmt.Errorf("api %s %s returned %d", method, path, code)
+	}
 	return nil
 }
 
