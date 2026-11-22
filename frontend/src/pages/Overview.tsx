@@ -10,6 +10,7 @@ export default function Overview() {
   const [disk, setDisk] = useState<Awaited<ReturnType<typeof api.disk>> | null>(null);
   const [events, setEvents] = useState<Awaited<ReturnType<typeof api.events>>>([]);
   const [eventKind, setEventKind] = useState("");
+  const [eventStats, setEventStats] = useState(false); // per-kind rollup (CLI `events -stats` parity, F600)
   const [eventKinds, setEventKinds] = useState<string[]>([]);
   const [eventModel, setEventModel] = useState("");
   const [today, setToday] = useState<{ requests: number; errors: number; tokens: number; cost: number } | null>(null);
@@ -288,6 +289,14 @@ export default function Overview() {
             <h2 style={{ margin: 0 }}>Events</h2>
             <button
               className="btn sm"
+              aria-pressed={eventStats}
+              title="group the feed per kind — CLI: llmctl events -stats (F600)"
+              onClick={() => setEventStats(!eventStats)}
+            >
+              {eventStats ? "Show list" : "Stats"}
+            </button>
+            <button
+              className="btn sm"
               disabled={events.length === 0}
               onClick={() => {
                 // Same columns as `llmctl events --csv` (F371).
@@ -338,6 +347,47 @@ export default function Overview() {
             </label>
           </div>
           {events.length === 0 && <p className="muted small">No events of this kind.</p>}
+          {eventStats ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Event</th>
+                  <th>Count</th>
+                  <th>Last</th>
+                  <th>Instances / Models</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const by = new Map<string, { count: number; last: string; who: Set<string> }>();
+                  for (const e of events) {
+                    const g = by.get(e.kind) ?? { count: 0, last: "", who: new Set<string>() };
+                    g.count++;
+                    if (e.time > g.last) g.last = e.time;
+                    if (e.instance) g.who.add(e.instance);
+                    if (e.model) g.who.add(e.model);
+                    by.set(e.kind, g);
+                  }
+                  return [...by.entries()]
+                    .sort((a, b) => b[1].count - a[1].count)
+                    .map(([kind, g]) => (
+                      <tr key={kind}>
+                        <td>
+                          <span className={`badge ${kind.includes("crashed") ? "err" : "warn"}`}>
+                            {kind.replace("instance.", "")}
+                          </span>
+                        </td>
+                        <td>{g.count}</td>
+                        <td className="muted" style={{ fontSize: 12 }} title={new Date(g.last).toLocaleString()}>
+                          {ago(g.last)}
+                        </td>
+                        <td className="mono" style={{ fontSize: 12 }}>{[...g.who].join(" ") || "—"}</td>
+                      </tr>
+                    ));
+                })()}
+              </tbody>
+            </table>
+          ) : (
           <table>
             <thead>
               <tr>
@@ -364,6 +414,7 @@ export default function Overview() {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       )}
       {activeJobs.length > 0 && (
