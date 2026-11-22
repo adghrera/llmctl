@@ -960,6 +960,22 @@ export default function Instances() {
               >
                 Download
               </a>
+              <button
+                className="btn sm"
+                disabled={logData === null}
+                title="copy the displayed log tail to the clipboard (F760)"
+                onClick={() => {
+                  const raw = logData?.logs || "";
+                  const f = logFilter.trim();
+                  const text = f ? raw.split("\n").filter((l) => l.toLowerCase().includes(f.toLowerCase())).join("\n") : raw;
+                  navigator.clipboard
+                    ?.writeText(text)
+                    .then(() => ok("copied"))
+                    .catch(() => {});
+                }}
+              >
+                Copy
+              </button>
               <button className="btn sm" onClick={() => { setLogFor(null); setLogData(null); }}>
                 Close
               </button>

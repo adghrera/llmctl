@@ -770,6 +770,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F757 | P3 | 757 | requests | Request detail Copy JSON | COMPLETED | The expanded request row gained a Copy JSON button copying the full JSON detail to the clipboard — click-to-copy family extended to the detail view. Verified live: served bundle carries the button. |
 | F758 | P3 | 758 | requests | Requests ?id= deep link | COMPLETED | `/requests?id=<X-Request-Id>` now shows the single logged request (auto-expanded), twin of `llmctl requests -id`; Clear removes the id param. Verified live: endpoint replay + served bundle carries the param read. |
 | F759 | P3 | 759 | usage | Usage days dropdown | COMPLETED | The Usage page Daily History header gained a days dropdown (7/14/30/90) that refetches the daily roll-ups — UI twin of `llmctl usage -n N`; the trend chart follows the fetched window. Verified live: served bundle carries the dropdown, API accepts days=30. |
+| F760 | P3 | 760 | logs | Log viewers Copy button | COMPLETED | The Overview daemon log card and the Instances log viewer each gained a Copy button saving the displayed (filter-aware) tail to the clipboard — companion to their Download buttons. Verified live: served bundle carries both buttons. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

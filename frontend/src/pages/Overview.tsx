@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, type GatewayMetrics, type GPUInfo } from "../api/client";
+import { ok } from "../ui/toast";
 import { ago } from "../lib/time";
 import { useStore } from "../state/store";
 
@@ -790,6 +791,21 @@ export default function Overview() {
             }}
           >
             Download
+          </button>
+          <button
+            className="btn sm"
+            disabled={daemonLog === null}
+            title="copy the displayed daemon log tail to the clipboard (F760)"
+            onClick={() => {
+              const f = daemonLogFilter.trim();
+              const text = f && daemonLog ? daemonLog.split("\n").filter((l) => l.toLowerCase().includes(f.toLowerCase())).join("\n") : daemonLog || "";
+              navigator.clipboard
+                ?.writeText(text)
+                .then(() => ok("copied"))
+                .catch(() => {});
+            }}
+          >
+            Copy
           </button>
           <button
             className="btn sm"

@@ -148,8 +148,9 @@ GitHub release, or file list. No recompile.
   `llmctl ps -stats` (F635), and a tag-filter dropdown twin of `llmctl ps
   -tag` (F708). Its log viewer (stderr/stdout
   tails, download) has a Follow toggle that keeps tailing new lines every 2s,
-  the UI counterpart of `llmctl logs -f` (F422), and a filter box that shows
-  only lines containing a substring (F450). An optional
+  the UI counterpart of `llmctl logs -f` (F422), a filter box that shows
+  only lines containing a substring (F450), and a Copy button for the
+  displayed tail (F760). An optional
   per-instance "max parallel" cap (Vars dialog)
   sheds excess requests with 503 instead of overloading a backend (F114).
 
@@ -175,8 +176,8 @@ toggle for a light theme (choice remembered). Tabs:
   matching `llmctl events --csv`/`-json` columns (F371, F719). A "Daemon log" card shows the tail of the
    daemon's own log on demand (F173) with a Follow toggle that keeps tailing it
   every 2s (UI counterpart of `llmctl logs -daemon -f`, F423), a filter box
-  for substring line filtering (F450), and a Download button saving the
-  displayed tail (F744), and a Stats toggle that rolls the feed
+  for substring line filtering (F450), a Download button saving the
+  displayed tail (F744) and a Copy button for it (F760), and a Stats toggle that rolls the feed
   up per kind — count, last seen, who (UI twin of `llmctl events -stats`, F600).
   `llmctl events -watch N` live-tails
    the feed, printing new events every N seconds (F187).
