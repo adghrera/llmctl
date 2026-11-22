@@ -526,7 +526,7 @@ llmctl ps [-watch N] [-json]      (-watch N: live refresh; -json: raw; also show
 llmctl backends list|install|uninstall|add|remove
 llmctl catalog list [-json] | install <id>      (curated model picker, F266)
 llmctl presets list|save|start|delete|export|import  (named start recipes, F265, F328)
-llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total,
+llmctl models list|show|install|remove|hf-search|hf-files   (list shows human sizes + total, --csv for export,
 llmctl models add <id> <file> [-backend ID]              (register an existing local GGUF, F275)
 llmctl models rename <id> <new-id>                    (change a model id; aliases follow, F284)
                                     price and idle-unload; show also lists aliases pointing at the

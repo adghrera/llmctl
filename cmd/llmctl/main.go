@@ -181,7 +181,7 @@ Usage:
   llmctl backends uninstall <id>
   llmctl backends add <plugin.json>
   llmctl backends remove <id>
-  llmctl models list
+  llmctl models list [--csv]
   llmctl models show <id>
   llmctl models probe
   llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|never>
@@ -2156,6 +2156,7 @@ func cmdModels(args []string) error {
 	case "list":
 		fs := flag.NewFlagSet("models list", flag.ExitOnError)
 		jsonOut := fs.Bool("json", false, "print the raw models JSON (for scripts)")
+		csvOut := fs.Bool("csv", false, "output the model table as CSV (F372)")
 		fs.Parse(reorderFlags(rest))
 		_, out, err := cc.Get("/api/v1/models")
 		if err != nil {
@@ -2179,8 +2180,25 @@ func cmdModels(args []string) error {
 			return err
 		}
 		if len(list) == 0 {
+			if *csvOut { // keep the stream parseable (F372)
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running"})
+				w.Flush()
+				return w.Error()
+			}
 			fmt.Println("no models downloaded")
 			return nil
+		}
+		if *csvOut { // F372
+			w := csv.NewWriter(os.Stdout)
+			_ = w.Write([]string{"id", "backend", "size_bytes", "ctx_size", "price_in_per_m", "price_out_per_m", "idle_unload_min", "running"})
+			for _, m := range list {
+				_ = w.Write([]string{m.ID, m.BackendID, strconv.FormatInt(m.SizeBytes, 10), strconv.Itoa(m.CtxSize),
+					strconv.FormatFloat(m.PriceIn, 'f', -1, 64), strconv.FormatFloat(m.PriceOut, 'f', -1, 64),
+					strconv.Itoa(m.IdleMin), strconv.FormatBool(m.Running)})
+			}
+			w.Flush()
+			return w.Error()
 		}
 		fmt.Printf("%-40s %-12s %-10s %-9s %-14s %-7s %s\n", "ID", "BACKEND", "SIZE", "CTX", "PRICE $/M", "IDLE", "RUNNING")
 		var total int64
