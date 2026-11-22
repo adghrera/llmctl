@@ -266,6 +266,9 @@ toggle for a light theme (choice remembered). Tabs:
    (F246).
  - **KB CLI** — `llmctl kb [filter] [-json]` lists knowledge bases;
    `kb create <name> [-desc X]`, `kb show|docs|delete <id>` (F247).
+ - **Tools CLI** — `llmctl tools [-json]` lists installed tools;
+   `tools show|enable|disable|delete <id>` and `tools run <id> -args '<json>'`
+   execute one from the shell (F248).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>] [-json]` covers the whole uploaded-files API from the shell, including
    uploads (F219, F243).

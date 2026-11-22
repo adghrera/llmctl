@@ -86,6 +86,8 @@ func main() {
 		err = cmdMemory(args)
 	case "kb":
 		err = cmdKb(args)
+	case "tools":
+		err = cmdTools(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -171,6 +173,7 @@ Usage:
   llmctl skills [filter] [-json] | skills show|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|delete …
   llmctl kb [filter] [-json] | kb show|create|docs|delete …
+  llmctl tools [-json] | tools show|enable|disable|run|delete <id>
   llmctl files [list|upload <path>|cat <id>|delete <id>] [-json]
   llmctl settings [-json] | llmctl settings set <flags> | settings test-webhook
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-file F|piped stdin|prompts…] [-json]
@@ -2676,6 +2679,167 @@ func cmdKb(args []string) error {
 		return nil
 	default:
 		return fmt.Errorf("unknown kb subcommand %q (list|show|create|docs|delete)", sub)
+	}
+}
+
+// cmdTools lists and manages installed tools (F248).
+func cmdTools(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub, rest := "list", args
+	if len(args) > 0 {
+		switch args[0] {
+		case "list", "show", "enable", "disable", "run", "delete":
+			sub, rest = args[0], args[1:]
+		}
+	}
+	switch sub {
+	case "list":
+		fs := flag.NewFlagSet("tools", flag.ExitOnError)
+		jsonOut := fs.Bool("json", false, "print the tools as JSON (for scripts)")
+		fs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/tools")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("tools returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Print(string(out))
+			return nil
+		}
+		var list []struct {
+			ID       string `json:"id"`
+			Manifest struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+				Runtime     string `json:"runtime"`
+			} `json:"manifest"`
+			Enabled bool `json:"enabled"`
+			Sandbox bool `json:"sandbox"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		if len(list) == 0 {
+			fmt.Println("no tools installed")
+			return nil
+		}
+		fmt.Printf("%-20s %-4s %-8s %-9s %s\n", "ID", "ON", "SANDBOX", "RUNTIME", "DESCRIPTION")
+		for _, t := range list {
+			on := "off"
+			if t.Enabled {
+				on = "on "
+			}
+			sb := "off"
+			if t.Sandbox {
+				sb = "on"
+			}
+			rt := t.Manifest.Runtime
+			if rt == "" {
+				rt = "python"
+			}
+			fmt.Printf("%-20s %-4s %-8s %-9s %s\n", t.ID, on, sb, rt, t.Manifest.Description)
+		}
+		return nil
+	case "show":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl tools show <id>")
+		}
+		// No single-tool GET endpoint; filter the list (F248).
+		code, out, err := cc.Get("/api/v1/tools")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("tools returned %d: %s", code, out)
+		}
+		var list []map[string]any
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		for _, t := range list {
+			if t["id"] == rest[0] {
+				b, _ := json.MarshalIndent(t, "", "  ")
+				fmt.Println(string(b))
+				return nil
+			}
+		}
+		return fmt.Errorf("no such tool: %s", rest[0])
+	case "enable", "disable":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl tools %s <id>", sub)
+		}
+		body := map[string]any{"enabled": sub == "enable"}
+		code, out, err := cc.Post("/api/v1/tools/"+url.PathEscape(rest[0])+"/enabled", body)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("%s returned %d: %s", sub, code, out)
+		}
+		fmt.Printf("%sd tool %s\n", sub, rest[0])
+		return nil
+	case "run":
+		rfs := flag.NewFlagSet("tools run", flag.ExitOnError)
+		argsJSON := rfs.String("args", "{}", "JSON object of tool arguments")
+		timeout := rfs.Int("timeout", 0, "timeout in seconds (0 = default)")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl tools run <id> [-args JSON] [-timeout N]")
+		}
+		var parsed map[string]any
+		if err := json.Unmarshal([]byte(*argsJSON), &parsed); err != nil {
+			return fmt.Errorf("-args must be a JSON object: %w", err)
+		}
+		body := map[string]any{"args": parsed}
+		if *timeout > 0 {
+			body["timeoutSec"] = *timeout
+		}
+		code, out, err := cc.Post("/api/v1/tools/"+url.PathEscape(rfs.Arg(0))+"/run", body)
+		if err != nil {
+			return err
+		}
+		var res struct {
+			OK       bool   `json:"ok"`
+			Result   string `json:"result"`
+			Stderr   string `json:"stderr"`
+			ExitCode int    `json:"exitCode"`
+			Error    string `json:"error"`
+			Duration string `json:"duration"`
+		}
+		if err := json.Unmarshal(out, &res); err != nil {
+			return fmt.Errorf("run returned %d: %s", code, out)
+		}
+		if res.Error != "" {
+			return fmt.Errorf("tool run failed: %s", res.Error)
+		}
+		fmt.Print(res.Result)
+		if res.Stderr != "" {
+			fmt.Fprint(os.Stderr, res.Stderr)
+		}
+		if !res.OK {
+			return fmt.Errorf("tool exited %d", res.ExitCode)
+		}
+		return nil
+	case "delete":
+		if len(rest) == 0 {
+			return fmt.Errorf("usage: llmctl tools delete <id>")
+		}
+		code, out, err := cc.Delete("/api/v1/tools/" + url.PathEscape(rest[0]))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("delete returned %d: %s", code, out)
+		}
+		fmt.Printf("deleted tool %s\n", rest[0])
+		return nil
+	default:
+		return fmt.Errorf("unknown tools subcommand %q (list|show|enable|disable|run|delete)", sub)
 	}
 }
 

@@ -48,13 +48,13 @@ type Param struct {
 }
 
 type Manifest struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Entry       string            `json:"entry"`
-	Runtime     string            `json:"runtime,omitempty"` // python (default) | command
-	Sandbox     *bool             `json:"sandbox,omitempty"` // nil = default true
-	Network     bool              `json:"network,omitempty"` // sandbox: allow outbound network (default off)
-	Params      map[string]Param  `json:"params,omitempty"`
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Entry       string           `json:"entry"`
+	Runtime     string           `json:"runtime,omitempty"` // python (default) | command
+	Sandbox     *bool            `json:"sandbox,omitempty"` // nil = default true
+	Network     bool             `json:"network,omitempty"` // sandbox: allow outbound network (default off)
+	Params      map[string]Param `json:"params,omitempty"`
 }
 
 type Record struct {
@@ -62,9 +62,9 @@ type Record struct {
 	Dir         string    `json:"dir"`
 	Manifest    Manifest  `json:"manifest"`
 	Enabled     bool      `json:"enabled"`
-	Sandbox     bool      `json:"sandbox"`     // effective (manifest default)
-	Network     bool      `json:"network"`     // sandbox network opt-in (manifest-driven)
-	Source      string    `json:"source"`      // url or local path it came from
+	Sandbox     bool      `json:"sandbox"` // effective (manifest default)
+	Network     bool      `json:"network"` // sandbox network opt-in (manifest-driven)
+	Source      string    `json:"source"`  // url or local path it came from
 	InstalledAt time.Time `json:"installedAt"`
 }
 
@@ -390,7 +390,9 @@ func copyTree(src, dst string) error {
 			return err
 		}
 		defer in.Close()
-		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+		// Preserve the source mode so executable entry scripts stay
+		// executable after install (F248).
+		out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fi.Mode().Perm())
 		if err != nil {
 			return err
 		}
