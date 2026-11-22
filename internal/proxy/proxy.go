@@ -132,6 +132,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /v1/models", s.auth(s.listModels))
+	mux.HandleFunc("GET /v1/models/{id}", s.auth(s.getModel))
 	mux.HandleFunc("POST /v1/chat/completions", s.auth(s.proxyChat))
 	mux.HandleFunc("POST /v1/completions", s.auth(s.proxyCompletions))
 	mux.HandleFunc("POST /v1/embeddings", s.auth(s.proxyEmbeddings))
@@ -433,12 +434,16 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 // listModels merges every running instance's upstream /v1/models plus our
 // own alias list so clients can discover routable model names.
-func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
-	type modelObj struct {
-		ID      string `json:"id"`
-		Object  string `json:"object"`
-		OwnedBy string `json:"owned_by"`
-	}
+type modelObj struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	OwnedBy string `json:"owned_by"`
+}
+
+// modelList builds the /v1/models data array: running instances, their
+// upstream models and gateway aliases, filtered by the caller key's
+// allowlist when present (F065, F089, F177).
+func (s *Server) modelList(r *http.Request) []modelObj {
 	seen := map[string]bool{}
 	data := []modelObj{}
 	// Per-key allowlist (F089): a restricted key only sees the models it may
@@ -492,7 +497,25 @@ func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
 			data = append(data, modelObj{a, "model", "llmctl-alias"})
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
+	return data
+}
+
+func (s *Server) listModels(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": s.modelList(r)})
+}
+
+// getModel handles GET /v1/models/{id} (F677), the OpenAI SDK
+// models.retrieve counterpart: returns the single model object for a model
+// or alias visible to the caller's key, or an OpenAI-style 404.
+func (s *Server) getModel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	for _, m := range s.modelList(r) {
+		if strings.EqualFold(m.ID, id) {
+			writeJSON(w, http.StatusOK, map[string]any{"object": "model", "id": m.ID, "owned_by": m.OwnedBy})
+			return
+		}
+	}
+	writeErr(w, http.StatusNotFound, "invalid_request_error", "The model '"+id+"' does not exist")
 }
 
 // ServedModels is the unauthenticated view of /v1/models (no per-key

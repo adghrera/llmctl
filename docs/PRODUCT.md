@@ -128,6 +128,8 @@ GitHub release, or file list. No recompile.
 - `POST /v1/chat/completions` (streaming + non-streaming)
 - `POST /v1/completions`, `POST /v1/embeddings` (http instances)
 - `GET /v1/models` (merged view of running instances)
+- `GET /v1/models/{id}` (single model/alias retrieve, OpenAI SDK parity;
+  honours the per-key allowlist, 404 envelope when not visible, F677)
 - `GET /healthz`
 - OpenAI error envelope; 401/404/429/502/503 semantics.
 - Per-client rate limit + global in-flight cap. The fallback per-key rate
