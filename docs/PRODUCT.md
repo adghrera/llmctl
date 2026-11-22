@@ -401,7 +401,7 @@ toggle for a light theme (choice remembered). Tabs:
    lists saved conversations with a per-chat token total (`--csv` exports the list, F378, F603;
    `-stats` rolls the history up per model — chats, messages, tokens, last updated, F625),
    `llmctl chats show <id> [-json] [-last N] [-grep TEXT] [-full] [-out FILE]` prints one
-   with a message preview,
+   with a message preview (and a tags line when the chat is tagged, F678),
    `llmctl chats search <query> [-json] [-csv] [-out FILE]` full-text searches message content
    with match snippets (`--csv` one row per matched message, F617), `chats export <id> [-md] [-out f]` and
    `chats export-all [-out DIR] [-md]` (bulk file export, F325),
@@ -412,7 +412,8 @@ toggle for a light theme (choice remembered). Tabs:
    shows a 📌 marker and a Pin/Unpin button, F311),
    `chats tag <id> [a,b]` / `chats retag <old> <new> | retag -rm <tag>` label
    chats with free-form tags (shown in the sidebar and `--csv`, filterable with
-   `chats list -tag T`; the Chat page has a Tag button per chat, F676),
+   `chats list -tag T`; the Chat page has a Tag button per chat, F676, and a
+   tag dropdown filtering the sidebar list, F678),
    `chats delete <id>`, `chats prune -before D [-older-than N] [-yes]`
    (bulk-delete old chats, pinned skipped, dry-run by default, F333), and
    `chats delete-all -yes` manage them

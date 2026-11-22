@@ -6875,10 +6875,11 @@ func cmdChats(args []string) error {
 			return nil
 		}
 		var ch struct {
-			ID        string `json:"id"`
-			Title     string `json:"title"`
-			Model     string `json:"model"`
-			UpdatedAt string `json:"updatedAt"`
+			ID        string   `json:"id"`
+			Title     string   `json:"title"`
+			Model     string   `json:"model"`
+			Tags      []string `json:"tags"` // free-form labels (F678)
+			UpdatedAt string   `json:"updatedAt"`
 			Context   struct {
 				UsedTokens int `json:"usedTokens"`
 			} `json:"context"`
@@ -6890,8 +6891,11 @@ func cmdChats(args []string) error {
 		if err := json.Unmarshal(out, &ch); err != nil {
 			return err
 		}
-		fmt.Printf("id:      %s\ntitle:   %s\nmodel:   %s\nupdated: %s\ntokens:  %d\n\n",
-			ch.ID, ch.Title, ch.Model, ch.UpdatedAt, ch.Context.UsedTokens)
+		fmt.Printf("id:      %s\ntitle:   %s\nmodel:   %s\n", ch.ID, ch.Title, ch.Model)
+		if len(ch.Tags) > 0 { // tags line only when present (F678)
+			fmt.Printf("tags:    %s\n", strings.Join(ch.Tags, ", "))
+		}
+		fmt.Printf("updated: %s\ntokens:  %d\n\n", ch.UpdatedAt, ch.Context.UsedTokens)
 		msgs := ch.Messages
 		if *grep != "" {
 			g := strings.ToLower(*grep)

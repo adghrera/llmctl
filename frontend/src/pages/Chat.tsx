@@ -63,6 +63,9 @@ export default function Chat() {
 
   const loadChats = () => api.chats().then(setChats).catch(() => setChats([]));
   const [showStats, setShowStats] = useState(false); // per-model rollup (CLI `chats -stats` parity, F633)
+  const [tagFilter, setTagFilter] = useState(""); // sidebar tag filter (F678)
+  const chatTags = Array.from(new Set(chats.flatMap((c) => c.tags ?? []))).sort();
+  const visibleChats = tagFilter ? chats.filter((c) => (c.tags ?? []).includes(tagFilter)) : chats;
   const loadKBs = () => api.knowledgeBases().then(setKBs).catch(() => setKBs([]));
   useEffect(() => {
     loadChats();
@@ -681,9 +684,33 @@ export default function Chat() {
           </table>
         )}
         {!searchQuery.trim() && chats.length > 0 && !showStats && (
+          <>
+          {chatTags.length > 0 && (
+            <div className="row" style={{ gap: 6, marginBottom: 6, alignItems: "center" }}>
+              <select
+                className="input"
+                style={{ fontSize: 12 }}
+                title="filter the list by tag (CLI: llmctl chats list -tag T, F678)"
+                value={tagFilter}
+                onChange={(e) => setTagFilter(e.target.value)}
+              >
+                <option value="">all tags</option>
+                {chatTags.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              {tagFilter && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {visibleChats.length} of {chats.length}
+                </span>
+              )}
+            </div>
+          )}
           <table>
             <tbody>
-              {chats.map((c) => (
+              {visibleChats.map((c) => (
                 <tr key={c.id} style={c.id === convId ? { background: "rgba(128,128,128,0.08)" } : undefined}>
                   <td>
                     <a
@@ -748,6 +775,7 @@ export default function Chat() {
               ))}
             </tbody>
           </table>
+          </>
         )}
         {/* The low-fidelity F042 import section is replaced by the full-fidelity
             "Import" button in the card header (F369). */}
