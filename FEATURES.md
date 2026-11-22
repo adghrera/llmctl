@@ -216,6 +216,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F204 | P3 | 204 | cli | `autostart list -json` | COMPLETED | `llmctl autostart list -json` prints the raw auto-start JSON for scripts, completing the `-json` set (status/doctor/requests/ps/usage/backups/models/key/scheduler/autostart). Verified live: output parses as JSON (1 entry). |
 | F205 | P3 | 205 | keys | Disable/Enable button in Keys UI | COMPLETED | The Keys page gained a Disable/Enable button per key (PATCH `{"disabled":…}`, same endpoint as the CLI), with the "off" badge from F195 reflecting state. Verified live: served JS bundle contains the toggle strings; PATCH verified in F195. |
 | F206 | P3 | 206 | doctor | Orphaned model-file check | COMPLETED | `llmctl doctor` gained a "disk" check: warns when files under the models dir are not referenced by any model record (count + size + names), ok otherwise. Verified live: an orphan file triggers warn, removing it returns ok. |
+| F207 | P3 | 207 | doctor | Stale-backup warning | COMPLETED | The doctor backups check now warns when the newest snapshot is older than 7 days (shows the age). Verified live: fresh snapshot → ok, backdated mtime → warn "(10 days old)". |
 
 ## Shipped (v0.2 architecture, this iteration)
 

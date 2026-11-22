@@ -185,11 +185,20 @@ func (s *Server) doctor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Backups: newest snapshot name.
+	// Backups: newest snapshot name + staleness (F181, F207).
 	matches, _ := filepath.Glob(filepath.Join(paths.BackupsDir(), "llmctl-*.tar.gz"))
 	sort.Sort(sort.Reverse(sort.StringSlice(matches)))
 	if len(matches) > 0 {
-		add("backups", "ok", fmt.Sprintf("%d snapshots, newest %s", len(matches), filepath.Base(matches[0])))
+		detail := fmt.Sprintf("%d snapshots, newest %s", len(matches), filepath.Base(matches[0]))
+		status := "ok"
+		if info, err := os.Stat(matches[0]); err == nil {
+			age := time.Since(info.ModTime())
+			if age > 7*24*time.Hour {
+				status = "warn"
+				detail += fmt.Sprintf(" (%d days old — consider a backup)", int(age.Hours())/24)
+			}
+		}
+		add("backups", status, detail)
 	} else {
 		add("backups", "warn", "no snapshots yet")
 	}
