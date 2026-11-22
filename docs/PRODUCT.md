@@ -272,7 +272,8 @@ toggle for a light theme (choice remembered). Tabs:
    `llmctl prompts [filter] [-category X] [-json]` and
    `llmctl prompts show <id>` and `llmctl prompts render <id> [-input TEXT |
    piped stdin]` (renders the template with {{input}} filled, for scripts)
-   (F218, F298).
+   and `llmctl prompts categories` (lists categories, one per line)
+   (F218, F298, F304).
  - **Chat CLI** — `llmctl chats [filter] [-json]` (or `chats list [filter]`)
    lists saved conversations,
    `llmctl chats show <id> [-json]` prints one with a message preview,

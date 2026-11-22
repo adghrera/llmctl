@@ -225,7 +225,7 @@ Usage:
   llmctl metrics [-watch N] [-json]
   llmctl events [-n 20] [-csv] [-json]
   llmctl webhooks [-n 20] [-json]   recent webhook delivery attempts
-  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT]
+  llmctl prompts [filter] [-category X] [-json] | llmctl prompts show <id> | prompts render <id> [-input TEXT] | prompts categories
   llmctl chats [filter] [-n 20] [-json] | chats list [filter] | chats show|search|export|fork|rename|delete|delete-all …
   llmctl skills [filter] [-json] | skills show|add|enable|disable|delete <id>
   llmctl memory [filter] [-n 30] [-json] | memory show|add|update|search|delete …
@@ -5128,6 +5128,28 @@ func cmdCost(args []string) error {
 
 // cmdPrompts lists the built-in prompt library (F218).
 func cmdPrompts(args []string) error {
+	if len(args) > 0 && args[0] == "categories" {
+		cc, err := daemon.NewControlClient()
+		if err != nil {
+			return err
+		}
+		code, out, err := cc.Get("/api/v1/prompts/categories")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("categories returned %d: %s", code, out)
+		}
+		var cats []string
+		if err := json.Unmarshal(out, &cats); err != nil {
+			fmt.Print(string(out))
+			return nil
+		}
+		for _, c := range cats {
+			fmt.Println(c)
+		}
+		return nil
+	}
 	if len(args) > 0 && args[0] == "render" {
 		rfs := flag.NewFlagSet("prompts render", flag.ExitOnError)
 		input := rfs.String("input", "", "text to substitute for {{input}} (default: piped stdin)")
