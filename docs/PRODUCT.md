@@ -577,6 +577,8 @@ toggle for a light theme (choice remembered). Tabs:
    [-tags a,b]`, `memory show <id> [-out FILE]`, `memory search <query> [-json] [-csv] [-out FILE]`,
    `memory delete <id>`; `memory retag OLD NEW` / `memory retag -rm TAG`
    rename or drop a tag across every entry in one shot (F640);
+   `memory prune [-days 90] [-yes] [-json]` deletes entries untouched for N
+   days, dry-run by default (the kb-prune twin, F852);
    `memory export [-out F]` / `memory import FILE`
    move entries between instances (F246, F267, F289, F321); the Memory page
    has matching Export JSON / Import JSON buttons (F410), a Duplicate button per

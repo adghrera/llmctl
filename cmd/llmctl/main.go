@@ -290,7 +290,7 @@ Usage:
   llmctl prompts [list] [filter] [-category X] [-tag T] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-tags a,b] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts tag <id> [a,b] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-tags a,b] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|run <short> -model M [-input TEXT] [-save TITLE]|export|export-all [-out FILE]|import <file.json> [-json]|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
-  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
+  llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | prune [-days 90] [-yes] [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T] [-stats] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json]|prune [-yes] [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
@@ -2780,7 +2780,7 @@ var llmSubCommands = map[string]string{
 	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete prune",
 	"key":       "generate duplicate show note tag retag update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
-	"memory":    "list show add update search delete export import retag",
+	"memory":    "list show add update search delete export import retag prune",
 	"models":    "list stats show add rename note tag retag probe price ctx idle metadata install remove routable unused hf-search hf-files aliases alias unalias",
 	"presets":   "list save duplicate start delete export import",
 	"prompts":   "list show render run categories add duplicate tag retag update delete export import",
@@ -9140,7 +9140,7 @@ func cmdMemory(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "update", "delete", "search", "export", "import", "retag":
+		case "list", "show", "add", "update", "delete", "search", "export", "import", "retag", "prune":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -9659,6 +9659,75 @@ func cmdMemory(args []string) error {
 			return nil
 		}
 		fmt.Printf("deleted memory %s\n", mdfs.Arg(0))
+		return nil
+	case "prune":
+		// Delete memory entries untouched for N days — dry-run unless
+		// -yes (the kb-prune twin, F852).
+		pfs := flag.NewFlagSet("memory prune", flag.ExitOnError)
+		days := pfs.Int("days", 90, "prune entries whose updated_at is older than this many days")
+		yes := pfs.Bool("yes", false, "actually delete (default is a dry run)")
+		pj := pfs.Bool("json", false, "print the prune result as JSON")
+		pfs.Parse(reorderFlags(rest))
+		if *days < 0 {
+			return fmt.Errorf("-days must be >= 0")
+		}
+		code, out, err := cc.Get("/api/v1/memory")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("memory list returned %d: %s", code, out)
+		}
+		var list []struct {
+			Entry struct {
+				ID        string    `json:"id"`
+				Content   string    `json:"content"`
+				UpdatedAt time.Time `json:"updated_at"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		cutoff := time.Now().AddDate(0, 0, -*days)
+		type doomedRec struct {
+			ID      string `json:"id"`
+			Preview string `json:"preview"`
+		}
+		var doomed []doomedRec
+		for _, m := range list {
+			if m.Entry.UpdatedAt.Before(cutoff) {
+				prev := m.Entry.Content
+				if len(prev) > 40 {
+					prev = prev[:40] + "…"
+				}
+				doomed = append(doomed, doomedRec{m.Entry.ID, prev})
+			}
+		}
+		if !*yes {
+			fmt.Printf("dry run: %d memory entries older than %d day(s) would be pruned (pass -yes to delete)\n",
+				len(doomed), *days)
+			for _, d := range doomed {
+				fmt.Printf("  %-14s %s\n", d.ID, d.Preview)
+			}
+			return nil
+		}
+		var deleted []string
+		for _, d := range doomed {
+			dcode, dout, err := cc.Delete("/api/v1/memory/" + url.PathEscape(d.ID))
+			if err != nil {
+				return err
+			}
+			if dcode != 200 {
+				return fmt.Errorf("delete %s: %s", d.ID, dout)
+			}
+			deleted = append(deleted, d.ID)
+		}
+		if *pj {
+			b, _ := json.Marshal(map[string]any{"deleted": deleted})
+			fmt.Println(string(b))
+			return nil
+		}
+		fmt.Printf("pruned %d memory entries older than %d day(s)\n", len(deleted), *days)
 		return nil
 	default:
 		return fmt.Errorf("unknown memory subcommand %q (list|show|add|delete)", sub)
