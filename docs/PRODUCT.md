@@ -775,7 +775,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **API console** — a Settings page card that sends any METHOD + /path (with an
   optional JSON body for POST/PUT/PATCH) straight to the management API and
   pretty-prints the status and response, the browser counterpart of
-  `llmctl api` (F589), with a Copy result button for the response (F772).
+  `llmctl api` (F589), with a Copy result button for the response (F772) and a
+  Copy as cURL button for the request (F787).
 
 Live job progress streams over SSE. Chat state (key, draft, conversation)
 survives the periodic UI re-render.

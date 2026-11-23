@@ -1067,6 +1067,25 @@ export default function SettingsPage() {
           >
             {apiBusy ? "Sending…" : "Send"}
           </button>
+          <button
+            className="btn sm"
+            disabled={!apiPath.startsWith("/")}
+            title="copy a curl command for this request (F787)"
+            onClick={() => {
+              const parts = [`curl -X ${apiMethod} ${window.location.origin}${apiPath}`];
+              if (apiBody && apiMethod !== "GET") {
+                parts.push(`  -H "Content-Type: application/json"`);
+                const q = `'${apiBody.replace(/'/g, `'\\''`)}'`;
+                parts.push(`  -d ${q}`);
+              }
+              navigator.clipboard
+                ?.writeText(parts.join(" \\\n") + "\n")
+                .then(() => ok("copied curl command"))
+                .catch(() => err("clipboard unavailable"));
+            }}
+          >
+            Copy as cURL
+          </button>
         </div>
         {(apiMethod === "POST" || apiMethod === "PUT" || apiMethod === "PATCH") && (
           <textarea

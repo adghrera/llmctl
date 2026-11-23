@@ -797,6 +797,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F784 | P3 | 784 | skills | Skill Copy prompt button | COMPLETED | Each Skills row gained a Copy prompt button copying the skill's prompt template to the clipboard — copy family extended to skills. Verified live: served bundle carries the button. |
 | F785 | P3 | 785 | compare | Compare Copy cURL | COMPLETED | The Compare page gained a Copy cURL button generating a curl for the first selected model with the shared prompt/system/file context — Chat Copy cURL twin. Verified live: served bundle carries the button. |
 | F786 | P3 | 786 | batch | Batch/Structured Copy cURL | COMPLETED | The Batch and Structured pages gained Copy cURL buttons generating the management-API curl (POST /api/v1/batch or /api/v1/structured) with the current body — Compare cURL twin (F785). Verified live: served bundle carries both buttons. |
+| F787 | P3 | 787 | settings | API console Copy as cURL | COMPLETED | The Settings API console gained a Copy as cURL button building a curl from the method/path/body — turns a console call into a scriptable command. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
