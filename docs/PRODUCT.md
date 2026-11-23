@@ -602,7 +602,9 @@ toggle for a light theme (choice remembered). Tabs:
   (F365, multi-kb F666). Chat tasks can also carry sampling options —
   `-temperature`, `-max-tokens` and `-seed` on `scheduler add` (and matching
   inputs on the Scheduler page) — sent with every scheduled request and kept
-  across prompt-dialog edits (F808). Scheduled chats reach the gateway with a memory-only internal
+  across prompt-dialog edits (F808). Chat tasks can also carry a system
+  message (`scheduler add -system`, Scheduler page input) prepended to each
+  run (F809). Scheduled chats reach the gateway with a memory-only internal
   token, so they work even when gateway auth is on (F365).
   Tasks can be triggered on demand ("Run now" / `llmctl scheduler run`).
   Tasks carry free-form tags — `llmctl scheduler tag <id> a,b` (empty clears),

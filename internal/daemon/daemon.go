@@ -839,6 +839,9 @@ func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.S
 
 	// Build the chat request body.
 	msgs := []map[string]string{}
+	if rec.Spec.System != "" {
+		msgs = append(msgs, map[string]string{"role": "system", "content": rec.Spec.System})
+	}
 	// Optional KB context: same shape as `llmctl chat -kb` (F342), driven
 	// from the schedule spec (F365).
 	if rec.Spec.KB != "" {

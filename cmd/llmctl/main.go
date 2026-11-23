@@ -4949,6 +4949,7 @@ func cmdScheduler(args []string) error {
 		kind := fs.String("kind", "chat", "chat | instance.start | instance.stop | backup")
 		model := fs.String("model", "", "model id")
 		prompt := fs.String("prompt", "", "prompt (chat kind)")
+		system := fs.String("system", "", "system message prepended to chat runs (F809)")
 		instance := fs.String("instance", "", "instance id (instance.stop)")
 		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
 		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
@@ -4966,6 +4967,9 @@ func cmdScheduler(args []string) error {
 		}
 		if *kb != "" {
 			body["kb"] = *kb
+		}
+		if *system != "" {
+			body["system"] = *system
 		}
 		if *temp >= 0 {
 			body["temperature"] = *temp

@@ -189,6 +189,7 @@ export interface ScheduleSpec {
   instance?: string;
   model: string;
   prompt: string;
+  system?: string; // optional system message for chat runs (F809)
   kb?: string; // knowledge base id: inject top chunks as context (chat kind, F365)
   temperature?: number; // optional sampling temperature (chat kind, F808)
   max_tokens?: number; // optional max tokens per reply (chat kind, F808)
@@ -821,7 +822,7 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string; enabled?: boolean; tags?: string[]; temperature?: number; max_tokens?: number; seed?: number }) =>
+  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; system?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string; enabled?: boolean; tags?: string[]; temperature?: number; max_tokens?: number; seed?: number }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
   updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; kb?: string; enabled?: boolean; webhook_url?: string; temperature?: number; max_tokens?: number; seed?: number }) =>

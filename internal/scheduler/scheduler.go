@@ -29,6 +29,7 @@ type Spec struct {
 	Instance   string    `json:"instance,omitempty"`    // instance id for instance.stop (default: model id)
 	Keep       int       `json:"keep,omitempty"`        // backup kind: snapshots to retain (0 = 7)
 	Prompt     string    `json:"prompt"`                // prompt to send (chat only)
+	System     string    `json:"system,omitempty"`      // optional system message prepended to chat runs (F809)
 	KB         string    `json:"kb,omitempty"`          // optional knowledge base id(s), comma-separated: top chunks are injected as context (chat only, F365, multi F666)
 	Temp       *float64  `json:"temperature,omitempty"` // optional sampling temperature (chat only, F808)
 	MaxTokens  int       `json:"max_tokens,omitempty"`  // optional max tokens per reply (chat only, F808)
@@ -218,6 +219,9 @@ func (s *Store) Update(id string, spec Spec) (*Record, error) {
 	}
 	if spec.MaxTokens == 0 {
 		spec.MaxTokens = rec.Spec.MaxTokens
+	}
+	if spec.System == "" {
+		spec.System = rec.Spec.System // keep the system message across edits (F809)
 	}
 	if err := ValidateCron(spec.CronExpr); err != nil {
 		return nil, err

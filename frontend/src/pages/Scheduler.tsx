@@ -12,6 +12,7 @@ export default function Scheduler() {
   const [keep, setKeep] = useState(7);
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [sysPrompt, setSysPrompt] = useState(""); // chat system message (F809)
   const [kb, setKb] = useState<string[]>([]);
   const [kbs, setKbs] = useState<KB[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -117,6 +118,7 @@ export default function Scheduler() {
         kind,
         model,
         prompt: kind === "chat" ? prompt : "",
+        system: kind === "chat" && sysPrompt.trim() ? sysPrompt.trim() : undefined,
         kb: kind === "chat" && kb.length ? kb.join(",") : undefined,
         temperature: kind === "chat" && sTemp.trim() !== "" ? Number(sTemp) : undefined,
         max_tokens: kind === "chat" && Number(sMaxTok) > 0 ? Number(sMaxTok) : undefined,
@@ -131,6 +133,7 @@ export default function Scheduler() {
       setCronExpr("0 9 * * *");
       setModel("");
       setPrompt("");
+      setSysPrompt("");
       setInstance("");
       setKeep(7);
       setWebhookUrl("");
@@ -360,6 +363,15 @@ export default function Scheduler() {
               placeholder="Prompt to send"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+            />
+          )}
+          {kind === "chat" && (
+            <input
+              style={{ flex: 2, minWidth: 180 }}
+              placeholder="System message (optional)"
+              title="system message prepended to scheduled runs (F809)"
+              value={sysPrompt}
+              onChange={(e) => setSysPrompt(e.target.value)}
             />
           )}
           {kind === "chat" && kbs.length > 0 && (
