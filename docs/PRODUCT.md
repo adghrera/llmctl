@@ -486,6 +486,8 @@ toggle for a light theme (choice remembered). Tabs:
   GET /api/v1/prompts/categories, GET /api/v1/prompts/{id}. Dedicated Prompts
   page with category filtering, copy-to-clipboard, an "Insert into chat"
   button that opens the Chat page with the template pre-filled (F300), and a
+  `/p.<id> <rest>` slash command in the Chat input that renders the template
+  inline with {{input}} filled (twin of `prompts render`, F832), and a
   per-template "Render" preview that fills {{input}} and extra {{k}} vars
   live (F361), with a model picker + Run button that sends the rendered
   template through the gateway and streams the reply inline (UI counterpart

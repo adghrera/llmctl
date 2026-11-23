@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB, type ToolRecord, type MCPServer } from "../api/client";
+import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB, type ToolRecord, type MCPServer, type PromptTemplate } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
 import { renderMd } from "../md";
@@ -49,6 +49,7 @@ export default function Chat() {
   }); // installed tools switched off (F823)
   const [installedTools, setInstalledTools] = useState<ToolRecord[]>([]); // enabled installed tools for the toggle row (F823)
   const [mcpServers, setMcpServers] = useState<MCPServer[]>([]); // enabled MCP servers for the toggle row (F831)
+  const [prompts, setPrompts] = useState<PromptTemplate[]>([]); // prompt templates for /p.<id> (F832)
   const [requireApproval, setRequireApproval] = useState(
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
@@ -102,11 +103,13 @@ export default function Chat() {
     api.tools().then((ts) => setInstalledTools(ts.filter((t) => t.enabled))).catch(() => setInstalledTools([]));
   const loadMCPServers = () =>
     api.mcpServers().then((svs) => setMcpServers(svs.filter((v) => v.enabled))).catch(() => setMcpServers([]));
+  const loadPrompts = () => api.prompts().then(setPrompts).catch(() => setPrompts([]));
   useEffect(() => {
     loadChats();
     loadKBs();
     loadInstalledTools();
     loadMCPServers();
+    loadPrompts();
     // Prompt page "Insert into chat" hands the template over this way (F300).
     const seed = sessionStorage.getItem("llmctl.chatSeed");
     if (seed) {
@@ -405,6 +408,27 @@ export default function Chat() {
         err(e instanceof Error ? e.message : `skill "${shortName}" not found`);
         return;
       }
+    }
+
+    // Prompt-template invocation: /p.<id> <rest> renders a saved prompt
+    // template, {{input}} receiving <rest> — twin of `llmctl prompts render` (F832).
+    const promptMatch = !skillMatch ? text.match(/^\/p\.([a-z0-9][a-z0-9_-]*)\s*([\s\S]*)$/) : null;
+    if (promptMatch) {
+      const pid = promptMatch[1];
+      const rest = promptMatch[2].trim();
+      const t = prompts.find((p) => p.id === pid);
+      if (!t) {
+        err(`prompt template "${pid}" not found`);
+        return;
+      }
+      userMsg = {
+        role: "user",
+        content: t.content.includes("{{input}}")
+          ? t.content.split("{{input}}").join(rest)
+          : rest
+            ? `${t.content}\n\n${rest}`
+            : t.content,
+      };
     }
 
     // Check for file reference: /file <filename>
@@ -1378,6 +1402,7 @@ export default function Chat() {
             style={{ width: "100%" }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            title="slash commands: /s.<skill> runs a skill, /p.<id> a prompt template, /file <name> a stored file (F832)"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
