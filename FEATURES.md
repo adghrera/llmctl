@@ -803,6 +803,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F790 | P3 | 790 | status | status --csv | COMPLETED | `llmctl status` gained a `--csv` flag exporting the running instances as id,model,uptime_sec — completing the --csv family for status. Verified live against the running daemon. |
 | F791 | P3 | 791 | instances | Instance Vars Copy button | COMPLETED | The Instances Vars dialog gained a Copy button for the vars JSON — handy for replicating config to another instance or preset. Verified live: served bundle carries the button. |
 | F792 | P3 | 792 | backends | Plugin template Copy button | COMPLETED | The Backends add-plugin form gained a Copy template button for the example plugin JSON — handy for editing a backend config in an external editor. Verified live: served bundle carries the button. |
+| F793 | P3 | 793 | chats | Chat seed input | COMPLETED | The Chat sampling panel gained a seed input (persisted) sent through to the backend for reproducible replies — the gateway forwards the body unchanged. Verified live: served bundle carries the input, the body.seed assignment and the localStorage key. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

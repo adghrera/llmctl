@@ -34,6 +34,7 @@ export default function Chat() {
   const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem("llmctl.chat.system") ?? "");
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.chat.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.chat.temp") ?? "");
+  const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.chat.seed") ?? "");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -450,6 +451,7 @@ export default function Chat() {
         for await (const delta of chatStream(key, model, history, {
           maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
           temperature: temp.trim() !== "" ? Number(temp) : undefined,
+          seed: seed.trim() !== "" ? Number(seed) : undefined,
           signal: ctrl.signal,
           onUsage: (u) => {
             usage = u;
@@ -911,6 +913,17 @@ export default function Chat() {
                 onChange={(e) => {
                   setTemp(e.target.value);
                   localStorage.setItem("llmctl.chat.temp", e.target.value);
+                }}
+              />
+              <input
+                style={{ width: 110 }}
+                type="number"
+                placeholder="seed"
+                title="sampling seed for reproducible replies, sent through to the backend (empty = random) (F793)"
+                value={seed}
+                onChange={(e) => {
+                  setSeed(e.target.value);
+                  localStorage.setItem("llmctl.chat.seed", e.target.value);
                 }}
               />
               <button
