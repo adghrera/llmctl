@@ -272,8 +272,10 @@ toggle for a light theme (choice remembered). Tabs:
   persisted in the browser (F763), plus a seed input for reproducible replies
   passed through to the backend (F793), a top_p nucleus-sampling input
   (F797) and frequency/presence penalty inputs (F803). The last reply can be
-  regenerated in place, and the last user message can be pulled back into
-  the input for editing and resending (F064). Replies render as markdown
+  regenerated in place, the last user message can be pulled back into
+  the input for editing and resending (F064), and any single message can be
+  deleted with a ✕ button that persists the trimmed conversation (F824).
+  Replies render as markdown
   (built-in safe renderer: code fences, lists, links, emphasis) and every
   message has a hover copy button (F067) and a →P button that saves it as a
   prompt template (twin of `prompts add`, F750), and a find-in-conversation

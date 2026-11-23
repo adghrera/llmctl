@@ -834,6 +834,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F821 | P3 | 821 | chats | chat -agent -tools flag | COMPLETED | `llmctl chat -agent` gained `-tools web_search,fetch_url,calculator,current_time` to restrict the agent's built-in tools — CLI twin of the Chat page checkboxes (F820). Verified live: `-tools calculator` streamed a prompt with calculator only and ran the calculator tool. |
 | F822 | P3 | 822 | ui | Alt+1–9 page jump shortcuts | COMPLETED | Global keyboard shortcuts: Alt+1…9 jump to the first nine sidebar pages (Overview…Memory); listed in the ? shortcut help overlay. Verified live: served bundle carries the help entry. |
 | F823 | P3 | 823 | chats | Tool toggles cover installed tools | COMPLETED | The Chat agent toggle row now also lists enabled installed tools (`tool:<id>`, off-list persisted); the API filters them out of the tool map and the prompt when the `tools` array omits them (MCP tools always stay). Covered by TestChatAgentToolFilter (calculator-only, installed-only, and default cases) plus served-bundle check. |
+| F824 | P3 | 824 | chats | Chat delete single message | COMPLETED | Every chat message now has a ✕ button (when not streaming) that removes just that message and persists the trimmed conversation — drop a bad prompt or reply without editing everything. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

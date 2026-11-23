@@ -1217,6 +1217,19 @@ export default function Chat() {
                     →P
                   </button>
                 )}
+                {!streaming && (
+                  <button
+                    className="btn xs copy"
+                    title="delete this message from the conversation (F824)"
+                    onClick={() => {
+                      const next = msgs.filter((_, j) => j !== i);
+                      setMsgs(next);
+                      persist(next);
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
               {m.tools && m.tools.length > 0 && (
                 <div style={{ marginBottom: 6 }}>
