@@ -1543,7 +1543,7 @@ func (s *Server) listEvents(w http.ResponseWriter, r *http.Request) {
 // recentRequests handles GET /api/v1/requests — the ring of recent gateway
 // requests (newest first, max 256 kept) (F061). Filters (F079): limit=N,
 // model=<id>, status=<class "4" or exact "404">, minMs=<latency floor>,
-// stream=1|0.
+// stream=1|0, cache=1|0 (response-cache hits, F847).
 func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	limit := 100
@@ -1571,6 +1571,7 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 		minMs, _ = strconv.ParseFloat(v, 64)
 	}
 	streamF := q.Get("stream") // "1" = streaming only, "0" = non-streaming
+	cacheF := q.Get("cache")   // "1" = cache hits only, "0" = misses only (F847)
 	model := q.Get("model")
 	keyF := q.Get("key")       // match key id (exact) or key prefix (case-insensitive) (F120)
 	instF := q.Get("instance") // serving replica id (F131)
@@ -1611,6 +1612,12 @@ func (s *Server) recentRequests(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if streamF == "0" && e.Stream {
+			continue
+		}
+		if cacheF == "1" && e.Cache != "hit" {
+			continue
+		}
+		if cacheF == "0" && e.Cache == "hit" {
 			continue
 		}
 		if !sinceT.IsZero() && e.Time.Before(sinceT) {

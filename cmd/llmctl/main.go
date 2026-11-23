@@ -281,7 +281,7 @@ Usage:
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
   llmctl scheduler runs [-n 20] [-task T] [-json] [--csv] [-watch N] [-out FILE] [-stats]
   llmctl scheduler export [-out FILE] | scheduler import <file.json> [-json]
-  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
+  llmctl requests [--model ID] [--status 4|404] [--min-ms N] [--key PREFIX] [--instance ID] [--cache true|false] [--id ID] [-n 20] [-json] [-watch N] [-stats [-by model|key|instance|day|hour|status]] [--csv on list and stats] [-out FILE]
   llmctl backups [list|create [-name LABEL] [-json]|restore <name> [-json]|download <name> [-json]|verify <name|-all> [-json]|prune [-keep N] [-json]|delete <name> [-json]] [-json|-csv|-out FILE|-watch N on list]
   llmctl usage [-n 14] [-key ID] [-keys] [-tag T] [-model ID] [--csv] [--json] [-out FILE] [-watch N]
   llmctl metrics [-watch N] [-model M] [--csv] [-json] [-out FILE]   (-json/-out refresh each -watch tick, F620)
@@ -5840,6 +5840,7 @@ func cmdRequests(args []string) error {
 	minMs := fs.Int("min-ms", 0, "minimum latency in ms")
 	key := fs.String("key", "", "filter by API key prefix")
 	instance := fs.String("instance", "", "filter by serving instance id")
+	cache := fs.String("cache", "", "cache hits only (true) or misses only (false) (F847)")
 	since := fs.String("since", "", "only requests after this time: RFC3339 or a duration like 30m/2h (F189)")
 	until := fs.String("until", "", "only requests before this time: RFC3339 or a duration like 30m/2h (F189)")
 	id := fs.String("id", "", "show the single request with this id")
@@ -5895,6 +5896,15 @@ func cmdRequests(args []string) error {
 	}
 	if *instance != "" {
 		q.Set("instance", *instance)
+	}
+	switch *cache {
+	case "":
+	case "true", "1":
+		q.Set("cache", "1")
+	case "false", "0":
+		q.Set("cache", "0")
+	default:
+		return fmt.Errorf("-cache must be true or false")
 	}
 	if *since != "" {
 		if t, err := parseTimeArg(*since); err != nil {

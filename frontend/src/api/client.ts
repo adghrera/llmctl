@@ -650,13 +650,14 @@ export const api = {
     req<{ ok: boolean; files: number }>(`/backups/${encodeURIComponent(name)}/restore`, { method: "POST" }),
   requests: (
     limit = 100,
-    filters: { model?: string; status?: string; minMs?: number; stream?: string; key?: string; instance?: string; since?: string; until?: string } = {}
+    filters: { model?: string; status?: string; minMs?: number; stream?: string; cache?: string; key?: string; instance?: string; since?: string; until?: string } = {}
   ) => {
     const q = new URLSearchParams({ limit: String(limit) });
     if (filters.model) q.set("model", filters.model);
     if (filters.status) q.set("status", filters.status);
     if (filters.minMs) q.set("minMs", String(filters.minMs));
     if (filters.stream) q.set("stream", filters.stream);
+    if (filters.cache) q.set("cache", filters.cache);
     if (filters.key) q.set("key", filters.key);
     if (filters.instance) q.set("instance", filters.instance);
     if (filters.since) q.set("since", filters.since);
@@ -665,7 +666,8 @@ export const api = {
   },
   requestById: (id: string) => req<RequestLogEntry>(`/requests/${encodeURIComponent(id)}`),
   // Bench run history ring (F846).
-  benchRuns: (n = 20) => req<BenchRun[]>(`/bench/runs?n=${n}`),  logBenchRun: (body: {
+  benchRuns: (n = 20) => req<BenchRun[]>(`/bench/runs?n=${n}`),
+  logBenchRun: (body: {
     model: string; n: number; conc: number; prompt?: string;
     ok: number; failed: number; avgMs: number; p50Ms: number; p95Ms: number;
     tokPerSec: number; reqPerSec: number; source?: string;

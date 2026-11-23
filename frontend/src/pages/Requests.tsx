@@ -53,6 +53,7 @@ export default function Requests() {
   const [fStatus, setFStatus] = useState(params.get("status") ?? "");
   const [fMinMs, setFMinMs] = useState("");
   const [fStream, setFStream] = useState("");
+  const [fCache, setFCache] = useState(""); // response-cache filter (F847)
   const [fKey, setFKey] = useState(params.get("key") || "");
   const [keyNames, setKeyNames] = useState<{ id: string; name: string }[]>([]); // for the key dropdown (F735)
   const [modelIds, setModelIds] = useState<string[]>([]); // for the model dropdown (F736)
@@ -98,6 +99,7 @@ export default function Requests() {
           status: fStatus || undefined,
           minMs: Number(fMinMs) > 0 ? Number(fMinMs) : undefined,
           stream: fStream || undefined,
+          cache: fCache || undefined,
           key: fKey.trim() || undefined,
           instance: fInstance.trim() || undefined,
           since: fSince ? new Date(fSince).toISOString() : undefined,
@@ -113,7 +115,7 @@ export default function Requests() {
       alive = false;
       clearInterval(t);
     };
-  }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance, fSince, fUntil, fId]);
+  }, [auto, fModel, fStatus, fMinMs, fStream, fCache, fKey, fInstance, fSince, fUntil, fId]);
 
   const toggleSort = (k: string) => {
     if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
@@ -293,7 +295,12 @@ export default function Requests() {
           <option value="1">streaming</option>
           <option value="0">plain</option>
         </select>
-        {(fModel || fStatus || fMinMs || fStream || fKey || fInstance || fSince || fUntil || fId) && (
+        <select value={fCache} onChange={(e) => setFCache(e.target.value)} style={{ width: 120 }} title="filter by response-cache hits (F847)">
+          <option value="">cache: all</option>
+          <option value="1">cache hits</option>
+          <option value="0">cache misses</option>
+        </select>
+        {(fModel || fStatus || fMinMs || fStream || fCache || fKey || fInstance || fSince || fUntil || fId) && (
           <button
             className="btn sm"
             onClick={() => {
@@ -301,6 +308,7 @@ export default function Requests() {
               setFStatus("");
               setFMinMs("");
               setFStream("");
+              setFCache("");
               setFKey("");
               setFInstance("");
               setFSince("");
