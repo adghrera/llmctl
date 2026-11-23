@@ -792,6 +792,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F779 | P3 | 779 | scheduler | Scheduler column sorting | COMPLETED | The Scheduler task table headers (name/cron/kind/model/enabled/next/last) are now clickable to sort, with a direction arrow — sorting family extended (F774-F778). Verified live: served bundle carries the headers. |
 | F780 | P3 | 780 | cost | Cost tables column sorting | COMPLETED | The Cost page per-key and per-model tables gained clickable column headers (name/requests/input/output/total/cost) sharing one sort, with a direction arrow — sorting family extended (F774-F779). Verified live: served bundle carries both header sets. |
 | F781 | P3 | 781 | usage | Usage per-model column sorting | COMPLETED | The Usage per-model table headers (model/requests/errors/p50/p95/p99/ttft/tok-s/prompt/completion/total) are now clickable to sort, with a direction arrow — sorting family extended (F774-F780). Verified live: served bundle carries the headers. |
+| F782 | P3 | 782 | tools | Tool test-run Copy output | COMPLETED | The Tools page test-run result gained a Copy output button for the run stdout/stderr — copy family extended to tool runs. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

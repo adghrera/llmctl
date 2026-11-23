@@ -221,6 +221,7 @@ export default function Tools() {
                 />
               </details>
               {res !== undefined && (
+                <>
                 <pre
                   style={{
                     marginTop: 6,
@@ -235,6 +236,23 @@ export default function Tools() {
                     ? `${res.sandbox ? `[sandbox${res.backend ? ":" + res.backend : ""}]` : "[host]"} ${res.duration}\n${res.result}`
                     : `FAILED: ${res.error || "exit " + res.exitCode}${res.stderr ? "\n" + res.stderr : ""}`}
                 </pre>
+                <button
+                  className="btn sm"
+                  style={{ marginTop: 6 }}
+                  title="copy the test-run output to the clipboard (F782)"
+                  onClick={() => {
+                    const text = res.ok
+                      ? `${res.sandbox ? `[sandbox${res.backend ? ":" + res.backend : ""}]` : "[host]"} ${res.duration}\n${res.result}`
+                      : `FAILED: ${res.error || "exit " + res.exitCode}${res.stderr ? "\n" + res.stderr : ""}`;
+                    navigator.clipboard
+                      ?.writeText(text)
+                      .then(() => ok("copied"))
+                      .catch(() => {});
+                  }}
+                >
+                  Copy output
+                </button>
+                </>
               )}
             </div>
           );

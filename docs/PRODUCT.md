@@ -345,7 +345,8 @@ toggle for a light theme (choice remembered). Tabs:
   (container, no network, memory & PID caps) by default; a per-tool toggle
   opts out to host execution. List, enable/disable, test-run with args, and
   uninstall. Enabled tools join the agent's tool set in Chat. The Tools page
-  has Export CSV and Export JSON buttons on the installed list (F396, F715).
+  has Export CSV and Export JSON buttons on the installed list (F396, F715), and
+  a Copy output button under each test-run result (F782).
 - **MCP servers** — add Model Context Protocol servers launched as local
   processes (command + args). llmctl performs the MCP handshake, lists each
   server's tools, and offers them to the agent as
