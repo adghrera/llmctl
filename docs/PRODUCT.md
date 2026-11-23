@@ -401,7 +401,8 @@ toggle for a light theme (choice remembered). Tabs:
   context (twin of `-file`, F733) and a Results Export JSON
   button matching `llmctl compare --json` shape (F431) plus an Export CSV
   button matching `llmctl compare --csv` (F607), a per-reply copy button
-  in each result panel header (F769), and a Copy cURL button for the first
+  in each result panel header (F769) with a per-reply token/latency badge
+  (F811), and a Copy cURL button for the first
   selected model (Chat twin, F785). While running, the Compare
   button becomes a Stop button aborting every in-flight stream, keeping
   partial replies (F755).

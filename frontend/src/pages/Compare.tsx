@@ -6,7 +6,7 @@ export default function Compare() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [prompt, setPrompt] = useState("");
-  const [results, setResults] = useState<Record<string, { content: string; error?: string; done: boolean }>>({});
+  const [results, setResults] = useState<Record<string, { content: string; error?: string; done: boolean; ms?: number; tok?: number }>>({});
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop all in-flight fan-out streams (F755)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
@@ -58,7 +58,7 @@ export default function Compare() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     let stopped = false;
-    const newResults: Record<string, { content: string; error?: string; done: boolean }> = {};
+    const newResults: Record<string, { content: string; error?: string; done: boolean; ms?: number; tok?: number }> = {};
     for (const id of selected) {
       newResults[id] = { content: "", done: false };
     }
@@ -93,6 +93,7 @@ export default function Compare() {
               { role: "user", content: prompt },
             ],
             stream: true,
+            stream_options: { include_usage: true }, // per-reply token usage badge (F811)
             ...(Number(maxTok) > 0 ? { max_tokens: Number(maxTok) } : {}),
             ...(temp.trim() !== "" ? { temperature: Number(temp) } : {}),
             ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
@@ -100,6 +101,8 @@ export default function Compare() {
             ...(freqPen.trim() !== "" ? { frequency_penalty: Number(freqPen) } : {}),
             ...(presPen.trim() !== "" ? { presence_penalty: Number(presPen) } : {}),
           });
+          const t0 = performance.now(); // per-reply latency badge (F811)
+          let usage: { total_tokens?: number } | undefined;
           const resp = await fetch("/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -131,6 +134,7 @@ export default function Compare() {
               if (data === "[DONE]") continue;
               try {
                 const j = JSON.parse(data);
+                if (j.usage) usage = j.usage; // final usage chunk (F811)
                 const delta = j.choices?.[0]?.delta?.content;
                 if (delta) {
                   setResults((prev) => ({
@@ -141,7 +145,7 @@ export default function Compare() {
               } catch { /* partial line */ }
             }
           }
-          setResults((prev) => ({ ...prev, [id]: { ...prev[id], done: true } }));
+          setResults((prev) => ({ ...prev, [id]: { ...prev[id], done: true, ms: Math.round(performance.now() - t0), tok: usage?.total_tokens } }));
         } catch (e) {
           const aborted = e instanceof DOMException && e.name === "AbortError";
           if (aborted) stopped = true;
@@ -460,6 +464,12 @@ export default function Compare() {
                 <div style={{ padding: 8, background: "rgba(127,127,127,0.1)", fontSize: 12, fontWeight: 600, borderBottom: "1px solid var(--border, #333)" }}>
                   {inst.modelId}{" "}
                   <span style={{ opacity: 0.7, fontSize: 10, marginLeft: 6 }}>{inst.backendId}</span>
+                  {results[inst.id]?.done && (results[inst.id].tok || results[inst.id].ms !== undefined) && (
+                    <span title="reply token usage and latency (F811)" style={{ opacity: 0.7, fontSize: 10, marginLeft: 6, fontWeight: 400 }}>
+                      {results[inst.id].tok ? `${results[inst.id].tok} tok · ` : ""}
+                      {results[inst.id].ms !== undefined ? `${(results[inst.id].ms! / 1000).toFixed(1)}s` : ""}
+                    </span>
+                  )}
                   {results[inst.id]?.content ? (
                     <button
                       className="btn xs"
