@@ -290,7 +290,7 @@ Usage:
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
-  llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp export | mcp import <file.json> [-json]
+  llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
@@ -10388,7 +10388,7 @@ func cmdMcp(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "add", "remove", "enable", "disable", "test", "export", "import":
+		case "list", "add", "remove", "enable", "disable", "test", "call", "export", "import":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -10684,8 +10684,43 @@ func cmdMcp(args []string) error {
 			fmt.Printf("  %-20s %s\n", t.Name, t.Description)
 		}
 		return nil
+	case "call":
+		// CLI twin of the MCP page's per-tool Call box (F835).
+		if len(rest) < 2 {
+			return fmt.Errorf("usage: llmctl mcp call <id> <tool> [-args JSON] [-json]")
+		}
+		cfs := flag.NewFlagSet("mcp call", flag.ExitOnError)
+		argsFlag := cfs.String("args", "{}", "JSON object passed as the tool arguments (F835)")
+		jsonOut := cfs.Bool("json", false, "print the raw {result} JSON envelope")
+		cfs.Parse(reorderFlags(rest[2:]))
+		var parsed any
+		if err := json.Unmarshal([]byte(*argsFlag), &parsed); err != nil {
+			return fmt.Errorf("-args must be valid JSON: %w", err)
+		}
+		code, out, err := cc.Post("/api/v1/mcp/"+url.PathEscape(rest[0])+"/call", map[string]any{"tool": rest[1], "args": parsed})
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("call failed: %s", strings.TrimSpace(string(out)))
+		}
+		if *jsonOut {
+			fmt.Println(string(out))
+			return nil
+		}
+		var cres struct {
+			Result string `json:"result"`
+		}
+		if err := json.Unmarshal(out, &cres); err != nil {
+			return err
+		}
+		fmt.Print(cres.Result)
+		if !strings.HasSuffix(cres.Result, "\n") {
+			fmt.Println()
+		}
+		return nil
 	default:
-		return fmt.Errorf("unknown mcp subcommand %q (list|add|remove|enable|disable|test)", sub)
+		return fmt.Errorf("unknown mcp subcommand %q (list|add|remove|enable|disable|test|call)", sub)
 	}
 }
 

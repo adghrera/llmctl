@@ -584,7 +584,9 @@ toggle for a light theme (choice remembered). Tabs:
    (`--csv` exports id,name,enabled,command, F403);
    `mcp add <name> <command> [-args 'a b'] [-env k=v …] [-json] [-out FILE]` (-out writes the raw created-server JSON, F511; `-env` sets the server process's environment, repeatable, and `-json` prints the created record, F655), `mcp remove|enable|disable <id>`,
    `mcp test <id> [--csv|--json] [-out FILE]` (connect and list advertised tools;
-   --csv/--json export name,description, F436) and
+   --csv/--json export name,description, F436),
+   `mcp call <id> <tool> [-args JSON] [-json]` (run one tool and print its
+   text result; UI twin of the Call box, F835) and
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
    enabled state preserved, F330) (F249); the MCP page has matching
    Export JSON / Import JSON buttons (F411) and an Export CSV on the tested
