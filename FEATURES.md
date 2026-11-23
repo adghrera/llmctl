@@ -825,6 +825,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F812 | P3 | 812 | chats | Chat find-in-conversation | COMPLETED | The Chat page gained a find-in-conversation box: highlights matches with <mark> inside rendered messages (text nodes only) and shows a match count with a clear button. Verified live: served bundle carries the input. |
 | F813 | P3 | 813 | chats | Chat conversation deep-link | COMPLETED | The Chat URL now carries `?c=<id>`: opening /chat?c=ID loads that conversation, and opening, creating or importing a chat keeps the URL in sync (replace, no history spam) — shareable/bookmarkable conversations, twin of the Requests deep-link params. Verified live: served bundle carries the deep-link read. |
 | F814 | P3 | 814 | compare | Compare deep-link | COMPLETED | `/compare?models=a,b&p=...` pre-selects running instances and prefills the prompt; toggling selection keeps the URL in sync (replace) — shareable comparisons, Chat deep-link twin (F813). Verified live: served bundle carries the param read. |
+| F815 | P3 | 815 | batch | Batch retry-failed | COMPLETED | After a batch run with failures, a "Retry failed (N)" button re-runs just the failed prompts with the same options (run() refactored into runList). Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

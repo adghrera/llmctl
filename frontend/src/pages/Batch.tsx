@@ -26,13 +26,9 @@ export default function Batch() {
     if (!model && running.length) setModel(running[0].modelId);
   }, [running, model]);
 
-  const run = async () => {
-    const list = prompts
-      .split("\n")
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
+  const runList = async (list: string[]) => {
     if (!list.length) {
-      err("enter one prompt per line");
+      err("no prompts to run");
       return;
     }
     setBusy(true);
@@ -60,6 +56,18 @@ export default function Batch() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const run = async () => {
+    const list = prompts
+      .split("\n")
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    if (!list.length) {
+      err("enter one prompt per line");
+      return;
+    }
+    await runList(list);
   };
 
   return (
@@ -262,6 +270,16 @@ export default function Batch() {
         />
         {!running.length && <span className="muted small">start an instance first</span>}
         {meta && <span className="muted small">{meta}</span>}
+        {results && results.some((r) => r.error) && (
+          <button
+            className="btn sm"
+            title="re-run only the prompts that failed (F815)"
+            disabled={busy}
+            onClick={() => runList(results.filter((r) => r.error).map((r) => r.prompt))}
+          >
+            ↻ Retry failed ({results.filter((r) => r.error).length})
+          </button>
+        )}
         </div>
       </div>
       {results && (
