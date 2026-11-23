@@ -409,6 +409,23 @@ export interface BatchResult {
   error?: string;
 }
 
+// One recorded benchmark run in the daemon's history ring (F846).
+export interface BenchRun {
+  time: string;
+  model: string;
+  n: number;
+  conc: number;
+  prompt?: string;
+  ok: number;
+  failed: number;
+  avgMs: number;
+  p50Ms: number;
+  p95Ms: number;
+  tokPerSec: number;
+  reqPerSec: number;
+  source?: string;
+}
+
 export interface RequestLogEntry {
   id?: string;
   time: string;
@@ -647,6 +664,12 @@ export const api = {
     return req<RequestLogEntry[]>(`/requests?${q.toString()}`);
   },
   requestById: (id: string) => req<RequestLogEntry>(`/requests/${encodeURIComponent(id)}`),
+  // Bench run history ring (F846).
+  benchRuns: (n = 20) => req<BenchRun[]>(`/bench/runs?n=${n}`),  logBenchRun: (body: {
+    model: string; n: number; conc: number; prompt?: string;
+    ok: number; failed: number; avgMs: number; p50Ms: number; p95Ms: number;
+    tokPerSec: number; reqPerSec: number; source?: string;
+  }) => req<BenchRun>("/bench/runs", { method: "POST", body: JSON.stringify(body) }),
   aliases: () => req<ModelAlias[]>("/aliases"),
   createAlias: (alias: string, model: string) =>
     req<ModelAlias>("/aliases", { method: "POST", body: JSON.stringify({ alias, model }) }),

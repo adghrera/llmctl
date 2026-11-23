@@ -219,6 +219,7 @@ Usage:
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C] [-json|--csv] [-out FILE]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
+  llmctl bench history [-n 20] [-json|--csv] [-out FILE]   (recent bench runs)
   llmctl disk [-json] [--csv] [-out FILE] [-watch N]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE] [-stats]   (-json/-out refresh each -watch tick, F620; -stats: per-model roll-up)
   llmctl backends list [-json|-csv|-out FILE]
@@ -2144,6 +2145,9 @@ func cmdEmbed(args []string) error {
 
 // cmdBench measures gateway chat throughput/latency for one model (F282).
 func cmdBench(args []string) error {
+	if len(args) > 0 && args[0] == "history" {
+		return cmdBenchHistory(args[1:])
+	}
 	fs := flag.NewFlagSet("bench", flag.ExitOnError)
 	model := fs.String("model", "", "model id to benchmark (required, unless -models is used)")
 	modelsFlag := fs.String("models", "", "comma-separated model ids to benchmark and compare (F303)")
@@ -2356,6 +2360,13 @@ func cmdBench(args []string) error {
 		}
 		if st != nil {
 			all = append(all, st)
+			// Record in the daemon's bench history ring (best effort, F846).
+			cc.Post("/api/v1/bench/runs", map[string]any{
+				"model": st.model, "n": *n, "conc": *conc, "prompt": *prompt,
+				"ok": st.ok, "failed": st.fails, "avgMs": st.avg, "p50Ms": st.p50,
+				"p95Ms": st.p95, "tokPerSec": st.tokps, "reqPerSec": st.reqps,
+				"source": "cli",
+			})
 		}
 	}
 	if *jsonOut {
@@ -2403,6 +2414,78 @@ func cmdBench(args []string) error {
 	}
 	if firstErr != nil && len(all) < len(models) {
 		return firstErr
+	}
+	return nil
+}
+
+// cmdBenchHistory prints the daemon's bench run history ring (F846).
+func cmdBenchHistory(args []string) error {
+	fs := flag.NewFlagSet("bench history", flag.ExitOnError)
+	n := fs.Int("n", 20, "number of recent runs to show")
+	jsonOut := fs.Bool("json", false, "print the runs as JSON")
+	csvOut := fs.Bool("csv", false, "output the runs as CSV")
+	outFile := fs.String("out", "", "write the runs JSON to this file instead of stdout")
+	fs.Parse(reorderFlags(args))
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	code, out, err := cc.Get("/api/v1/bench/runs?n=" + strconv.Itoa(*n))
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("bench history returned %d: %s", code, out)
+	}
+	var runs []struct {
+		Time      time.Time `json:"time"`
+		Model     string    `json:"model"`
+		N         int       `json:"n"`
+		Conc      int       `json:"conc"`
+		Prompt    string    `json:"prompt"`
+		OK        int       `json:"ok"`
+		Failed    int       `json:"failed"`
+		AvgMs     float64   `json:"avgMs"`
+		P50Ms     float64   `json:"p50Ms"`
+		P95Ms     float64   `json:"p95Ms"`
+		TokPerSec float64   `json:"tokPerSec"`
+		ReqPerSec float64   `json:"reqPerSec"`
+		Source    string    `json:"source"`
+	}
+	if err := json.Unmarshal(out, &runs); err != nil {
+		return err
+	}
+	if *outFile != "" {
+		if err := os.WriteFile(*outFile, append(out, '\n'), 0o644); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *outFile, len(out)+1)
+		return nil
+	}
+	if *jsonOut {
+		fmt.Println(string(out))
+		return nil
+	}
+	if *csvOut {
+		w := csv.NewWriter(os.Stdout)
+		_ = w.Write([]string{"time", "model", "n", "conc", "ok", "failed", "avg_ms", "p50_ms", "p95_ms", "tok_per_s", "req_per_s", "source", "prompt"})
+		for _, r := range runs {
+			_ = w.Write([]string{r.Time.Format(time.RFC3339), r.Model, strconv.Itoa(r.N), strconv.Itoa(r.Conc),
+				strconv.Itoa(r.OK), strconv.Itoa(r.Failed),
+				fmt.Sprintf("%.0f", r.AvgMs), fmt.Sprintf("%.0f", r.P50Ms), fmt.Sprintf("%.0f", r.P95Ms),
+				fmt.Sprintf("%.1f", r.TokPerSec), fmt.Sprintf("%.2f", r.ReqPerSec), r.Source, r.Prompt})
+		}
+		w.Flush()
+		return w.Error()
+	}
+	if len(runs) == 0 {
+		fmt.Println("no bench runs recorded yet (run: llmctl bench -model ID)")
+		return nil
+	}
+	fmt.Printf("%-20s %-20s %4s %4s %5s %6s %8s %9s %6s\n", "TIME", "MODEL", "N", "CONC", "OK", "FAILED", "AVG MS", "TOK/S", "SRC")
+	for _, r := range runs {
+		fmt.Printf("%-20s %-20s %4d %4d %5d %6d %8.0f %9.0f %6s\n",
+			r.Time.Local().Format("2006-01-02 15:04:05"), r.Model, r.N, r.Conc, r.OK, r.Failed, r.AvgMs, r.TokPerSec, r.Source)
 	}
 	return nil
 }

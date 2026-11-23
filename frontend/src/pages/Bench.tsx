@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, Instance } from "../api/client";
+import { api, BenchRun, Instance } from "../api/client";
 import { err, ok } from "../ui/toast";
 
 // Client-side twin of `llmctl bench -models A,B` (F671): fire n requests per
@@ -41,6 +41,7 @@ export default function Bench() {
   const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.bench.freqpen") ?? "");
   const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.bench.prespen") ?? "");
   const [rows, setRows] = useState<BenchRow[]>([]);
+  const [runs, setRuns] = useState<BenchRun[]>([]); // recent runs ring (F846)
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop the bench run (F756)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
@@ -53,6 +54,7 @@ export default function Bench() {
 
   useEffect(() => {
     load();
+    api.benchRuns(20).then(setRuns).catch(() => {});
   }, []);
 
   const toggle = (id: string) => {
@@ -152,6 +154,15 @@ export default function Bench() {
         }
         if (row.ok === 0) err(`${row.model}: ${row.error || "all requests failed"}`);
         else ok(`${row.model}: ${row.ok}/${reqs} ok, avg ${row.avg.toFixed(0)} ms`);
+        // Record in the daemon's history ring (F846).
+        api
+          .logBenchRun({
+            model: row.model, n: reqs, conc: parallel, prompt,
+            ok: row.ok, failed: row.fail, avgMs: row.avg, p50Ms: row.p50, p95Ms: row.p95,
+            tokPerSec: row.tokps, reqPerSec: row.reqps, source: "ui",
+          })
+          .then(() => api.benchRuns(20).then(setRuns))
+          .catch(() => {});
       }
     } finally {
       abortRef.current = null;
@@ -404,6 +415,45 @@ export default function Bench() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {runs.length > 0 && (
+          <div className="card" style={{ marginTop: 12 }}>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+              Recent runs — last {runs.length} (CLI: llmctl bench history) (F846)
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>TIME</th>
+                  <th>MODEL</th>
+                  <th>N</th>
+                  <th>CONC</th>
+                  <th>OK</th>
+                  <th>FAIL</th>
+                  <th>AVG MS</th>
+                  <th>TOK/S</th>
+                  <th>SRC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map((r, i) => (
+                  <tr key={i} title={r.prompt || undefined}>
+                    <td className="muted" style={{ fontSize: 12 }}>
+                      {new Date(r.time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="mono">{r.model}</td>
+                    <td>{r.n}</td>
+                    <td>{r.conc}</td>
+                    <td>{r.ok}</td>
+                    <td>{r.failed}</td>
+                    <td>{r.avgMs.toFixed(0)}</td>
+                    <td>{r.tokPerSec.toFixed(0)}</td>
+                    <td className="muted">{r.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
