@@ -32,7 +32,7 @@ export default function Chat() {
   const { instances } = useStore();
   const running = instances.filter((i) => i.status === "running");
   // `?model=` deep-link from the Instances page preselects the model (F362).
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [model, setModel] = useState(() => params.get("model") ?? "");
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) ?? "");
   const [agentMode, setAgentMode] = useState(() => localStorage.getItem(AGENT_STORAGE) === "1");
@@ -132,6 +132,7 @@ export default function Chat() {
       } else {
         const created = await api.createChat(payload);
         setConvId(created.id);
+        setParams({ c: created.id }, { replace: true }); // deep-link follows the new chat (F813)
       }
       await loadChats();
       // Refresh context usage from the server after saving.
@@ -152,6 +153,7 @@ export default function Chat() {
     setConvId(null);
     setInput("");
     setSystemPrompt("");
+    setParams({}, { replace: true }); // deep-link cleared (F813)
   };
 
   // Import an exported chat JSON file as a new conversation (F369).
@@ -193,6 +195,7 @@ export default function Chat() {
         })),
       );
       setConvId(c.id);
+      setParams({ c: c.id }, { replace: true }); // deep-link follows the open chat (F813)
       if (c.model) setModel(c.model);
       if (typeof c.agentMode === "boolean") setAgentMode(c.agentMode);
       setSystemPrompt(c.system || "");
@@ -200,6 +203,16 @@ export default function Chat() {
       err(e instanceof Error ? e.message : String(e));
     }
   };
+
+  // Deep link: /chat?c=<id> opens that conversation on load (F813).
+  const deepLinked = useRef(false);
+  useEffect(() => {
+    if (deepLinked.current) return;
+    deepLinked.current = true;
+    const c = params.get("c");
+    if (c) openChat(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const removeChat = async (id: string) => {
     try {

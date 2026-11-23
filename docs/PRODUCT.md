@@ -264,7 +264,9 @@ toggle for a light theme (choice remembered). Tabs:
   (built-in safe renderer: code fences, lists, links, emphasis) and every
   message has a hover copy button (F067) and a →P button that saves it as a
   prompt template (twin of `prompts add`, F750), and a find-in-conversation
-  box highlights matches and counts them (F812). The conversation list has Export
+  box highlights matches and counts them (F812). The URL carries the open
+  conversation (`/chat?c=ID`), so chats are linkable and reload in place
+  (F813). The conversation list has Export
   CSV / Import buttons and a Prune button that deletes chats older than N
   days (pinned kept) — the UI twin of `llmctl chats prune` (F660).
 - **Structured output** — give a prompt and a JSON Schema; llmctl asks the
