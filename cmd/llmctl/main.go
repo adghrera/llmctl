@@ -295,7 +295,7 @@ Usage:
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
-  llmctl cache stats [-json] | cache clear [-json]   (opt-in gateway response cache: X-LLMCtrl-Cache: 1 on non-streaming chat calls)
+  llmctl cache stats [-json|--csv] [-watch N] | cache clear [-json]   (opt-in gateway response cache: X-LLMCtrl-Cache: 1 on non-streaming chat calls)
   llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>|prune [-before D|-older-than N] [-yes]] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
@@ -11146,34 +11146,60 @@ func cmdCache(args []string) error {
 	}
 	fs := flag.NewFlagSet("cache "+sub, flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the counters as JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the counters as one CSV row (F849)")
+	watch := fs.Int("watch", 0, "with stats: reprint every N seconds until Ctrl-C (F849)")
 	fs.Parse(reorderFlags(rest))
 	switch sub {
 	case "stats":
-		code, out, err := cc.Get("/api/v1/cache/stats")
-		if err != nil {
-			return err
-		}
-		if code != 200 {
-			return fmt.Errorf("cache stats returned %d: %s", code, out)
-		}
-		if *jsonOut {
-			fmt.Println(strings.TrimSpace(string(out)))
+		printOnce := func() error {
+			code, out, err := cc.Get("/api/v1/cache/stats")
+			if err != nil {
+				return err
+			}
+			if code != 200 {
+				return fmt.Errorf("cache stats returned %d: %s", code, out)
+			}
+			if *jsonOut {
+				fmt.Println(strings.TrimSpace(string(out)))
+				return nil
+			}
+			var st struct {
+				Entries int `json:"entries"`
+				Hits    int `json:"hits"`
+				Misses  int `json:"misses"`
+				Stores  int `json:"stores"`
+				Max     int `json:"maxEntries"`
+				TTL     int `json:"ttlSeconds"`
+			}
+			if err := json.Unmarshal(out, &st); err != nil {
+				return err
+			}
+			if *csvOut {
+				w := csv.NewWriter(os.Stdout)
+				_ = w.Write([]string{"entries", "hits", "misses", "stores", "max_entries", "ttl_seconds"})
+				_ = w.Write([]string{strconv.Itoa(st.Entries), strconv.Itoa(st.Hits), strconv.Itoa(st.Misses),
+					strconv.Itoa(st.Stores), strconv.Itoa(st.Max), strconv.Itoa(st.TTL)})
+				w.Flush()
+				return w.Error()
+			}
+			fmt.Printf("entries: %d/%d · hits: %d · misses: %d · stores: %d · ttl: %ds\n",
+				st.Entries, st.Max, st.Hits, st.Misses, st.Stores, st.TTL)
 			return nil
 		}
-		var st struct {
-			Entries int `json:"entries"`
-			Hits    int `json:"hits"`
-			Misses  int `json:"misses"`
-			Stores  int `json:"stores"`
-			Max     int `json:"maxEntries"`
-			TTL     int `json:"ttlSeconds"`
-		}
-		if err := json.Unmarshal(out, &st); err != nil {
+		if err := printOnce(); err != nil {
 			return err
 		}
-		fmt.Printf("entries: %d/%d · hits: %d · misses: %d · stores: %d · ttl: %ds\n",
-			st.Entries, st.Max, st.Hits, st.Misses, st.Stores, st.TTL)
-		return nil
+		if *watch <= 0 {
+			return nil
+		}
+		for {
+			time.Sleep(time.Duration(*watch) * time.Second)
+			fmt.Print("\x1b[2J\x1b[H") // clear screen
+			fmt.Printf("cache stats — refreshing every %ds (Ctrl-C to stop)\n\n", *watch)
+			if err := printOnce(); err != nil {
+				return err
+			}
+		}
 	case "clear":
 		code, out, err := cc.Delete("/api/v1/cache")
 		if err != nil {

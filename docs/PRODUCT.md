@@ -625,8 +625,9 @@ toggle for a light theme (choice remembered). Tabs:
    `-key K` filter the table to one id, `--csv` exports the table, `-json` emits
    `{totals, groups}`, `-out FILE` writes that JSON to a file, `-watch N`
    reprints the view every N seconds (F251, F349, F370, F470, F588).
- - **Cache CLI** — `llmctl cache stats [-json]` prints the gateway response-cache
-   counters (entries/hits/misses/stores) and `llmctl cache clear [-json]` drops
+ - **Cache CLI** — `llmctl cache stats [-json|--csv] [-watch N]` prints the gateway response-cache
+   counters (entries/hits/misses/stores; `--csv` one row, `-watch N` reprints
+   every N seconds) and `llmctl cache clear [-json]` drops
    every cached reply (F841).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
    <id>|prune [-before D|-older-than N] [-yes]] [--csv] [-json] [-stats]` covers the whole uploaded-files API from the shell, including
