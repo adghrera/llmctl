@@ -214,6 +214,13 @@ export default function Batch() {
           onChange={(e) => setPrompts(e.target.value)}
           placeholder="One prompt per line"
         />
+        {prompts.trim() !== "" && (
+          <div className="muted" style={{ fontSize: 11, margin: "-4px 0 8px" }}>
+            {prompts.split("\n").map((p) => p.trim()).filter(Boolean).length} prompt(s) ·{" "}
+            ≈{Math.ceil(prompts.length / 4)} tok
+            <span title="rough estimate, ~4 chars/token — same rule as llmctl count"> (?)</span>
+          </div>
+        )}
         <div className="row" style={{ alignItems: "center" }}>
         <button className="btn primary" disabled={busy || !model} onClick={run}>
           {busy ? "Running…" : "Run batch"}

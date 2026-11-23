@@ -291,7 +291,8 @@ toggle for a light theme (choice remembered). Tabs:
   browser (F734).
 - **Batch inference** — paste prompts (one per line) and run them all
   concurrently through the gateway; per-prompt results and errors in input
-  order. REST: POST /api/v1/batch. Dedicated Batch page with optional
+  order. The prompts box shows a live prompt-count and token estimate (F819).
+  REST: POST /api/v1/batch. Dedicated Batch page with optional
   max-tokens/temperature inputs (F359), a concurrency input (1–8 workers,
   CLI twin `-concurrency`, F691), a seed input for reproducible replies
   (F795), a top_p nucleus-sampling input (F799) and frequency/presence penalty
