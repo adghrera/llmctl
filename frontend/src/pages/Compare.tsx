@@ -366,6 +366,21 @@ export default function Compare() {
                 <div style={{ padding: 8, background: "rgba(127,127,127,0.1)", fontSize: 12, fontWeight: 600, borderBottom: "1px solid var(--border, #333)" }}>
                   {inst.modelId}{" "}
                   <span style={{ opacity: 0.7, fontSize: 10, marginLeft: 6 }}>{inst.backendId}</span>
+                  {results[inst.id]?.content ? (
+                    <button
+                      className="btn xs"
+                      style={{ float: "right", fontSize: 10 }}
+                      title="copy this model's reply (F769)"
+                      onClick={() => {
+                        navigator.clipboard
+                          ?.writeText(results[inst.id].content)
+                          .then(() => ok("copied"))
+                          .catch(() => {});
+                      }}
+                    >
+                      ⧉
+                    </button>
+                  ) : null}
                 </div>
                 <div style={{ padding: 10, fontSize: 13, whiteSpace: "pre-wrap", wordBreak: "break-word", minHeight: 200 }}>
                   {results[inst.id]?.error ? (

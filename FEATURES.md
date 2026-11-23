@@ -779,6 +779,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F766 | P3 | 766 | bench | Bench input persistence | COMPLETED | The Bench page prompt, requests-per-model and concurrency inputs now persist in the browser (localStorage) — Batch/Structured persistence twin (F765). Verified live: served bundle carries all three read/write pairs. |
 | F767 | P3 | 767 | models | GGUF metadata Export JSON | COMPLETED | The Models GGUF metadata viewer gained an Export JSON button downloading the parsed metadata — UI twin of `llmctl models metadata -json`. Verified live: served bundle carries the button. |
 | F768 | P3 | 768 | kb | KB doc view Copy + Download | COMPLETED | The Knowledge Bases document view modal gained Copy (clipboard) and Download (saves under the original filename, twin of `kb doc -out`) buttons. Verified live: served bundle carries both buttons. |
+| F769 | P3 | 769 | compare | Compare per-reply Copy button | COMPLETED | Each Compare result panel header gained a copy button for that model's reply — Chat message copy twin. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
