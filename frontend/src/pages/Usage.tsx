@@ -159,6 +159,8 @@ export default function Usage() {
   const [keyByTag, setKeyByTag] = useState(false); // roll Daily by Key up per tag (CLI `usage -tag` twin, F706)
   const [dailyFilter, setDailyFilter] = useState("");
   const [nDays, setNDays] = useState(14); // roll-up window, CLI `usage -n` twin (F759)
+  const [sortKey, setSortKey] = useState(""); // column sort over the per-model table (F781)
+  const [sortDir, setSortDir] = useState<1 | -1>(-1);
 
   const load = async () => {
     try {
@@ -231,6 +233,40 @@ export default function Usage() {
       ? Math.max(...models.map((m) => m.total))
       : 0;
 
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "id" ? 1 : -1);
+    }
+  };
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
+  const sortedModels = (() => {
+    if (!sortKey) return models;
+    const val = (m: (typeof models)[number]): string | number => {
+      switch (sortKey) {
+        case "id": return m.id;
+        case "requests": return m.requests;
+        case "errors": return m.errors;
+        case "p50": return m.p50 ?? -1;
+        case "p95": return m.p95 ?? -1;
+        case "p99": return m.p99 ?? -1;
+        case "ttft": return m.ttft ?? -1;
+        case "tps": return m.tps ?? -1;
+        case "prompt": return m.prompt;
+        case "completion": return m.completion;
+        case "total": return m.total;
+        default: return 0;
+      }
+    };
+    return [...models].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  })();
+
   return (
     <>
       <div className="card">
@@ -275,22 +311,22 @@ export default function Usage() {
           <table>
             <thead>
               <tr>
-                <th>Model</th>
-                <th>Requests</th>
-                <th>Errors</th>
-                <th>p50</th>
-                <th>p95</th>
-                <th>p99</th>
-                <th>ttft</th>
-                <th>tok/s</th>
-                <th>Prompt</th>
-                <th>Completion</th>
-                <th>Total</th>
+                <th style={{ cursor: "pointer" }} title="sort by model (F781)" onClick={() => toggleSort("id")}>Model{arrow("id")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by requests (F781)" onClick={() => toggleSort("requests")}>Requests{arrow("requests")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by errors (F781)" onClick={() => toggleSort("errors")}>Errors{arrow("errors")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by p50 latency (F781)" onClick={() => toggleSort("p50")}>p50{arrow("p50")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by p95 latency (F781)" onClick={() => toggleSort("p95")}>p95{arrow("p95")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by p99 latency (F781)" onClick={() => toggleSort("p99")}>p99{arrow("p99")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by time-to-first-token (F781)" onClick={() => toggleSort("ttft")}>ttft{arrow("ttft")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by tokens/sec (F781)" onClick={() => toggleSort("tps")}>tok/s{arrow("tps")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by prompt tokens (F781)" onClick={() => toggleSort("prompt")}>Prompt{arrow("prompt")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by completion tokens (F781)" onClick={() => toggleSort("completion")}>Completion{arrow("completion")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by total tokens (F781)" onClick={() => toggleSort("total")}>Total{arrow("total")}</th>
                 <th>Share</th>
               </tr>
             </thead>
             <tbody>
-              {models.map((m) => {
+              {sortedModels.map((m) => {
                 const pct = maxModelTokens > 0 ? (m.total / maxModelTokens) * 100 : 0;
                 return (
                   <tr key={m.id}>

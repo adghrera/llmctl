@@ -289,7 +289,8 @@ toggle for a light theme (choice remembered). Tabs:
   totals, request counts, per-model latency percentiles (p50/p95/p99), a
   model-id deep link to the Requests page filtered by that model (F742), and the
   4xx/5xx error split, average
-  time-to-first-token and completion throughput (tok/s), and
+  time-to-first-token and completion throughput (tok/s), clickable column
+  headers to sort the per-model table (F781), and
   per-conversation context percentage. A "Daily History" table shows the
   per-day, per-model rollup (requests, errors, tokens, estimated cost) which
   persists across restarts (`GET /api/v1/usage/daily[?days=N]`, F097, F103)
