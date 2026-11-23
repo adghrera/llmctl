@@ -557,7 +557,7 @@ toggle for a light theme (choice remembered). Tabs:
   F700).
   In chat, `/file <filename>` injects file content as a user message.
   Dedicated Files page for upload/list/delete, with a filename text filter
-  (F356), an Export CSV button (filter-aware, F397), an Export JSON button
+  (F356), clickable column headers to sort the list (filename/type/size, F778), an Export CSV button (filter-aware, F397), an Export JSON button
   (twin of `files -json`, F716), a per-row Download button saving the stored
   bytes (twin of `files cat -out`, F745), a text-file View preview with a Copy
   button for the content (F761), a Stats toggle rolling the

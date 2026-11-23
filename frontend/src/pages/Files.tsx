@@ -9,6 +9,8 @@ export default function Files() {
   const [contentView, setContentView] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI -tag twin (F700)
+  const [sortKey, setSortKey] = useState(""); // column sort over the file list (F778)
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [showStats, setShowStats] = useState(false); // per-content-type rollup (CLI `files -stats` parity, F637)
   const [dragOver, setDragOver] = useState(false);
 
@@ -96,6 +98,31 @@ export default function Files() {
   const fileTags = Array.from(new Set(files.flatMap((f) => f.entry.tags ?? []))).sort();
   let shown = low ? files.filter((f) => f.entry.filename.toLowerCase().includes(low)) : files;
   if (tagFilter) shown = shown.filter((f) => (f.entry.tags ?? []).includes(tagFilter));
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "size" ? -1 : 1);
+    }
+  };
+  const sortedShown = (() => {
+    if (!sortKey) return shown;
+    const val = (f: FileEntry): string | number => {
+      switch (sortKey) {
+        case "name": return f.entry.filename || "";
+        case "type": return f.entry.contentType || "";
+        case "size": return f.entry.size || 0;
+        default: return 0;
+      }
+    };
+    return [...shown].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  })();
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
 
   return (
     <>
@@ -273,14 +300,14 @@ export default function Files() {
           <table>
             <thead>
               <tr>
-                <th>Filename</th>
-                <th>Type</th>
-                <th>Size</th>
+                <th style={{ cursor: "pointer" }} title="sort by filename (F778)" onClick={() => toggleSort("name")}>Filename{arrow("name")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by content type (F778)" onClick={() => toggleSort("type")}>Type{arrow("type")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by size (F778)" onClick={() => toggleSort("size")}>Size{arrow("size")}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {shown.map((f) => (
+              {sortedShown.map((f) => (
                 <tr key={f.id}>
                   <td>
                     <b>{f.entry.filename}</b>

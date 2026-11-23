@@ -788,6 +788,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F775 | P3 | 775 | keys | Keys column sorting | COMPLETED | The Keys table headers (name/created/used/today) are now clickable to sort the key list, with a direction arrow — Requests sorting twin (F774). Verified live: served bundle carries the headers. |
 | F776 | P3 | 776 | instances | Instances column sorting | COMPLETED | The Instances table headers (id/model/backend/transport/port/status/uptime/last-used) are now clickable to sort the list, with a direction arrow — Requests/Keys sorting twin (F774, F775). Verified live: served bundle carries the headers. |
 | F777 | P3 | 777 | models | Featured catalog column sorting | COMPLETED | The Models "Featured models" catalog table headers (name/quant/size) are now clickable to sort, with a direction arrow — Requests/Keys/Instances sorting twin (F774-F776). Verified live: served bundle carries the headers. |
+| F778 | P3 | 778 | files | Files column sorting | COMPLETED | The Files table headers (filename/type/size) are now clickable to sort the file list, with a direction arrow — sorting family extended (F774-F777). Verified live: served bundle carries the headers. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
