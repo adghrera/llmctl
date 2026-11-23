@@ -47,7 +47,11 @@ type Client struct {
 // Connect spawns the server process and performs the initialize + tools/list
 // handshake. The caller owns the Client and must Close it.
 func Connect(ctx context.Context, srv Server) (*Client, error) {
-	cmd := exec.CommandContext(ctx, srv.Command, srv.Args...)
+	// The process must outlive the request that spawned it: the registry
+	// caches clients across requests, so bind the process to a detached
+	// context (Close/CloseAll terminates it) while the handshake below
+	// still honors the caller's deadline (F834).
+	cmd := exec.CommandContext(context.WithoutCancel(ctx), srv.Command, srv.Args...)
 	cmd.Env = os.Environ()
 	for k, v := range srv.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)

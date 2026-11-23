@@ -115,6 +115,43 @@ func (s *Server) testMCPServer(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"tools": c.Tools()})
 }
 
+// callMCPTool runs one tool on an MCP server and returns its text result —
+// the UI's tool test (F834).
+func (s *Server) callMCPTool(w http.ResponseWriter, r *http.Request) {
+	if _, err := s.mcpStore(); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	id := r.PathValue("id")
+	var req struct {
+		Tool string          `json:"tool"`
+		Args json.RawMessage `json:"args"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
+		writeErr(w, 400, "invalid JSON: "+err.Error())
+		return
+	}
+	if strings.TrimSpace(req.Tool) == "" {
+		writeErr(w, 400, "tool required")
+		return
+	}
+	c, err := s.mcpReg.Client(r.Context(), id)
+	if err != nil {
+		writeErr(w, 502, err.Error())
+		return
+	}
+	args := "{}"
+	if len(req.Args) > 0 {
+		args = string(req.Args)
+	}
+	out, err := c.CallTool(r.Context(), req.Tool, args)
+	if err != nil {
+		writeErr(w, 502, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"result": out})
+}
+
 // ---- agent integration ----
 
 // mcpTool adapts one MCP server tool to the agent Tool interface.

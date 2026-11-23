@@ -223,6 +223,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/mcp/{id}", s.deleteMCPServer)
 	m.HandleFunc("POST /api/v1/mcp/{id}/enabled", s.setMCPEnabled)
 	m.HandleFunc("POST /api/v1/mcp/{id}/test", s.testMCPServer)
+	m.HandleFunc("POST /api/v1/mcp/{id}/call", s.callMCPTool)
 	m.HandleFunc("GET /api/v1/backup", s.downloadBackup)
 	m.HandleFunc("POST /api/v1/restore", s.restoreBackup)
 	m.HandleFunc("POST /api/v1/agent/approve", s.approveToolCall)

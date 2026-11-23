@@ -385,7 +385,8 @@ toggle for a light theme (choice remembered). Tabs:
   processes (command + args). llmctl performs the MCP handshake, lists each
   server's tools, and offers them to the agent as
   `mcp:<server>:<tool>`. The MCP page supports add / enable / test (shows the
-  advertised tools, with Export CSV/JSON on that list, F720) / delete, plus
+  advertised tools, with Export CSV/JSON on that list, F720, and a per-tool
+  Call box that runs a tool with JSON args and shows its result, F834) / delete, plus
   Export CSV on the server list (F405); the
   add form carries an Env field (K=V pairs) for the server process environment,
   the UI twin of `mcp add -env` (F656). REST: /api/v1/mcp.

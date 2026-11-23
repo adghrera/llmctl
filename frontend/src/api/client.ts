@@ -698,6 +698,8 @@ export const api = {
     req<MCPServer>(`/mcp/${encodeURIComponent(id)}/enabled`, { method: "POST", body: JSON.stringify({ enabled }) }),
   testMCPServer: (id: string) =>
     req<{ tools: MCPToolDef[] }>(`/mcp/${encodeURIComponent(id)}/test`, { method: "POST" }),
+  callMCPTool: (id: string, body: { tool: string; args?: unknown }) =>
+    req<{ result: string }>(`/mcp/${encodeURIComponent(id)}/call`, { method: "POST", body: JSON.stringify(body) }),
   chats: () => req<ChatSummary[]>("/chats"),
   getChat: (id: string) => req<ChatConversation>(`/chats/${encodeURIComponent(id)}`),
   createChat: (c: { title?: string; model?: string; agentMode?: boolean; system?: string; messages: unknown[] }) =>

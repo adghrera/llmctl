@@ -10,6 +10,8 @@ export default function MCP() {
   const [env, setEnv] = useState("");
   const [busy, setBusy] = useState(false);
   const [testResult, setTestResult] = useState<{ id: string; tools: MCPToolDef[] } | null>(null);
+  // Per-tool call test: JSON args in, text result out (F834).
+  const [callFor, setCallFor] = useState<{ tool: string; args: string; result?: string; busy?: boolean } | null>(null);
 
   const load = () =>
     api
@@ -114,6 +116,7 @@ export default function MCP() {
   const test = async (s: MCPServer) => {
     setBusy(true);
     setTestResult(null);
+    setCallFor(null);
     try {
       const r = await api.testMCPServer(s.id);
       setTestResult({ id: s.id, tools: r.tools || [] });
@@ -121,6 +124,25 @@ export default function MCP() {
       err(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const callTool = async (tool: string) => {
+    if (!testResult) return;
+    const raw = (callFor?.tool === tool && callFor.args.trim()) || "{}";
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      err("arguments must be a JSON object");
+      return;
+    }
+    setCallFor({ tool, args: raw, busy: true });
+    try {
+      const r = await api.callMCPTool(testResult.id, { tool, args: parsed });
+      setCallFor({ tool, args: raw, result: r.result });
+    } catch (e) {
+      setCallFor({ tool, args: raw, result: "error: " + (e instanceof Error ? e.message : String(e)) });
     }
   };
 
@@ -310,6 +332,7 @@ export default function MCP() {
                 <tr>
                   <th>Tool</th>
                   <th>Description</th>
+                  <th title="call this tool with JSON arguments (F834)">Call</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,6 +340,37 @@ export default function MCP() {
                   <tr key={t.name}>
                     <td className="mono">{t.name}</td>
                     <td>{t.description || "—"}</td>
+                    <td>
+                      <div className="row" style={{ gap: 4 }}>
+                        <input
+                          style={{ width: 150, fontSize: 12 }}
+                          placeholder='{"k":"v"}'
+                          value={callFor?.tool === t.name ? callFor.args : ""}
+                          onChange={(e) => setCallFor({ tool: t.name, args: e.target.value })}
+                        />
+                        <button
+                          className="btn sm"
+                          disabled={callFor?.busy && callFor.tool === t.name}
+                          onClick={() => callTool(t.name)}
+                        >
+                          {callFor?.busy && callFor.tool === t.name ? "…" : "Call"}
+                        </button>
+                      </div>
+                      {callFor?.tool === t.name && callFor.result !== undefined && (
+                        <pre
+                          style={{
+                            margin: "4px 0 0 0",
+                            fontSize: 11,
+                            whiteSpace: "pre-wrap",
+                            background: "var(--code-background, rgba(127,127,127,0.08))",
+                            padding: 6,
+                            borderRadius: 4,
+                          }}
+                        >
+                          {callFor.result}
+                        </pre>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
