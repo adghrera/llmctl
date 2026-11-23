@@ -11329,6 +11329,8 @@ func cmdPrompts(args []string) error {
 		system := rfs.String("system", "", "system message prepended to the request")
 		temp := rfs.Float64("temperature", -1, "sampling temperature (-1 = model default)")
 		maxTok := rfs.Int("max-tokens", 0, "max tokens to generate (0 = model default)")
+		seed := rfs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F802)")
+		topP := rfs.Float64("top-p", -1, "nucleus sampling top_p (-1 = model default, F802)")
 		saveChat := rfs.String("save", "", "save the exchange as a saved chat under this title (F583)")
 		contChat := rfs.String("chat", "", "continue this saved chat — its history is sent and the reply is appended (F584)")
 		rjson := rfs.Bool("json", false, "print the raw gateway JSON instead of the reply text")
@@ -11410,6 +11412,12 @@ func cmdPrompts(args []string) error {
 		}
 		if *maxTok > 0 {
 			reqBody["max_tokens"] = *maxTok
+		}
+		if *seed >= 0 {
+			reqBody["seed"] = *seed
+		}
+		if *topP >= 0 {
+			reqBody["top_p"] = *topP
 		}
 		b, _ := json.Marshal(reqBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
