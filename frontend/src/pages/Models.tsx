@@ -15,6 +15,8 @@ export default function Models() {
   const { models, backends, refreshOne } = useStore();
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
+  const [catSortKey, setCatSortKey] = useState(""); // column sort over the catalog (F777)
+  const [catSortDir, setCatSortDir] = useState<1 | -1>(1);
   const [today, setToday] = useState<Record<string, { requests: number; cost: number }>>({});
   const [filter, setFilter] = useState("");
   const [tagFilter, setTagFilter] = useState(""); // tag dropdown filter (F682)
@@ -276,6 +278,31 @@ export default function Models() {
   };
 
   const installedIds = new Set(models.map((m) => m.id));
+  const catToggleSort = (k: string) => {
+    if (catSortKey === k) setCatSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setCatSortKey(k);
+      setCatSortDir(1);
+    }
+  };
+  const sortedCatalog = (() => {
+    if (!catSortKey) return catalog;
+    const val = (c: CatalogEntry): string | number => {
+      switch (catSortKey) {
+        case "name": return c.name || "";
+        case "quant": return c.quant || "";
+        case "size": return parseFloat(c.sizeGB) || 0;
+        default: return 0;
+      }
+    };
+    return [...catalog].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * catSortDir;
+    });
+  })();
+  const catArrow = (k: string) => (catSortKey === k ? (catSortDir === 1 ? " ▲" : " ▼") : "");
 
   // GGUF metadata viewer
   const [metaFor, setMetaFor] = useState<string | null>(null);
@@ -308,15 +335,15 @@ export default function Models() {
           <table>
             <thead>
               <tr>
-                <th>Model</th>
-                <th>Quant</th>
-                <th>Size</th>
+                <th style={{ cursor: "pointer" }} title="sort by name (F777)" onClick={() => catToggleSort("name")}>Model{catArrow("name")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by quant (F777)" onClick={() => catToggleSort("quant")}>Quant{catArrow("quant")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by size (F777)" onClick={() => catToggleSort("size")}>Size{catArrow("size")}</th>
                 <th>Tags</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {catalog.map((c) => (
+              {sortedCatalog.map((c) => (
                 <tr key={c.id}>
                   <td>
                     <div>{c.name}</div>
