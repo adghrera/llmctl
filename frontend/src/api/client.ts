@@ -667,6 +667,7 @@ export const api = {
   requestById: (id: string) => req<RequestLogEntry>(`/requests/${encodeURIComponent(id)}`),
   // Bench run history ring (F846).
   benchRuns: (n = 20) => req<BenchRun[]>(`/bench/runs?n=${n}`),
+  clearBenchRuns: () => req<{ ok: boolean; cleared: number }>("/bench/runs", { method: "DELETE" }),
   logBenchRun: (body: {
     model: string; n: number; conc: number; prompt?: string;
     ok: number; failed: number; avgMs: number; p50Ms: number; p95Ms: number;

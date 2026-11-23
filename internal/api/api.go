@@ -180,6 +180,7 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("GET /api/v1/scheduler/runs", s.schedulerRuns)
 	m.HandleFunc("POST /api/v1/bench/runs", s.logBenchRunHandler)
 	m.HandleFunc("GET /api/v1/bench/runs", s.listBenchRuns)
+	m.HandleFunc("DELETE /api/v1/bench/runs", s.clearBenchRuns)
 	m.HandleFunc("POST /api/v1/scheduler", s.createSchedule)
 	m.HandleFunc("GET /api/v1/scheduler/{id}", s.getSchedule)
 	m.HandleFunc("PUT /api/v1/scheduler/{id}", s.updateSchedule)

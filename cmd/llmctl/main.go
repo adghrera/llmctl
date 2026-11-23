@@ -219,7 +219,7 @@ Usage:
   llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]   (estimate tokens, ~4 chars/token)
   llmctl bench -model ID [-n N] [-conc C] [-json|--csv] [-out FILE]
   llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]   (benchmark + comparison table)
-  llmctl bench history [-n 20] [-json|--csv] [-out FILE]   (recent bench runs)
+  llmctl bench history [-n 20] [-json|--csv] [-out FILE] [-clear]   (recent bench runs; -clear empties the ring)
   llmctl disk [-json] [--csv] [-out FILE] [-watch N]
   llmctl ps [-watch N] [--csv] [-json] [-out FILE] [-stats]   (-json/-out refresh each -watch tick, F620; -stats: per-model roll-up)
   llmctl backends list [-json|-csv|-out FILE]
@@ -2425,10 +2425,30 @@ func cmdBenchHistory(args []string) error {
 	jsonOut := fs.Bool("json", false, "print the runs as JSON")
 	csvOut := fs.Bool("csv", false, "output the runs as CSV")
 	outFile := fs.String("out", "", "write the runs JSON to this file instead of stdout")
+	clear := fs.Bool("clear", false, "delete the whole bench history ring")
 	fs.Parse(reorderFlags(args))
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
+	}
+	if *clear {
+		code, out, err := cc.Delete("/api/v1/bench/runs")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("bench history clear: %s", out)
+		}
+		if *jsonOut {
+			fmt.Println(string(out))
+			return nil
+		}
+		var res struct {
+			Cleared int `json:"cleared"`
+		}
+		_ = json.Unmarshal(out, &res)
+		fmt.Printf("cleared %d bench run(s)\n", res.Cleared)
+		return nil
 	}
 	code, out, err := cc.Get("/api/v1/bench/runs?n=" + strconv.Itoa(*n))
 	if err != nil {

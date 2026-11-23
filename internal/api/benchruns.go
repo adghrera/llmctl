@@ -90,3 +90,13 @@ func (s *Server) listBenchRuns(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, benchRunList(n))
 }
+
+// clearBenchRuns handles DELETE /api/v1/bench/runs — drop the whole bench
+// history ring (F848).
+func (s *Server) clearBenchRuns(w http.ResponseWriter, r *http.Request) {
+	benchRunsMu.Lock()
+	n := len(benchRunsBuf)
+	benchRunsBuf = nil
+	benchRunsMu.Unlock()
+	writeJSON(w, 200, map[string]any{"ok": true, "cleared": n})
+}

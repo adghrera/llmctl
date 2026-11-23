@@ -463,8 +463,9 @@ toggle for a light theme (choice remembered). Tabs:
   and reloads pre-selected (F826). Every finished run — from the page or the
   CLI — posts a summary (model, n×conc, ok/failed, avg/p50/p95 ms, tok/s) to
   a 100-entry daemon ring shown as a Recent runs table and read by
-  `llmctl bench history [-n] [-json|--csv] [-out FILE]`
-  (REST: POST/GET /api/v1/bench/runs, F846).
+  `llmctl bench history [-n] [-json|--csv] [-out FILE]`, clearable with
+  `bench history -clear` / a Clear button
+  (REST: POST/GET/DELETE /api/v1/bench/runs, F846, F848).
   CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301);
   add `-json` for a machine-readable `[{model, reply|error}]` array (F314),
   or `-out FILE` to write that array to a file (F454).
@@ -895,7 +896,7 @@ llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-file P
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]  (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336; -out writes the counts JSON to a file, F461)
 llmctl bench -model ID [-key K] [-n N] [-conc C] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-json|--csv] [-out FILE]  (latency/throughput benchmark, F282; single-model also supports the JSON/CSV/-out shapes, F623; -seed for reproducible replies, F796)
 llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]  (multi-model comparison table; --csv one row per model, -out writes the stats JSON to a file, F426, F303, F315, F460)
-llmctl bench history [-n 20] [-json|--csv] [-out FILE]  (recent bench runs from the daemon ring, F846)
+llmctl bench history [-n 20] [-json|--csv] [-out FILE] [-clear]  (recent bench runs from the daemon ring, F846; -clear empties it, F848)
 llmctl disk [-json] [--csv] [-out FILE] [-watch N]            (model dir + volume disk usage; --csv one row, raw bytes, -out writes the raw JSON, -watch N reprints every N seconds, F451, F465, F590)
                                     health sweep: state dir, backends, models,
                                     instances, gateway, backups, security (warns when the gateway is

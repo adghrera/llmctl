@@ -421,6 +421,22 @@ export default function Bench() {
           <div className="card" style={{ marginTop: 12 }}>
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
               Recent runs — last {runs.length} (CLI: llmctl bench history) (F846)
+              <button
+                className="btn sm"
+                style={{ marginLeft: 8 }}
+                title="clear the bench history ring (CLI: llmctl bench history -clear)"
+                onClick={() =>
+                  api
+                    .clearBenchRuns()
+                    .then((r) => {
+                      ok(`bench history cleared (${r.cleared})`);
+                      setRuns([]);
+                    })
+                    .catch((e) => err(e instanceof Error ? e.message : String(e)))
+                }
+              >
+                Clear
+              </button>
             </div>
             <table>
               <thead>
