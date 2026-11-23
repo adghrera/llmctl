@@ -628,7 +628,8 @@ toggle for a light theme (choice remembered). Tabs:
   Export CSV and Export JSON buttons on the KB list (F393, F717) and per-KB Export/Import JSON
   (all documents as a [{filename, content}] array, the UI counterpart of
   `llmctl kb export`, F435); dropping a file onto the KB detail card uploads
-  it as a document (F453). A Tags button per KB (and `llmctl kb tag` /
+  it as a document (F453). The per-document view modal has Copy and Download
+  buttons (Download is the twin of `kb doc -out`, F768). A Tags button per KB (and `llmctl kb tag` /
   `kb retag`) labels knowledge bases with free-form tags, shown as badges
   under the name (F664). A "Search all knowledge bases" box on the KB list
   runs one query across every KB and shows the merged top hits with their

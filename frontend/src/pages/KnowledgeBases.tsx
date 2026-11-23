@@ -13,6 +13,7 @@ export default function KnowledgeBases() {
   const [busy, setBusy] = useState(false);
   const [selectedKB, setSelectedKB] = useState<KB | null>(null);
   const [docContent, setDocContent] = useState<string | null>(null);
+  const [docName, setDocName] = useState(""); // filename of the viewed doc (F768)
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<KBSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -231,6 +232,7 @@ export default function KnowledgeBases() {
     try {
       const content = await api.getKBDocContent(selectedKB.id, doc.id);
       setDocContent(content);
+      setDocName(doc.filename);
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -698,8 +700,36 @@ export default function KnowledgeBases() {
       {docContent && (
         <div className="card">
           <h2>Document Content</h2>
-          <button className="btn sm" onClick={() => setDocContent(null)} style={{ marginBottom: 8 }}>
+          <button className="btn sm" onClick={() => setDocContent(null)} style={{ marginBottom: 8, marginRight: 6 }}>
             Close
+          </button>
+          <button
+            className="btn sm"
+            style={{ marginBottom: 8, marginRight: 6 }}
+            title="copy the document content to the clipboard (F768)"
+            onClick={() => {
+              navigator.clipboard
+                ?.writeText(docContent)
+                .then(() => ok("copied"))
+                .catch(() => {});
+            }}
+          >
+            Copy
+          </button>
+          <button
+            className="btn sm"
+            style={{ marginBottom: 8 }}
+            title="download the document content (CLI: llmctl kb doc -out)"
+            onClick={() => {
+              const blob = new Blob([docContent], { type: "text/plain" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = docName || "kb-doc.txt";
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Download
           </button>
           <pre
             style={{

@@ -778,6 +778,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F765 | P3 | 765 | batch | Batch/Structured input persistence | COMPLETED | Batch system/max-tokens/temperature/concurrency and Structured max-tokens/temperature/retries inputs now persist in the browser (localStorage) — Chat/Compare sampling twin (F763, F764). Verified live: served bundle carries all seven read/write pairs. |
 | F766 | P3 | 766 | bench | Bench input persistence | COMPLETED | The Bench page prompt, requests-per-model and concurrency inputs now persist in the browser (localStorage) — Batch/Structured persistence twin (F765). Verified live: served bundle carries all three read/write pairs. |
 | F767 | P3 | 767 | models | GGUF metadata Export JSON | COMPLETED | The Models GGUF metadata viewer gained an Export JSON button downloading the parsed metadata — UI twin of `llmctl models metadata -json`. Verified live: served bundle carries the button. |
+| F768 | P3 | 768 | kb | KB doc view Copy + Download | COMPLETED | The Knowledge Bases document view modal gained Copy (clipboard) and Download (saves under the original filename, twin of `kb doc -out`) buttons. Verified live: served bundle carries both buttons. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
