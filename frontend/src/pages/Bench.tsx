@@ -221,6 +221,28 @@ export default function Bench() {
               Run bench
             </button>
           )}
+          <button
+            className="btn sm"
+            disabled={selected.size === 0}
+            title="copy a curl command for the first selected model (Compare cURL twin, F788)"
+            onClick={() => {
+              const inst = instances.find((i) => selected.has(i.id));
+              if (!inst) return;
+              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }] });
+              const q = `'${body.replace(/'/g, `'\\''`)}'`;
+              const cmd =
+                `curl ${window.location.origin}/v1/chat/completions \\\n` +
+                `  -H "Authorization: Bearer $LLMCTL_API_KEY" \\\n` +
+                `  -H "Content-Type: application/json" \\\n` +
+                `  -d ${q}\n`;
+              navigator.clipboard
+                ?.writeText(cmd)
+                .then(() => ok("copied curl command"))
+                .catch(() => err("clipboard unavailable"));
+            }}
+          >
+            Copy cURL
+          </button>
         </div>
         {rows.length > 0 && (
           <div className="oc-table" style={{ overflowX: "auto" }}>
