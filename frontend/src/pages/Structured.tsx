@@ -26,6 +26,7 @@ export default function Structured() {
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.structured.topp") ?? "");
   const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.structured.freqpen") ?? "");
   const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.structured.prespen") ?? "");
+  const [cache, setCache] = useState(() => localStorage.getItem("llmctl.structured.cache") === "1"); // response cache opt-in (F843)
   const [retries, setRetries] = useState(() => localStorage.getItem("llmctl.structured.retries") ?? ""); // validation retries, CLI -retries twin (F692)
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -75,6 +76,7 @@ export default function Structured() {
         topP: topP.trim() !== "" ? Number(topP) : undefined,
         freqPenalty: freqPen.trim() !== "" ? Number(freqPen) : undefined,
         presPenalty: presPen.trim() !== "" ? Number(presPen) : undefined,
+        cache: cache || undefined,
         maxRetries: Number(retries) > 0 ? Math.min(Number(retries), 5) : undefined,
       });
       if (r.ok) {
@@ -212,6 +214,21 @@ export default function Structured() {
               localStorage.setItem("llmctl.structured.prespen", e.target.value);
             }}
           />
+          <label
+            className="muted small"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+            title="answer identical requests from the gateway response cache (F843)"
+          >
+            <input
+              type="checkbox"
+              checked={cache}
+              onChange={(e) => {
+                setCache(e.target.checked);
+                localStorage.setItem("llmctl.structured.cache", e.target.checked ? "1" : "0");
+              }}
+            />{" "}
+            cache
+          </label>
           <input
             style={{ width: 130 }}
             type="number"
@@ -260,6 +277,7 @@ export default function Structured() {
             if (topP.trim() !== "") body.topP = Number(topP);
             if (freqPen.trim() !== "") body.freqPenalty = Number(freqPen);
             if (presPen.trim() !== "") body.presPenalty = Number(presPen);
+            if (cache) body.cache = true;
             if (Number(retries) > 0) body.maxRetries = Math.min(Number(retries), 5);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;

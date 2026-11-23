@@ -15,6 +15,7 @@ export default function Batch() {
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.batch.topp") ?? "");
   const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.batch.freqpen") ?? "");
   const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.batch.prespen") ?? "");
+  const [cache, setCache] = useState(() => localStorage.getItem("llmctl.batch.cache") === "1"); // response cache opt-in (F843)
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.batch.conc") ?? ""); // parallel workers, CLI -concurrency twin (F691)
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
@@ -46,6 +47,7 @@ export default function Batch() {
         freqPenalty: freqPen.trim() !== "" ? Number(freqPen) : undefined,
         presPenalty: presPen.trim() !== "" ? Number(presPen) : undefined,
         concurrency: Number(conc) > 0 ? Math.min(Number(conc), 8) : undefined,
+        cache: cache || undefined,
       });
       setResults(r.results);
       setMeta(`${r.ok} ok, ${r.failed} failed — ${r.concurrency} concurrent`);
@@ -193,6 +195,21 @@ export default function Batch() {
               localStorage.setItem("llmctl.batch.prespen", e.target.value);
             }}
           />
+          <label
+            className="muted small"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+            title="answer identical prompts from the gateway response cache (F843)"
+          >
+            <input
+              type="checkbox"
+              checked={cache}
+              onChange={(e) => {
+                setCache(e.target.checked);
+                localStorage.setItem("llmctl.batch.cache", e.target.checked ? "1" : "0");
+              }}
+            />{" "}
+            cache
+          </label>
           <input
             style={{ width: 130 }}
             type="number"

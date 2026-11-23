@@ -70,6 +70,7 @@ type structuredRequest struct {
 	TopP        *float64       `json:"topP,omitempty"`        // nucleus sampling top_p (F799)
 	FreqPen     *float64       `json:"freqPenalty,omitempty"` // frequency penalty (F805)
 	PresPen     *float64       `json:"presPenalty,omitempty"` // presence penalty (F805)
+	Cache       bool           `json:"cache,omitempty"`       // answer identical requests from the response cache (F843)
 	APIKey      string         `json:"-"`
 }
 
@@ -111,7 +112,7 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	var lastErr string
 	var lastRaw string
 	for attempt := 1; attempt <= req.MaxRetries+1; attempt++ {
-		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, chatOpts{MaxTokens: req.MaxTokens, Temp: req.Temperature, Seed: req.Seed, TopP: req.TopP, FreqPen: req.FreqPen, PresPen: req.PresPen})
+		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, chatOpts{MaxTokens: req.MaxTokens, Temp: req.Temperature, Seed: req.Seed, TopP: req.TopP, FreqPen: req.FreqPen, PresPen: req.PresPen, Cache: req.Cache})
 		if err != nil {
 			writeErr(w, 502, err.Error())
 			return
@@ -157,6 +158,7 @@ type chatOpts struct {
 	TopP      *float64
 	FreqPen   *float64
 	PresPen   *float64
+	Cache     bool // opt into the gateway response cache (F843)
 }
 
 // gatewayChat performs one non-streaming chat completion against the
@@ -191,6 +193,11 @@ func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if o.Cache {
+		// Opt into the gateway response cache (F843): identical requests
+		// within the TTL are answered from memory.
+		req.Header.Set("X-LLMCtrl-Cache", "1")
+	}
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}

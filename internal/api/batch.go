@@ -21,6 +21,7 @@ type batchRequest struct {
 	TopP        *float64 `json:"topP,omitempty"`        // nucleus sampling top_p (F799)
 	FreqPen     *float64 `json:"freqPenalty,omitempty"` // frequency penalty (F805)
 	PresPen     *float64 `json:"presPenalty,omitempty"` // presence penalty (F805)
+	Cache       bool     `json:"cache,omitempty"`       // answer identical prompts from the response cache (F843)
 	Concurrency int      `json:"concurrency,omitempty"` // default 4, max 8
 	APIKey      string   `json:"-"`
 }
@@ -83,7 +84,7 @@ func (s *Server) batch(w http.ResponseWriter, r *http.Request) {
 					msgs = append(msgs, chatMsg{Role: "system", Content: req.System})
 				}
 				msgs = append(msgs, chatMsg{Role: "user", Content: req.Prompts[i]})
-				content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, msgs, chatOpts{MaxTokens: req.MaxTokens, Temp: req.Temperature, Seed: req.Seed, TopP: req.TopP, FreqPen: req.FreqPen, PresPen: req.PresPen})
+				content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, msgs, chatOpts{MaxTokens: req.MaxTokens, Temp: req.Temperature, Seed: req.Seed, TopP: req.TopP, FreqPen: req.FreqPen, PresPen: req.PresPen, Cache: req.Cache})
 				results[i] = batchResult{Prompt: req.Prompts[i], Content: content}
 				if err != nil {
 					results[i].Error = err.Error()

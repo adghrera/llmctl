@@ -1988,10 +1988,11 @@ func cmdStructured(args []string) error {
 	topP := fs.Float64("top-p", -1, "nucleus sampling top_p (-1 = model default, F799)")
 	freqPen := fs.Float64("freq-penalty", -999, "frequency penalty (-999 = model default, F805)")
 	presPen := fs.Float64("pres-penalty", -999, "presence penalty (-999 = model default, F805)")
+	cache := fs.Bool("cache", false, "answer identical requests from the gateway response cache (F843)")
 	outFile := fs.String("out", "", "write the validated JSON to this file instead of stdout (F457)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 || *model == "" || *schemaF == "" {
-		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] [-max-tokens N] [-temperature T] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] <prompt>")
+		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] [-max-tokens N] [-temperature T] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-cache] <prompt>")
 	}
 	schemaBytes, err := os.ReadFile(*schemaF)
 	if err != nil {
@@ -2039,6 +2040,9 @@ func cmdStructured(args []string) error {
 	}
 	if *presPen > -999 {
 		body["presPenalty"] = *presPen
+	}
+	if *cache {
+		body["cache"] = true
 	}
 	code, out, err := cc.DoKey("POST", "/api/v1/structured", body, *keyF)
 	if err != nil {
@@ -12637,6 +12641,7 @@ func cmdBatch(args []string) error {
 	freqPen := fs.Float64("freq-penalty", -999, "frequency penalty (-999 = model default, F805)")
 	presPen := fs.Float64("pres-penalty", -999, "presence penalty (-999 = model default, F805)")
 	concurrency := fs.Int("concurrency", 4, "parallel requests (max 8)")
+	cache := fs.Bool("cache", false, "answer identical prompts from the gateway response cache (F843)")
 	key := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (needed when auth is on; default $LLMCTL_API_KEY)")
 	file := fs.String("file", "", "read prompts from this file, one per line")
 	jsonOut := fs.Bool("json", false, "print the raw batch JSON (for scripts)")
@@ -12668,7 +12673,7 @@ func cmdBatch(args []string) error {
 		add(a)
 	}
 	if *model == "" || len(prompts) == 0 {
-		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-temperature T] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-file F|piped stdin|prompts…]")
+		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-temperature T] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-cache] [-file F|piped stdin|prompts…]")
 	}
 	body := map[string]any{
 		"model": *model, "prompts": prompts, "concurrency": *concurrency,
@@ -12693,6 +12698,9 @@ func cmdBatch(args []string) error {
 	}
 	if *presPen > -999 {
 		body["presPenalty"] = *presPen
+	}
+	if *cache {
+		body["cache"] = true
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
