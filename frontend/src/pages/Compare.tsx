@@ -14,6 +14,8 @@ export default function Compare() {
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.compare.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.compare.seed") ?? "");
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.compare.topp") ?? "");
+  const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.compare.freqpen") ?? "");
+  const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.compare.prespen") ?? "");
   const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [fileId, setFileId] = useState("");
@@ -95,6 +97,8 @@ export default function Compare() {
             ...(temp.trim() !== "" ? { temperature: Number(temp) } : {}),
             ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
             ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}),
+            ...(freqPen.trim() !== "" ? { frequency_penalty: Number(freqPen) } : {}),
+            ...(presPen.trim() !== "" ? { presence_penalty: Number(presPen) } : {}),
           });
           const resp = await fetch("/v1/chat/completions", {
             method: "POST",
@@ -231,6 +235,34 @@ export default function Compare() {
             }}
           />
           <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="freq penalty"
+            title="frequency penalty sent to every model (empty = model default) (F804)"
+            value={freqPen}
+            onChange={(e) => {
+              setFreqPen(e.target.value);
+              localStorage.setItem("llmctl.compare.freqpen", e.target.value);
+            }}
+          />
+          <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="pres penalty"
+            title="presence penalty sent to every model (empty = model default) (F804)"
+            value={presPen}
+            onChange={(e) => {
+              setPresPen(e.target.value);
+              localStorage.setItem("llmctl.compare.prespen", e.target.value);
+            }}
+          />
+          <input
             style={{ flex: 1, minWidth: 200 }}
             placeholder="system prompt (optional, sent to every model)"
             title="system prompt prepended to the conversation (CLI: compare -system, F668)"
@@ -348,6 +380,8 @@ export default function Compare() {
               if (temp.trim() !== "") body.temperature = Number(temp);
               if (seed.trim() !== "") body.seed = Number(seed);
               if (topP.trim() !== "") body.top_p = Number(topP);
+              if (freqPen.trim() !== "") body.frequency_penalty = Number(freqPen);
+              if (presPen.trim() !== "") body.presence_penalty = Number(presPen);
               const json = JSON.stringify(body);
               const q = `'${json.replace(/'/g, `'\\''`)}'`;
               const cmd =
