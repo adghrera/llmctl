@@ -12,6 +12,7 @@ export default function Compare() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.compare.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.compare.temp") ?? "");
+  const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.compare.seed") ?? "");
   const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [fileId, setFileId] = useState("");
@@ -91,6 +92,7 @@ export default function Compare() {
             stream: true,
             ...(Number(maxTok) > 0 ? { max_tokens: Number(maxTok) } : {}),
             ...(temp.trim() !== "" ? { temperature: Number(temp) } : {}),
+            ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
           });
           const resp = await fetch("/v1/chat/completions", {
             method: "POST",
@@ -199,6 +201,17 @@ export default function Compare() {
             onChange={(e) => {
               setTemp(e.target.value);
               localStorage.setItem("llmctl.compare.temp", e.target.value);
+            }}
+          />
+          <input
+            style={{ width: 110 }}
+            type="number"
+            placeholder="seed"
+            title="sampling seed sent to every model for a fair comparison (empty = random) (F794)"
+            value={seed}
+            onChange={(e) => {
+              setSeed(e.target.value);
+              localStorage.setItem("llmctl.compare.seed", e.target.value);
             }}
           />
           <input
