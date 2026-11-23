@@ -810,6 +810,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F797 | P3 | 797 | chats | Chat top_p input | COMPLETED | The Chat sampling panel gained a top_p (nucleus sampling) input (persisted) sent through to the backend and included in Copy cURL — completes the sampling controls alongside seed (F793). Verified live: served bundle carries the input, both body assignments and the localStorage key. |
 | F798 | P3 | 798 | compare | Compare top_p input | COMPLETED | The Compare sampling row gained a top_p input (persisted) sent to every model — Chat top_p twin (F797); Copy cURL now also carries seed and top_p. Verified live: served bundle carries the input and the localStorage key. |
 | F799 | P3 | 799 | batch | Batch/Structured top_p input | COMPLETED | The Batch and Structured pages gained a top_p input (persisted) and the /api/v1/batch and /api/v1/structured handlers pass `topP` through to the gateway; CLI twins `batch -top-p P` / `structured -top-p P`. Verified live: served bundle carries both inputs; CLI flag parses and requests reach the gateway. |
+| F800 | P3 | 800 | bench | Bench top_p input | COMPLETED | The Bench page gained a top_p input (persisted) sent with every request, and `llmctl bench` a `-top-p P` flag — completing the top_p family (Chat/Compare/Batch/Structured/Bench). Verified live: served bundle carries the input; `bench -model so -n 2 -top-p 0.9` ran 2/2 ok. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

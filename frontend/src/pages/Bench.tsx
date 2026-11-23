@@ -32,6 +32,7 @@ export default function Bench() {
   const [n, setN] = useState(() => localStorage.getItem("llmctl.bench.n") ?? "5");
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.bench.conc") ?? "1");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.bench.seed") ?? "");
+  const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.bench.topp") ?? "");
   const [rows, setRows] = useState<BenchRow[]>([]);
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop the bench run (F756)
@@ -79,6 +80,7 @@ export default function Bench() {
               model: inst.modelId,
               messages: [{ role: "user", content: prompt }],
               ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
+              ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}),
             }),
             signal: abortRef.current?.signal,
           });
@@ -192,6 +194,20 @@ export default function Bench() {
             }}
           />
           <input
+            style={{ width: 90 }}
+            type="number"
+            step="0.05"
+            min={0}
+            max={1}
+            placeholder="top_p"
+            title="nucleus sampling top_p for bench replies (empty = model default) (F800)"
+            value={topP}
+            onChange={(e) => {
+              setTopP(e.target.value);
+              localStorage.setItem("llmctl.bench.topp", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 220 }}
             placeholder="API key (if auth on)"
             value={apiKey}
@@ -241,7 +257,7 @@ export default function Bench() {
             onClick={() => {
               const inst = instances.find((i) => selected.has(i.id));
               if (!inst) return;
-              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }], ...(seed.trim() !== "" ? { seed: Number(seed) } : {}) });
+              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }], ...(seed.trim() !== "" ? { seed: Number(seed) } : {}), ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}) });
               const q = `'${body.replace(/'/g, `'\\''`)}'`;
               const cmd =
                 `curl ${window.location.origin}/v1/chat/completions \\\n` +
