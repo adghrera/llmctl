@@ -12,13 +12,14 @@ import (
 const maxBatchPrompts = 200
 
 type batchRequest struct {
-	Model       string    `json:"model"`
-	System      string    `json:"system,omitempty"`
-	Prompts     []string  `json:"prompts"`
-	MaxTokens   int       `json:"maxTokens,omitempty"`
-	Temperature *float64  `json:"temperature,omitempty"` // nil = model default (F343)
-	Concurrency int       `json:"concurrency,omitempty"` // default 4, max 8
-	APIKey      string    `json:"-"`
+	Model       string   `json:"model"`
+	System      string   `json:"system,omitempty"`
+	Prompts     []string `json:"prompts"`
+	MaxTokens   int      `json:"maxTokens,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"` // nil = model default (F343)
+	Seed        *int64   `json:"seed,omitempty"`        // reproducible sampling seed (F795)
+	Concurrency int      `json:"concurrency,omitempty"` // default 4, max 8
+	APIKey      string   `json:"-"`
 }
 
 type batchResult struct {
@@ -79,7 +80,7 @@ func (s *Server) batch(w http.ResponseWriter, r *http.Request) {
 					msgs = append(msgs, chatMsg{Role: "system", Content: req.System})
 				}
 				msgs = append(msgs, chatMsg{Role: "user", Content: req.Prompts[i]})
-				content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, msgs, req.MaxTokens, req.Temperature)
+				content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, msgs, req.MaxTokens, req.Temperature, req.Seed)
 				results[i] = batchResult{Prompt: req.Prompts[i], Content: content}
 				if err != nil {
 					results[i].Error = err.Error()

@@ -22,6 +22,7 @@ export default function Structured() {
   const [schema, setSchema] = useState(EXAMPLE_SCHEMA);
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.structured.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.structured.temp") ?? "");
+  const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.structured.seed") ?? "");
   const [retries, setRetries] = useState(() => localStorage.getItem("llmctl.structured.retries") ?? ""); // validation retries, CLI -retries twin (F692)
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -54,6 +55,7 @@ export default function Structured() {
         schema: parsedSchema,
         maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
+        seed: seed.trim() !== "" ? Number(seed) : undefined,
         maxRetries: Number(retries) > 0 ? Math.min(Number(retries), 5) : undefined,
       });
       if (r.ok) {
@@ -139,6 +141,17 @@ export default function Structured() {
             }}
           />
           <input
+            style={{ width: 110 }}
+            type="number"
+            placeholder="seed"
+            title="sampling seed for reproducible replies (empty = random) (F795)"
+            value={seed}
+            onChange={(e) => {
+              setSeed(e.target.value);
+              localStorage.setItem("llmctl.structured.seed", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 130 }}
             type="number"
             min={1}
@@ -182,6 +195,7 @@ export default function Structured() {
             };
             if (Number(maxTok) > 0) body.maxTokens = Number(maxTok);
             if (temp.trim() !== "") body.temperature = Number(temp);
+            if (seed.trim() !== "") body.seed = Number(seed);
             if (Number(retries) > 0) body.maxRetries = Math.min(Number(retries), 5);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;

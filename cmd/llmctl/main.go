@@ -1915,10 +1915,11 @@ func cmdStructured(args []string) error {
 	retries := fs.Int("retries", 2, "validation retries")
 	maxTok := fs.Int("max-tokens", 0, "max tokens per attempt (0 = model default, F344)")
 	temp := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F344)")
+	seed := fs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F795)")
 	outFile := fs.String("out", "", "write the validated JSON to this file instead of stdout (F457)")
 	fs.Parse(reorderFlags(args))
 	if fs.NArg() == 0 || *model == "" || *schemaF == "" {
-		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] [-max-tokens N] [-temperature T] <prompt>")
+		return fmt.Errorf("usage: llmctl structured -model ID -schema file.json [-key K] [-retries N] [-max-tokens N] [-temperature T] [-seed N] <prompt>")
 	}
 	schemaBytes, err := os.ReadFile(*schemaF)
 	if err != nil {
@@ -1954,6 +1955,9 @@ func cmdStructured(args []string) error {
 	}
 	if *temp >= 0 {
 		body["temperature"] = *temp
+	}
+	if *seed >= 0 {
+		body["seed"] = *seed
 	}
 	code, out, err := cc.DoKey("POST", "/api/v1/structured", body, *keyF)
 	if err != nil {
@@ -12134,6 +12138,7 @@ func cmdBatch(args []string) error {
 	system := fs.String("system", "", "system prompt")
 	maxTokens := fs.Int("max-tokens", 0, "max tokens per completion")
 	temperature := fs.Float64("temperature", -1, "sampling temperature (-1 = model default, F343)")
+	seed := fs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F795)")
 	concurrency := fs.Int("concurrency", 4, "parallel requests (max 8)")
 	key := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (needed when auth is on; default $LLMCTL_API_KEY)")
 	file := fs.String("file", "", "read prompts from this file, one per line")
@@ -12166,7 +12171,7 @@ func cmdBatch(args []string) error {
 		add(a)
 	}
 	if *model == "" || len(prompts) == 0 {
-		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-temperature T] [-file F|piped stdin|prompts…]")
+		return fmt.Errorf("usage: llmctl batch -model ID [-system S] [-key K] [-temperature T] [-seed N] [-file F|piped stdin|prompts…]")
 	}
 	body := map[string]any{
 		"model": *model, "prompts": prompts, "concurrency": *concurrency,
@@ -12179,6 +12184,9 @@ func cmdBatch(args []string) error {
 	}
 	if *temperature >= 0 {
 		body["temperature"] = *temperature
+	}
+	if *seed >= 0 {
+		body["seed"] = *seed
 	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {

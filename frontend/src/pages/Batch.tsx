@@ -11,6 +11,7 @@ export default function Batch() {
   const [system, setSystem] = useState(() => localStorage.getItem("llmctl.batch.system") ?? "");
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.batch.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.batch.temp") ?? "");
+  const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.batch.seed") ?? "");
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.batch.conc") ?? ""); // parallel workers, CLI -concurrency twin (F691)
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
@@ -41,6 +42,7 @@ export default function Batch() {
         system: system.trim() || undefined,
         maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
+        seed: seed.trim() !== "" ? Number(seed) : undefined,
         concurrency: Number(conc) > 0 ? Math.min(Number(conc), 8) : undefined,
       });
       setResults(r.results);
@@ -125,6 +127,17 @@ export default function Batch() {
             }}
           />
           <input
+            style={{ width: 110 }}
+            type="number"
+            placeholder="seed"
+            title="sampling seed sent with every prompt for reproducible replies (empty = random) (F795)"
+            value={seed}
+            onChange={(e) => {
+              setSeed(e.target.value);
+              localStorage.setItem("llmctl.batch.seed", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 130 }}
             type="number"
             min={1}
@@ -159,6 +172,7 @@ export default function Batch() {
             if (system.trim()) body.system = system.trim();
             if (Number(maxTok) > 0) body.maxTokens = Number(maxTok);
             if (temp.trim() !== "") body.temperature = Number(temp);
+            if (seed.trim() !== "") body.seed = Number(seed);
             if (Number(conc) > 0) body.concurrency = Math.min(Number(conc), 8);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;
