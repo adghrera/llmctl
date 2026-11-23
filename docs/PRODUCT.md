@@ -313,7 +313,8 @@ toggle for a light theme (choice remembered). Tabs:
   box from a text file (UI twin of `-file`, F712), Results Export CSV/JSON
   buttons (index,prompt,ok,content,error, F424, F732) with a per-row Copy
   button (F770), a "Retry failed (N)" button that re-runs just the failed
-  prompts with the same options (F815), a Copy cURL button for the request (F786) and a "Save key" button
+  prompts with the same options (F815), a "Save as chat" button storing the
+  prompt/reply pairs as a saved chat (F838), a Copy cURL button for the request (F786) and a "Save key" button
   that remembers the API key in the browser (F734). CLI:
   `llmctl batch -model ID [-file F|piped stdin|prompts…] [-key K] [-json]
   [-out FILE] [--csv]` (F224; -out writes the raw JSON to a file, F449; --csv

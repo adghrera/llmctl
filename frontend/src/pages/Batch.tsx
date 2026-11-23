@@ -295,6 +295,28 @@ export default function Batch() {
             <h2 style={{ margin: 0 }}>Results</h2>
             <button
               className="btn sm"
+              title="save the batch as a saved chat (prompt/reply pairs)"
+              onClick={async () => {
+                const msgs: { role: string; content: string }[] = [];
+                for (const r of results) {
+                  msgs.push({ role: "user", content: r.prompt });
+                  msgs.push({ role: "assistant", content: r.error ? `error: ${r.error}` : r.content || "" });
+                }
+                try {
+                  const c = await api.createChat({
+                    title: `Batch: ${results[0]?.prompt.trim().slice(0, 40) || "run"} (${results.length})`,
+                    messages: msgs,
+                  });
+                  ok(`saved as chat "${c.title}"`);
+                } catch (e) {
+                  err(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              Save as chat
+            </button>
+            <button
+              className="btn sm"
               onClick={() => {
                 // One row per prompt: index,prompt,ok,content,error (F424).
                 const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
