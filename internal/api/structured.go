@@ -67,6 +67,7 @@ type structuredRequest struct {
 	MaxTokens   int            `json:"maxTokens,omitempty"`
 	Temperature *float64       `json:"temperature,omitempty"` // nil = model default (F344)
 	Seed        *int64         `json:"seed,omitempty"`        // reproducible sampling seed (F795)
+	TopP        *float64       `json:"topP,omitempty"`        // nucleus sampling top_p (F799)
 	APIKey      string         `json:"-"`
 }
 
@@ -108,7 +109,7 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	var lastErr string
 	var lastRaw string
 	for attempt := 1; attempt <= req.MaxRetries+1; attempt++ {
-		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, req.MaxTokens, req.Temperature, req.Seed)
+		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, req.MaxTokens, req.Temperature, req.Seed, req.TopP)
 		if err != nil {
 			writeErr(w, 502, err.Error())
 			return
@@ -147,7 +148,7 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 
 // gatewayChat performs one non-streaming chat completion against the
 // gateway in-process. maxTokens <= 0 means backend default.
-func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []chatMsg, maxTokens int, temperature *float64, seed *int64) (string, error) {
+func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []chatMsg, maxTokens int, temperature *float64, seed *int64, topP *float64) (string, error) {
 	bodyMap := map[string]any{
 		"model":    model,
 		"messages": messages,
@@ -161,6 +162,9 @@ func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []
 	}
 	if seed != nil {
 		bodyMap["seed"] = *seed
+	}
+	if topP != nil {
+		bodyMap["top_p"] = *topP
 	}
 	body, _ := json.Marshal(bodyMap)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))

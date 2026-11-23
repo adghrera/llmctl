@@ -23,6 +23,7 @@ export default function Structured() {
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.structured.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.structured.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.structured.seed") ?? "");
+  const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.structured.topp") ?? "");
   const [retries, setRetries] = useState(() => localStorage.getItem("llmctl.structured.retries") ?? ""); // validation retries, CLI -retries twin (F692)
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -56,6 +57,7 @@ export default function Structured() {
         maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
         seed: seed.trim() !== "" ? Number(seed) : undefined,
+        topP: topP.trim() !== "" ? Number(topP) : undefined,
         maxRetries: Number(retries) > 0 ? Math.min(Number(retries), 5) : undefined,
       });
       if (r.ok) {
@@ -152,6 +154,20 @@ export default function Structured() {
             }}
           />
           <input
+            style={{ width: 90 }}
+            type="number"
+            step="0.05"
+            min={0}
+            max={1}
+            placeholder="top_p"
+            title="nucleus sampling top_p (empty = model default) (F799)"
+            value={topP}
+            onChange={(e) => {
+              setTopP(e.target.value);
+              localStorage.setItem("llmctl.structured.topp", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 130 }}
             type="number"
             min={1}
@@ -196,6 +212,7 @@ export default function Structured() {
             if (Number(maxTok) > 0) body.maxTokens = Number(maxTok);
             if (temp.trim() !== "") body.temperature = Number(temp);
             if (seed.trim() !== "") body.seed = Number(seed);
+            if (topP.trim() !== "") body.topP = Number(topP);
             if (Number(retries) > 0) body.maxRetries = Math.min(Number(retries), 5);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;

@@ -12,6 +12,7 @@ export default function Batch() {
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.batch.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.batch.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.batch.seed") ?? "");
+  const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.batch.topp") ?? "");
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.batch.conc") ?? ""); // parallel workers, CLI -concurrency twin (F691)
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
@@ -43,6 +44,7 @@ export default function Batch() {
         maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
         seed: seed.trim() !== "" ? Number(seed) : undefined,
+        topP: topP.trim() !== "" ? Number(topP) : undefined,
         concurrency: Number(conc) > 0 ? Math.min(Number(conc), 8) : undefined,
       });
       setResults(r.results);
@@ -138,6 +140,20 @@ export default function Batch() {
             }}
           />
           <input
+            style={{ width: 90 }}
+            type="number"
+            step="0.05"
+            min={0}
+            max={1}
+            placeholder="top_p"
+            title="nucleus sampling top_p sent with every prompt (empty = model default) (F799)"
+            value={topP}
+            onChange={(e) => {
+              setTopP(e.target.value);
+              localStorage.setItem("llmctl.batch.topp", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 130 }}
             type="number"
             min={1}
@@ -173,6 +189,7 @@ export default function Batch() {
             if (Number(maxTok) > 0) body.maxTokens = Number(maxTok);
             if (temp.trim() !== "") body.temperature = Number(temp);
             if (seed.trim() !== "") body.seed = Number(seed);
+            if (topP.trim() !== "") body.topP = Number(topP);
             if (Number(conc) > 0) body.concurrency = Math.min(Number(conc), 8);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;

@@ -18,6 +18,7 @@ type batchRequest struct {
 	MaxTokens   int      `json:"maxTokens,omitempty"`
 	Temperature *float64 `json:"temperature,omitempty"` // nil = model default (F343)
 	Seed        *int64   `json:"seed,omitempty"`        // reproducible sampling seed (F795)
+	TopP        *float64 `json:"topP,omitempty"`        // nucleus sampling top_p (F799)
 	Concurrency int      `json:"concurrency,omitempty"` // default 4, max 8
 	APIKey      string   `json:"-"`
 }
@@ -80,7 +81,7 @@ func (s *Server) batch(w http.ResponseWriter, r *http.Request) {
 					msgs = append(msgs, chatMsg{Role: "system", Content: req.System})
 				}
 				msgs = append(msgs, chatMsg{Role: "user", Content: req.Prompts[i]})
-				content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, msgs, req.MaxTokens, req.Temperature, req.Seed)
+				content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, msgs, req.MaxTokens, req.Temperature, req.Seed, req.TopP)
 				results[i] = batchResult{Prompt: req.Prompts[i], Content: content}
 				if err != nil {
 					results[i].Error = err.Error()
