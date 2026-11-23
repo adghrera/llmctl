@@ -928,6 +928,7 @@ export async function* chatStream(
     maxTokens?: number;
     temperature?: number;
     seed?: number; // reproducible sampling seed, passed through to the backend (F793)
+    topP?: number; // nucleus sampling top_p, passed through to the backend (F797)
     onUsage?: (u: { prompt: number; completion: number; total: number }) => void;
     signal?: AbortSignal; // cancel the stream mid-flight (F754)
   } = {}
@@ -942,6 +943,7 @@ export async function* chatStream(
   if (opts.maxTokens) body.max_tokens = opts.maxTokens;
   if (opts.temperature !== undefined) body.temperature = opts.temperature;
   if (opts.seed !== undefined) body.seed = opts.seed;
+  if (opts.topP !== undefined) body.top_p = opts.topP;
   const r = await fetch("/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },

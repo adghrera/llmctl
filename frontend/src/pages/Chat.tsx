@@ -35,6 +35,7 @@ export default function Chat() {
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.chat.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.chat.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.chat.seed") ?? "");
+  const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.chat.topp") ?? "");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -452,6 +453,7 @@ export default function Chat() {
           maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined,
           temperature: temp.trim() !== "" ? Number(temp) : undefined,
           seed: seed.trim() !== "" ? Number(seed) : undefined,
+          topP: topP.trim() !== "" ? Number(topP) : undefined,
           signal: ctrl.signal,
           onUsage: (u) => {
             usage = u;
@@ -926,6 +928,20 @@ export default function Chat() {
                   localStorage.setItem("llmctl.chat.seed", e.target.value);
                 }}
               />
+              <input
+                style={{ width: 90 }}
+                type="number"
+                step="0.05"
+                min={0}
+                max={1}
+                placeholder="top_p"
+                title="nucleus sampling top_p, sent through to the backend (empty = model default) (F797)"
+                value={topP}
+                onChange={(e) => {
+                  setTopP(e.target.value);
+                  localStorage.setItem("llmctl.chat.topp", e.target.value);
+                }}
+              />
               <button
                 className="btn sm"
                 title="copy a curl command for this conversation's next request"
@@ -936,6 +952,8 @@ export default function Chat() {
                   const body: Record<string, unknown> = { model, messages: history, stream: true };
                   if (maxTok) body.max_tokens = Number(maxTok);
                   if (temp) body.temperature = Number(temp);
+                  if (seed.trim() !== "") body.seed = Number(seed);
+                  if (topP.trim() !== "") body.top_p = Number(topP);
                   const json = JSON.stringify(body);
                   const q = `'${json.replace(/'/g, `'\\''`)}'`; // shell-safe single quoting
                   const cmd =
