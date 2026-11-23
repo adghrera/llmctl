@@ -31,6 +31,8 @@ export default function Keys() {
   const [today, setToday] = useState<Record<string, { requests: number; prompt: number; comp: number; cost?: number }>>({});
   const [filter, setFilter] = useState("");
   const [tagFilter, setTagFilter] = useState(""); // tag dropdown filter (F682)
+  const [sortKey, setSortKey] = useState(""); // column sort over the key list (F775)
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
 
   useEffect(() => {
     let alive = true;
@@ -278,6 +280,35 @@ export default function Keys() {
       )
     : keys;
   const shownKeys = tagFilter ? shownKeys0.filter((k) => (k.tags ?? []).includes(tagFilter)) : shownKeys0;
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "name" || k === "created" ? 1 : -1);
+    }
+  };
+  const sortedKeys = (() => {
+    if (!sortKey) return shownKeys;
+    const val = (k: ApiKey): string | number => {
+      switch (sortKey) {
+        case "name": return k.name || "";
+        case "created": return k.createdAt || "";
+        case "used": return k.usedTokens || 0;
+        case "today": {
+          const u = today[k.id];
+          return u ? u.prompt + u.comp : 0;
+        }
+        default: return 0;
+      }
+    };
+    return [...shownKeys].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  })();
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
 
   return (
     <>
@@ -502,17 +533,17 @@ export default function Keys() {
           <table>
             <thead>
               <tr>
-                <th>Name</th>
+                <th style={{ cursor: "pointer" }} title="sort by name (F775)" onClick={() => toggleSort("name")}>Name{arrow("name")}</th>
                 <th>Prefix</th>
-                <th>Created</th>
-                <th>Used / quota</th>
-                <th>Today</th>
+                <th style={{ cursor: "pointer" }} title="sort by created date (F775)" onClick={() => toggleSort("created")}>Created{arrow("created")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by tokens used (F775)" onClick={() => toggleSort("used")}>Used / quota{arrow("used")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by today's cost (F775)" onClick={() => toggleSort("today")}>Today{arrow("today")}</th>
                 <th>Models</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {shownKeys.map((k) => (
+              {sortedKeys.map((k) => (
                 <tr key={k.id} style={k.disabled ? { opacity: 0.55 } : undefined}>
                   <td>
                     {renameFor === k.id ? (

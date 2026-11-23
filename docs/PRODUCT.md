@@ -647,8 +647,9 @@ toggle for a light theme (choice remembered). Tabs:
   until the quota is raised. Usage counters persist across restarts and are
   tracked per key id, so keys that share a visible prefix never share usage
   (F109). Keys page shows usage and estimated cost, today's per-key usage
-  (F127), a live text filter (name/id/prefix, F335) and a tag dropdown
-  (UI twin of `key list -tag`, F682), Export CSV / Export JSON buttons for
+  (F127), a live text filter (name/id/prefix, F335), a tag dropdown
+  (UI twin of `key list -tag`, F682), clickable column headers to sort the
+  list (name/created/used/today, F775), Export CSV / Export JSON buttons for
   the filtered list (same columns as `llmctl key list --csv`, F375, F730), and links
   each key to its
   recent requests (request log filtered by key id, F120); keys can be renamed
