@@ -265,7 +265,8 @@ toggle for a light theme (choice remembered). Tabs:
   time, plus any installed tools) — uncheck to keep a tool away from the
   agent; the system prompt only advertises the enabled tools, and the choice
   persists in the browser
-  (F820, installed tools F823). A collapsible "System prompt" editor sets a per-conversation
+  (F820, installed tools F823). A "max steps" input caps the agent's tool
+  steps per reply (1–10, default 5; CLI `-max-steps`, F828). A collapsible "System prompt" editor sets a per-conversation
   system prompt sent with every request (F063), persisted in the browser
   across reloads (F762), and the same panel holds
   optional max-tokens/temperature inputs for the conversation (F360), also
@@ -951,7 +952,8 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -out FILE to write the reply text to a file instead of stdout, F448)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285; -agent -tools LIST restricts the
-                                     built-in tools (web_search,fetch_url,calculator,current_time), F821)
+                                     built-in tools (web_search,fetch_url,calculator,current_time), F821;
+                                     -agent -max-steps N caps tool steps per reply, 1–10, F828)
                                     (interactive REPL: /help /clear /system TEXT /model ID
                                      /kb ID[,ID…] (/kb - detaches) /save [title] /quit, F331, F342, multi F667;
                                      /title TEXT and /tag [a,b|-] rename / tag the chat saved by /save, F683;

@@ -51,6 +51,7 @@ export default function Chat() {
   const [requireApproval, setRequireApproval] = useState(
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
+  const [maxSteps, setMaxSteps] = useState(() => localStorage.getItem("llmctl.chat.maxsteps") ?? ""); // agent tool-step cap, CLI -max-steps twin (F828)
   const [pendingApproval, setPendingApproval] = useState<{ id: string; name: string; query: string } | null>(null);
   const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem("llmctl.chat.system") ?? "");
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.chat.maxtok") ?? "");
@@ -495,6 +496,7 @@ export default function Chat() {
           model,
           messages: history,
           requireApproval,
+          maxSteps: Number(maxSteps) > 0 ? Math.min(Number(maxSteps), 10) : undefined, // agent step cap (F828)
           tools: [
             ...Array.from(agentTools),
             ...installedTools.map((t) => `tool:${t.id}`).filter((n) => !agentOff.has(n)),
@@ -953,6 +955,25 @@ export default function Chat() {
               />
               Ask before tool calls
             </label>
+            {agentMode && (
+              <label
+                style={{ display: "inline-flex", gap: 4, alignItems: "center", marginLeft: 12, fontSize: 12 }}
+                title="max tool steps per reply, 1–10 (CLI: llmctl chat -agent -max-steps, F828)"
+              >
+                max steps
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  style={{ width: 52 }}
+                  value={maxSteps}
+                  onChange={(e) => {
+                    setMaxSteps(e.target.value);
+                    localStorage.setItem("llmctl.chat.maxsteps", e.target.value);
+                  }}
+                />
+              </label>
+            )}
           </div>
           <div style={{ alignSelf: "flex-end", marginTop: 8 }}>
             {kbs.length > 0 ? (
