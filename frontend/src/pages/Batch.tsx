@@ -151,6 +151,32 @@ export default function Batch() {
         </button>
         <button
           className="btn sm"
+          disabled={!model}
+          title="copy a curl command for this batch request (F786)"
+          onClick={() => {
+            const list = prompts.split("\n").map((p) => p.trim()).filter((p) => p.length > 0);
+            const body: Record<string, unknown> = { model, prompts: list };
+            if (system.trim()) body.system = system.trim();
+            if (Number(maxTok) > 0) body.maxTokens = Number(maxTok);
+            if (temp.trim() !== "") body.temperature = Number(temp);
+            if (Number(conc) > 0) body.concurrency = Math.min(Number(conc), 8);
+            const json = JSON.stringify(body);
+            const q = `'${json.replace(/'/g, `'\\''`)}'`;
+            const cmd =
+              `curl ${window.location.origin}/api/v1/batch \\\n` +
+              `  -H "Authorization: Bearer $LLMCTL_API_KEY" \\\n` +
+              `  -H "Content-Type: application/json" \\\n` +
+              `  -d ${q}\n`;
+            navigator.clipboard
+              ?.writeText(cmd)
+              .then(() => ok("copied curl command"))
+              .catch(() => err("clipboard unavailable"));
+          }}
+        >
+          Copy cURL
+        </button>
+        <button
+          className="btn sm"
           title="load prompts from a text file, one per line (CLI: llmctl batch -file)"
           onClick={() => fileRef.current?.click()}
         >

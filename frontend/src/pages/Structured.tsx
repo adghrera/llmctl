@@ -165,6 +165,42 @@ export default function Structured() {
         <button
           className="btn sm"
           style={{ marginLeft: 8 }}
+          disabled={!model}
+          title="copy a curl command for this structured request (F786)"
+          onClick={() => {
+            let parsedSchema: unknown = {};
+            try {
+              parsedSchema = JSON.parse(schema);
+            } catch {
+              err("schema is not valid JSON");
+              return;
+            }
+            const body: Record<string, unknown> = {
+              model,
+              messages: [{ role: "user", content: prompt }],
+              schema: parsedSchema,
+            };
+            if (Number(maxTok) > 0) body.maxTokens = Number(maxTok);
+            if (temp.trim() !== "") body.temperature = Number(temp);
+            if (Number(retries) > 0) body.maxRetries = Math.min(Number(retries), 5);
+            const json = JSON.stringify(body);
+            const q = `'${json.replace(/'/g, `'\\''`)}'`;
+            const cmd =
+              `curl ${window.location.origin}/api/v1/structured \\\n` +
+              `  -H "Authorization: Bearer $LLMCTL_API_KEY" \\\n` +
+              `  -H "Content-Type: application/json" \\\n` +
+              `  -d ${q}\n`;
+            navigator.clipboard
+              ?.writeText(cmd)
+              .then(() => ok("copied curl command"))
+              .catch(() => err("clipboard unavailable"));
+          }}
+        >
+          Copy cURL
+        </button>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 8 }}
           title="load the JSON Schema from a .json file (CLI: llmctl structured -schema)"
           onClick={() => schemaFileRef.current?.click()}
         >
