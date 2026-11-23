@@ -799,6 +799,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F786 | P3 | 786 | batch | Batch/Structured Copy cURL | COMPLETED | The Batch and Structured pages gained Copy cURL buttons generating the management-API curl (POST /api/v1/batch or /api/v1/structured) with the current body — Compare cURL twin (F785). Verified live: served bundle carries both buttons. |
 | F787 | P3 | 787 | settings | API console Copy as cURL | COMPLETED | The Settings API console gained a Copy as cURL button building a curl from the method/path/body — turns a console call into a scriptable command. Verified live: served bundle carries the button. |
 | F788 | P3 | 788 | bench | Bench Copy cURL | COMPLETED | The Bench page gained a Copy cURL button generating a curl for the first selected model with the bench prompt — Compare cURL twin (F785), completing the cURL family. Verified live: served bundle carries the button. |
+| F789 | P3 | 789 | prompts | Prompts run Copy cURL | COMPLETED | The Prompts page run controls gained a Copy cURL button for the rendered prompt to the selected model — Chat Copy cURL twin, completing the cURL family (Chat/Compare/Batch/Structured/Bench/console). Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

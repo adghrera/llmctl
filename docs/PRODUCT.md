@@ -449,7 +449,7 @@ toggle for a light theme (choice remembered). Tabs:
   live (F361), with a model picker + Run button that sends the rendered
   template through the gateway and streams the reply inline (UI counterpart
   of `llmctl prompts run`, F596), with a Copy reply button under the reply
-  (F773). CLI:
+  (F773) and a Copy cURL button for the rendered prompt (F789). CLI:
    `llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-stats]` (the `list`
    word is accepted as an explicit subcommand, and `--csv` exports the
    filtered list as id,category,name,description, header-only when empty, F382;

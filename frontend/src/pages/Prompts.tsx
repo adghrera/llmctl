@@ -649,6 +649,30 @@ export default function Prompts() {
                   >
                     {runReply?.busy && runReply.id === t.id ? "Running…" : "Run"}
                   </button>
+                  <button
+                    className="btn sm"
+                    disabled={!runModel || !render.out.trim()}
+                    title="copy a curl command for the rendered prompt (Chat Copy cURL twin, F789)"
+                    onClick={() => {
+                      const body = JSON.stringify({
+                        model: runModel,
+                        messages: [{ role: "user", content: render.out }],
+                        stream: true,
+                      });
+                      const q = `'${body.replace(/'/g, `'\\''`)}'`;
+                      const cmd =
+                        `curl -N ${window.location.origin}/v1/chat/completions \\\n` +
+                        `  -H "Authorization: Bearer $LLMCTL_API_KEY" \\\n` +
+                        `  -H "Content-Type: application/json" \\\n` +
+                        `  -d ${q}\n`;
+                      navigator.clipboard
+                        ?.writeText(cmd)
+                        .then(() => ok("copied curl command"))
+                        .catch(() => err("clipboard unavailable"));
+                    }}
+                  >
+                    Copy cURL
+                  </button>
                 </div>
                 {runReply?.id === t.id && (runReply.text || runReply.busy) && (
                   <>
