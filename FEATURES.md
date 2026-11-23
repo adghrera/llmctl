@@ -860,6 +860,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F847 | P3 | 847 | requests | Requests cache-hit filter | COMPLETED | `?cache=1|0` on GET /api/v1/requests keeps only response-cache hits (or misses), matching the F841 log marker. CLI `llmctl requests -cache true|false`; the Requests page filter row gained a cache: all/hits/misses dropdown wired into the clear button. Verified: TestRequestsCacheFilter (miss+hit through the real proxy → 1/1 split), live API filter, CLI guard on bad values, served bundle carries the dropdown. |
 | F848 | P3 | 848 | bench | Bench history clear | COMPLETED | DELETE /api/v1/bench/runs empties the bench history ring; `llmctl bench history -clear [-json]` and a Clear button on the Bench page's Recent runs table (cache-clear pattern). Verified live: POST→clear counted 1, second clear 0, served bundle carries the button. |
 | F849 | P3 | 849 | cache | cache stats -watch/--csv | COMPLETED | `llmctl cache stats` joins the standard output family: `--csv` prints the counters as one CSV row and `-watch N` reprints every N seconds until Ctrl-C. Verified live: CSV row, watch loop refreshing. |
+| F850 | P3 | 850 | kb | kb prune | COMPLETED | `llmctl kb prune [-yes] [-json]` deletes knowledge bases with no documents — the chats/files-prune twin, dry-run by default listing the doomed KBs. Verified live: created an empty KB, dry run listed it, -yes -json deleted it. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

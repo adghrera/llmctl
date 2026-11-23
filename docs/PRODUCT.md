@@ -589,7 +589,9 @@ toggle for a light theme (choice remembered). Tabs:
    free-form tags — the KB twin of model tags, shown by `kb show`, matched by
    the list filter, exported in `--csv` (new `tags` column) (F664),
    `kb show <id> [-json] [-out FILE]` (human view: description, doc list, search mode —
-   embeddings vs TF-IDF — F366; -out writes the raw JSON, F505), `kb docs <id> [-json|-csv|-out FILE]` (F618) | `kb delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
+   embeddings vs TF-IDF — F366; -out writes the raw JSON, F505), `kb docs <id> [-json|-csv|-out FILE]` (F618),
+   `kb prune [-yes] [-json]` deletes KBs with no documents (dry-run by
+   default, the chats-prune twin, F850) | `kb delete <id>`, `kb doc <kb-id> <doc-id> [-out F]` (download a
    document's text, F320) and
    `kb add-doc <kb-id> <path> [-name X]` upload documents,
    `kb export <kb-id> [-out DIR]` dumps all documents as files (F324) and

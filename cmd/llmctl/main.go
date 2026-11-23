@@ -291,7 +291,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|run <short> -model M [-input TEXT] [-save TITLE]|export|export-all [-out FILE]|import <file.json> [-json]|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
-  llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T] [-stats] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T] [-stats] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json]|prune [-yes] [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
@@ -2777,7 +2777,7 @@ var llmSubCommands = map[string]string{
 	"chats":     "list show search export export-all import fork rename pin unpin tag retag prune delete delete-all",
 	"files":     "list upload cat tag delete prune",
 	"jobs":      "wait show clear",
-	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete",
+	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete prune",
 	"key":       "generate duplicate show note tag retag update enable disable rotate list revoke prune reset-usage",
 	"mcp":       "list add remove enable disable test export import",
 	"memory":    "list show add update search delete export import retag",
@@ -9687,7 +9687,7 @@ func cmdKb(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "create", "update", "tag", "retag", "docs", "doc", "add-doc", "export", "search", "search-all", "embed", "delete":
+		case "list", "show", "create", "update", "tag", "retag", "docs", "doc", "add-doc", "export", "search", "search-all", "embed", "delete", "prune":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -10458,6 +10458,67 @@ func cmdKb(args []string) error {
 			return nil
 		}
 		fmt.Printf("deleted knowledge base %s\n", kdfs.Arg(0))
+		return nil
+	case "prune":
+		// Delete knowledge bases with no documents — dry-run unless -yes
+		// (the chats-prune pattern, F850).
+		pfs := flag.NewFlagSet("kb prune", flag.ExitOnError)
+		yes := pfs.Bool("yes", false, "actually delete (default is a dry run)")
+		pj := pfs.Bool("json", false, "print the prune result as JSON")
+		pfs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/knowledge-bases")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("kb list returned %d: %s", code, out)
+		}
+		var list []struct {
+			KB struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"kb"`
+			Docs []json.RawMessage `json:"docs"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		var doomed []struct {
+			ID   string
+			Name string
+		}
+		for _, k := range list {
+			if len(k.Docs) == 0 {
+				doomed = append(doomed, struct {
+					ID   string
+					Name string
+				}{k.KB.ID, k.KB.Name})
+			}
+		}
+		if !*yes {
+			fmt.Printf("dry run: %d empty knowledge base(s) would be pruned (pass -yes to delete)\n", len(doomed))
+			for _, d := range doomed {
+				fmt.Printf("  %-16s %s\n", d.ID, d.Name)
+			}
+			return nil
+		}
+		var deleted []string
+		for _, d := range doomed {
+			dcode, dout, err := cc.Delete("/api/v1/knowledge-bases/" + url.PathEscape(d.ID))
+			if err != nil {
+				return err
+			}
+			if dcode != 200 {
+				return fmt.Errorf("delete %s: %s", d.ID, dout)
+			}
+			deleted = append(deleted, d.ID)
+		}
+		if *pj {
+			b, _ := json.Marshal(map[string]any{"deleted": deleted})
+			fmt.Println(string(b))
+			return nil
+		}
+		fmt.Printf("pruned %d empty knowledge base(s)\n", len(deleted))
 		return nil
 	default:
 		return fmt.Errorf("unknown kb subcommand %q (list|show|create|docs|add-doc|delete)", sub)
