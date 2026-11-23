@@ -138,7 +138,7 @@ func (t *mcpTool) Execute(ctx context.Context, argsJSON string) (string, any, er
 // mcpAgentTools connects to every enabled MCP server and returns their tools
 // (keyed mcp:<serverID>:<tool>) plus a prompt fragment describing them.
 // Servers that fail to connect are skipped (logged).
-func (s *Server) mcpAgentTools(ctx context.Context) (map[string]agent.Tool, string) {
+func (s *Server) mcpAgentTools(ctx context.Context, keepServers map[string]bool) (map[string]agent.Tool, string) {
 	if s.mcpSt == nil || s.mcpReg == nil {
 		return nil, ""
 	}
@@ -146,6 +146,9 @@ func (s *Server) mcpAgentTools(ctx context.Context) (map[string]agent.Tool, stri
 	var pb strings.Builder
 	for _, sv := range s.mcpSt.List() {
 		if !sv.Enabled {
+			continue
+		}
+		if keepServers != nil && !keepServers[sv.ID] { // per-chat MCP toggles (F831)
 			continue
 		}
 		c, err := s.mcpReg.Client(ctx, sv.ID)

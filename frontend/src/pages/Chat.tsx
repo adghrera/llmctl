@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB, type ToolRecord } from "../api/client";
+import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB, type ToolRecord, type MCPServer } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
 import { renderMd } from "../md";
@@ -48,6 +48,7 @@ export default function Chat() {
     return new Set((saved ?? "").split(",").filter(Boolean));
   }); // installed tools switched off (F823)
   const [installedTools, setInstalledTools] = useState<ToolRecord[]>([]); // enabled installed tools for the toggle row (F823)
+  const [mcpServers, setMcpServers] = useState<MCPServer[]>([]); // enabled MCP servers for the toggle row (F831)
   const [requireApproval, setRequireApproval] = useState(
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
@@ -99,10 +100,13 @@ export default function Chat() {
   const loadKBs = () => api.knowledgeBases().then(setKBs).catch(() => setKBs([]));
   const loadInstalledTools = () =>
     api.tools().then((ts) => setInstalledTools(ts.filter((t) => t.enabled))).catch(() => setInstalledTools([]));
+  const loadMCPServers = () =>
+    api.mcpServers().then((svs) => setMcpServers(svs.filter((v) => v.enabled))).catch(() => setMcpServers([]));
   useEffect(() => {
     loadChats();
     loadKBs();
     loadInstalledTools();
+    loadMCPServers();
     // Prompt page "Insert into chat" hands the template over this way (F300).
     const seed = sessionStorage.getItem("llmctl.chatSeed");
     if (seed) {
@@ -506,7 +510,8 @@ export default function Chat() {
           tools: [
             ...Array.from(agentTools),
             ...installedTools.map((t) => `tool:${t.id}`).filter((n) => !agentOff.has(n)),
-          ], // per-chat tool toggles (F820, installed F823)
+            ...mcpServers.map((v) => `mcp:${v.id}`).filter((n) => !agentOff.has(n)),
+          ], // per-chat tool toggles (F820, installed F823, MCP F831)
         }, { signal: ctrl.signal })) {
           if (ev.type === "delta" && ev.content) {
             acc += ev.content;
@@ -944,6 +949,20 @@ export default function Chat() {
                     <label key={key} style={{ marginRight: 8 }} title={t.manifest.description || key}>
                       <input type="checkbox" checked={!agentOff.has(key)} onChange={() => toggleInstalledTool(key)} />{" "}
                       {t.manifest.name || t.id}
+                    </label>
+                  );
+                })}
+              </span>
+            )}
+            {agentMode && mcpServers.length > 0 && (
+              <span style={{ fontSize: 12 }} title="MCP servers the agent may use (F831)">
+                {"· "}
+                {mcpServers.map((v) => {
+                  const key = `mcp:${v.id}`;
+                  return (
+                    <label key={key} style={{ marginRight: 8 }} title={key}>
+                      <input type="checkbox" checked={!agentOff.has(key)} onChange={() => toggleInstalledTool(key)} />{" "}
+                      {v.name}
                     </label>
                   );
                 })}

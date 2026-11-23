@@ -262,10 +262,10 @@ toggle for a light theme (choice remembered). Tabs:
   In agent mode an optional "Ask before tool calls" gate shows each pending
   tool call (name + arguments) inline and runs it only after you approve
   (F055). Agent mode also shows per-tool checkboxes (search / fetch / calc /
-  time, plus any installed tools) — uncheck to keep a tool away from the
+  time, plus any installed tools and MCP servers) — uncheck to keep a tool away from the
   agent; the system prompt only advertises the enabled tools, and the choice
   persists in the browser
-  (F820, installed tools F823). A "max steps" input caps the agent's tool
+  (F820, installed tools F823, MCP servers F831). A "max steps" input caps the agent's tool
   steps per reply (1–10, default 5; CLI `-max-steps`, F828), and the
   conversation's max-tokens/temperature/seed/top_p/penalty inputs all apply
   in agent mode too (F829, F830). A collapsible "System prompt" editor sets a per-conversation

@@ -162,8 +162,19 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		}
 		areq.ExtraToolsText = s.installedToolsPrompt(extra)
 	}
-	// MCP server tools (F054).
-	if mcpTools, mcpText := s.mcpAgentTools(r.Context()); len(mcpTools) > 0 {
+	// MCP server tools (F054); the per-chat toggle can switch servers off
+	// by listing "mcp:<serverID>" (or "mcp:<serverID>:<tool>") entries (F831).
+	var mcpKeep map[string]bool
+	if filtering {
+		mcpKeep = map[string]bool{}
+		for t := range keep {
+			if strings.HasPrefix(t, "mcp:") {
+				parts := strings.SplitN(t, ":", 3)
+				mcpKeep[parts[1]] = true
+			}
+		}
+	}
+	if mcpTools, mcpText := s.mcpAgentTools(r.Context(), mcpKeep); len(mcpTools) > 0 {
 		for k, v := range mcpTools {
 			tools[k] = v
 		}

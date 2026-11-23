@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	"llmctl/internal/mcp"
 	"llmctl/internal/proxy"
 	"llmctl/internal/store"
 	"llmctl/internal/toolstore"
@@ -168,5 +170,51 @@ func TestChatAgentSamplingPassthrough(t *testing.T) {
 	}
 	if pp, _ := be.body["presence_penalty"].(float64); pp != -0.5 {
 		t.Fatalf("presence_penalty = %v, want -0.5", be.body["presence_penalty"])
+	}
+}
+
+// TestChatAgentMCPFilter checks the per-chat toggle also switches MCP
+// servers off: the system prompt advertises their tools only when the
+// `tools` array lists "mcp:<id>" (F831).
+func TestChatAgentMCPFilter(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not available")
+	}
+	t.Setenv("LLMCTL_HOME", t.TempDir())
+	st, err := mcp.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Create(mcp.Server{ID: "fake", Name: "fake",
+		Command: "python3", Args: []string{"../mcp/testdata/fake_mcp.py"}, Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	run := func(body string) string {
+		be := &captureBackend{}
+		s := &Server{gw: newCaptureGW(t, be), searcher: websearch.New(), agentTool: &stubTool{},
+			mcpSt: st, mcpReg: mcp.NewRegistry(st), logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+		req := httptest.NewRequest("POST", "/api/v1/chat/agent", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		s.chatAgent(rec, req)
+		if rec.Code != 200 {
+			t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+		}
+		return be.system
+	}
+	// MCP server not listed → its tools are absent.
+	sys := run(`{"model":"m","messages":[{"role":"user","content":"x"}],"tools":["calculator"]}`)
+	if strings.Contains(sys, "mcp:fake:echo") {
+		t.Fatalf("disabled MCP tool leaked into prompt: %q", sys)
+	}
+	// Listed → advertised.
+	sys = run(`{"model":"m","messages":[{"role":"user","content":"x"}],"tools":["calculator","mcp:fake"]}`)
+	if !strings.Contains(sys, "mcp:fake:echo") {
+		t.Fatalf("enabled MCP tool missing from prompt: %q", sys)
+	}
+	// No tools field → everything stays.
+	sys = run(`{"model":"m","messages":[{"role":"user","content":"x"}]}`)
+	if !strings.Contains(sys, "mcp:fake:echo") {
+		t.Fatalf("MCP tool missing from full prompt: %q", sys)
 	}
 }
