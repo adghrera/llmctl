@@ -408,8 +408,8 @@ toggle for a light theme (choice remembered). Tabs:
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
   A sibling **Bench page** (F671) is the UI twin of `llmctl bench`: pick
   instances, requests and concurrency (persisted in the browser, F766), a seed
-  input for reproducible replies (F796) and a top_p nucleus-sampling input
-  (F800), and it measures per-model latency
+  input for reproducible replies (F796), a top_p nucleus-sampling input
+  (F800) and frequency/presence penalty inputs (F806), and it measures per-model latency
   percentiles and throughput client-side against the gateway, with Export
   CSV/JSON buttons matching `bench --csv`/`-json` (F714), a Copy cURL button for
   the first selected model (F788), and a Stop button
@@ -812,7 +812,7 @@ llmctl embed -model ID [-key K] [-json] [-out FILE] <text>     (gateway embeddin
 llmctl complete -model ID [-key K] [-json] [-seed N] [-top-p P] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455; -seed/-top-p sampling, F801)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-file PATH] [-json] [--csv] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454; --csv one row per model, F606; -file prepends a local file as context to every model, F670)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]  (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336; -out writes the counts JSON to a file, F461)
-llmctl bench -model ID [-key K] [-n N] [-conc C] [-seed N] [-top-p P] [-json|--csv] [-out FILE]  (latency/throughput benchmark, F282; single-model also supports the JSON/CSV/-out shapes, F623; -seed for reproducible replies, F796)
+llmctl bench -model ID [-key K] [-n N] [-conc C] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-json|--csv] [-out FILE]  (latency/throughput benchmark, F282; single-model also supports the JSON/CSV/-out shapes, F623; -seed for reproducible replies, F796)
 llmctl bench -models A,B [-n N] [-conc C] [-json|--csv] [-out FILE]  (multi-model comparison table; --csv one row per model, -out writes the stats JSON to a file, F426, F303, F315, F460)
 llmctl disk [-json] [--csv] [-out FILE] [-watch N]            (model dir + volume disk usage; --csv one row, raw bytes, -out writes the raw JSON, -watch N reprints every N seconds, F451, F465, F590)
                                     health sweep: state dir, backends, models,

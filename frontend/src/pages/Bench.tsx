@@ -33,6 +33,8 @@ export default function Bench() {
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.bench.conc") ?? "1");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.bench.seed") ?? "");
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.bench.topp") ?? "");
+  const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.bench.freqpen") ?? "");
+  const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.bench.prespen") ?? "");
   const [rows, setRows] = useState<BenchRow[]>([]);
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop the bench run (F756)
@@ -81,6 +83,8 @@ export default function Bench() {
               messages: [{ role: "user", content: prompt }],
               ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
               ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}),
+              ...(freqPen.trim() !== "" ? { frequency_penalty: Number(freqPen) } : {}),
+              ...(presPen.trim() !== "" ? { presence_penalty: Number(presPen) } : {}),
             }),
             signal: abortRef.current?.signal,
           });
@@ -208,6 +212,34 @@ export default function Bench() {
             }}
           />
           <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="freq penalty"
+            title="frequency penalty for bench replies (empty = model default) (F806)"
+            value={freqPen}
+            onChange={(e) => {
+              setFreqPen(e.target.value);
+              localStorage.setItem("llmctl.bench.freqpen", e.target.value);
+            }}
+          />
+          <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="pres penalty"
+            title="presence penalty for bench replies (empty = model default) (F806)"
+            value={presPen}
+            onChange={(e) => {
+              setPresPen(e.target.value);
+              localStorage.setItem("llmctl.bench.prespen", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 220 }}
             placeholder="API key (if auth on)"
             value={apiKey}
@@ -257,7 +289,7 @@ export default function Bench() {
             onClick={() => {
               const inst = instances.find((i) => selected.has(i.id));
               if (!inst) return;
-              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }], ...(seed.trim() !== "" ? { seed: Number(seed) } : {}), ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}) });
+              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }], ...(seed.trim() !== "" ? { seed: Number(seed) } : {}), ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}), ...(freqPen.trim() !== "" ? { frequency_penalty: Number(freqPen) } : {}), ...(presPen.trim() !== "" ? { presence_penalty: Number(presPen) } : {}) });
               const q = `'${body.replace(/'/g, `'\\''`)}'`;
               const cmd =
                 `curl ${window.location.origin}/v1/chat/completions \\\n` +

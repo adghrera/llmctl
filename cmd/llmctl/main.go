@@ -2080,6 +2080,8 @@ func cmdBench(args []string) error {
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
 	seed := fs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F796)")
 	topP := fs.Float64("top-p", -1, "nucleus sampling top_p (-1 = model default, F800)")
+	freqPen := fs.Float64("freq-penalty", -999, "frequency penalty (-999 = model default, F806)")
+	presPen := fs.Float64("pres-penalty", -999, "presence penalty (-999 = model default, F806)")
 	jsonOut := fs.Bool("json", false, "print per-model stats as one JSON array instead of text (F315)")
 	csvOut := fs.Bool("csv", false, "output per-model stats as CSV (F426)")
 	outFile := fs.String("out", "", "write the stats JSON to this file instead of stdout (implies -json, F460)")
@@ -2134,6 +2136,12 @@ func cmdBench(args []string) error {
 		}
 		if *topP >= 0 {
 			reqBody["top_p"] = *topP
+		}
+		if *freqPen > -999 {
+			reqBody["frequency_penalty"] = *freqPen
+		}
+		if *presPen > -999 {
+			reqBody["presence_penalty"] = *presPen
 		}
 		body, _ := json.Marshal(reqBody)
 		type result struct {
