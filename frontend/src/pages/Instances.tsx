@@ -1046,6 +1046,18 @@ export default function Instances() {
               Vars — <span className="mono">{varsFor}</span>
             </h2>
             <div className="row" style={{ gap: 8 }}>
+              <button
+                className="btn sm"
+                title="copy the vars JSON to the clipboard (F791)"
+                onClick={() => {
+                  navigator.clipboard
+                    ?.writeText(varsText)
+                    .then(() => ok("copied"))
+                    .catch(() => {});
+                }}
+              >
+                Copy
+              </button>
               <button className="btn sm primary" disabled={varsBusy} onClick={saveVars}>
                 {varsBusy ? "Saving…" : "Save"}
               </button>

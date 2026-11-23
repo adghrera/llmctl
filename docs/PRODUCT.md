@@ -59,7 +59,8 @@ GitHub release, or file list. No recompile.
   different backends, or replicas) run concurrently.
 - Per-instance parameters: ctx, ngl (GPU layers), parallel slots, threads,
   url (attach backends). Editable after the fact with the "Vars" button
-  (running instances apply changes on restart).
+  (running instances apply changes on restart), which also has a Copy button for
+  the vars JSON (F791).
 - Health-gated startup; crashed instances are reaped and marked stopped.
   A restart that passes no `-var` reuses the previous instance's start vars,
   so a crashed attach instance re-attaches to its stored url (F263); the last
