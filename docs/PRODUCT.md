@@ -262,9 +262,10 @@ toggle for a light theme (choice remembered). Tabs:
   In agent mode an optional "Ask before tool calls" gate shows each pending
   tool call (name + arguments) inline and runs it only after you approve
   (F055). Agent mode also shows per-tool checkboxes (search / fetch / calc /
-  time) — uncheck to keep a tool away from the agent; the system prompt only
-  advertises the enabled tools, and the choice persists in the browser
-  (F820). A collapsible "System prompt" editor sets a per-conversation
+  time, plus any installed tools) — uncheck to keep a tool away from the
+  agent; the system prompt only advertises the enabled tools, and the choice
+  persists in the browser
+  (F820, installed tools F823). A collapsible "System prompt" editor sets a per-conversation
   system prompt sent with every request (F063), persisted in the browser
   across reloads (F762), and the same panel holds
   optional max-tokens/temperature inputs for the conversation (F360), also

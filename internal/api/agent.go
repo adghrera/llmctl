@@ -96,9 +96,10 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	// Per-chat tool toggles: when the client sends a tools array (even an
 	// empty one), drop the built-ins it left out; omitting the field keeps
-	// everything (installed/MCP tools always stay) (F820).
-	if req.Tools != nil {
-		keep := map[string]bool{}
+	// everything (MCP tools always stay) (F820, installed tools F823).
+	keep := map[string]bool{}
+	filtering := req.Tools != nil
+	if filtering {
 		for _, t := range req.Tools {
 			keep[t] = true
 		}
@@ -137,8 +138,17 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	// Installed user tools (F033) join the tool map and the prompt.
-	if extra := s.enabledAgentTools(); len(extra) > 0 {
+	// Installed user tools (F033) join the tool map and the prompt; the
+	// per-chat toggle can switch them off too (F823).
+	extra := s.enabledAgentTools()
+	if filtering {
+		for k := range extra {
+			if !keep[k] {
+				delete(extra, k)
+			}
+		}
+	}
+	if len(extra) > 0 {
 		for k, v := range extra {
 			tools[k] = v
 		}

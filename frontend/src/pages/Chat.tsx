@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB } from "../api/client";
+import { agentStream, chatStream, api, type AgentToolEvent, type ChatSummary, type SearchChatResult, type SearchMatch, type KB, type ToolRecord } from "../api/client";
 import { useStore } from "../state/store";
 import { err, ok } from "../ui/toast";
 import { renderMd } from "../md";
@@ -27,6 +27,7 @@ interface Msg {
 const KEY_STORAGE = "llmctl.chat.key";
 const AGENT_STORAGE = "llmctl.chat.agent";
 const AGENT_TOOLS_STORAGE = "llmctl.chat.agenttools"; // per-chat tool toggles (F820)
+const AGENT_TOOLS_OFF_STORAGE = "llmctl.chat.agenttoolsoff"; // disabled installed tools (F823)
 const ALL_AGENT_TOOLS = ["web_search", "fetch_url", "calculator", "current_time"];
 const APPROVAL_STORAGE = "llmctl.chat.approval";
 
@@ -42,6 +43,11 @@ export default function Chat() {
     const saved = localStorage.getItem(AGENT_TOOLS_STORAGE);
     return new Set(saved === null ? ALL_AGENT_TOOLS : saved.split(",").filter(Boolean));
   }); // built-in agent tools enabled (F820)
+  const [agentOff, setAgentOff] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(AGENT_TOOLS_OFF_STORAGE);
+    return new Set((saved ?? "").split(",").filter(Boolean));
+  }); // installed tools switched off (F823)
+  const [installedTools, setInstalledTools] = useState<ToolRecord[]>([]); // enabled installed tools for the toggle row (F823)
   const [requireApproval, setRequireApproval] = useState(
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
@@ -88,9 +94,12 @@ export default function Chat() {
   const chatTags = Array.from(new Set(chats.flatMap((c) => c.tags ?? []))).sort();
   const visibleChats = tagFilter ? chats.filter((c) => (c.tags ?? []).includes(tagFilter)) : chats;
   const loadKBs = () => api.knowledgeBases().then(setKBs).catch(() => setKBs([]));
+  const loadInstalledTools = () =>
+    api.tools().then((ts) => setInstalledTools(ts.filter((t) => t.enabled))).catch(() => setInstalledTools([]));
   useEffect(() => {
     loadChats();
     loadKBs();
+    loadInstalledTools();
     // Prompt page "Insert into chat" hands the template over this way (F300).
     const seed = sessionStorage.getItem("llmctl.chatSeed");
     if (seed) {
@@ -324,6 +333,15 @@ export default function Chat() {
       return next;
     });
   };
+  const toggleInstalledTool = (t: string) => {
+    setAgentOff((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      localStorage.setItem(AGENT_TOOLS_OFF_STORAGE, Array.from(next).join(","));
+      return next;
+    });
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -468,7 +486,10 @@ export default function Chat() {
           model,
           messages: history,
           requireApproval,
-          tools: Array.from(agentTools), // per-chat tool toggles (F820)
+          tools: [
+            ...Array.from(agentTools),
+            ...installedTools.map((t) => `tool:${t.id}`).filter((n) => !agentOff.has(n)),
+          ], // per-chat tool toggles (F820, installed F823)
         }, { signal: ctrl.signal })) {
           if (ev.type === "delta" && ev.content) {
             acc += ev.content;
@@ -895,6 +916,20 @@ export default function Chat() {
                     {label}
                   </label>
                 ))}
+              </span>
+            )}
+            {agentMode && installedTools.length > 0 && (
+              <span style={{ fontSize: 12 }} title="installed tools the agent may use (F823)">
+                {"· "}
+                {installedTools.map((t) => {
+                  const key = `tool:${t.id}`;
+                  return (
+                    <label key={key} style={{ marginRight: 8 }} title={t.manifest.description || key}>
+                      <input type="checkbox" checked={!agentOff.has(key)} onChange={() => toggleInstalledTool(key)} />{" "}
+                      {t.manifest.name || t.id}
+                    </label>
+                  );
+                })}
               </span>
             )}{" "}
             <label
