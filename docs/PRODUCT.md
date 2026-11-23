@@ -294,7 +294,8 @@ toggle for a light theme (choice remembered). Tabs:
   (1–5, CLI twin `-retries`, F692), a seed input for reproducible replies
   (F795), a top_p nucleus-sampling input (F799) and frequency/presence penalty
   inputs (F805), all persisted in the browser (F765), a "Load schema" button that fills the
-  schema box from a .json file (UI twin of `-schema`, F713), a Result Export
+  schema box from a .json file (UI twin of `-schema`, F713) plus a saved-schema
+  library (Save/Load/Del by name, browser-persisted, F827), a Result Export
   JSON button (F432) with a Copy button for the JSON (F770), a Copy cURL button
   for the request (F786) and a "Save key" button that remembers the API key in the
   browser (F734).

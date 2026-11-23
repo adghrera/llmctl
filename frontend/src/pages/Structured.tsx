@@ -31,6 +31,19 @@ export default function Structured() {
   const [result, setResult] = useState<string>("");
   const [meta, setMeta] = useState<string>("");
   const schemaFileRef = useRef<HTMLInputElement>(null); // load schema from file (CLI `structured -schema`, F713)
+  // Saved-schema library, keyed by name in the browser (F827).
+  const [schemaLib, setSchemaLib] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("llmctl.structured.schemas") ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  });
+  const [schemaPick, setSchemaPick] = useState("");
+  const persistLib = (lib: Record<string, string>) => {
+    setSchemaLib(lib);
+    localStorage.setItem("llmctl.structured.schemas", JSON.stringify(lib));
+  };
 
   useEffect(() => {
     if (!model && running.length) setModel(running[0].modelId);
@@ -289,6 +302,57 @@ export default function Structured() {
             }
           }}
         />
+        <select
+          value={schemaPick}
+          onChange={(e) => setSchemaPick(e.target.value)}
+          style={{ marginLeft: 8, width: 140 }}
+          title="saved schemas in this browser (F827)"
+        >
+          <option value="">saved schemas…</option>
+          {Object.keys(schemaLib).sort().map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 6 }}
+          title="save the current schema under a name in this browser (F827)"
+          onClick={() => {
+            const n = window.prompt("Save current schema as:", schemaPick);
+            if (n && n.trim()) {
+              persistLib({ ...schemaLib, [n.trim()]: schema });
+              setSchemaPick(n.trim());
+              ok(`schema "${n.trim()}" saved`);
+            }
+          }}
+        >
+          Save schema
+        </button>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 6 }}
+          disabled={!schemaPick || !schemaLib[schemaPick]}
+          title="load the selected saved schema into the editor"
+          onClick={() => schemaLib[schemaPick] && setSchema(schemaLib[schemaPick])}
+        >
+          Load
+        </button>
+        <button
+          className="btn sm"
+          style={{ marginLeft: 6 }}
+          disabled={!schemaPick}
+          title="delete the selected saved schema"
+          onClick={() => {
+            const rest = { ...schemaLib };
+            delete rest[schemaPick];
+            persistLib(rest);
+            setSchemaPick("");
+          }}
+        >
+          Del
+        </button>
         {!running.length && <span className="muted small" style={{ marginLeft: 10 }}>start an instance first</span>}
       </div>
       {(result || meta) && (
