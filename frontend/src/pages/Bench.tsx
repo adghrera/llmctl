@@ -28,9 +28,9 @@ const pct = (sorted: number[], p: number) => {
 export default function Bench() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [prompt, setPrompt] = useState("count to five");
-  const [n, setN] = useState("5");
-  const [conc, setConc] = useState("1");
+  const [prompt, setPrompt] = useState(() => localStorage.getItem("llmctl.bench.prompt") ?? "count to five");
+  const [n, setN] = useState(() => localStorage.getItem("llmctl.bench.n") ?? "5");
+  const [conc, setConc] = useState(() => localStorage.getItem("llmctl.bench.conc") ?? "1");
   const [rows, setRows] = useState<BenchRow[]>([]);
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop the bench run (F756)
@@ -160,7 +160,10 @@ export default function Bench() {
             min={1}
             title="requests per model"
             value={n}
-            onChange={(e) => setN(e.target.value)}
+            onChange={(e) => {
+              setN(e.target.value);
+              localStorage.setItem("llmctl.bench.n", e.target.value);
+            }}
           />
           <span className="muted" style={{ alignSelf: "center" }}>requests</span>
           <input
@@ -169,7 +172,10 @@ export default function Bench() {
             min={1}
             title="concurrent requests"
             value={conc}
-            onChange={(e) => setConc(e.target.value)}
+            onChange={(e) => {
+              setConc(e.target.value);
+              localStorage.setItem("llmctl.bench.conc", e.target.value);
+            }}
           />
           <span className="muted" style={{ alignSelf: "center" }}>concurrent</span>
           <input
@@ -197,7 +203,10 @@ export default function Bench() {
             style={{ flex: 1, minWidth: 200 }}
             placeholder="prompt for every request"
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => {
+              setPrompt(e.target.value);
+              localStorage.setItem("llmctl.bench.prompt", e.target.value);
+            }}
           />
           {running ? (
             <button

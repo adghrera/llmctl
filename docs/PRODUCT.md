@@ -389,7 +389,7 @@ toggle for a light theme (choice remembered). Tabs:
   partial replies (F755).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.
   A sibling **Bench page** (F671) is the UI twin of `llmctl bench`: pick
-  instances, requests and concurrency, and it measures per-model latency
+  instances, requests and concurrency (persisted in the browser, F766), and it measures per-model latency
   percentiles and throughput client-side against the gateway, with Export
   CSV/JSON buttons matching `bench --csv`/`-json` (F714) and a Stop button
   that cancels the run mid-flight, keeping finished rows (F756).
