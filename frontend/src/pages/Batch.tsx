@@ -221,6 +221,7 @@ export default function Batch() {
                 <th>#</th>
                 <th>Prompt</th>
                 <th>Output</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -233,6 +234,22 @@ export default function Batch() {
                       <span className="badge err">{r.error}</span>
                     ) : (
                       <span style={{ whiteSpace: "pre-wrap" }}>{r.content}</span>
+                    )}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {!r.error && (
+                      <button
+                        className="btn sm"
+                        title="copy this result to the clipboard (F770)"
+                        onClick={() => {
+                          navigator.clipboard
+                            ?.writeText(r.content || "")
+                            .then(() => ok("copied"))
+                            .catch(() => {});
+                        }}
+                      >
+                        Copy
+                      </button>
                     )}
                   </td>
                 </tr>

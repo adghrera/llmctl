@@ -780,6 +780,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F767 | P3 | 767 | models | GGUF metadata Export JSON | COMPLETED | The Models GGUF metadata viewer gained an Export JSON button downloading the parsed metadata — UI twin of `llmctl models metadata -json`. Verified live: served bundle carries the button. |
 | F768 | P3 | 768 | kb | KB doc view Copy + Download | COMPLETED | The Knowledge Bases document view modal gained Copy (clipboard) and Download (saves under the original filename, twin of `kb doc -out`) buttons. Verified live: served bundle carries both buttons. |
 | F769 | P3 | 769 | compare | Compare per-reply Copy button | COMPLETED | Each Compare result panel header gained a copy button for that model's reply — Chat message copy twin. Verified live: served bundle carries the button. |
+| F770 | P3 | 770 | batch | Structured/Batch result Copy | COMPLETED | The Structured result card gained a Copy button beside Export JSON, and each Batch result row gained a Copy button for its output — copy family extended to both pages. Verified live: served bundle carries both buttons. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

@@ -195,6 +195,19 @@ export default function Structured() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 style={{ margin: 0 }}>Result</h2>
             {result && (
+              <div className="row" style={{ gap: 6 }}>
+              <button
+                className="btn sm"
+                title="copy the validated JSON to the clipboard (F770)"
+                onClick={() => {
+                  navigator.clipboard
+                    ?.writeText(result)
+                    .then(() => ok("copied"))
+                    .catch(() => {});
+                }}
+              >
+                Copy
+              </button>
               <button
                 className="btn sm"
                 onClick={() => {
@@ -209,6 +222,7 @@ export default function Structured() {
               >
                 Export JSON
               </button>
+              </div>
             )}
           </div>
           <p className="small" style={{ margin: "4px 0 8px" }}>{meta}</p>
