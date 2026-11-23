@@ -830,6 +830,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F817 | P3 | 817 | instances | Instance duplicate | COMPLETED | Instances page rows gained a Duplicate button (prompt for a new name, starts a second instance with the same model/backend/vars — replica helper), and `llmctl start --copy INSTANCE` is the CLI twin (model/backend/vars inherited, name defaults to `<id>-copy`). Verified live: `start --copy so -instance f817dup` started the copy; served bundle carries the button. |
 | F818 | P3 | 818 | chats | Chat input token estimate | COMPLETED | The Chat input shows a live "≈N tok" estimate under the textarea (~4 chars/token, same rule as `llmctl count`). Verified live: served bundle carries the hint. |
 | F819 | P3 | 819 | batch | Batch prompt-count hint | COMPLETED | The Batch prompts box shows a live "N prompt(s) · ≈M tok" count under the textarea (non-empty lines; ~4 chars/token). Verified live: served bundle carries the hint. |
+| F820 | P3 | 820 | chats | Per-chat agent tool toggles | COMPLETED | Chat agent mode gained per-tool checkboxes (search/fetch/calc/time, persisted in the browser): the agent request carries a `tools` array, the API drops the unlisted built-ins, and the system prompt is now built from the tools actually available. Verified live: with `tools:["calculator"]` the streamed (stub-echoed) prompt contains calculator and no web_search; agent/api tests pass. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

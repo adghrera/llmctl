@@ -1026,6 +1026,7 @@ export async function* agentStream(
     maxSteps?: number;
     temperature?: number;
     requireApproval?: boolean;
+    tools?: string[]; // built-in tools to enable; [] = none, omit = all (F820)
   },
   opts: { signal?: AbortSignal } = {} // cancel the stream mid-flight (F754)
 ): AsyncGenerator<AgentEvent> {

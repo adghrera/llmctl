@@ -61,21 +61,40 @@ type Request struct {
 	Approve func(ctx context.Context, name, argsJSON string) bool
 }
 
-const systemPrompt = `You are llmctl, a helpful assistant with tools.
-Available tools — to call one, reply with ONLY one or more lines of the form:
-  <search>your query here</search>                                          (web_search)
-  <tool_call>{"name": "web_search", "arguments": {"query": "..."}}</tool_call>
-  <tool_call>{"name": "fetch_url", "arguments": {"url": "https://..."}}</tool_call>
-  <tool_call>{"name": "calculator", "arguments": {"expression": "2*(3+4)^2"}}</tool_call>
-  <tool_call>{"name": "current_time", "arguments": {}}</tool_call>
-You may issue up to 3 tool calls in one reply. After results arrive, answer using them, citing URLs inline.
-Rules:
-- web_search when the question needs current facts (news, prices, releases, versions) or when you are unsure.
-- fetch_url to read a specific page (e.g. a search result that looks most relevant, or a URL the user gave).
-- calculator for ANY arithmetic — never compute mentally.
-- current_time for questions about today's date or the current time.
-- Never invent tool results or URLs.
-- If no tool is needed, just answer normally.`
+// systemPromptFor builds the agent system prompt from the tools actually
+// available, so disabled tools are never advertised (F820).
+func systemPromptFor(tools map[string]Tool) string {
+	var b strings.Builder
+	b.WriteString("You are llmctl, a helpful assistant with tools.\nAvailable tools — to call one, reply with ONLY one or more lines of the form:\n")
+	if _, ok := tools["web_search"]; ok {
+		b.WriteString("  <search>your query here</search>                                          (web_search)\n")
+		b.WriteString("  <tool_call>{\"name\": \"web_search\", \"arguments\": {\"query\": \"...\"}}</tool_call>\n")
+	}
+	if _, ok := tools["fetch_url"]; ok {
+		b.WriteString("  <tool_call>{\"name\": \"fetch_url\", \"arguments\": {\"url\": \"https://...\"}}</tool_call>\n")
+	}
+	if _, ok := tools["calculator"]; ok {
+		b.WriteString("  <tool_call>{\"name\": \"calculator\", \"arguments\": {\"expression\": \"2*(3+4)^2\"}}</tool_call>\n")
+	}
+	if _, ok := tools["current_time"]; ok {
+		b.WriteString("  <tool_call>{\"name\": \"current_time\", \"arguments\": {}}</tool_call>\n")
+	}
+	b.WriteString("You may issue up to 3 tool calls in one reply. After results arrive, answer using them, citing URLs inline.\nRules:\n")
+	if _, ok := tools["web_search"]; ok {
+		b.WriteString("- web_search when the question needs current facts (news, prices, releases, versions) or when you are unsure.\n")
+	}
+	if _, ok := tools["fetch_url"]; ok {
+		b.WriteString("- fetch_url to read a specific page (e.g. a search result that looks most relevant, or a URL the user gave).\n")
+	}
+	if _, ok := tools["calculator"]; ok {
+		b.WriteString("- calculator for ANY arithmetic — never compute mentally.\n")
+	}
+	if _, ok := tools["current_time"]; ok {
+		b.WriteString("- current_time for questions about today's date or the current time.\n")
+	}
+	b.WriteString("- Never invent tool results or URLs.\n- If no tool is needed, just answer normally.")
+	return b.String()
+}
 
 // --- tool-call parsing (multi-format) -------------------------------------
 
@@ -92,7 +111,7 @@ var (
 	// <tool_call> … <tool_call> (Hermes/Qwen/DeepSeek chat templates)
 	toolCallTagRe = regexp.MustCompile(`(?is)<tool_call\s*>(.*?)</tool_call\s*>`)
 	// <function=name> <parameter=k>v </parameter> … </function> (Qwen3 XML)
-	funcFenceRe = regexp.MustCompile(`(?is)<function\s*=\s*([a-zA-Z0-9_.\-]+)\s*>(.*?)</function\s*>`)
+	funcFenceRe  = regexp.MustCompile(`(?is)<function\s*=\s*([a-zA-Z0-9_.\-]+)\s*>(.*?)</function\s*>`)
 	paramFenceRe = regexp.MustCompile(`(?is)<parameter\s*=\s*([a-zA-Z0-9_.\-]+)\s*>(.*?)</parameter\s*>`)
 	// ```tool_call / ```tool / ```functions.x fenced JSON (Llama 3.x)
 	toolFenceRe = regexp.MustCompile("(?is)```(?:tool_call|tool|functions?)[._a-z0-9\\-]*\\s*\\n(.*?)```")
@@ -537,7 +556,7 @@ func Run(ctx context.Context, gw http.Handler, tools map[string]Tool, req Reques
 	}
 
 	messages := make([]Message, 0, len(req.Messages)+4)
-	sysPrompt := systemPrompt
+	sysPrompt := systemPromptFor(tools)
 	if req.ExtraToolsText != "" {
 		sysPrompt += "\n" + req.ExtraToolsText
 	}
@@ -731,7 +750,9 @@ func callGateway(ctx context.Context, gw http.Handler, req Request, messages []M
 	if rec.status != 0 && rec.status != http.StatusOK {
 		msg := strings.TrimSpace(rec.errBody.String())
 		var env struct {
-			Error struct{ Message string `json:"message"` } `json:"error"`
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
 		}
 		if json.Unmarshal(rec.errBody.Bytes(), &env) == nil && env.Error.Message != "" {
 			msg = env.Error.Message

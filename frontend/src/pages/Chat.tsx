@@ -26,6 +26,8 @@ interface Msg {
 
 const KEY_STORAGE = "llmctl.chat.key";
 const AGENT_STORAGE = "llmctl.chat.agent";
+const AGENT_TOOLS_STORAGE = "llmctl.chat.agenttools"; // per-chat tool toggles (F820)
+const ALL_AGENT_TOOLS = ["web_search", "fetch_url", "calculator", "current_time"];
 const APPROVAL_STORAGE = "llmctl.chat.approval";
 
 export default function Chat() {
@@ -36,6 +38,10 @@ export default function Chat() {
   const [model, setModel] = useState(() => params.get("model") ?? "");
   const [key, setKey] = useState(() => localStorage.getItem(KEY_STORAGE) ?? "");
   const [agentMode, setAgentMode] = useState(() => localStorage.getItem(AGENT_STORAGE) === "1");
+  const [agentTools, setAgentTools] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem(AGENT_TOOLS_STORAGE);
+    return new Set(saved === null ? ALL_AGENT_TOOLS : saved.split(",").filter(Boolean));
+  }); // built-in agent tools enabled (F820)
   const [requireApproval, setRequireApproval] = useState(
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
@@ -309,6 +315,15 @@ export default function Chat() {
   useEffect(() => {
     localStorage.setItem(APPROVAL_STORAGE, requireApproval ? "1" : "0");
   }, [requireApproval]);
+  const toggleAgentTool = (t: string) => {
+    setAgentTools((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      localStorage.setItem(AGENT_TOOLS_STORAGE, Array.from(next).join(","));
+      return next;
+    });
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -453,6 +468,7 @@ export default function Chat() {
           model,
           messages: history,
           requireApproval,
+          tools: Array.from(agentTools), // per-chat tool toggles (F820)
         }, { signal: ctrl.signal })) {
           if (ev.type === "delta" && ev.content) {
             acc += ev.content;
@@ -866,6 +882,21 @@ export default function Chat() {
               <input type="checkbox" checked={agentMode} onChange={(e) => setAgentMode(e.target.checked)} />
               Agent (web search)
             </label>{" "}
+            {agentMode && (
+              <span style={{ fontSize: 12 }} title="which built-in tools the agent may use (F820)">
+                {[
+                  ["web_search", "search"],
+                  ["fetch_url", "fetch"],
+                  ["calculator", "calc"],
+                  ["current_time", "time"],
+                ].map(([t, label]) => (
+                  <label key={t} style={{ marginRight: 8 }}>
+                    <input type="checkbox" checked={agentTools.has(t)} onChange={() => toggleAgentTool(t)} />{" "}
+                    {label}
+                  </label>
+                ))}
+              </span>
+            )}{" "}
             <label
               style={{ display: "inline-flex", gap: 6, alignItems: "center", marginLeft: 12 }}
               title="The agent asks for confirmation before running any tool"

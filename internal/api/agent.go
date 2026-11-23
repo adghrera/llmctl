@@ -17,10 +17,11 @@ import (
 type agentChatReq struct {
 	Model           string          `json:"model"`
 	Messages        []agent.Message `json:"messages"`
-	MaxSteps        int             `json:"maxSteps"`    // default 5
+	MaxSteps        int             `json:"maxSteps"` // default 5
 	MaxTokens       int             `json:"maxTokens"`
 	Temperature     *float64        `json:"temperature"`
 	RequireApproval bool            `json:"requireApproval"` // ask before each tool call (F055)
+	Tools           []string        `json:"tools,omitempty"` // built-in tools to enable; omitted = all, [] = none (F820)
 }
 
 // agentSearchTool returns the web_search tool for the agent loop. Tests
@@ -92,6 +93,20 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		"fetch_url":    &agenttools.FetchURLTool{},
 		"calculator":   &agenttools.CalcTool{},
 		"current_time": &agenttools.TimeTool{},
+	}
+	// Per-chat tool toggles: when the client sends a tools array (even an
+	// empty one), drop the built-ins it left out; omitting the field keeps
+	// everything (installed/MCP tools always stay) (F820).
+	if req.Tools != nil {
+		keep := map[string]bool{}
+		for _, t := range req.Tools {
+			keep[t] = true
+		}
+		for _, name := range []string{"web_search", "fetch_url", "calculator", "current_time"} {
+			if !keep[name] {
+				delete(tools, name)
+			}
+		}
 	}
 	areq := agent.Request{
 		Model:       req.Model,
