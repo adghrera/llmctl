@@ -400,7 +400,8 @@ toggle for a light theme (choice remembered). Tabs:
   per-skill Export JSON
   (manifest, CLI parity) and an Import JSON button on the list (F415), plus a
   per-skill Copy prompt button for the template (F784) and a Run panel that
-  renders {{input}} and streams a model reply inline (Prompts Run twin, F833).
+  renders {{input}} and streams a model reply inline (Prompts Run twin, F833)
+  with a "Save to chat" button for the rendered prompt + reply (F839).
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
   and plain chat modes.
@@ -496,7 +497,8 @@ toggle for a light theme (choice remembered). Tabs:
   live (F361), with a model picker + Run button that sends the rendered
   template through the gateway and streams the reply inline (UI counterpart
   of `llmctl prompts run`, F596), with a Copy reply button under the reply
-  (F773) and a Copy cURL button for the rendered prompt (F789). CLI:
+  (F773), a "Save to chat" button storing the rendered prompt + reply as a
+  saved chat (F839), and a Copy cURL button for the rendered prompt (F789). CLI:
    `llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-stats]` (the `list`
    word is accepted as an explicit subcommand, and `--csv` exports the
    filtered list as id,category,name,description, header-only when empty, F382;
@@ -540,8 +542,8 @@ toggle for a light theme (choice remembered). Tabs:
    manifest, `skills update <id> [-name N] [-desc D] [-template T] [-tags a,b]`
    edits one in place (F652), `skills retag <old> <new> | retag -rm <tag>`
    bulk-renames or drops a tag across skills (F663), `skills run <short> -model M
-   [-input TEXT] [-system S] [-json] [-out FILE]` renders the template and streams
-   the reply (chat /s. twin, F836) and `skills export <id>
+   [-input TEXT] [-system S] [-json] [-out FILE] [-save TITLE]` renders the
+   template and streams the reply (chat /s. twin, F836; -save F839) and `skills export <id>
    [-out f]` dumps one back
    out (F245, F288, F305).
  - **Memory CLI** — `llmctl memory [filter] [-json] [-csv] [-out FILE] [-stats] [-tag T]` lists memory entries

@@ -286,7 +286,7 @@ Usage:
   llmctl webhooks [-n 20] [-event E] [-failed] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-tag T] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-tags a,b] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts tag <id> [a,b] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-tags a,b] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
-  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|run <short> -model M [-input TEXT] [-save TITLE]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
@@ -8700,9 +8700,10 @@ func cmdSkills(args []string) error {
 		system := rfs.String("system", "", "system message prepended to the request")
 		rjson := rfs.Bool("json", false, "print {model, reply} JSON instead of the reply text")
 		rout := rfs.String("out", "", "write the reply text to this file instead of stdout")
+		saveChat := rfs.String("save", "", "save the exchange as a saved chat under this title (prompts run -save twin, F839)")
 		rfs.Parse(reorderFlags(rest))
 		if rfs.NArg() == 0 || *modelF == "" {
-			return fmt.Errorf("usage: llmctl skills run <short_name> -model M [-input TEXT] [-system S] [-key K] [-json] [-out FILE]")
+			return fmt.Errorf("usage: llmctl skills run <short_name> -model M [-input TEXT] [-system S] [-key K] [-json] [-out FILE] [-save TITLE]")
 		}
 		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(rfs.Arg(0)))
 		if err != nil {
@@ -8792,6 +8793,25 @@ func cmdSkills(args []string) error {
 			fmt.Println(string(jb))
 		} else {
 			fmt.Println(content)
+		}
+		if *saveChat != "" { // F839: keep the exchange like prompts run -save does
+			smsgs := []map[string]string{}
+			if strings.TrimSpace(*system) != "" {
+				smsgs = append(smsgs, map[string]string{"role": "system", "content": strings.TrimSpace(*system)})
+			}
+			smsgs = append(smsgs,
+				map[string]string{"role": "user", "content": rendered},
+				map[string]string{"role": "assistant", "content": content})
+			scode, sout, err := cc.Post("/api/v1/chats", map[string]any{
+				"title": *saveChat, "model": *modelF, "messages": smsgs,
+			})
+			if err != nil {
+				return err
+			}
+			if scode != 200 {
+				return fmt.Errorf("chat save: %s", sout)
+			}
+			fmt.Fprintf(os.Stderr, "saved chat %q\n", *saveChat)
 		}
 		return nil
 	case "export":

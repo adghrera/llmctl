@@ -706,6 +706,30 @@ export default function Prompts() {
                       Copy reply
                     </button>
                   )}
+                  {!runReply.busy && runReply.text && (
+                    <button
+                      className="btn sm"
+                      style={{ marginTop: 6, marginLeft: 6 }}
+                      title="save the rendered prompt and reply as a saved chat (CLI: prompts run -save, F839)"
+                      onClick={async () => {
+                        try {
+                          const c = await api.createChat({
+                            title: t.name,
+                            model: runModel,
+                            messages: [
+                              { role: "user", content: render.out },
+                              { role: "assistant", content: runReply.text },
+                            ],
+                          });
+                          ok(`saved as chat "${c.title}"`);
+                        } catch (e) {
+                          err(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                    >
+                      Save to chat
+                    </button>
+                  )}
                   </>
                 )}
               </div>

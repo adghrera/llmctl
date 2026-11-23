@@ -28,7 +28,7 @@ export default function Skills() {
   const [runInput, setRunInput] = useState("");
   const [runModel, setRunModel] = useState("");
   const [modelChoices, setModelChoices] = useState<string[]>([]);
-  const [runReply, setRunReply] = useState<{ id: string; text: string; busy: boolean } | null>(null);
+  const [runReply, setRunReply] = useState<{ id: string; prompt: string; text: string; busy: boolean } | null>(null);
 
   const runSkill = async (s: SkillRecord) => {
     if (!runModel) {
@@ -40,7 +40,7 @@ export default function Skills() {
       .join(runInput)
       .split("{{conversation}}")
       .join("(none)");
-    setRunReply({ id: s.id, text: "", busy: true });
+    setRunReply({ id: s.id, prompt: rendered, text: "", busy: true });
     try {
       const key = localStorage.getItem("llmctl.chat.key") ?? "";
       for await (const delta of chatStream(key, runModel, [{ role: "user", content: rendered }])) {
@@ -459,6 +459,30 @@ export default function Skills() {
                         </button>
                       )}
                     </div>
+                  )}
+                  {runReply && runReply.id === s.id && !runReply.busy && runReply.text && (
+                    <button
+                      className="btn sm"
+                      style={{ alignSelf: "flex-start" }}
+                      title="save the rendered skill and reply as a saved chat (CLI: skills run -save, F839)"
+                      onClick={async () => {
+                        try {
+                          const c = await api.createChat({
+                            title: s.manifest.name || s.manifest.short_name,
+                            model: runModel,
+                            messages: [
+                              { role: "user", content: runReply.prompt },
+                              { role: "assistant", content: runReply.text },
+                            ],
+                          });
+                          ok(`saved as chat "${c.title}"`);
+                        } catch (e) {
+                          err(e instanceof Error ? e.message : String(e));
+                        }
+                      }}
+                    >
+                      Save to chat
+                    </button>
                   )}
                 </div>
               )}
