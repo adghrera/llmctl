@@ -826,6 +826,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F813 | P3 | 813 | chats | Chat conversation deep-link | COMPLETED | The Chat URL now carries `?c=<id>`: opening /chat?c=ID loads that conversation, and opening, creating or importing a chat keeps the URL in sync (replace, no history spam) — shareable/bookmarkable conversations, twin of the Requests deep-link params. Verified live: served bundle carries the deep-link read. |
 | F814 | P3 | 814 | compare | Compare deep-link | COMPLETED | `/compare?models=a,b&p=...` pre-selects running instances and prefills the prompt; toggling selection keeps the URL in sync (replace) — shareable comparisons, Chat deep-link twin (F813). Verified live: served bundle carries the param read. |
 | F815 | P3 | 815 | batch | Batch retry-failed | COMPLETED | After a batch run with failures, a "Retry failed (N)" button re-runs just the failed prompts with the same options (run() refactored into runList). Verified live: served bundle carries the button. |
+| F816 | P3 | 816 | daemon | Daemon config file for up defaults | COMPLETED | `$LLMCTL_HOME/config.json` now provides `llmctl up` defaults (addr, rate_rps, rate_burst, max_inflight, api_key); explicit flags win. New `llmctl config [-json]` shows the file and effective defaults. Verified live: daemon started on the config's :9998 with no flags; config show printed both states. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

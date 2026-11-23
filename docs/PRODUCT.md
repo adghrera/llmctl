@@ -14,6 +14,11 @@ with a web UI and a management API for everything.
 - `http://127.0.0.1:8080/v1/...` — OpenAI-compatible gateway
 - `http://127.0.0.1:8080/api/v1/...` — management API
 
+`$LLMCTL_HOME/config.json` can set `up` defaults — `addr`, `rate_rps`,
+`rate_burst`, `max_inflight`, `api_key` — so plain `llmctl up` picks them
+up; explicit flags always win. `llmctl config [-json]` shows the file and
+the effective defaults (F816).
+
 ### Backends (pluggable)
 Built-in:
 - **llama.cpp** — installed from GitHub releases (auto asset pick per
@@ -808,6 +813,8 @@ survives the periodic UI re-render.
 
 ```
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
+                                    (defaults come from $LLMCTL_HOME/config.json when present, F816)
+llmctl config [-json]                (show the config file and effective up defaults, F816)
 llmctl down [-json]                      (prints "daemon stopped"; -json prints the raw response, F568)
 llmctl status [-json] [--csv] [-watch N] [-out FILE]   (-watch N: live refresh; -json: raw; --csv: running instances as id,model,uptime_sec (F790); -out writes the raw JSON to a file, refreshed each -watch tick, F466; version, uptime, running instances with
                                     uptime, gateway auth, today's usage)

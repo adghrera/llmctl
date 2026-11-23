@@ -47,6 +47,8 @@ func main() {
 		err = cmdDown(args)
 	case "status":
 		err = cmdStatus(args)
+	case "config":
+		err = cmdConfig(args)
 	case "doctor":
 		err = cmdDoctor(args)
 	case "gpu":
@@ -198,6 +200,7 @@ func usage() {
 
 Usage:
   llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
+  llmctl config [-json]
   llmctl down [-json]
   llmctl status [-json] [-watch N] [-out FILE]
   llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]
@@ -329,12 +332,33 @@ func reorderFlags(args []string) []string {
 // ---- commands ----
 
 func cmdUp(args []string) error {
+	// $LLMCTL_HOME/config.json provides defaults; flags override (F816).
+	cfg, _, err := daemon.LoadFileConfig()
+	if err != nil {
+		return err
+	}
+	addrDef := cfg.Addr
+	if addrDef == "" {
+		addrDef = ":8080"
+	}
+	rateDef := 20.0
+	if cfg.RateRPS != nil {
+		rateDef = *cfg.RateRPS
+	}
+	burstDef := 60
+	if cfg.RateBurst != nil {
+		burstDef = *cfg.RateBurst
+	}
+	maxInfDef := 512
+	if cfg.MaxInflight != nil {
+		maxInfDef = *cfg.MaxInflight
+	}
 	fs := flag.NewFlagSet("up", flag.ExitOnError)
-	addr := fs.String("addr", ":8080", "listen address")
-	rate := fs.Float64("rate", 20, "sustained req/s per client")
-	burst := fs.Int("burst", 60, "burst size per client")
-	maxInf := fs.Int("max-inflight", 512, "max concurrent gateway requests")
-	apiKey := fs.String("api-key", "", "optional static gateway key")
+	addr := fs.String("addr", addrDef, "listen address")
+	rate := fs.Float64("rate", rateDef, "sustained req/s per client")
+	burst := fs.Int("burst", burstDef, "burst size per client")
+	maxInf := fs.Int("max-inflight", maxInfDef, "max concurrent gateway requests")
+	apiKey := fs.String("api-key", cfg.APIKey, "optional static gateway key")
 	fs.Parse(reorderFlags(args))
 	opts := daemon.Options{Addr: *addr, RateRPS: *rate, RateBurst: *burst, MaxInflight: *maxInf}
 	if *apiKey != "" {
@@ -343,6 +367,48 @@ func cmdUp(args []string) error {
 	fmt.Println("llmctl daemon starting on", *addr, "(Ctrl-C to stop)")
 	fmt.Println("web UI: http://127.0.0.1:8080/")
 	return daemon.Run(context.Background(), opts)
+}
+
+// cmdConfig shows the daemon config file and the defaults it provides (F816).
+func cmdConfig(args []string) error {
+	fs := flag.NewFlagSet("config", flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the raw config JSON (F816)")
+	fs.Parse(reorderFlags(args))
+	cfg, found, err := daemon.LoadFileConfig()
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		b, _ := json.MarshalIndent(cfg, "", "  ")
+		fmt.Println(string(b))
+		return nil
+	}
+	if !found {
+		fmt.Printf("no config file at %s — `up` uses built-in defaults\n", daemon.ConfigPath())
+		fmt.Println(`create one, e.g. {"addr": ":9090", "rate_rps": 30, "api_key": "sk-..."}`)
+		return nil
+	}
+	fmt.Printf("config: %s\n", daemon.ConfigPath())
+	fmt.Printf("  addr: %s\n", orDefault(cfg.Addr, "(default :8080)"))
+	fmt.Printf("  rate_rps: %s\n", orDefault(fmt.Sprint(deref(cfg.RateRPS)), "(default 20)"))
+	fmt.Printf("  rate_burst: %s\n", orDefault(fmt.Sprint(deref(cfg.RateBurst)), "(default 60)"))
+	fmt.Printf("  max_inflight: %s\n", orDefault(fmt.Sprint(deref(cfg.MaxInflight)), "(default 512)"))
+	fmt.Printf("  api_key: %s\n", orDefault(cfg.APIKey, "(none)"))
+	return nil
+}
+
+func orDefault(s, def string) string {
+	if s == "" || s == "<nil>" {
+		return def
+	}
+	return s
+}
+
+func deref[T any](p *T) any {
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 func cmdDown(args []string) error {
