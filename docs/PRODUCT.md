@@ -617,9 +617,11 @@ toggle for a light theme (choice remembered). Tabs:
    counters (entries/hits/misses/stores) and `llmctl cache clear [-json]` drops
    every cached reply (F841).
  - **File CLI** — `llmctl files [list|upload <path> [-name X]|cat <id>|delete
-   <id>] [--csv] [-json] [-stats]` covers the whole uploaded-files API from the shell, including
-   uploads (F219, F243), CSV inventory export (F381), and a `-stats` per-content-type
-   roll-up — files, bytes, last upload (F631).
+   <id>|prune [-before D|-older-than N] [-yes]] [--csv] [-json] [-stats]` covers the whole uploaded-files API from the shell, including
+   uploads (F219, F243), CSV inventory export (F381), a `-stats` per-content-type
+   roll-up — files, bytes, last upload (F631), and `prune`, the chats-prune twin
+   that deletes uploads older than a cutoff — dry-run unless `-yes`, and it
+   refuses to prune everything (F844).
 - **File upload** — upload text-based files stored at
   `~/.llmctl/files/<id>/`. REST API: POST /api/v1/files (multipart),
   GET /api/v1/files, GET /api/v1/files/{id}/content, DELETE /api/v1/files/{id},
@@ -633,7 +635,9 @@ toggle for a light theme (choice remembered). Tabs:
   (twin of `files -json`, F716), a per-row Download button saving the stored
   bytes (twin of `files cat -out`, F745), a text-file View preview with a Copy
   button for the content (F761), a Stats toggle rolling the
-  list up per content type mirroring `files -stats` (F637), and drag-and-drop upload —
+  list up per content type mirroring `files -stats` (F637), a "Prune old (N)"
+  button deleting uploads 30+ days old (UI twin of `files prune -older-than 30
+  -yes`, F844), and drag-and-drop upload —
   drop a file onto the upload card to upload it directly (F452). Text files are stored as-is;
   PDF and DOCX uploads have their text extracted automatically (F053).
 - **Cost tracking** — track token usage and estimate costs per API key and per

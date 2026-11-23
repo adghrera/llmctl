@@ -62,6 +62,23 @@ export default function Files() {
     }
   };
 
+  // Files uploaded 30+ days ago — UI twin of `llmctl files prune -older-than 30 -yes` (F844).
+  const idleCutoff = Date.now() - 30 * 86400000;
+  const idleFiles = files.filter((f) => new Date(f.entry.created_at).getTime() < idleCutoff);
+  const pruneIdle = async () => {
+    if (!window.confirm(`Remove ${idleFiles.length} file(s) uploaded 30+ days ago?`)) return;
+    setBusy(true);
+    try {
+      for (const f of idleFiles) await api.deleteFile(f.id);
+      ok(`pruned ${idleFiles.length} old file(s)`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   // Free-form tags, comma-separated in the prompt (F700); empty clears.
   const tagFile = async (f: FileEntry) => {
     const next = window.prompt(`Tags for "${f.entry.filename}" (comma-separated, empty clears):`, (f.entry.tags ?? []).join(", "));
@@ -251,6 +268,16 @@ export default function Files() {
           >
             Export JSON
           </button>
+          {idleFiles.length > 0 && (
+            <button
+              className="btn sm danger"
+              disabled={busy}
+              title={`remove ${idleFiles.length} file(s) uploaded 30+ days ago (CLI: llmctl files prune -older-than 30 -yes)`}
+              onClick={pruneIdle}
+            >
+              Prune old ({idleFiles.length})
+            </button>
+          )}
         </div>
         {files.length === 0 && (
           <div className="empty muted" style={{ padding: "10px 0" }}>

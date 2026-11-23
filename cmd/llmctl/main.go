@@ -295,7 +295,7 @@ Usage:
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
   llmctl cache stats [-json] | cache clear [-json]   (opt-in gateway response cache: X-LLMCtrl-Cache: 1 on non-streaming chat calls)
-  llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
+  llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>|prune [-before D|-older-than N] [-yes]] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
   llmctl chat [--model ID] [--key KEY] [-prompt TEXT | piped stdin = one-shot] [-agent] [-save TITLE | -chat ID | -continue] [-kb ID] [-json] [-temperature T] [-max-tokens N] [-out FILE]
@@ -2672,7 +2672,7 @@ var llmSubCommands = map[string]string{
 	"backups":   "list create restore verify prune download delete",
 	"catalog":   "list install",
 	"chats":     "list show search export export-all import fork rename pin unpin tag retag prune delete delete-all",
-	"files":     "list upload cat tag delete",
+	"files":     "list upload cat tag delete prune",
 	"jobs":      "wait show clear",
 	"kb":        "list show create update tag retag docs doc add-doc export search search-all embed delete",
 	"key":       "generate duplicate show note tag retag update enable disable rotate list revoke prune reset-usage",
@@ -12475,8 +12475,88 @@ func cmdFiles(args []string) error {
 		}
 		fmt.Printf("deleted %s\n", fdfs.Arg(0))
 		return nil
+	case "prune":
+		// Delete uploads older than a cutoff — the chats prune twin for
+		// files; dry-run unless -yes (F844).
+		pfs := flag.NewFlagSet("files prune", flag.ExitOnError)
+		before := pfs.String("before", "", "prune files uploaded before this date (YYYY-MM-DD)")
+		older := pfs.Int("older-than", 0, "prune files uploaded more than N days ago")
+		yes := pfs.Bool("yes", false, "actually delete (default is a dry run)")
+		pj := pfs.Bool("json", false, "print the prune result as JSON")
+		pfs.Parse(reorderFlags(rest))
+		if *before == "" && *older == 0 {
+			return fmt.Errorf("refusing to prune everything — pass -before YYYY-MM-DD and/or -older-than N")
+		}
+		var cutoff time.Time
+		if *before != "" {
+			t, err := time.Parse("2006-01-02", *before)
+			if err != nil {
+				return fmt.Errorf("-before: %w", err)
+			}
+			cutoff = t
+		}
+		if *older > 0 {
+			c := time.Now().AddDate(0, 0, -*older)
+			if cutoff.IsZero() || c.After(cutoff) {
+				cutoff = c
+			}
+		}
+		code, out, err := cc.Get("/api/v1/files")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("files returned %d: %s", code, out)
+		}
+		var list []struct {
+			ID    string `json:"id"`
+			Entry struct {
+				Filename  string    `json:"filename"`
+				CreatedAt time.Time `json:"created_at"`
+			} `json:"entry"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return err
+		}
+		var doomed []string
+		for _, f := range list {
+			if f.Entry.CreatedAt.Before(cutoff) {
+				doomed = append(doomed, f.ID)
+			}
+		}
+		if !*yes {
+			fmt.Printf("dry run: %d file(s) older than %s would be pruned (pass -yes to delete)\n",
+				len(doomed), cutoff.Format("2006-01-02"))
+			for _, id := range doomed {
+				for _, f := range list {
+					if f.ID == id {
+						fmt.Printf("  %-16s %s\n", f.ID, f.Entry.Filename)
+						break
+					}
+				}
+			}
+			return nil
+		}
+		var deleted []string
+		for _, id := range doomed {
+			dcode, dout, err := cc.Delete("/api/v1/files/" + url.PathEscape(id))
+			if err != nil {
+				return err
+			}
+			if dcode != 200 {
+				return fmt.Errorf("delete %s: %s", id, dout)
+			}
+			deleted = append(deleted, id)
+		}
+		if *pj {
+			b, _ := json.Marshal(map[string]any{"deleted": deleted})
+			fmt.Println(string(b))
+			return nil
+		}
+		fmt.Printf("pruned %d file(s)\n", len(deleted))
+		return nil
 	default:
-		return fmt.Errorf("usage: llmctl files [list|cat <id>|delete <id>] [-json]")
+		return fmt.Errorf("usage: llmctl files [list|cat <id>|delete <id>|prune [-before D|-older-than N] [-yes]] [-json]")
 	}
 }
 
