@@ -21,7 +21,10 @@ import (
 
 // captureBackend records the system message of the chat request it receives
 // and answers with a plain reply (no tool call).
-type captureBackend struct{ system string }
+type captureBackend struct {
+	system string
+	body   map[string]any // full decoded request body (F829)
+}
 
 func (g *captureBackend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b, _ := io.ReadAll(r.Body)
@@ -35,6 +38,7 @@ func (g *captureBackend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(in.Messages) > 0 {
 		g.system = in.Messages[0].Content
 	}
+	_ = json.Unmarshal(b, &g.body)
 	w.Header().Set("Content-Type", "text/event-stream")
 	chunk := map[string]any{"choices": []map[string]any{
 		{"delta": map[string]string{"content": "answer."}},
@@ -130,5 +134,26 @@ func TestChatAgentToolFilter(t *testing.T) {
 		if !strings.Contains(sys, want) {
 			t.Fatalf("%s missing from full prompt: %q", want, sys)
 		}
+	}
+}
+
+// TestChatAgentSamplingPassthrough checks that maxTokens/temperature sent by
+// the client reach the gateway request body (F829).
+func TestChatAgentSamplingPassthrough(t *testing.T) {
+	be := &captureBackend{}
+	s := &Server{gw: newCaptureGW(t, be), searcher: websearch.New(), agentTool: &stubTool{}}
+	req := httptest.NewRequest("POST", "/api/v1/chat/agent",
+		strings.NewReader(`{"model":"m","messages":[{"role":"user","content":"x"}],"maxTokens":123,"temperature":0.42}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	s.chatAgent(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d body=%s", rec.Code, rec.Body.String())
+	}
+	if mt, _ := be.body["max_tokens"].(float64); mt != 123 {
+		t.Fatalf("max_tokens = %v, want 123", be.body["max_tokens"])
+	}
+	if tp, _ := be.body["temperature"].(float64); tp != 0.42 {
+		t.Fatalf("temperature = %v, want 0.42", be.body["temperature"])
 	}
 }

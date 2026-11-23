@@ -13590,6 +13590,12 @@ func cmdChat(args []string) error {
 		if *agentMaxSteps > 0 { // twin of the Chat page max-steps input (F828)
 			agentBody["maxSteps"] = *agentMaxSteps
 		}
+		if *maxTok > 0 { // conversation sampling now applies in agent mode (F829)
+			agentBody["maxTokens"] = *maxTok
+		}
+		if *temp >= 0 {
+			agentBody["temperature"] = *temp
+		}
 		body, _ := json.Marshal(agentBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/api/v1/chat/agent", strings.NewReader(string(body)))
 		if err != nil {

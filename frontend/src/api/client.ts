@@ -1024,6 +1024,7 @@ export async function* agentStream(
     model: string;
     messages: { role: string; content: string }[];
     maxSteps?: number;
+    maxTokens?: number; // conversation max-tokens, honored in agent mode (F829)
     temperature?: number;
     requireApproval?: boolean;
     tools?: string[]; // built-in tools to enable; [] = none, omit = all (F820)

@@ -266,7 +266,9 @@ toggle for a light theme (choice remembered). Tabs:
   agent; the system prompt only advertises the enabled tools, and the choice
   persists in the browser
   (F820, installed tools F823). A "max steps" input caps the agent's tool
-  steps per reply (1–10, default 5; CLI `-max-steps`, F828). A collapsible "System prompt" editor sets a per-conversation
+  steps per reply (1–10, default 5; CLI `-max-steps`, F828), and the
+  conversation's max-tokens/temperature inputs apply in agent mode too
+  (F829). A collapsible "System prompt" editor sets a per-conversation
   system prompt sent with every request (F063), persisted in the browser
   across reloads (F762), and the same panel holds
   optional max-tokens/temperature inputs for the conversation (F360), also

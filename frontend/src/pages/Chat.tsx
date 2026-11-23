@@ -497,6 +497,8 @@ export default function Chat() {
           messages: history,
           requireApproval,
           maxSteps: Number(maxSteps) > 0 ? Math.min(Number(maxSteps), 10) : undefined, // agent step cap (F828)
+          maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined, // conversation sampling now applies in agent mode (F829)
+          temperature: temp.trim() !== "" ? Number(temp) : undefined,
           tools: [
             ...Array.from(agentTools),
             ...installedTools.map((t) => `tool:${t.id}`).filter((n) => !agentOff.has(n)),
