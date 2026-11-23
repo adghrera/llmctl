@@ -275,6 +275,8 @@ toggle for a light theme (choice remembered). Tabs:
   regenerated in place, the last user message can be pulled back into
   the input for editing and resending (F064), and any single message can be
   deleted with a ✕ button that persists the trimmed conversation (F824).
+  A 📎 button attaches a local text file (≤512 KiB) as context for the next
+  message — the browser twin of `llmctl chat -file` (F825).
   Replies render as markdown
   (built-in safe renderer: code fences, lists, links, emphasis) and every
   message has a hover copy button (F067) and a →P button that saves it as a

@@ -62,6 +62,8 @@ export default function Chat() {
   const [find, setFind] = useState(""); // find-in-conversation query (F812)
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [localFile, setLocalFile] = useState<{ name: string; text: string } | null>(null); // attached local file for the next message (F825)
+  const attachFileRef = useRef<HTMLInputElement>(null);
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop in-flight stream (F754)
   const [showKey, setShowKey] = useState(!key);
@@ -423,6 +425,13 @@ export default function Chat() {
         err(e instanceof Error ? e.message : `failed to load file "${fileName}"`);
         return;
       }
+    }
+
+    // Local file attachment (F825): the picked file is sent as context
+    // before the question, like Compare's local-file context (F733).
+    if (localFile && !fileMatch) {
+      fileMsg = { role: "user", content: `File: ${localFile.name}\n\n${localFile.text}` };
+      setLocalFile(null);
     }
 
     // KB context retrieval via vector search; multiple KBs are searched and
@@ -1341,7 +1350,37 @@ export default function Chat() {
             </span>
           )}
           </div>
-          <div style={{ alignSelf: "flex-end" }}>
+          <div style={{ alignSelf: "flex-end", display: "flex", gap: 6, alignItems: "flex-end" }}>
+            <input
+              ref={attachFileRef}
+              type="file"
+              accept=".txt,.md,.json,.yaml,.yml,.csv,.log,.go,.py,.js,.ts,.tsx,.jsx,.rs,.c,.h,.sh,.toml,.ini,.html,.css,.xml"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                if (f.size > 512 * 1024) {
+                  err("file too large (max 512 KiB)");
+                  return;
+                }
+                try {
+                  setLocalFile({ name: f.name, text: await f.text() });
+                } catch {
+                  err("could not read file");
+                }
+              }}
+            />
+            <button
+              className="btn"
+              title={localFile ? `remove attached file ${localFile.name}` : "attach a local text file as context for the next message (CLI: llmctl chat -file)"}
+              onClick={() => {
+                if (localFile) setLocalFile(null);
+                else attachFileRef.current?.click();
+              }}
+            >
+              {localFile ? `✕ ${localFile.name}` : "📎"}
+            </button>
             {streaming ? (
               <button
                 className="btn danger"

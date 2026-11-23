@@ -835,6 +835,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F822 | P3 | 822 | ui | Alt+1–9 page jump shortcuts | COMPLETED | Global keyboard shortcuts: Alt+1…9 jump to the first nine sidebar pages (Overview…Memory); listed in the ? shortcut help overlay. Verified live: served bundle carries the help entry. |
 | F823 | P3 | 823 | chats | Tool toggles cover installed tools | COMPLETED | The Chat agent toggle row now also lists enabled installed tools (`tool:<id>`, off-list persisted); the API filters them out of the tool map and the prompt when the `tools` array omits them (MCP tools always stay). Covered by TestChatAgentToolFilter (calculator-only, installed-only, and default cases) plus served-bundle check. |
 | F824 | P3 | 824 | chats | Chat delete single message | COMPLETED | Every chat message now has a ✕ button (when not streaming) that removes just that message and persists the trimmed conversation — drop a bad prompt or reply without editing everything. Verified live: served bundle carries the button. |
+| F825 | P3 | 825 | chats | Chat local-file attach | COMPLETED | The Chat input gained a 📎 button: pick any local text file (≤512 KiB) and its contents are sent as context before the next message (button shows ✕ name to detach) — browser twin of `llmctl chat -file` (F669) and Compare's file context (F733). Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
