@@ -362,7 +362,8 @@ toggle for a light theme (choice remembered). Tabs:
   `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable
   and Export CSV / Export JSON buttons on the installed list (F395, F715),
   per-skill Export JSON
-  (manifest, CLI parity) and an Import JSON button on the list (F415).
+  (manifest, CLI parity) and an Import JSON button on the list (F415), plus a
+  per-skill Copy prompt button for the template (F784).
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
   and plain chat modes.

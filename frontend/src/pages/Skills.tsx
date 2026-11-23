@@ -324,6 +324,18 @@ export default function Skills() {
                       </button>
                       <button
                         className="btn sm"
+                        title="copy the skill's prompt template to the clipboard (F784)"
+                        onClick={() => {
+                          navigator.clipboard
+                            ?.writeText(m.prompt_template || "")
+                            .then(() => ok("copied"))
+                            .catch(() => {});
+                        }}
+                      >
+                        Copy prompt
+                      </button>
+                      <button
+                        className="btn sm"
                         title="download the manifest JSON (CLI: llmctl skills export)"
                         onClick={() => exportSkill(s)}
                       >

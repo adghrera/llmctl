@@ -794,6 +794,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F781 | P3 | 781 | usage | Usage per-model column sorting | COMPLETED | The Usage per-model table headers (model/requests/errors/p50/p95/p99/ttft/tok-s/prompt/completion/total) are now clickable to sort, with a direction arrow — sorting family extended (F774-F780). Verified live: served bundle carries the headers. |
 | F782 | P3 | 782 | tools | Tool test-run Copy output | COMPLETED | The Tools page test-run result gained a Copy output button for the run stdout/stderr — copy family extended to tool runs. Verified live: served bundle carries the button. |
 | F783 | P3 | 783 | mcp | MCP test result Copy JSON | COMPLETED | The MCP server test-result card gained a Copy JSON button for the advertised tools list — copy family extended beside its Export CSV/JSON. Verified live: served bundle carries the button. |
+| F784 | P3 | 784 | skills | Skill Copy prompt button | COMPLETED | Each Skills row gained a Copy prompt button copying the skill's prompt template to the clipboard — copy family extended to skills. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
