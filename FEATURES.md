@@ -828,6 +828,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F815 | P3 | 815 | batch | Batch retry-failed | COMPLETED | After a batch run with failures, a "Retry failed (N)" button re-runs just the failed prompts with the same options (run() refactored into runList). Verified live: served bundle carries the button. |
 | F816 | P3 | 816 | daemon | Daemon config file for up defaults | COMPLETED | `$LLMCTL_HOME/config.json` now provides `llmctl up` defaults (addr, rate_rps, rate_burst, max_inflight, api_key); explicit flags win. New `llmctl config [-json]` shows the file and effective defaults. Verified live: daemon started on the config's :9998 with no flags; config show printed both states. |
 | F817 | P3 | 817 | instances | Instance duplicate | COMPLETED | Instances page rows gained a Duplicate button (prompt for a new name, starts a second instance with the same model/backend/vars — replica helper), and `llmctl start --copy INSTANCE` is the CLI twin (model/backend/vars inherited, name defaults to `<id>-copy`). Verified live: `start --copy so -instance f817dup` started the copy; served bundle carries the button. |
+| F818 | P3 | 818 | chats | Chat input token estimate | COMPLETED | The Chat input shows a live "≈N tok" estimate under the textarea (~4 chars/token, same rule as `llmctl count`). Verified live: served bundle carries the hint. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

@@ -255,7 +255,8 @@ toggle for a light theme (choice remembered). Tabs:
   token usage from the upstream usage chunk (shown per message and as a
   conversation total); other messages fall back to an estimate
   (~4 chars/token); the conversation shows a context-window bar
-  (used vs. model limit). When context reaches 98% of the model's limit,
+  (used vs. model limit), and the input box shows a live "≈N tok"
+  estimate of the pending message (same rule, F818). When context reaches 98% of the model's limit,
   older messages are auto-trimmed (system prompt and recent turns kept).
   In agent mode an optional "Ask before tool calls" gate shows each pending
   tool call (name + arguments) inline and runs it only after you approve

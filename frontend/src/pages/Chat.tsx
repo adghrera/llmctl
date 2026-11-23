@@ -1238,9 +1238,10 @@ export default function Chat() {
           </div>
         )}
         <div className="row" style={{ marginTop: 12 }}>
+          <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 2 }}>
           <textarea
             rows={2}
-            style={{ flex: 1, minWidth: 200 }}
+            style={{ width: "100%" }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1255,6 +1256,12 @@ export default function Chat() {
                 : "Type a message (Enter to send, Shift+Enter for newline)"
             }
           />
+          {input.trim() !== "" && (
+            <span className="muted" style={{ fontSize: 11 }} title="rough estimate, ~4 chars/token — same rule as llmctl count (F818)">
+              ≈{Math.ceil(input.length / 4)} tok
+            </span>
+          )}
+          </div>
           <div style={{ alignSelf: "flex-end" }}>
             {streaming ? (
               <button
