@@ -537,7 +537,9 @@ toggle for a light theme (choice remembered). Tabs:
    manages them, `skills add <manifest.json>` creates one from a JSON
    manifest, `skills update <id> [-name N] [-desc D] [-template T] [-tags a,b]`
    edits one in place (F652), `skills retag <old> <new> | retag -rm <tag>`
-   bulk-renames or drops a tag across skills (F663) and `skills export <id>
+   bulk-renames or drops a tag across skills (F663), `skills run <short> -model M
+   [-input TEXT] [-system S] [-json] [-out FILE]` renders the template and streams
+   the reply (chat /s. twin, F836) and `skills export <id>
    [-out f]` dumps one back
    out (F245, F288, F305).
  - **Memory CLI** — `llmctl memory [filter] [-json] [-csv] [-out FILE] [-stats] [-tag T]` lists memory entries

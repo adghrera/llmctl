@@ -8372,7 +8372,7 @@ func cmdSkills(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "update", "export", "retag", "enable", "disable", "delete":
+		case "list", "show", "add", "update", "export", "retag", "enable", "disable", "delete", "run":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -8689,6 +8689,110 @@ func cmdSkills(args []string) error {
 			return nil
 		}
 		fmt.Print(string(out))
+		return nil
+	case "run":
+		// Render a skill template and send it to a model — CLI twin of the
+		// chat /s. invocation and the Skills page Run panel (F836).
+		rfs := flag.NewFlagSet("skills run", flag.ExitOnError)
+		input := rfs.String("input", "", "text to substitute for {{input}} (default: piped stdin)")
+		modelF := rfs.String("model", "", "model id to send to (required)")
+		keyF := rfs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled)")
+		system := rfs.String("system", "", "system message prepended to the request")
+		rjson := rfs.Bool("json", false, "print {model, reply} JSON instead of the reply text")
+		rout := rfs.String("out", "", "write the reply text to this file instead of stdout")
+		rfs.Parse(reorderFlags(rest))
+		if rfs.NArg() == 0 || *modelF == "" {
+			return fmt.Errorf("usage: llmctl skills run <short_name> -model M [-input TEXT] [-system S] [-key K] [-json] [-out FILE]")
+		}
+		code, out, err := cc.Get("/api/v1/skills/" + url.PathEscape(rfs.Arg(0)))
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skill %s: %s", rfs.Arg(0), out)
+		}
+		var sk struct {
+			Manifest struct {
+				PromptTemplate string `json:"prompt_template"`
+				Enabled        bool   `json:"enabled"`
+			} `json:"manifest"`
+		}
+		if err := json.Unmarshal(out, &sk); err != nil {
+			return err
+		}
+		if !sk.Manifest.Enabled {
+			return fmt.Errorf("skill %q is disabled", rfs.Arg(0))
+		}
+		text := *input
+		if text == "" {
+			if b, err := io.ReadAll(os.Stdin); err == nil {
+				text = strings.TrimSpace(string(b))
+			}
+		}
+		rendered := strings.ReplaceAll(sk.Manifest.PromptTemplate, "{{input}}", text)
+		rendered = strings.ReplaceAll(rendered, "{{conversation}}", "(none)")
+		msgs := []map[string]any{}
+		if strings.TrimSpace(*system) != "" {
+			msgs = append(msgs, map[string]any{"role": "system", "content": strings.TrimSpace(*system)})
+		}
+		msgs = append(msgs, map[string]any{"role": "user", "content": rendered})
+		b, _ := json.Marshal(map[string]any{"model": *modelF, "messages": msgs, "stream": true})
+		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		if *keyF != "" {
+			req.Header.Set("Authorization", "Bearer "+*keyF)
+		}
+		resp, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			gbody, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("chat returned %d: %s", resp.StatusCode, string(gbody))
+		}
+		var reply strings.Builder
+		rd := bufio.NewReader(resp.Body)
+		for {
+			l, rerr := rd.ReadString('\n')
+			if rerr != nil {
+				break
+			}
+			l = strings.TrimSpace(l)
+			if !strings.HasPrefix(l, "data:") {
+				continue
+			}
+			data := strings.TrimSpace(l[len("data:"):])
+			if data == "[DONE]" {
+				break
+			}
+			var chunk struct {
+				Choices []struct {
+					Delta struct {
+						Content string `json:"content"`
+					} `json:"delta"`
+				} `json:"choices"`
+			}
+			if json.Unmarshal([]byte(data), &chunk) == nil && len(chunk.Choices) > 0 {
+				reply.WriteString(chunk.Choices[0].Delta.Content)
+			}
+		}
+		content := reply.String()
+		if *rout != "" {
+			if err := os.WriteFile(*rout, []byte(content+"\n"), 0o644); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "wrote %s (%d bytes)\n", *rout, len(content)+1)
+		} else if *rjson {
+			jb, _ := json.Marshal(map[string]any{"model": *modelF, "reply": content})
+			fmt.Println(string(jb))
+		} else {
+			fmt.Println(content)
+		}
 		return nil
 	case "export":
 		// Dump a skill's manifest JSON (feed it to `skills add` elsewhere, F305).
