@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, SkillRecord } from "../api/client";
+import { api, chatStream, SkillRecord } from "../api/client";
 import { ok, err } from "../ui/toast";
 
 export default function Skills() {
@@ -23,6 +23,35 @@ export default function Skills() {
     tags: "",
   });
   const [busy, setBusy] = useState(false);
+  // Run-a-skill panel: render {{input}} and stream a reply (Prompts Run twin, F833).
+  const [runFor, setRunFor] = useState<string | null>(null);
+  const [runInput, setRunInput] = useState("");
+  const [runModel, setRunModel] = useState("");
+  const [modelChoices, setModelChoices] = useState<string[]>([]);
+  const [runReply, setRunReply] = useState<{ id: string; text: string; busy: boolean } | null>(null);
+
+  const runSkill = async (s: SkillRecord) => {
+    if (!runModel) {
+      err("pick a model first");
+      return;
+    }
+    const rendered = (s.manifest.prompt_template || "")
+      .split("{{input}}")
+      .join(runInput)
+      .split("{{conversation}}")
+      .join("(none)");
+    setRunReply({ id: s.id, text: "", busy: true });
+    try {
+      const key = localStorage.getItem("llmctl.chat.key") ?? "";
+      for await (const delta of chatStream(key, runModel, [{ role: "user", content: rendered }])) {
+        setRunReply((r) => (r ? { ...r, text: r.text + delta } : r));
+      }
+      setRunReply((r) => (r ? { ...r, busy: false } : r));
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+      setRunReply((r) => (r ? { ...r, busy: false } : r));
+    }
+  };
 
   const skillTags = Array.from(new Set(skills.flatMap((s) => s.manifest.tags ?? []))).sort();
   const shownSkills = tagFilter
@@ -324,6 +353,22 @@ export default function Skills() {
                       </button>
                       <button
                         className="btn sm"
+                        title="render and run this skill against a model (Prompts Run twin, F833)"
+                        onClick={() => {
+                          if (runFor === s.id) {
+                            setRunFor(null);
+                            return;
+                          }
+                          setRunFor(s.id);
+                          if (modelChoices.length === 0) {
+                            api.models().then((ms) => setModelChoices(ms.map((m) => m.id))).catch(() => {});
+                          }
+                        }}
+                      >
+                        {runFor === s.id ? "Hide run" : "Run"}
+                      </button>
+                      <button
+                        className="btn sm"
                         title="copy the skill's prompt template to the clipboard (F784)"
                         onClick={() => {
                           navigator.clipboard
@@ -357,6 +402,66 @@ export default function Skills() {
                   )}
                 </div>
               </div>
+              {runFor === s.id && !isEditing && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                  <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                    <input
+                      style={{ flex: 1, minWidth: 180 }}
+                      placeholder="{{input}} for the template"
+                      value={runInput}
+                      onChange={(e) => setRunInput(e.target.value)}
+                    />
+                    <select
+                      style={{ width: 180 }}
+                      title="model to send the rendered skill to"
+                      value={runModel}
+                      onChange={(e) => setRunModel(e.target.value)}
+                    >
+                      <option value="">model…</option>
+                      {modelChoices.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn sm primary"
+                      disabled={runReply?.busy || !runModel}
+                      onClick={() => runSkill(s)}
+                    >
+                      {runReply?.busy && runReply.id === s.id ? "Running…" : "Run"}
+                    </button>
+                  </div>
+                  {runReply && runReply.id === s.id && (
+                    <div style={{ position: "relative" }}>
+                      <pre
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          whiteSpace: "pre-wrap",
+                          background: "var(--code-background, rgba(127,127,127,0.08))",
+                          padding: 8,
+                          borderRadius: 4,
+                        }}
+                      >
+                        {runReply.text}
+                      </pre>
+                      {runReply.text && (
+                        <button
+                          className="btn xs copy"
+                          style={{ position: "absolute", top: 4, right: 4 }}
+                          title="copy the reply"
+                          onClick={() =>
+                            navigator.clipboard?.writeText(runReply.text).then(() => ok("copied")).catch(() => {})
+                          }
+                        >
+                          ⧉
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               {isEditing && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <div className="row" style={{ gap: 8 }}>

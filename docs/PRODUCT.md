@@ -397,7 +397,8 @@ toggle for a light theme (choice remembered). Tabs:
   and Export CSV / Export JSON buttons on the installed list (F395, F715),
   per-skill Export JSON
   (manifest, CLI parity) and an Import JSON button on the list (F415), plus a
-  per-skill Copy prompt button for the template (F784).
+  per-skill Copy prompt button for the template (F784) and a Run panel that
+  renders {{input}} and streams a model reply inline (Prompts Run twin, F833).
   When invoked, the rendered skill prompt is inserted as a user message right
   before the user's input, after prior conversation history. Works in both agent
   and plain chat modes.
