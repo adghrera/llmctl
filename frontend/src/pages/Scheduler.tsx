@@ -20,6 +20,7 @@ export default function Scheduler() {
   const [sTemp, setSTemp] = useState(""); // chat sampling temperature (F808)
   const [sMaxTok, setSMaxTok] = useState(""); // chat max tokens (F808)
   const [sSeed, setSSeed] = useState(""); // chat sampling seed (F808)
+  const [sCache, setSCache] = useState(false); // chat runs use the response cache (F842)
   const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `scheduler list -tag` twin (F707)
   const [sortKey, setSortKey] = useState(""); // column sort over the task list (F779)
   const [sortDir, setSortDir] = useState<1 | -1>(1);
@@ -123,6 +124,7 @@ export default function Scheduler() {
         temperature: kind === "chat" && sTemp.trim() !== "" ? Number(sTemp) : undefined,
         max_tokens: kind === "chat" && Number(sMaxTok) > 0 ? Number(sMaxTok) : undefined,
         seed: kind === "chat" && sSeed.trim() !== "" ? Number(sSeed) : undefined,
+        cache: kind === "chat" && sCache ? true : undefined,
         instance: instance.trim() || undefined,
         keep: kind === "backup" ? keep : undefined,
         webhook_url: webhookUrl.trim() || undefined,
@@ -141,6 +143,7 @@ export default function Scheduler() {
       setSTemp("");
       setSMaxTok("");
       setSSeed("");
+      setSCache(false);
       setKb([]);
       await load();
     } catch (e) {
@@ -286,6 +289,34 @@ export default function Scheduler() {
     }
   };
 
+  // Flip the response-cache flag, keeping the rest of the spec (F842).
+  const toggleCache = async (s: ScheduleSpec) => {
+    setBusy(true);
+    try {
+      await api.updateSchedule(s.id, {
+        name: s.name,
+        cron_expr: s.cron_expr,
+        model: s.model,
+        prompt: s.prompt,
+        system: s.system,
+        kb: s.kb,
+        instance: s.instance,
+        enabled: s.enabled,
+        webhook_url: s.webhook_url,
+        temperature: s.temperature,
+        max_tokens: s.max_tokens,
+        seed: s.seed,
+        cache: !s.cache,
+      });
+      ok(`cache ${!s.cache ? "on" : "off"} for "${s.name}"`);
+      await load();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const runNow = async (s: ScheduleSpec) => {
     setBusy(true);
     try {
@@ -420,6 +451,14 @@ export default function Scheduler() {
                 value={sSeed}
                 onChange={(e) => setSSeed(e.target.value)}
               />
+              <label
+                className="muted small"
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                title="answer identical prompts from the gateway response cache (F842)"
+              >
+                <input type="checkbox" checked={sCache} onChange={(e) => setSCache(e.target.checked)} />
+                cache
+              </label>
             </>
           )}
           <input
@@ -568,6 +607,17 @@ export default function Scheduler() {
                       <span className="muted small" title={`knowledge base: ${s.kb}`}>
                         {" "}· kb:{s.kb}
                       </span>
+                    ) : null}
+                    {(s.kind || "chat") === "chat" ? (
+                      <button
+                        className="badge"
+                        data-tone={s.cache ? "success" : undefined}
+                        style={{ marginLeft: 6, cursor: "pointer" }}
+                        title={s.cache ? "response cache on — click to disable (F842)" : "click to answer identical prompts from the response cache (F842)"}
+                        onClick={() => toggleCache(s)}
+                      >
+                        cache
+                      </button>
                     ) : null}
                   </td>
                   <td style={{ textAlign: "center", fontSize: 12 }}>

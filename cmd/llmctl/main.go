@@ -274,7 +274,7 @@ Usage:
   llmctl catalog list [-json|-csv|-out FILE] | install <id> [-json] [--wait]
   llmctl scheduler list [-json|-csv|-out FILE] [-tag T]
   llmctl scheduler show <id> [-json] [-out FILE]
-  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-json]
+  llmctl scheduler add --name N --cron "0 9 * * *" [--kind chat|instance.start|instance.stop|backup] [--model ID] [--prompt TEXT] [--instance ID] [--kb ID] [-cache] [-json]
   llmctl scheduler duplicate <id> [-name N] [-json] | run|enable|disable <id> | delete <id> [-json]
   llmctl scheduler tag <id> [a,b] [-json] | scheduler retag <old> <new> | retag -rm <tag> [-json]
   llmctl scheduler update <id> [-name N] [-cron C] [-model M] [-prompt P] [-enabled true|false] [-kb ID] [-json]
@@ -5075,6 +5075,7 @@ func cmdScheduler(args []string) error {
 		temp := fs.Float64("temperature", -1, "sampling temperature for chat runs (-1 = model default, F808)")
 		maxTok := fs.Int("max-tokens", 0, "max tokens per reply for chat runs (0 = model default, F808)")
 		seed := fs.Int64("seed", -1, "sampling seed for reproducible chat replies (-1 = random, F808)")
+		cache := fs.Bool("cache", false, "chat runs answer identical prompts from the gateway response cache (F842)")
 		tags := fs.String("tags", "", "comma-separated tags (F702)")
 		ajson := fs.Bool("json", false, "print the raw created-task JSON (F563)")
 		fs.Parse(reorderFlags(rest))
@@ -5082,6 +5083,9 @@ func cmdScheduler(args []string) error {
 			"name": *name, "cron_expr": *cron, "kind": *kind,
 			"model": *model, "prompt": *prompt, "instance": *instance,
 			"enabled": true,
+		}
+		if *cache {
+			body["cache"] = true
 		}
 		if *kb != "" {
 			body["kb"] = *kb
@@ -5305,6 +5309,7 @@ func cmdScheduler(args []string) error {
 		temp := ufs.Float64("temperature", -1, "sampling temperature (chat kind, F810)")
 		maxTok := ufs.Int("max-tokens", 0, "max tokens per reply (chat kind, F810)")
 		seed := ufs.Int64("seed", -1, "sampling seed (chat kind, F810)")
+		cache := ufs.String("cache", "", "true | false — gateway response cache for chat runs (F842)")
 		sujson := ufs.Bool("json", false, "print the raw response JSON (F540)")
 		ufs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(id))
@@ -5365,7 +5370,16 @@ func cmdScheduler(args []string) error {
 		default:
 			return fmt.Errorf("-enabled must be true or false")
 		}
-		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" && *kb == "" && *system == "" && *temp < 0 && *maxTok <= 0 && *seed < 0 {
+		switch *cache {
+		case "":
+		case "true":
+			rec.Spec["cache"] = true
+		case "false":
+			rec.Spec["cache"] = false
+		default:
+			return fmt.Errorf("-cache must be true or false")
+		}
+		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" && *kb == "" && *system == "" && *temp < 0 && *maxTok <= 0 && *seed < 0 && *cache == "" {
 			return fmt.Errorf("nothing to change (pass at least one flag)")
 		}
 		delete(rec.Spec, "id")

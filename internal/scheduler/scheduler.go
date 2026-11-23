@@ -35,6 +35,7 @@ type Spec struct {
 	MaxTokens  int       `json:"max_tokens,omitempty"`  // optional max tokens per reply (chat only, F808)
 	Seed       *int64    `json:"seed,omitempty"`        // optional sampling seed for reproducible replies (chat only, F808)
 	Enabled    bool      `json:"enabled"`               // whether the task is active
+	Cache      bool      `json:"cache,omitempty"`       // chat runs opt into the gateway response cache (F842)
 	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
 	Tags       []string  `json:"tags,omitempty"`        // free-form labels for grouping tasks (F681)
 	LastRun    time.Time `json:"last_run"`              // last execution time

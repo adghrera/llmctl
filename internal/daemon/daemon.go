@@ -881,6 +881,11 @@ func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.S
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if rec.Spec.Cache {
+		// Opt into the gateway response cache (F842): identical prompts
+		// within the TTL are answered without an upstream call.
+		req.Header.Set("X-LLMCtrl-Cache", "1")
+	}
 	if internalTok != "" {
 		// Trusted in-daemon caller: passes gateway auth without a key (F365).
 		req.Header.Set("Authorization", "Bearer "+internalTok)
