@@ -133,6 +133,8 @@ func main() {
 		err = cmdMcp(args)
 	case "cost":
 		err = cmdCost(args)
+	case "cache":
+		err = cmdCache(args)
 	case "files":
 		err = cmdFiles(args)
 	case "settings":
@@ -292,6 +294,7 @@ Usage:
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
+  llmctl cache stats [-json] | cache clear [-json]   (opt-in gateway response cache: X-LLMCtrl-Cache: 1 on non-streaming chat calls)
   llmctl files [list|upload <path>|cat <id> [-out FILE]|tag <id> [a,b]|delete <id>] [--csv] [-json] [-out FILE on list] [-stats on list] [-tag T on list]
   llmctl settings [-json] [-out FILE] | llmctl settings set <flags> [-json] | settings test-webhook [-event E] [-message M] [-json]
   llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-file F|piped stdin|prompts…] [-json] [--csv] [-out FILE]
@@ -10892,6 +10895,68 @@ func cmdMcp(args []string) error {
 		return nil
 	default:
 		return fmt.Errorf("unknown mcp subcommand %q (list|add|remove|enable|disable|test|call)", sub)
+	}
+}
+
+// cmdCache inspects and clears the gateway's opt-in response cache (F841).
+func cmdCache(args []string) error {
+	cc, err := daemon.NewControlClient()
+	if err != nil {
+		return err
+	}
+	sub, rest := "stats", args
+	if len(args) > 0 {
+		switch args[0] {
+		case "stats", "clear":
+			sub, rest = args[0], args[1:]
+		}
+	}
+	fs := flag.NewFlagSet("cache "+sub, flag.ExitOnError)
+	jsonOut := fs.Bool("json", false, "print the counters as JSON (for scripts)")
+	fs.Parse(reorderFlags(rest))
+	switch sub {
+	case "stats":
+		code, out, err := cc.Get("/api/v1/cache/stats")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("cache stats returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Println(strings.TrimSpace(string(out)))
+			return nil
+		}
+		var st struct {
+			Entries int `json:"entries"`
+			Hits    int `json:"hits"`
+			Misses  int `json:"misses"`
+			Stores  int `json:"stores"`
+			Max     int `json:"maxEntries"`
+			TTL     int `json:"ttlSeconds"`
+		}
+		if err := json.Unmarshal(out, &st); err != nil {
+			return err
+		}
+		fmt.Printf("entries: %d/%d · hits: %d · misses: %d · stores: %d · ttl: %ds\n",
+			st.Entries, st.Max, st.Hits, st.Misses, st.Stores, st.TTL)
+		return nil
+	case "clear":
+		code, out, err := cc.Delete("/api/v1/cache")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("cache clear returned %d: %s", code, out)
+		}
+		if *jsonOut {
+			fmt.Println(strings.TrimSpace(string(out)))
+			return nil
+		}
+		fmt.Println(strings.TrimSpace(string(out)))
+		return nil
+	default:
+		return fmt.Errorf("unknown cache subcommand %q (stats|clear)", sub)
 	}
 }
 

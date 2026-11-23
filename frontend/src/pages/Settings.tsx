@@ -36,6 +36,21 @@ export default function SettingsPage() {
     }
   };
   const [busy, setBusy] = useState(false);
+  // Gateway response-cache card: counters + clear (F841).
+  const [cacheSt, setCacheSt] = useState<{ entries: number; hits: number; misses: number; stores: number; maxEntries: number; ttlSeconds: number } | null>(null);
+  const loadCache = () => api.cacheStats().then(setCacheSt).catch(() => setCacheSt(null));
+  useEffect(() => {
+    loadCache();
+  }, []);
+  const clearCache = async () => {
+    try {
+      const r = await api.cacheClear();
+      ok(`cleared ${r.cleared} cached response(s)`);
+      await loadCache();
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    }
+  };
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [restoreBusy, setRestoreBusy] = useState(false);
   const [backups, setBackups] = useState<{ name: string; size: number; created: string }[]>([]);
@@ -794,6 +809,32 @@ export default function SettingsPage() {
               become healthy.
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Response cache</h2>
+        <p className="muted small" style={{ margin: "4px 0 12px" }}>
+          Opt-in gateway cache: clients send <code>X-LLMCtrl-Cache: 1</code> on a
+          non-streaming chat call and identical requests within the TTL are
+          answered from memory without an upstream. Cache hits log zero tokens.
+          CLI: <code>llmctl cache stats|clear</code>.
+        </p>
+        <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {cacheSt ? (
+            <span style={{ fontSize: 13 }}>
+              {cacheSt.entries}/{cacheSt.maxEntries} entries · {cacheSt.hits} hits · {cacheSt.misses} misses ·{" "}
+              {cacheSt.stores} stored · TTL {cacheSt.ttlSeconds}s
+            </span>
+          ) : (
+            <span className="muted" style={{ fontSize: 13 }}>gateway not reachable</span>
+          )}
+          <button className="btn sm" onClick={loadCache} title="refresh the cache counters">
+            Refresh
+          </button>
+          <button className="btn sm danger" onClick={clearCache} title="drop every cached response (CLI: llmctl cache clear)">
+            Clear cache
+          </button>
         </div>
       </div>
 

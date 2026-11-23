@@ -385,6 +385,7 @@ export default function Requests() {
                 <td className="mono">
                   {e.model || "—"}
                   {e.stream ? <span className="muted"> ⚡</span> : null}
+                  {e.cache === "hit" ? <span className="badge" title="served from the response cache (F841)"> cache</span> : null}
                 </td>
                 <td className="mono muted">{e.instance || "—"}</td>
                 <td className="mono muted">{e.key || "—"}</td>

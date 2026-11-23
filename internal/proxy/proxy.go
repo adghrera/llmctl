@@ -52,6 +52,7 @@ type Server struct {
 	startHook     func(model string) bool           // daemon-provided cold-start attempt (F100)
 	startMu       sync.Mutex                        // serializes concurrent cold starts (F100)
 	keyLimitHook  func(keyID, keyName, kind string) // daemon-provided alert on quota/budget rejections (F689)
+	respCache     *responseCache                    // opt-in response cache (F841)
 	handler       http.Handler
 	httpSrv       *http.Server
 }
@@ -114,6 +115,7 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		requireAuth:  &atomic.Bool{},
 		allowCORS:    &atomic.Bool{},
 		limiter:      newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
+		respCache:    newResponseCache(),
 		router:       router,
 		logger:       cfg.Logger,
 		maxInflight:  int64(cfg.MaxInflight),
@@ -242,11 +244,16 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := newRecordingResponseWriter(w)
 		next.ServeHTTP(rec, r)
+		// Cache miss path: remember the reply for identical future requests
+		// (opt-in response cache, F841).
+		if holder.CacheKey != "" && !holder.CacheHit && rec.status == 200 {
+			s.respCache.set(holder.CacheKey, rec.buf.Bytes(), rec.buf.Len() >= rec.cap)
+		}
 		var ttftMs float64
 		if holder.Stream && !rec.firstWrite.IsZero() {
 			ttftMs = float64(rec.firstWrite.Sub(start).Microseconds()) / 1000.0
 		}
-		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, holder.Instance, rec.status, float64(time.Since(start).Microseconds())/1000.0, ttftMs, holder.Stream, rec.buf.Bytes(), rid)
+		s.collector.record(holder.Model, holder.Key, holder.KeyLabel, holder.Instance, rec.status, float64(time.Since(start).Microseconds())/1000.0, ttftMs, holder.Stream, rec.buf.Bytes(), rid, holder.CacheHit)
 		s.logger.Debug("gateway request", "id", rid, "model", holder.Model, "instance", holder.Instance,
 			"status", rec.status, "ms", time.Since(start).Milliseconds(), "stream", holder.Stream)
 	})
@@ -620,6 +627,27 @@ func (s *Server) proxyAny(w http.ResponseWriter, r *http.Request, path string) {
 				return
 			}
 		}
+	}
+
+	// Opt-in response cache (F841): identical non-streaming chat requests
+	// within the TTL are answered from memory. The middleware stores the
+	// reply after this handler returns.
+	if strings.EqualFold(r.Header.Get("X-LLMCtrl-Cache"), "1") && !peek.Stream && path == "/v1/chat/completions" {
+		key := cacheKey(path, body)
+		if ref := modelRefFrom(r.Context()); ref != nil {
+			ref.CacheKey = key
+		}
+		if cached, ok := s.respCache.get(key); ok {
+			if ref := modelRefFrom(r.Context()); ref != nil {
+				ref.CacheHit = true
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-LLMCtrl-Cache", "hit")
+			w.WriteHeader(200)
+			w.Write(cached)
+			return
+		}
+		w.Header().Set("X-LLMCtrl-Cache", "miss")
 	}
 
 	targets, err := s.router.ResolveList(peek.Model)

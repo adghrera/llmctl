@@ -88,6 +88,11 @@ type modelRef struct {
 	// AllowedModels, when non-empty, restricts the request to these model
 	// names for the calling key (F089).
 	AllowedModels []string
+	// CacheKey is set when the request opted into the response cache
+	// (X-LLMCtrl-Cache: 1); the middleware stores the reply under it (F841).
+	CacheKey string
+	// CacheHit marks a reply served from the cache (F841).
+	CacheHit bool
 }
 
 type modelRefKey struct{}

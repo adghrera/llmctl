@@ -205,6 +205,8 @@ func (s *Server) Handler() http.Handler {
 	m.HandleFunc("DELETE /api/v1/jobs", s.clearJobs)
 	// Metrics
 	m.HandleFunc("GET /api/v1/metrics", s.metricsSnapshot)
+	m.HandleFunc("GET /api/v1/cache/stats", s.cacheStats)
+	m.HandleFunc("DELETE /api/v1/cache", s.cacheClear)
 	m.HandleFunc("GET /api/v1/usage/daily", s.dailyUsage)
 	m.HandleFunc("GET /api/v1/usage/keys", s.dailyKeyUsage)
 	m.HandleFunc("GET /api/v1/events", s.listEvents)
@@ -1436,6 +1438,25 @@ func (s *Server) metricsSnapshot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, s.gw.Metrics())
+}
+
+// cacheStats handles GET /api/v1/cache/stats — the gateway response-cache
+// counters (F841).
+func (s *Server) cacheStats(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway not running")
+		return
+	}
+	writeJSON(w, 200, s.gw.CacheStats())
+}
+
+// cacheClear handles DELETE /api/v1/cache — drops every cached reply (F841).
+func (s *Server) cacheClear(w http.ResponseWriter, r *http.Request) {
+	if s.gw == nil {
+		writeErr(w, 503, "gateway not running")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "cleared": s.gw.CacheClear()})
 }
 
 // dailyUsage handles GET /api/v1/usage/daily — the persisted UTC-date ->

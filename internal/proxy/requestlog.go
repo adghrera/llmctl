@@ -26,6 +26,7 @@ type RequestLogEntry struct {
 	Cost      float64   `json:"cost,omitempty"`  // estimated USD (F142)
 	Error     string    `json:"error,omitempty"` // short failure reason (F151)
 	Stream    bool      `json:"stream,omitempty"`
+	Cache     string    `json:"cache,omitempty"` // "hit" when served from the response cache (F841)
 }
 
 const requestLogSize = 256

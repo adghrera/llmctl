@@ -13,6 +13,7 @@ management API and web UI — all on **one port**.
  OpenAI SDKs / UI       │                                              │
                         │  /v1/*         OpenAI gateway                │
                         │    auth (hashed keys) · rate limit · cap     │
+                        │    opt-in response cache (X-LLMCtrl-Cache)   │
                         │    model→instance router                     │
                         │    http: reverse proxy (SSE, zero buffering) │
                         │    stdio: OpenAI↔llmctl-stdio/1 translator   │

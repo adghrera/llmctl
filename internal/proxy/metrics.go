@@ -103,12 +103,17 @@ func (m *metricsCollector) pricingFor(model string) cost.ModelPricing {
 }
 
 // record adds one completed gateway request. model may be "" (unknown).
-func (m *metricsCollector) record(model, key, keyLabel, instance string, status int, latencyMs, ttftMs float64, stream bool, respBody []byte, rid string) {
+// cacheHit marks a reply served from the response cache: its tokens are not
+// counted again so usage totals keep tracking real upstream spend (F841).
+func (m *metricsCollector) record(model, key, keyLabel, instance string, status int, latencyMs, ttftMs float64, stream bool, respBody []byte, rid string, cacheHit bool) {
 	var pTok, cTok int64
 	if stream {
 		pTok, cTok = scanUsageSSE(respBody)
 	} else {
 		pTok, cTok = scanUsageJSON(respBody)
+	}
+	if cacheHit {
+		pTok, cTok = 0, 0 // replayed reply: no upstream spend (F841)
 	}
 
 	m.mu.Lock()
@@ -240,6 +245,10 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 			}
 		}
 	}
+	cacheFlag := ""
+	if cacheHit {
+		cacheFlag = "hit"
+	}
 	m.reqLog.add(RequestLogEntry{
 		ID:        rid,
 		Time:      time.Now(),
@@ -255,8 +264,8 @@ func (m *metricsCollector) record(model, key, keyLabel, instance string, status 
 		Cost:      reqCost, // estimated USD (F142)
 		Error:     errDetail,
 		Stream:    stream,
+		Cache:     cacheFlag,
 	})
-
 	// Reservoir sample latencies so memory stays bounded.
 	if len(m.latSamples) < reservoirSize {
 		m.latSamples = append(m.latSamples, latencyMs)

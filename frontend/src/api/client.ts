@@ -423,6 +423,7 @@ export interface RequestLogEntry {
   cost?: number;
   error?: string;
   stream?: boolean;
+  cache?: string; // "hit" when served from the response cache (F841)
 }
 
 export interface Job {
@@ -592,6 +593,11 @@ export const api = {
   instanceLogs: (id: string, stream: "stdout" | "stderr" = "stderr", bytes = 65536) =>
     req<InstanceLogTail>(`/instances/${encodeURIComponent(id)}/logs?stream=${stream}&bytes=${bytes}`),
   metrics: () => req<GatewayMetrics>("/metrics"),
+  cacheStats: () =>
+    req<{ entries: number; hits: number; misses: number; stores: number; maxEntries: number; ttlSeconds: number }>(
+      "/cache/stats",
+    ),
+  cacheClear: () => req<{ ok: boolean; cleared: number }>("/cache", { method: "DELETE" }),
   dailyUsage: (days = 14) =>
     req<Record<string, Record<string, { requests: number; errors: number; prompt: number; comp: number; cost?: number }>>>(
       `/usage/daily?days=${days}`
