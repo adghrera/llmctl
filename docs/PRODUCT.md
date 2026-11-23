@@ -561,8 +561,9 @@ toggle for a light theme (choice remembered). Tabs:
    (twin of `memory update`, F746), a Retag button that renames or
    removes a tag across all entries mirroring `memory retag` (F643), and a Stats toggle
    that rolls the list up per tag, mirroring `memory -stats` (F632).
- - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T]` lists knowledge bases
-   (`-tag T` keeps only KBs carrying tag T exactly, F674);
+ - **KB CLI** — `llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T] [-stats]` lists knowledge bases
+   (`-tag T` keeps only KBs carrying tag T exactly, F674; `-stats` prints a per-KB
+   roll-up of docs/total size/newest doc with a totals line, F840);
    `kb create <name> [-desc X] [-tags a,b]`, `kb update <id> [-name N] [-desc D]`,
    `kb tag <id> [a,b]` / `kb retag <old> <new> | retag -rm <tag>` label KBs with
    free-form tags — the KB twin of model tags, shown by `kb show`, matched by
@@ -696,7 +697,8 @@ toggle for a light theme (choice remembered). Tabs:
   document content as context; several KBs can be selected at once (multi-select
   on the Chat page, comma-separated `-kb A,B` in the CLI) and the merged top
   chunks are injected (F666). Dedicated Knowledge Bases page with an
-  Export CSV and Export JSON buttons on the KB list (F393, F717) and per-KB Export/Import JSON
+  Export CSV and Export JSON buttons on the KB list (F393, F717), a total
+  document-size figure beside each KB's doc count (KB stats twin, F840), and per-KB Export/Import JSON
   (all documents as a [{filename, content}] array, the UI counterpart of
   `llmctl kb export`, F435); dropping a file onto the KB detail card uploads
   it as a document (F453). The per-document view modal has Copy and Download

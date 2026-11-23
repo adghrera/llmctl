@@ -288,7 +288,7 @@ Usage:
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
   llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|run <short> -model M [-input TEXT] [-save TITLE]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
-  llmctl kb [filter] [--csv] [-json] [-out FILE] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
+  llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T] [-stats] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
   llmctl mcp [-json|-csv|-out FILE] | mcp add <name> <cmd> [-args 'a b'] [-env k=v …] [-json]|remove [-json]|enable|disable [-json]|test <id …> | mcp call <id> <tool> [-args JSON] [-json] | mcp export | mcp import <file.json> [-json]
   llmctl cost [-keys] [-tags] [-model M] [-key K] [--csv] [-json] [-out FILE] [-watch N]
@@ -9429,6 +9429,19 @@ func cmdMemory(args []string) error {
 	}
 }
 
+// kbSizeStr renders a byte count for the kb list -stats roll-up (F840).
+func kbSizeStr(n int64) string {
+	switch {
+	case n >= 1e9:
+		return fmt.Sprintf("%.2f GB", float64(n)/1e9)
+	case n >= 1e6:
+		return fmt.Sprintf("%.1f MB", float64(n)/1e6)
+	case n >= 1e3:
+		return fmt.Sprintf("%.0f KB", float64(n)/1e3)
+	}
+	return fmt.Sprintf("%d B", n)
+}
+
 // cmdKb lists and manages knowledge bases (F247).
 func cmdKb(args []string) error {
 	cc, err := daemon.NewControlClient()
@@ -9623,6 +9636,7 @@ func cmdKb(args []string) error {
 		csvOut := fs.Bool("csv", false, "output the knowledge-base list as CSV (F379)")
 		outFile := fs.String("out", "", "write the knowledge-base JSON to this file instead of stdout (F491)")
 		tagF := fs.String("tag", "", "only knowledge bases carrying this tag (F674)")
+		stats := fs.Bool("stats", false, "per-KB roll-up: docs, total size, newest doc (F840)")
 		fs.Parse(reorderFlags(rest))
 		code, out, err := cc.Get("/api/v1/knowledge-bases")
 		if err != nil {
@@ -9643,6 +9657,10 @@ func cmdKb(args []string) error {
 				Tags        []string `json:"tags"`
 				DocCount    int      `json:"doc_count"`
 			} `json:"kb"`
+			Docs []struct {
+				Size      int64     `json:"size"`
+				CreatedAt time.Time `json:"created_at"`
+			} `json:"docs"`
 		}
 		if err := json.Unmarshal(out, &list); err != nil {
 			return err
@@ -9668,6 +9686,10 @@ func cmdKb(args []string) error {
 					Tags        []string `json:"tags"`
 					DocCount    int      `json:"doc_count"`
 				} `json:"kb"`
+				Docs []struct {
+					Size      int64     `json:"size"`
+					CreatedAt time.Time `json:"created_at"`
+				} `json:"docs"`
 			}
 			for _, kb := range list {
 				hay := kb.KB.Name + " " + kb.KB.Description + " " + strings.Join(kb.KB.Tags, " ")
@@ -9691,6 +9713,31 @@ func cmdKb(args []string) error {
 				return nil
 			}
 			fmt.Println(string(b))
+			return nil
+		}
+		if *stats { // F840: per-KB roll-up (docs, total size, newest doc)
+			fmt.Printf("%-20s %-24s %-5s %-9s %s\n", "ID", "NAME", "DOCS", "SIZE", "NEWEST DOC")
+			var totKB, totDocs int
+			var totSize int64
+			for _, kb := range list {
+				var size int64
+				var newest time.Time
+				for _, d := range kb.Docs {
+					size += d.Size
+					if d.CreatedAt.After(newest) {
+						newest = d.CreatedAt
+					}
+				}
+				nw := "—"
+				if !newest.IsZero() {
+					nw = newest.Format("2006-01-02")
+				}
+				fmt.Printf("%-20s %-24s %-5d %-9s %s\n", kb.KB.ID, kb.KB.Name, kb.KB.DocCount, kbSizeStr(size), nw)
+				totKB++
+				totDocs += kb.KB.DocCount
+				totSize += size
+			}
+			fmt.Printf("total: %d KB(s), %d doc(s), %s\n", totKB, totDocs, kbSizeStr(totSize))
 			return nil
 		}
 		if len(list) == 0 {

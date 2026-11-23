@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { api, KB, KBDoc, KBSearchResult, KBAllSearchResult } from "../api/client";
 import { ok, err } from "../ui/toast";
 
+function fmtBytes(n: number): string {
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + " GB";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + " KB";
+  return n + " B";
+}
+
 export default function KnowledgeBases() {
   const [kbs, setKBs] = useState<KB[]>([]);
   const [name, setName] = useState("");
@@ -475,8 +482,14 @@ export default function KnowledgeBases() {
                   <div style={{ opacity: 0.75, fontSize: 13 }}>{kb.kb.description}</div>
                 )}
                 <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                  {kb.kb.doc_count} document(s) &middot;{" "}
-                  {new Date(kb.kb.updated_at).toLocaleString()}
+                  {kb.kb.doc_count} document(s)
+                  {kb.docs.length > 0 && (
+                    <>
+                      {" · "}
+                      {fmtBytes(kb.docs.reduce((s, d) => s + (d.size || 0), 0))}
+                    </>
+                  )}{" "}
+                  &middot; {new Date(kb.kb.updated_at).toLocaleString()}
                 </div>
               </div>
               <div className="row" style={{ gap: 4 }}>
