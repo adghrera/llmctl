@@ -539,7 +539,8 @@ toggle for a light theme (choice remembered). Tabs:
    `mcp export [-out F]` / `mcp import FILE` (configs move between instances,
    enabled state preserved, F330) (F249); the MCP page has matching
    Export JSON / Import JSON buttons (F411) and an Export CSV on the tested
-   server's Tools card with the same columns (F437).
+   server's Tools card with the same columns (F437), plus a Copy JSON button
+   for that tools list (F783).
  - **Cost CLI** — `llmctl cost` prints lifetime token/cost totals and a
    per-model table; `-keys` shows per-key costs with names, `-tags` rolls
    them up per key tag (untagged keys under "(untagged)", F705), `-model M` /

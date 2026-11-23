@@ -258,6 +258,18 @@ export default function MCP() {
             <h2 style={{ margin: 0 }}>Tools — {testResult.id}</h2>
             <button
               className="btn sm"
+              title="copy the advertised tools as JSON to the clipboard (F783)"
+              onClick={() => {
+                navigator.clipboard
+                  ?.writeText(JSON.stringify(testResult.tools, null, 2))
+                  .then(() => ok("copied"))
+                  .catch(() => {});
+              }}
+            >
+              Copy JSON
+            </button>
+            <button
+              className="btn sm"
               onClick={() => {
                 // Same columns as `llmctl mcp test --csv` (F437).
                 const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
