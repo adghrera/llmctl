@@ -62,6 +62,9 @@ export default function Requests() {
   const [fUntil, setFUntil] = useState(fromTimeParam(params.get("until")));
   const fId = params.get("id") || ""; // single-request deep link (F758)
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  // Clickable column sort over the loaded rows (F774).
+  const [sortKey, setSortKey] = useState("");
+  const [sortDir, setSortDir] = useState<1 | -1>(-1);
   const [groupBy, setGroupBy] = useState("");
 
   useEffect(() => {
@@ -111,6 +114,37 @@ export default function Requests() {
       clearInterval(t);
     };
   }, [auto, fModel, fStatus, fMinMs, fStream, fKey, fInstance, fSince, fUntil, fId]);
+
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "model" || k === "instance" || k === "key" ? 1 : -1);
+    }
+  };
+  const sortedEntries = (() => {
+    if (!sortKey) return entries;
+    const val = (e: RequestLogEntry): string | number => {
+      switch (sortKey) {
+        case "time": return e.time;
+        case "model": return e.model || "";
+        case "instance": return e.instance || "";
+        case "key": return e.key || "";
+        case "status": return e.status;
+        case "latency": return e.latencyMs;
+        case "tokens": return (e.promptTok || 0) + (e.compTok || 0);
+        case "cost": return e.cost || 0;
+        default: return 0;
+      }
+    };
+    return [...entries].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  })();
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
 
   return (
     <div className="card">
@@ -308,18 +342,18 @@ export default function Requests() {
           <thead>
             <tr>
               <th>Id</th>
-              <th>Time</th>
-              <th>Model</th>
-              <th>Instance</th>
-              <th>Key</th>
-              <th>Status</th>
-              <th>Latency</th>
-              <th>Tokens</th>
-              <th>Cost</th>
+              <th style={{ cursor: "pointer" }} title="sort by time (F774)" onClick={() => toggleSort("time")}>Time{arrow("time")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by model (F774)" onClick={() => toggleSort("model")}>Model{arrow("model")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by instance (F774)" onClick={() => toggleSort("instance")}>Instance{arrow("instance")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by key (F774)" onClick={() => toggleSort("key")}>Key{arrow("key")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by status (F774)" onClick={() => toggleSort("status")}>Status{arrow("status")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by latency (F774)" onClick={() => toggleSort("latency")}>Latency{arrow("latency")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by tokens (F774)" onClick={() => toggleSort("tokens")}>Tokens{arrow("tokens")}</th>
+              <th style={{ cursor: "pointer" }} title="sort by cost (F774)" onClick={() => toggleSort("cost")}>Cost{arrow("cost")}</th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((e, i) => (
+            {sortedEntries.map((e, i) => (
               <Fragment key={i}>
                 <tr>
                   <td
