@@ -399,6 +399,24 @@ export default function Instances() {
     }
   };
 
+  // Duplicate a running/known instance: start a second one with the same
+  // model/backend/vars under a new name (replica helper, F817).
+  const duplicateInstance = async (i: Instance) => {
+    const name = window.prompt(`Duplicate ${i.id} as (new instance name):`, `${i.id}-copy`);
+    if (name === null) return;
+    const id = name.trim() || `${i.id}-copy`;
+    setBusy(`dup:${i.id}`);
+    try {
+      await api.startInstance({ model: i.modelId, backend: i.backendId, instance: id, vars: i.vars });
+      ok(`instance ${id} starting`);
+      await refreshOne("instances");
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy("");
+    }
+  };
+
   // Duplicate a preset under a new name — UI twin of `llmctl presets duplicate` (F649).
   const duplicatePreset = async (p: PresetSpec) => {
     const name = window.prompt("Name for the copy:", `${p.name} copy`);
@@ -896,6 +914,15 @@ export default function Instances() {
                     </Link>
                     <button className="btn sm" style={{ marginRight: 6 }} onClick={() => openVars(i.id, i.vars, i.maxParallel, i.note, i.tags)}>
                       Vars
+                    </button>
+                    <button
+                      className="btn sm"
+                      style={{ marginRight: 6 }}
+                      disabled={busy === `dup:${i.id}`}
+                      title="start a second instance with the same model/backend/vars under a new name (F817)"
+                      onClick={() => duplicateInstance(i)}
+                    >
+                      Duplicate
                     </button>
                     {!i.attached && (
                       <button

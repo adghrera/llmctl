@@ -148,7 +148,9 @@ GitHub release, or file list. No recompile.
   replica whose connection fails is retried on the next replica
   automatically (F070). The Instances page shows each instance's in-flight
   request count and has a Chat button that deep-links to the Chat page with
-  that instance's model preselected (`/chat?model=`, F362) and Export CSV/JSON
+  that instance's model preselected (`/chat?model=`, F362), a Duplicate button
+  that starts a second instance with the same model/backend/vars under a new
+  name (CLI twin `llmctl start --copy`, F817), and Export CSV/JSON
   buttons matching `llmctl ps --csv`/`-json` (F406, F731), plus a Stats toggle rolling the
   list up per model — replicas, running, served, restarts — mirroring
   `llmctl ps -stats` (F635), a tag-filter dropdown twin of `llmctl ps
@@ -867,7 +869,8 @@ llmctl models ctx <id> <tokens> | price <id> <in/M> <out/M> | idle <id> <min|nev
 llmctl models metadata <id> [-json] [-out FILE]        (GGUF header metadata, F268; -out writes the raw JSON, F500)
 llmctl models unused [--csv] [-out FILE]              (models with no instance + reclaimable size, F280; --csv exports id,size_bytes, F408; -out writes the same as JSON, F512)
 llmctl models stats [-json] [--csv] [-out FILE]      (per-backend roll-up — models, running, total size, F627)
-llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]
+llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [--copy instance] [-json]
+                                    (--copy starts a duplicate of an existing instance — same model/backend/vars, name defaults to <id>-copy, F817)
 llmctl stop <instance> [--force] [--json]
 llmctl stop --all                          (stop every running instance, attached ones stay, F278; human confirmation by default, --json for raw, F566)
 llmctl restart <instance> [-json] | llmctl restart --all [--json]   (single restart prints "restarted X", --all reports per-instance failures, F445; --json prints the raw response or, with --all, one aggregate {"restarted":[…]} object, F533, F567)

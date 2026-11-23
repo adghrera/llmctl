@@ -245,7 +245,7 @@ Usage:
   llmctl models price <model-id> <in-per-M> <out-per-M> [-json] [-out FILE]
   llmctl models hf-search <query> [-json] [-out FILE]
   llmctl models hf-files <repo> [-json] [-out FILE]
-  llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...] [-json]
+  llmctl start <model> [--backend ID] [--instance NAME] [--var k=v ...] [--copy INSTANCE] [-json]
   llmctl stop <instance> [--force] | llmctl stop --all [--json]
   llmctl restart <instance> [-json] | llmctl restart --all [--json]
   llmctl maxparallel <instance> <n> [-json]   (0 = unlimited)
@@ -4448,19 +4448,67 @@ func cmdStart(args []string) error {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
 	backend := fs.String("backend", "", "backend id")
 	instance := fs.String("instance", "", "instance name")
+	copyFrom := fs.String("copy", "", "copy an existing instance's model/backend/vars under a new name (F817)")
 	jsonOut := fs.Bool("json", false, "print the raw started-instance JSON (F534)")
 	var vars stringList
 	fs.Var(&vars, "var", "parameter k=v (repeatable)")
 	fs.Parse(reorderFlags(args))
-	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [-json]")
+	if fs.NArg() == 0 && *copyFrom == "" {
+		return fmt.Errorf("usage: llmctl start <model> [--backend id] [--instance name] [--var k=v ...] [--copy instance] [-json]")
 	}
-	model := fs.Arg(0)
+	model := ""
+	if fs.NArg() > 0 {
+		model = fs.Arg(0)
+	}
 	cc, err := daemon.NewControlClient()
 	if err != nil {
 		return err
 	}
 	body := map[string]any{"model": model, "backend": *backend, "instance": *instance, "vars": vars.Map()}
+	if *copyFrom != "" { // twin of the Instances page Duplicate button (F817)
+		code, out, err := cc.Get("/api/v1/instances")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("start --copy: %s", out)
+		}
+		var list []struct {
+			ID        string            `json:"id"`
+			ModelID   string            `json:"modelId"`
+			BackendID string            `json:"backendId"`
+			Vars      map[string]string `json:"vars"`
+		}
+		if err := json.Unmarshal(out, &list); err != nil {
+			return fmt.Errorf("start --copy: unexpected response: %w", err)
+		}
+		var src *struct {
+			ID        string            `json:"id"`
+			ModelID   string            `json:"modelId"`
+			BackendID string            `json:"backendId"`
+			Vars      map[string]string `json:"vars"`
+		}
+		for i := range list {
+			if list[i].ID == *copyFrom {
+				src = &list[i]
+			}
+		}
+		if src == nil {
+			return fmt.Errorf("start --copy: unknown instance %q", *copyFrom)
+		}
+		if model == "" {
+			body["model"] = src.ModelID
+		}
+		if *backend == "" {
+			body["backend"] = src.BackendID
+		}
+		if len(vars.Map()) == 0 && len(src.Vars) > 0 {
+			body["vars"] = src.Vars
+		}
+		if *instance == "" {
+			body["instance"] = *copyFrom + "-copy"
+		}
+	}
 	code, out, err := cc.Post("/api/v1/instances", body)
 	if err != nil {
 		return err
@@ -4475,12 +4523,13 @@ func cmdStart(args []string) error {
 		return nil
 	}
 	transport := fmt.Sprint(inst["transport"])
+	hintModel := fmt.Sprint(inst["modelId"])
 	if transport == "stdio" {
 		fmt.Printf("instance %q running (stdio, pid %v)\n", inst["id"], inst["pid"])
 	} else {
 		fmt.Printf("instance %q running on http://127.0.0.1:%v\n", inst["id"], inst["port"])
 	}
-	fmt.Println("try: curl http://127.0.0.1:8080/v1/chat/completions -d '{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}'")
+	fmt.Println("try: curl http://127.0.0.1:8080/v1/chat/completions -d '{\"model\":\"" + hintModel + "\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}'")
 	return nil
 }
 

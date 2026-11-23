@@ -827,6 +827,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F814 | P3 | 814 | compare | Compare deep-link | COMPLETED | `/compare?models=a,b&p=...` pre-selects running instances and prefills the prompt; toggling selection keeps the URL in sync (replace) — shareable comparisons, Chat deep-link twin (F813). Verified live: served bundle carries the param read. |
 | F815 | P3 | 815 | batch | Batch retry-failed | COMPLETED | After a batch run with failures, a "Retry failed (N)" button re-runs just the failed prompts with the same options (run() refactored into runList). Verified live: served bundle carries the button. |
 | F816 | P3 | 816 | daemon | Daemon config file for up defaults | COMPLETED | `$LLMCTL_HOME/config.json` now provides `llmctl up` defaults (addr, rate_rps, rate_burst, max_inflight, api_key); explicit flags win. New `llmctl config [-json]` shows the file and effective defaults. Verified live: daemon started on the config's :9998 with no flags; config show printed both states. |
+| F817 | P3 | 817 | instances | Instance duplicate | COMPLETED | Instances page rows gained a Duplicate button (prompt for a new name, starts a second instance with the same model/backend/vars — replica helper), and `llmctl start --copy INSTANCE` is the CLI twin (model/backend/vars inherited, name defaults to `<id>-copy`). Verified live: `start --copy so -instance f817dup` started the copy; served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
