@@ -416,6 +416,33 @@ export default function Compare() {
             <button
               className="btn sm"
               disabled={streaming}
+              title="save this comparison as a saved chat (prompt + one assistant message per model)"
+              onClick={async () => {
+                const msgs: { role: string; content: string }[] = [{ role: "user", content: prompt }];
+                for (const inst of selectedInstances) {
+                  const r = results[inst.id];
+                  if (!r) continue;
+                  msgs.push({
+                    role: "assistant",
+                    content: r.error ? `**${inst.modelId}** — error: ${r.error}` : `**${inst.modelId}**\n\n${r.content}`,
+                  });
+                }
+                try {
+                  const c = await api.createChat({
+                    title: `Compare: ${prompt.trim().slice(0, 40)}`,
+                    messages: msgs,
+                  });
+                  ok(`saved as chat "${c.title}"`);
+                } catch (e) {
+                  err(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              Save as chat
+            </button>
+            <button
+              className="btn sm"
+              disabled={streaming}
               title="one row per model — model,ok,reply,error (CLI: llmctl compare --csv, F607)"
               onClick={() => {
                 // Same rows as `llmctl compare --csv` (F606, F607).

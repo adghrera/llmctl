@@ -428,7 +428,8 @@ toggle for a light theme (choice remembered). Tabs:
   `compare -file` (F672), a "Load file" button attaching a local text file as
   context (twin of `-file`, F733) and a Results Export JSON
   button matching `llmctl compare --json` shape (F431) plus an Export CSV
-  button matching `llmctl compare --csv` (F607), a per-reply copy button
+  button matching `llmctl compare --csv` (F607), a "Save as chat" button that
+  stores the comparison as a saved chat (F837), a per-reply copy button
   in each result panel header (F769) with a per-reply token/latency badge
   (F811), and a Copy cURL button for the first
   selected model (Chat twin, F785). The URL deep-links the selection
