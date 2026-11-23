@@ -31,7 +31,7 @@ export default function Chat() {
     () => localStorage.getItem(APPROVAL_STORAGE) === "1"
   );
   const [pendingApproval, setPendingApproval] = useState<{ id: string; name: string; query: string } | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem("llmctl.chat.system") ?? "");
   const [maxTok, setMaxTok] = useState("");
   const [temp, setTemp] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -880,7 +880,11 @@ export default function Chat() {
               style={{ width: "100%", marginTop: 6, fontSize: 12 }}
               placeholder="Optional per-conversation system prompt, sent with every request"
               value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
+              onChange={(e) => {
+                setSystemPrompt(e.target.value);
+                // Persist like the Compare page system prompt (F762).
+                localStorage.setItem("llmctl.chat.system", e.target.value);
+              }}
             />
             <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: "wrap" }}>
               <input
