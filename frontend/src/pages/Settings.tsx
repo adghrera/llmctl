@@ -1078,12 +1078,27 @@ export default function SettingsPage() {
           />
         )}
         {apiResult && (
-          <pre
-            className="mono"
-            style={{ marginTop: 10, maxHeight: 300, overflow: "auto", fontSize: 12, whiteSpace: "pre-wrap" }}
-          >
-            {apiResult}
-          </pre>
+          <>
+            <button
+              className="btn sm"
+              style={{ marginTop: 10 }}
+              title="copy the API response to the clipboard (F772)"
+              onClick={() => {
+                navigator.clipboard
+                  ?.writeText(apiResult)
+                  .then(() => ok("copied"))
+                  .catch(() => {});
+              }}
+            >
+              Copy result
+            </button>
+            <pre
+              className="mono"
+              style={{ marginTop: 10, maxHeight: 300, overflow: "auto", fontSize: 12, whiteSpace: "pre-wrap" }}
+            >
+              {apiResult}
+            </pre>
+          </>
         )}
       </div>
     </>
