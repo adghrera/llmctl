@@ -822,6 +822,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F809 | P3 | 809 | scheduler | Scheduler task system message | COMPLETED | Scheduler chat tasks gained an optional system message (Spec field, kept across edits) prepended to scheduled requests; CLI `scheduler add -system S`; Scheduler page has a System-message input for chat kind. Verified live: task created with -system persisted, then deleted; served bundle carries the input. |
 | F810 | P3 | 810 | scheduler | scheduler update sampling/system flags | COMPLETED | `llmctl scheduler update` gained `-system`, `-temperature`, `-max-tokens` and `-seed` flags — editing task sampling options and system message from the CLI, twin of the F808/F809 add flags. Verified live: update applied and persisted on a test task, then deleted. |
 | F811 | P3 | 811 | compare | Compare per-reply usage badges | COMPLETED | Each Compare result panel header now shows a per-reply badge with token usage (from the SSE usage chunk, requested via stream_options) and wall-clock latency — Chat per-message usage twin for Compare. Verified live: served bundle carries the badge; the stub's usage chunk flows through. |
+| F812 | P3 | 812 | chats | Chat find-in-conversation | COMPLETED | The Chat page gained a find-in-conversation box: highlights matches with <mark> inside rendered messages (text nodes only) and shows a match count with a clear button. Verified live: served bundle carries the input. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

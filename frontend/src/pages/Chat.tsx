@@ -6,6 +6,15 @@ import { err, ok } from "../ui/toast";
 import { renderMd } from "../md";
 import { ago } from "../lib/time";
 
+// highlightFind wraps query matches in <mark> inside rendered markdown HTML,
+// touching only text nodes (never tag markup) — find-in-conversation (F812).
+function highlightFind(html: string, query: string): string {
+  const q = query.trim();
+  if (!q) return html;
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return html.replace(/>([^<]+)</g, (_all, text: string) => ">" + text.replace(new RegExp(esc, "gi"), "<mark>$&</mark>") + "<");
+}
+
 interface Msg {
   role: "user" | "assistant";
   content: string;
@@ -38,6 +47,7 @@ export default function Chat() {
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.chat.topp") ?? "");
   const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.chat.freqpen") ?? "");
   const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.chat.prespen") ?? "");
+  const [find, setFind] = useState(""); // find-in-conversation query (F812)
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -1062,6 +1072,32 @@ export default function Chat() {
         </div>
       )}
       <div className="card">
+        {msgs.length > 0 && (
+          <div className="row" style={{ gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <input
+              style={{ width: 220 }}
+              placeholder="find in conversation…"
+              title="highlight matches in this conversation (F812)"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+            />
+            {find.trim() !== "" && (
+              <span className="muted" style={{ fontSize: 12 }}>
+                {(() => {
+                  const esc = find.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                  const re = new RegExp(esc, "gi");
+                  return msgs.reduce((a, m) => a + (m.content.match(re)?.length ?? 0), 0);
+                })()}{" "}
+                match(es)
+              </span>
+            )}
+            {find !== "" && (
+              <button className="btn xs" title="clear the find query" onClick={() => setFind("")}>
+                ✕
+              </button>
+            )}
+          </div>
+        )}
         <div className="chat">
           {msgs.length === 0 && (
             <div className="empty">select a running model and start chatting</div>
@@ -1126,7 +1162,7 @@ export default function Chat() {
                 </div>
               )}
               {m.content ? (
-                <div className="md" dangerouslySetInnerHTML={{ __html: renderMd(m.content) }} />
+                <div className="md" dangerouslySetInnerHTML={{ __html: highlightFind(renderMd(m.content), find) }} />
               ) : (
                 streaming && i === msgs.length - 1 ? "…" : ""
               )}

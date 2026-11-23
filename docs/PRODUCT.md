@@ -263,7 +263,8 @@ toggle for a light theme (choice remembered). Tabs:
   the input for editing and resending (F064). Replies render as markdown
   (built-in safe renderer: code fences, lists, links, emphasis) and every
   message has a hover copy button (F067) and a →P button that saves it as a
-  prompt template (twin of `prompts add`, F750). The conversation list has Export
+  prompt template (twin of `prompts add`, F750), and a find-in-conversation
+  box highlights matches and counts them (F812). The conversation list has Export
   CSV / Import buttons and a Prune button that deletes chats older than N
   days (pinned kept) — the UI twin of `llmctl chats prune` (F660).
 - **Structured output** — give a prompt and a JSON Schema; llmctl asks the
