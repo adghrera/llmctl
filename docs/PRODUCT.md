@@ -52,7 +52,7 @@ GitHub release, or file list. No recompile.
 - Multiple models can be installed and run at the same time.
 - GGUF metadata viewer: per-model "Meta" shows quant, architecture, trained
   context length, layer count and all header key/values (parsed locally, no
-  upload).
+  upload), with an Export JSON button (twin of `models metadata -json`, F767).
 
 ### Instances
 - Start/stop from UI or CLI; multiple instances (different models,

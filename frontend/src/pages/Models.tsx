@@ -830,9 +830,27 @@ export default function Models() {
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <h2 style={{ margin: 0 }}>GGUF metadata — {metaFor}</h2>
+            <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn sm"
+              disabled={!meta}
+              title="download the parsed metadata as JSON (CLI: llmctl models metadata -json)"
+              onClick={() => {
+                const blob = new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `llmctl-metadata-${metaFor}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+                ok("metadata exported");
+              }}
+            >
+              Export JSON
+            </button>
             <button className="btn sm" onClick={() => { setMetaFor(null); setMeta(null); }}>
               Close
             </button>
+            </div>
           </div>
           {metaBusy && <div className="empty muted">Parsing…</div>}
           {meta && (
