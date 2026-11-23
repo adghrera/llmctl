@@ -854,6 +854,15 @@ func doScheduledTask(ctx context.Context, sch *scheduler.Store, sv *supervisor.S
 		"messages": msgs,
 		"stream":   false,
 	}
+	if rec.Spec.Temp != nil {
+		body["temperature"] = *rec.Spec.Temp
+	}
+	if rec.Spec.MaxTokens > 0 {
+		body["max_tokens"] = rec.Spec.MaxTokens
+	}
+	if rec.Spec.Seed != nil {
+		body["seed"] = *rec.Spec.Seed
+	}
 	b, _ := json.Marshal(body)
 
 	// Use the daemon's own address to make the request.

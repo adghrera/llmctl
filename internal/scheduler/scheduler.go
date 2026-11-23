@@ -30,6 +30,9 @@ type Spec struct {
 	Keep       int       `json:"keep,omitempty"`        // backup kind: snapshots to retain (0 = 7)
 	Prompt     string    `json:"prompt"`                // prompt to send (chat only)
 	KB         string    `json:"kb,omitempty"`          // optional knowledge base id(s), comma-separated: top chunks are injected as context (chat only, F365, multi F666)
+	Temp       *float64  `json:"temperature,omitempty"` // optional sampling temperature (chat only, F808)
+	MaxTokens  int       `json:"max_tokens,omitempty"`  // optional max tokens per reply (chat only, F808)
+	Seed       *int64    `json:"seed,omitempty"`        // optional sampling seed for reproducible replies (chat only, F808)
 	Enabled    bool      `json:"enabled"`               // whether the task is active
 	WebhookURL string    `json:"webhook_url,omitempty"` // optional: POSTed a JSON result on each run
 	Tags       []string  `json:"tags,omitempty"`        // free-form labels for grouping tasks (F681)
@@ -206,6 +209,15 @@ func (s *Store) Update(id string, spec Spec) (*Record, error) {
 	}
 	if len(spec.Tags) == 0 {
 		spec.Tags = rec.Spec.Tags // keep tags when the update doesn't carry them (F681)
+	}
+	if spec.Temp == nil {
+		spec.Temp = rec.Spec.Temp // keep sampling params when the update doesn't carry them (F808)
+	}
+	if spec.Seed == nil {
+		spec.Seed = rec.Spec.Seed
+	}
+	if spec.MaxTokens == 0 {
+		spec.MaxTokens = rec.Spec.MaxTokens
 	}
 	if err := ValidateCron(spec.CronExpr); err != nil {
 		return nil, err

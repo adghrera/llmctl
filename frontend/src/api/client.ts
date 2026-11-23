@@ -190,6 +190,9 @@ export interface ScheduleSpec {
   model: string;
   prompt: string;
   kb?: string; // knowledge base id: inject top chunks as context (chat kind, F365)
+  temperature?: number; // optional sampling temperature (chat kind, F808)
+  max_tokens?: number; // optional max tokens per reply (chat kind, F808)
+  seed?: number; // optional sampling seed (chat kind, F808)
   keep?: number; // backup kind: snapshots to retain
   enabled: boolean;
   webhook_url?: string;
@@ -818,10 +821,10 @@ export const api = {
   costKeys: () => req<Record<string, CostCounter>>("/cost/keys"),
   costModels: () => req<Record<string, CostCounter>>("/cost/models"),
   schedules: () => req<ScheduleSpec[]>("/scheduler"),
-  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string; enabled?: boolean; tags?: string[] }) =>
+  createSchedule: (body: { name: string; cron_expr: string; kind?: string; model: string; prompt?: string; kb?: string; instance?: string; keep?: number; webhook_url?: string; enabled?: boolean; tags?: string[]; temperature?: number; max_tokens?: number; seed?: number }) =>
     req<ScheduleSpec>("/scheduler", { method: "POST", body: JSON.stringify(body) }),
   getSchedule: (id: string) => req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`),
-  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; kb?: string; enabled?: boolean; webhook_url?: string }) =>
+  updateSchedule: (id: string, body: { name?: string; cron_expr?: string; model?: string; prompt?: string; kb?: string; enabled?: boolean; webhook_url?: string; temperature?: number; max_tokens?: number; seed?: number }) =>
     req<ScheduleSpec>(`/scheduler/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
   deleteSchedule: (id: string) => req<{ ok: boolean }>(`/scheduler/${encodeURIComponent(id)}`, { method: "DELETE" }),
   runSchedule: (id: string) => req<{ ok: boolean; started: string }>(`/scheduler/${encodeURIComponent(id)}/run`, { method: "POST" }),

@@ -4953,6 +4953,9 @@ func cmdScheduler(args []string) error {
 		webhook := fs.String("webhook", "", "URL POSTed a JSON result on each run")
 		keep := fs.Int("keep", 0, "snapshots to retain (backup kind; 0 = default)")
 		kb := fs.String("kb", "", "knowledge base id(s), comma-separated: top matching chunks are injected as context (chat kind, F666)")
+		temp := fs.Float64("temperature", -1, "sampling temperature for chat runs (-1 = model default, F808)")
+		maxTok := fs.Int("max-tokens", 0, "max tokens per reply for chat runs (0 = model default, F808)")
+		seed := fs.Int64("seed", -1, "sampling seed for reproducible chat replies (-1 = random, F808)")
 		tags := fs.String("tags", "", "comma-separated tags (F702)")
 		ajson := fs.Bool("json", false, "print the raw created-task JSON (F563)")
 		fs.Parse(reorderFlags(rest))
@@ -4963,6 +4966,15 @@ func cmdScheduler(args []string) error {
 		}
 		if *kb != "" {
 			body["kb"] = *kb
+		}
+		if *temp >= 0 {
+			body["temperature"] = *temp
+		}
+		if *maxTok > 0 {
+			body["max_tokens"] = *maxTok
+		}
+		if *seed >= 0 {
+			body["seed"] = *seed
 		}
 		if *webhook != "" {
 			body["webhook_url"] = *webhook

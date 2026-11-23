@@ -16,6 +16,9 @@ export default function Scheduler() {
   const [kbs, setKbs] = useState<KB[]>([]);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [newTags, setNewTags] = useState(""); // tags at creation (F702)
+  const [sTemp, setSTemp] = useState(""); // chat sampling temperature (F808)
+  const [sMaxTok, setSMaxTok] = useState(""); // chat max tokens (F808)
+  const [sSeed, setSSeed] = useState(""); // chat sampling seed (F808)
   const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `scheduler list -tag` twin (F707)
   const [sortKey, setSortKey] = useState(""); // column sort over the task list (F779)
   const [sortDir, setSortDir] = useState<1 | -1>(1);
@@ -115,6 +118,9 @@ export default function Scheduler() {
         model,
         prompt: kind === "chat" ? prompt : "",
         kb: kind === "chat" && kb.length ? kb.join(",") : undefined,
+        temperature: kind === "chat" && sTemp.trim() !== "" ? Number(sTemp) : undefined,
+        max_tokens: kind === "chat" && Number(sMaxTok) > 0 ? Number(sMaxTok) : undefined,
+        seed: kind === "chat" && sSeed.trim() !== "" ? Number(sSeed) : undefined,
         instance: instance.trim() || undefined,
         keep: kind === "backup" ? keep : undefined,
         webhook_url: webhookUrl.trim() || undefined,
@@ -129,6 +135,9 @@ export default function Scheduler() {
       setKeep(7);
       setWebhookUrl("");
       setNewTags("");
+      setSTemp("");
+      setSMaxTok("");
+      setSSeed("");
       setKb([]);
       await load();
     } catch (e) {
@@ -368,6 +377,38 @@ export default function Scheduler() {
                 </option>
               ))}
             </select>
+          )}
+          {kind === "chat" && (
+            <>
+              <input
+                style={{ width: 100 }}
+                type="number"
+                step="0.1"
+                min={0}
+                max={2}
+                placeholder="temp"
+                title="sampling temperature for scheduled runs (empty = model default) (F808)"
+                value={sTemp}
+                onChange={(e) => setSTemp(e.target.value)}
+              />
+              <input
+                style={{ width: 110 }}
+                type="number"
+                min={1}
+                placeholder="max tokens"
+                title="max tokens per reply (empty = model default) (F808)"
+                value={sMaxTok}
+                onChange={(e) => setSMaxTok(e.target.value)}
+              />
+              <input
+                style={{ width: 90 }}
+                type="number"
+                placeholder="seed"
+                title="sampling seed for reproducible replies (empty = random) (F808)"
+                value={sSeed}
+                onChange={(e) => setSSeed(e.target.value)}
+              />
+            </>
           )}
           <input
             style={{ flex: 2, minWidth: 200 }}
