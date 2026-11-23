@@ -12,6 +12,37 @@ export default function Cost() {
   const [busy, setBusy] = useState(false);
   const [keyFilter, setKeyFilter] = useState("");
   const [modelFilter, setModelFilter] = useState("");
+  // Shared column sort over the per-key and per-model cost tables (F780).
+  const [sortKey, setSortKey] = useState("");
+  const [sortDir, setSortDir] = useState<1 | -1>(-1);
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "name" ? 1 : -1);
+    }
+  };
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
+  const sortCosts = (entries: [string, CostCounter][]): [string, CostCounter][] => {
+    if (!sortKey) return entries;
+    const val = ([name, c]: [string, CostCounter]): string | number => {
+      switch (sortKey) {
+        case "name": return name;
+        case "requests": return c.requests;
+        case "input": return c.input_tokens;
+        case "output": return c.output_tokens;
+        case "total": return c.total_tokens;
+        case "cost": return c.cost_usd;
+        default: return 0;
+      }
+    };
+    return [...entries].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  };
 
   const load = async () => {
     setBusy(true);
@@ -215,17 +246,17 @@ export default function Cost() {
           <table>
             <thead>
               <tr>
-                <th>Key (prefix)</th>
-                <th>Requests</th>
-                <th>Input</th>
-                <th>Output</th>
-                <th>Total</th>
-                <th>Cost (USD)</th>
+                <th style={{ cursor: "pointer" }} title="sort by key (F780)" onClick={() => toggleSort("name")}>Key (prefix){arrow("name")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by requests (F780)" onClick={() => toggleSort("requests")}>Requests{arrow("requests")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by input tokens (F780)" onClick={() => toggleSort("input")}>Input{arrow("input")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by output tokens (F780)" onClick={() => toggleSort("output")}>Output{arrow("output")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by total tokens (F780)" onClick={() => toggleSort("total")}>Total{arrow("total")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by cost (F780)" onClick={() => toggleSort("cost")}>Cost (USD){arrow("cost")}</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(keyCosts)
-                .filter(([key]) => match(key, keyFilter))
+              {sortCosts(Object.entries(keyCosts)
+                .filter(([key]) => match(key, keyFilter)))
                 .map(([key, c]) => (
                 <tr key={key}>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>
@@ -304,17 +335,17 @@ export default function Cost() {
           <table>
             <thead>
               <tr>
-                <th>Model</th>
-                <th>Requests</th>
-                <th>Input</th>
-                <th>Output</th>
-                <th>Total</th>
-                <th>Cost (USD)</th>
+                <th style={{ cursor: "pointer" }} title="sort by model (F780)" onClick={() => toggleSort("name")}>Model{arrow("name")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by requests (F780)" onClick={() => toggleSort("requests")}>Requests{arrow("requests")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by input tokens (F780)" onClick={() => toggleSort("input")}>Input{arrow("input")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by output tokens (F780)" onClick={() => toggleSort("output")}>Output{arrow("output")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by total tokens (F780)" onClick={() => toggleSort("total")}>Total{arrow("total")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by cost (F780)" onClick={() => toggleSort("cost")}>Cost (USD){arrow("cost")}</th>
               </tr>
             </thead>
             <tbody>
-              {Object.entries(modelCosts)
-                .filter(([model]) => match(model, modelFilter))
+              {sortCosts(Object.entries(modelCosts)
+                .filter(([model]) => match(model, modelFilter)))
                 .map(([model, c]) => (
                 <tr key={model}>
                   <td style={{ fontFamily: "monospace", fontSize: 12 }}>

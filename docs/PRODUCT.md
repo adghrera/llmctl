@@ -568,7 +568,7 @@ toggle for a light theme (choice remembered). Tabs:
   model. REST API: GET /api/v1/cost (summary), GET /api/v1/cost/keys,
   GET /api/v1/cost/models. Dedicated Cost page with per-key and per-model
   tables showing token counts and estimated USD costs, each with a text
-  filter on the id (F353), id cells deep-linking to the Requests page filtered
+  filter on the id (F353), clickable column headers to sort (F780), id cells deep-linking to the Requests page filtered
   by that key/model (F743), and filter-aware Export CSV / Export JSON buttons
   (F417, F718).
   A By tag toggle rolls the key table up per key tag — the UI twin of
