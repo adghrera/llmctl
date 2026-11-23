@@ -371,6 +371,7 @@ func cmdDown(args []string) error {
 func cmdStatus(args []string) error {
 	fs := flag.NewFlagSet("status", flag.ExitOnError)
 	jsonOut := fs.Bool("json", false, "print the raw status JSON (for scripts)")
+	csvOut := fs.Bool("csv", false, "output the running instances as CSV (id,model,uptime_sec)")
 	outFile := fs.String("out", "", "write the raw status JSON to this file instead of stdout (F466)")
 	watch := fs.Int("watch", 0, "refresh every N seconds until Ctrl-C (0 = print once)")
 	fs.Parse(reorderFlags(args))
@@ -394,6 +395,24 @@ func cmdStatus(args []string) error {
 		}
 		if *jsonOut {
 			fmt.Println(string(out))
+			_ = code
+			return nil
+		}
+		if *csvOut {
+			// Running instances as CSV (id,model,uptime_sec) — status twin of
+			// the --csv family (F790).
+			fmt.Println("id,model,uptime_sec")
+			var st map[string]any
+			json.Unmarshal(out, &st)
+			if list, ok := st["runningInstances"].([]any); ok {
+				for _, e := range list {
+					m, _ := e.(map[string]any)
+					id, _ := m["id"].(string)
+					model, _ := m["model"].(string)
+					sec, _ := m["uptimeSec"].(float64)
+					fmt.Printf("%s,%s,%d\n", id, model, int64(sec))
+				}
+			}
 			_ = code
 			return nil
 		}

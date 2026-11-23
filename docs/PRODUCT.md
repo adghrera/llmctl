@@ -787,7 +787,7 @@ survives the periodic UI re-render.
 ```
 llmctl up [--addr :8080] [--rate 20] [--burst 60] [--max-inflight 512] [--api-key K]
 llmctl down [-json]                      (prints "daemon stopped"; -json prints the raw response, F568)
-llmctl status [-json] [-watch N] [-out FILE]   (-watch N: live refresh; -json: raw; -out writes the raw JSON to a file, refreshed each -watch tick, F466; version, uptime, running instances with
+llmctl status [-json] [--csv] [-watch N] [-out FILE]   (-watch N: live refresh; -json: raw; --csv: running instances as id,model,uptime_sec (F790); -out writes the raw JSON to a file, refreshed each -watch tick, F466; version, uptime, running instances with
                                     uptime, gateway auth, today's usage)
 llmctl doctor [-json] [--csv] [-quiet] [-check NAME]... [-watch N] [-out FILE]  (--csv exports name,status,detail (F429); -quiet prints only warn/error lines + a summary; -check keeps matching checks, repeatable; -watch N re-runs the sweep and prints checks as they change, F557; -out writes the JSON to a file, F464)
 llmctl gpu [-json] [--csv] [-out FILE] [-watch N]             (GPU inventory: vendor, name, used/total; --csv adds raw bytes + used_pct, -out writes the raw JSON, -watch N reprints every N seconds, F430, F463, F593)
