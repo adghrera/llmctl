@@ -806,6 +806,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F793 | P3 | 793 | chats | Chat seed input | COMPLETED | The Chat sampling panel gained a seed input (persisted) sent through to the backend for reproducible replies — the gateway forwards the body unchanged. Verified live: served bundle carries the input, the body.seed assignment and the localStorage key. |
 | F794 | P3 | 794 | compare | Compare seed input | COMPLETED | The Compare sampling row gained a seed input (persisted) sent to every model for a fair comparison — Chat seed twin (F793). Verified live: served bundle carries the input and the localStorage key. |
 | F795 | P3 | 795 | batch | Batch/Structured seed input | COMPLETED | The Batch and Structured pages gained a seed input (persisted) and the /api/v1/batch and /api/v1/structured handlers pass `seed` through to the gateway; CLI twins `batch -seed N` / `structured -seed N`. Verified live: served bundle carries both inputs, CLI flags parse and requests reach the gateway. |
+| F796 | P3 | 796 | bench | Bench seed input | COMPLETED | The Bench page gained a seed input (persisted) sent with every request, and `llmctl bench` a `-seed N` flag — completing the seed family (Chat/Compare/Batch/Structured/Bench). Verified live: served bundle carries the input; `bench -model so -n 2 -seed 42` ran 2/2 ok. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

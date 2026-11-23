@@ -31,6 +31,7 @@ export default function Bench() {
   const [prompt, setPrompt] = useState(() => localStorage.getItem("llmctl.bench.prompt") ?? "count to five");
   const [n, setN] = useState(() => localStorage.getItem("llmctl.bench.n") ?? "5");
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.bench.conc") ?? "1");
+  const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.bench.seed") ?? "");
   const [rows, setRows] = useState<BenchRow[]>([]);
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop the bench run (F756)
@@ -77,6 +78,7 @@ export default function Bench() {
             body: JSON.stringify({
               model: inst.modelId,
               messages: [{ role: "user", content: prompt }],
+              ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
             }),
             signal: abortRef.current?.signal,
           });
@@ -179,6 +181,17 @@ export default function Bench() {
           />
           <span className="muted" style={{ alignSelf: "center" }}>concurrent</span>
           <input
+            style={{ width: 110 }}
+            type="number"
+            placeholder="seed"
+            title="sampling seed for reproducible bench replies (empty = random) (F796)"
+            value={seed}
+            onChange={(e) => {
+              setSeed(e.target.value);
+              localStorage.setItem("llmctl.bench.seed", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 220 }}
             placeholder="API key (if auth on)"
             value={apiKey}
@@ -228,7 +241,7 @@ export default function Bench() {
             onClick={() => {
               const inst = instances.find((i) => selected.has(i.id));
               if (!inst) return;
-              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }] });
+              const body = JSON.stringify({ model: inst.modelId, messages: [{ role: "user", content: prompt }], ...(seed.trim() !== "" ? { seed: Number(seed) } : {}) });
               const q = `'${body.replace(/'/g, `'\\''`)}'`;
               const cmd =
                 `curl ${window.location.origin}/v1/chat/completions \\\n` +

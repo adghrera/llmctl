@@ -2066,6 +2066,7 @@ func cmdBench(args []string) error {
 	n := fs.Int("n", 5, "number of requests")
 	conc := fs.Int("conc", 1, "concurrent requests")
 	prompt := fs.String("prompt", "count to five", "prompt for every request")
+	seed := fs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F796)")
 	jsonOut := fs.Bool("json", false, "print per-model stats as one JSON array instead of text (F315)")
 	csvOut := fs.Bool("csv", false, "output per-model stats as CSV (F426)")
 	outFile := fs.String("out", "", "write the stats JSON to this file instead of stdout (implies -json, F460)")
@@ -2111,10 +2112,14 @@ func cmdBench(args []string) error {
 		firstErr string
 	}
 	benchOne := func(m string) (*benchStats, error) {
-		body, _ := json.Marshal(map[string]any{
+		reqBody := map[string]any{
 			"model":    m,
 			"messages": []map[string]string{{"role": "user", "content": *prompt}},
-		})
+		}
+		if *seed >= 0 {
+			reqBody["seed"] = *seed
+		}
+		body, _ := json.Marshal(reqBody)
 		type result struct {
 			ms   float64
 			tok  int
