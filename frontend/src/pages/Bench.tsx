@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, Instance } from "../api/client";
 import { err, ok } from "../ui/toast";
 
@@ -26,8 +27,12 @@ const pct = (sorted: number[], p: number) => {
 };
 
 export default function Bench() {
+  const [params, setParams] = useSearchParams();
   const [instances, setInstances] = useState<Instance[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Deep link: /bench?models=a,b pre-selects instances (F826, twin of Compare F814).
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set((params.get("models") ?? "").split(",").filter(Boolean))
+  );
   const [prompt, setPrompt] = useState(() => localStorage.getItem("llmctl.bench.prompt") ?? "count to five");
   const [n, setN] = useState(() => localStorage.getItem("llmctl.bench.n") ?? "5");
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.bench.conc") ?? "1");
@@ -55,6 +60,7 @@ export default function Bench() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      setParams(next.size ? { models: Array.from(next).join(",") } : {}, { replace: true }); // deep-link follows selection (F826)
       return next;
     });
   };

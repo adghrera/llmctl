@@ -437,7 +437,9 @@ toggle for a light theme (choice remembered). Tabs:
   percentiles and throughput client-side against the gateway, with Export
   CSV/JSON buttons matching `bench --csv`/`-json` (F714), a Copy cURL button for
   the first selected model (F788), and a Stop button
-  that cancels the run mid-flight, keeping finished rows (F756).
+  that cancels the run mid-flight, keeping finished rows (F756). The URL
+  carries the selection (`/bench?models=a,b`), so a bench setup is linkable
+  and reloads pre-selected (F826).
   CLI: `llmctl compare -models A,B <prompt>` streams the replies in sequence (F301);
   add `-json` for a machine-readable `[{model, reply|error}]` array (F314),
   or `-out FILE` to write that array to a file (F454).
