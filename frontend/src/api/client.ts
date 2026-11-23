@@ -930,6 +930,8 @@ export async function* chatStream(
     temperature?: number;
     seed?: number; // reproducible sampling seed, passed through to the backend (F793)
     topP?: number; // nucleus sampling top_p, passed through to the backend (F797)
+    freqPenalty?: number; // frequency penalty, passed through to the backend (F803)
+    presPenalty?: number; // presence penalty, passed through to the backend (F803)
     onUsage?: (u: { prompt: number; completion: number; total: number }) => void;
     signal?: AbortSignal; // cancel the stream mid-flight (F754)
   } = {}
@@ -945,6 +947,8 @@ export async function* chatStream(
   if (opts.temperature !== undefined) body.temperature = opts.temperature;
   if (opts.seed !== undefined) body.seed = opts.seed;
   if (opts.topP !== undefined) body.top_p = opts.topP;
+  if (opts.freqPenalty !== undefined) body.frequency_penalty = opts.freqPenalty;
+  if (opts.presPenalty !== undefined) body.presence_penalty = opts.presPenalty;
   const r = await fetch("/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },

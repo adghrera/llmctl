@@ -36,6 +36,8 @@ export default function Chat() {
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.chat.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.chat.seed") ?? "");
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.chat.topp") ?? "");
+  const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.chat.freqpen") ?? "");
+  const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.chat.prespen") ?? "");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -454,6 +456,8 @@ export default function Chat() {
           temperature: temp.trim() !== "" ? Number(temp) : undefined,
           seed: seed.trim() !== "" ? Number(seed) : undefined,
           topP: topP.trim() !== "" ? Number(topP) : undefined,
+          freqPenalty: freqPen.trim() !== "" ? Number(freqPen) : undefined,
+          presPenalty: presPen.trim() !== "" ? Number(presPen) : undefined,
           signal: ctrl.signal,
           onUsage: (u) => {
             usage = u;
@@ -942,6 +946,34 @@ export default function Chat() {
                   localStorage.setItem("llmctl.chat.topp", e.target.value);
                 }}
               />
+              <input
+                style={{ width: 100 }}
+                type="number"
+                step="0.1"
+                min={-2}
+                max={2}
+                placeholder="freq penalty"
+                title="frequency penalty, sent through to the backend (empty = model default) (F803)"
+                value={freqPen}
+                onChange={(e) => {
+                  setFreqPen(e.target.value);
+                  localStorage.setItem("llmctl.chat.freqpen", e.target.value);
+                }}
+              />
+              <input
+                style={{ width: 100 }}
+                type="number"
+                step="0.1"
+                min={-2}
+                max={2}
+                placeholder="pres penalty"
+                title="presence penalty, sent through to the backend (empty = model default) (F803)"
+                value={presPen}
+                onChange={(e) => {
+                  setPresPen(e.target.value);
+                  localStorage.setItem("llmctl.chat.prespen", e.target.value);
+                }}
+              />
               <button
                 className="btn sm"
                 title="copy a curl command for this conversation's next request"
@@ -954,6 +986,8 @@ export default function Chat() {
                   if (temp) body.temperature = Number(temp);
                   if (seed.trim() !== "") body.seed = Number(seed);
                   if (topP.trim() !== "") body.top_p = Number(topP);
+                  if (freqPen.trim() !== "") body.frequency_penalty = Number(freqPen);
+                  if (presPen.trim() !== "") body.presence_penalty = Number(presPen);
                   const json = JSON.stringify(body);
                   const q = `'${json.replace(/'/g, `'\\''`)}'`; // shell-safe single quoting
                   const cmd =

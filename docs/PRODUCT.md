@@ -257,8 +257,8 @@ toggle for a light theme (choice remembered). Tabs:
   across reloads (F762), and the same panel holds
   optional max-tokens/temperature inputs for the conversation (F360), also
   persisted in the browser (F763), plus a seed input for reproducible replies
-  passed through to the backend (F793) and a top_p nucleus-sampling input
-  (F797). The last reply can be
+  passed through to the backend (F793), a top_p nucleus-sampling input
+  (F797) and frequency/presence penalty inputs (F803). The last reply can be
   regenerated in place, and the last user message can be pulled back into
   the input for editing and resending (F064). Replies render as markdown
   (built-in safe renderer: code fences, lists, links, emphasis) and every

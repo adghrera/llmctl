@@ -813,6 +813,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F800 | P3 | 800 | bench | Bench top_p input | COMPLETED | The Bench page gained a top_p input (persisted) sent with every request, and `llmctl bench` a `-top-p P` flag — completing the top_p family (Chat/Compare/Batch/Structured/Bench). Verified live: served bundle carries the input; `bench -model so -n 2 -top-p 0.9` ran 2/2 ok. |
 | F801 | P3 | 801 | chats | chat/complete -seed -top-p | COMPLETED | `llmctl chat -prompt` and `llmctl complete` gained `-seed N` and `-top-p P` flags passed through to the gateway — CLI twins of the Chat UI sampling inputs (F793, F797). Verified live: `chat -model so -prompt hi -seed 42 -top-p 0.9` replied; `complete` flags parse and reach the gateway. |
 | F802 | P3 | 802 | prompts | prompts run -seed -top-p | COMPLETED | `llmctl prompts run` gained `-seed N` and `-top-p P` flags passed through to the gateway — completing CLI sampling parity (chat/complete/batch/structured/bench/prompts run). Verified live: flags parse and requests reach the gateway. |
+| F803 | P3 | 803 | chats | Chat frequency/presence penalties | COMPLETED | The Chat sampling panel gained frequency_penalty and presence_penalty inputs (persisted) sent through to the backend and included in Copy cURL — alongside temperature/top_p/seed. Verified live: served bundle carries both inputs and all body assignments. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |
