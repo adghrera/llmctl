@@ -288,7 +288,7 @@ Usage:
   llmctl webhooks [-n 20] [-event E] [-failed] [--csv] [-json] [-watch N] [-out FILE] [-stats] | webhooks test [-event E] [-message M] [-json]   recent webhook delivery attempts / send a test event
   llmctl prompts [list] [filter] [-category X] [-tag T] [-json] [-csv] [-out FILE] [-stats] | llmctl prompts show <id> [-out file] | prompts render <id> [-input TEXT] [-var k=v…] [-out file] | prompts run <id> -model M [-input TEXT] [-var k=v…] [-system S] [-temperature T] [-max-tokens N] [-save TITLE | -chat ID] [-json] [-out FILE] | prompts categories [-json|-csv|-out FILE] | prompts add <id> -name N [-content T] [-tags a,b] [-json] | prompts duplicate <id> <new-id> [-name N] [-json] | prompts tag <id> [a,b] [-json] | prompts retag OLD NEW [-json] | prompts update <id> [-name N] [-tags a,b] [-json] | prompts delete <id> [-json] | prompts export | prompts import <file.json> [-json]
   llmctl chats [filter] [-n 20] [-tag T] [--csv] [-json] [-out FILE] [-stats] | chats list [filter] | chats show|search|export|export-all|import|fork [-json]|rename [-json]|pin|unpin [-json]|tag [-json]|retag [-json]|prune [-json]|delete [-json]|delete-all …
-  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|run <short> -model M [-input TEXT] [-save TITLE]|export|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
+  llmctl skills [filter] [-json] [-csv] [-out FILE] | skills show [-out FILE]|add [-json]|update <id> [-name N] [-desc D] [-template T] [-tags a,b] [-json]|run <short> -model M [-input TEXT] [-save TITLE]|export|export-all [-out FILE]|import <file.json> [-json]|retag <old> <new> | retag -rm <tag> [-json]|enable|disable [-json]|delete <id> [-json]
   llmctl memory [filter] [-n 30] [-json|-csv|-out FILE] | memory show [-out FILE]|add [-json]|update [-json]|search|export|import [-json]|delete [-json]|retag OLD NEW | retag -rm TAG [-json] | memory -stats (per-tag roll-up) …
   llmctl kb [filter] [--csv] [-json] [-out FILE] [-tag T] [-stats] | kb show|create [-json]|update [-json]|tag <id> [a,b]|retag <old> <new>|-rm <tag> [-json]|docs [-json|-csv|-out FILE]|doc|add-doc [-json]|export|search|search-all <q> [-limit N]|embed [-json]|delete [-json] …
   llmctl tools [-json|-csv|-out FILE] | tools show [-out FILE]|install <dir|url> [-id ID] [-json]|enable|disable [-json]|sandbox <id> <on|off> [-json]|run|delete <id> [-json]
@@ -2683,7 +2683,7 @@ var llmSubCommands = map[string]string{
 	"prompts":   "list show render run categories add duplicate tag retag update delete export import",
 	"scheduler": "list show add duplicate update run runs enable disable tag retag delete export import",
 	"settings":  "set test-webhook",
-	"skills":    "list show add update export retag enable disable delete",
+	"skills":    "list show add update export export-all import retag enable disable delete",
 	"tools":     "list show install enable disable sandbox run delete",
 }
 
@@ -8393,7 +8393,7 @@ func cmdSkills(args []string) error {
 	sub, rest := "list", args
 	if len(args) > 0 {
 		switch args[0] {
-		case "list", "show", "add", "update", "export", "retag", "enable", "disable", "delete", "run":
+		case "list", "show", "add", "update", "export", "export-all", "import", "retag", "enable", "disable", "delete", "run":
 			sub, rest = args[0], args[1:]
 		}
 	}
@@ -8600,6 +8600,7 @@ func cmdSkills(args []string) error {
 			ID       string `json:"id"`
 			Manifest struct {
 				ID          string   `json:"id"`
+				ShortName   string   `json:"short_name"` // /s.<short> handle (F845)
 				Name        string   `json:"name"`
 				Description string   `json:"description"`
 				Tags        []string `json:"tags"`
@@ -8627,6 +8628,7 @@ func cmdSkills(args []string) error {
 				ID       string `json:"id"`
 				Manifest struct {
 					ID          string   `json:"id"`
+					ShortName   string   `json:"short_name"` // /s.<short> handle (F845)
 					Name        string   `json:"name"`
 					Description string   `json:"description"`
 					Tags        []string `json:"tags"`
@@ -8869,6 +8871,106 @@ func cmdSkills(args []string) error {
 			return nil
 		}
 		fmt.Print(string(data))
+		return nil
+	case "export-all":
+		// Dump every skill manifest as a JSON array (feed to `skills
+		// import`) — the prompts export-all twin (F845).
+		xfs := flag.NewFlagSet("skills export-all", flag.ExitOnError)
+		xout := xfs.String("out", "", "write to this file instead of stdout")
+		xfs.Parse(reorderFlags(rest))
+		code, out, err := cc.Get("/api/v1/skills")
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("skills export-all: %s", out)
+		}
+		var recs []struct {
+			Manifest map[string]any `json:"manifest"`
+		}
+		if err := json.Unmarshal(out, &recs); err != nil {
+			return fmt.Errorf("skills export-all: unexpected response: %s", out)
+		}
+		manifests := make([]map[string]any, 0, len(recs))
+		for _, r := range recs {
+			if r.Manifest != nil {
+				manifests = append(manifests, r.Manifest)
+			}
+		}
+		data, err := json.MarshalIndent(manifests, "", "  ")
+		if err != nil {
+			return err
+		}
+		data = append(data, '\n')
+		if *xout != "" {
+			if err := os.WriteFile(*xout, data, 0o644); err != nil {
+				return err
+			}
+			fmt.Printf("exported %d skill(s) to %s\n", len(manifests), *xout)
+			return nil
+		}
+		fmt.Print(string(data))
+		return nil
+	case "import":
+		// Bulk-create skills from a `skills export-all` file (or a single
+		// manifest object); same-name skills are skipped (F845).
+		ifs := flag.NewFlagSet("skills import", flag.ExitOnError)
+		sijson := ifs.Bool("json", false, "print {\"created\",\"skipped\"} as JSON")
+		ifs.Parse(reorderFlags(rest))
+		if ifs.NArg() == 0 {
+			return fmt.Errorf("usage: llmctl skills import <file.json> [-json]")
+		}
+		raw, err := os.ReadFile(ifs.Arg(0))
+		if err != nil {
+			return err
+		}
+		var list []map[string]any
+		var one map[string]any
+		if err := json.Unmarshal(raw, &list); err != nil {
+			if err2 := json.Unmarshal(raw, &one); err2 != nil {
+				return fmt.Errorf("import file: %w", err)
+			}
+			list = []map[string]any{one}
+		}
+		// Skip short_names that already exist (memory-import pattern).
+		existing := map[string]bool{}
+		if ecode, eout, err := cc.Get("/api/v1/skills"); err == nil && ecode == 200 {
+			var cur []struct {
+				Manifest struct {
+					ShortName string `json:"short_name"`
+				} `json:"manifest"`
+			}
+			if json.Unmarshal(eout, &cur) == nil {
+				for _, c := range cur {
+					existing[c.Manifest.ShortName] = true
+				}
+			}
+		}
+		var created, skipped int
+		for _, m := range list {
+			sn, _ := m["short_name"].(string)
+			if sn != "" && existing[sn] {
+				fmt.Fprintf(os.Stderr, "  skip %s: already exists\n", sn)
+				skipped++
+				continue
+			}
+			code, out, err := cc.Post("/api/v1/skills", m)
+			if err != nil {
+				return err
+			}
+			if code/100 != 2 {
+				fmt.Fprintf(os.Stderr, "  skip %v: %s\n", m["short_name"], out)
+				skipped++
+				continue
+			}
+			created++
+		}
+		if *sijson {
+			b, _ := json.Marshal(map[string]int{"created": created, "skipped": skipped})
+			fmt.Println(string(b))
+			return nil
+		}
+		fmt.Printf("imported %d skill(s), skipped %d\n", created, skipped)
 		return nil
 	case "enable", "disable":
 		seds := flag.NewFlagSet("skills "+sub, flag.ExitOnError)

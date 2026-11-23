@@ -80,16 +80,33 @@ export default function Skills() {
   };
   const importSkill = async (f: File) => {
     try {
-      const m = JSON.parse(await f.text()) as Record<string, unknown>;
-      if (!m.short_name || !m.prompt_template) throw new Error("manifest needs short_name and prompt_template");
-      await api.createSkill({
-        short_name: String(m.short_name),
-        name: m.name ? String(m.name) : undefined,
-        description: m.description ? String(m.description) : undefined,
-        prompt_template: String(m.prompt_template),
-        tags: Array.isArray(m.tags) ? (m.tags as string[]) : undefined,
-      });
-      ok(`imported skill /s.${m.short_name}`);
+      const parsed = JSON.parse(await f.text());
+      // Accept a single manifest or an array (`skills export-all`, F845).
+      const list = (Array.isArray(parsed) ? parsed : [parsed]) as Array<Record<string, unknown>>;
+      if (!list.length) throw new Error("no manifests in file");
+      const existing = new Set(skills.map((s) => s.manifest.short_name));
+      let created = 0;
+      let skipped = 0;
+      for (const m of list) {
+        const sn = m?.short_name ? String(m.short_name) : "";
+        if (!sn || !m.prompt_template || existing.has(sn)) {
+          skipped++;
+          continue;
+        }
+        try {
+          await api.createSkill({
+            short_name: sn,
+            name: m.name ? String(m.name) : undefined,
+            description: m.description ? String(m.description) : undefined,
+            prompt_template: String(m.prompt_template),
+            tags: Array.isArray(m.tags) ? (m.tags as string[]) : undefined,
+          });
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      ok(`imported ${created} skill(s), skipped ${skipped}`);
       load();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
@@ -277,7 +294,22 @@ export default function Skills() {
           </button>
           <button
             className="btn sm"
-            title="import a skill manifest JSON (CLI: llmctl skills export → skills add)"
+            disabled={skills.length === 0}
+            title="download every skill manifest as a JSON array, re-importable via Import JSON (CLI: llmctl skills export-all, F845)"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(skills.map((s) => s.manifest), null, 2)], { type: "application/json" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `llmctl-skill-manifests-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+              a.click();
+              URL.revokeObjectURL(a.href);
+            }}
+          >
+            Export manifests
+          </button>
+          <button
+            className="btn sm"
+            title="import a skill manifest JSON or an array of them (CLI: llmctl skills export / export-all → skills import)"
             onClick={() => importFileRef.current?.click()}
           >
             Import JSON

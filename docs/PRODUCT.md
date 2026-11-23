@@ -406,7 +406,9 @@ toggle for a light theme (choice remembered). Tabs:
   `~/.llmctl/skills/<id>/`. The Skills page supports add/edit/remove/enable/disable
   and Export CSV / Export JSON buttons on the installed list (F395, F715),
   per-skill Export JSON
-  (manifest, CLI parity) and an Import JSON button on the list (F415), plus a
+  (manifest, CLI parity), an "Export manifests" button (whole set as a
+  re-importable JSON array) and an Import JSON button that accepts a single
+  manifest or an array, skipping existing short_names (F415, F845), plus a
   per-skill Copy prompt button for the template (F784) and a Run panel that
   renders {{input}} and streams a model reply inline (Prompts Run twin, F833)
   with a "Save to chat" button for the rendered prompt + reply (F839).
@@ -551,9 +553,12 @@ toggle for a light theme (choice remembered). Tabs:
    edits one in place (F652), `skills retag <old> <new> | retag -rm <tag>`
    bulk-renames or drops a tag across skills (F663), `skills run <short> -model M
    [-input TEXT] [-system S] [-json] [-out FILE] [-save TITLE]` renders the
-   template and streams the reply (chat /s. twin, F836; -save F839) and `skills export <id>
+   template and streams the reply (chat /s. twin, F836; -save F839), `skills export <id>
    [-out f]` dumps one back
-   out (F245, F288, F305).
+   out, and `skills export-all [-out f]` / `skills import <file.json> [-json]`
+   move whole sets — a JSON array of manifests in, bulk-create out, skipping
+   short_names that already exist (prompts export/import twin, F845)
+   (F245, F288, F305).
  - **Memory CLI** — `llmctl memory [filter] [-json] [-csv] [-out FILE] [-stats] [-tag T]` lists memory entries
    (`-tag T` keeps only entries carrying tag T exactly, F674;
    `--csv` exports id,created_at,tags (`;`-joined),content, F401; `-stats` rolls entries
