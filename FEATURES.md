@@ -802,6 +802,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F789 | P3 | 789 | prompts | Prompts run Copy cURL | COMPLETED | The Prompts page run controls gained a Copy cURL button for the rendered prompt to the selected model — Chat Copy cURL twin, completing the cURL family (Chat/Compare/Batch/Structured/Bench/console). Verified live: served bundle carries the button. |
 | F790 | P3 | 790 | status | status --csv | COMPLETED | `llmctl status` gained a `--csv` flag exporting the running instances as id,model,uptime_sec — completing the --csv family for status. Verified live against the running daemon. |
 | F791 | P3 | 791 | instances | Instance Vars Copy button | COMPLETED | The Instances Vars dialog gained a Copy button for the vars JSON — handy for replicating config to another instance or preset. Verified live: served bundle carries the button. |
+| F792 | P3 | 792 | backends | Plugin template Copy button | COMPLETED | The Backends add-plugin form gained a Copy template button for the example plugin JSON — handy for editing a backend config in an external editor. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

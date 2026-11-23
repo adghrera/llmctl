@@ -125,6 +125,18 @@ export default function Backends() {
               <button className="btn primary" disabled={busy === "plugin"} onClick={addPlugin}>
                 Add backend
               </button>
+              <button
+                className="btn sm"
+                title="copy the plugin JSON template to the clipboard (F792)"
+                onClick={() => {
+                  navigator.clipboard
+                    ?.writeText(pluginJson)
+                    .then(() => ok("copied"))
+                    .catch(() => {});
+                }}
+              >
+                Copy template
+              </button>
             </div>
           </div>
         )}
