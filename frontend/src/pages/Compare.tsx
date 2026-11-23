@@ -10,8 +10,8 @@ export default function Compare() {
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop all in-flight fan-out streams (F755)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
-  const [maxTok, setMaxTok] = useState("");
-  const [temp, setTemp] = useState("");
+  const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.compare.maxtok") ?? "");
+  const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.compare.temp") ?? "");
   const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [fileId, setFileId] = useState("");
@@ -182,7 +182,10 @@ export default function Compare() {
             placeholder="max tokens"
             title="max tokens per response (empty = model default)"
             value={maxTok}
-            onChange={(e) => setMaxTok(e.target.value)}
+            onChange={(e) => {
+              setMaxTok(e.target.value);
+              localStorage.setItem("llmctl.compare.maxtok", e.target.value);
+            }}
           />
           <input
             style={{ width: 130 }}
@@ -193,7 +196,10 @@ export default function Compare() {
             placeholder="temperature"
             title="sampling temperature (empty = model default)"
             value={temp}
-            onChange={(e) => setTemp(e.target.value)}
+            onChange={(e) => {
+              setTemp(e.target.value);
+              localStorage.setItem("llmctl.compare.temp", e.target.value);
+            }}
           />
           <input
             style={{ flex: 1, minWidth: 200 }}
