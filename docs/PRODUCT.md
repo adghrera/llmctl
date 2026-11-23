@@ -145,8 +145,8 @@ GitHub release, or file list. No recompile.
   that instance's model preselected (`/chat?model=`, F362) and Export CSV/JSON
   buttons matching `llmctl ps --csv`/`-json` (F406, F731), plus a Stats toggle rolling the
   list up per model — replicas, running, served, restarts — mirroring
-  `llmctl ps -stats` (F635), and a tag-filter dropdown twin of `llmctl ps
-  -tag` (F708). Its log viewer (stderr/stdout
+  `llmctl ps -stats` (F635), a tag-filter dropdown twin of `llmctl ps
+  -tag` (F708), and clickable column headers to sort the list (F776). Its log viewer (stderr/stdout
   tails, download) has a Follow toggle that keeps tailing new lines every 2s,
   the UI counterpart of `llmctl logs -f` (F422), a filter box that shows
   only lines containing a substring (F450), and a Copy button for the

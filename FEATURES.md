@@ -786,6 +786,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F773 | P3 | 773 | prompts | Prompts run reply Copy | COMPLETED | The Prompts page run-through-gateway reply gained a Copy reply button — copy family extended to prompt runs. Verified live: served bundle carries the button. |
 | F774 | P3 | 774 | requests | Requests column sorting | COMPLETED | The Requests table headers (time/model/instance/key/status/latency/tokens/cost) are now clickable to sort the loaded rows, with a direction arrow — first sort feature in the UI. Verified live: served bundle carries the headers. |
 | F775 | P3 | 775 | keys | Keys column sorting | COMPLETED | The Keys table headers (name/created/used/today) are now clickable to sort the key list, with a direction arrow — Requests sorting twin (F774). Verified live: served bundle carries the headers. |
+| F776 | P3 | 776 | instances | Instances column sorting | COMPLETED | The Instances table headers (id/model/backend/transport/port/status/uptime/last-used) are now clickable to sort the list, with a direction arrow — Requests/Keys sorting twin (F774, F775). Verified live: served bundle carries the headers. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

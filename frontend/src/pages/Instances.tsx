@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type AutoStartSpec, type PresetSpec, type InstanceLogTail } from "../api/client";
+import { api, type AutoStartSpec, type PresetSpec, type InstanceLogTail, type Instance } from "../api/client";
 import { useStore } from "../state/store";
 import { ok, err } from "../ui/toast";
 
@@ -52,6 +52,8 @@ export default function Instances() {
   const [autoSpecs, setAutoSpecs] = useState<AutoStartSpec[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(false); // live-poll the instance table (CLI `ps -watch`, F612)
   const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `ps -tag` twin (F708)
+  const [sortKey, setSortKey] = useState(""); // column sort over the instance list (F776)
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
 
   useEffect(() => {
     api.autoStart().then(setAutoSpecs).catch(() => setAutoSpecs([]));
@@ -61,6 +63,36 @@ export default function Instances() {
   const shownInstances = tagFilter
     ? instances.filter((i) => (i.tags ?? []).includes(tagFilter))
     : instances;
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "port" ? -1 : 1);
+    }
+  };
+  const sortedInstances = (() => {
+    if (!sortKey) return shownInstances;
+    const val = (i: Instance): string | number => {
+      switch (sortKey) {
+        case "id": return i.id || "";
+        case "model": return i.modelId || "";
+        case "backend": return i.backendId || "";
+        case "transport": return i.transport || "";
+        case "port": return i.port || 0;
+        case "status": return i.status || "";
+        case "uptime": return i.startedAt || "";
+        case "lastused": return i.lastUsed || "";
+        default: return 0;
+      }
+    };
+    return [...shownInstances].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  })();
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
 
   // Poll the instance list while the toggle is on (F612), so starting/
   // stopping instances and uptime counters update without a reload.
@@ -769,19 +801,19 @@ export default function Instances() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Model</th>
-                <th>Backend</th>
-                <th>Transport</th>
-                <th>Port</th>
-                <th>Status</th>
-                <th>Uptime</th>
-                <th>Last used</th>
+                <th style={{ cursor: "pointer" }} title="sort by id (F776)" onClick={() => toggleSort("id")}>ID{arrow("id")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by model (F776)" onClick={() => toggleSort("model")}>Model{arrow("model")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by backend (F776)" onClick={() => toggleSort("backend")}>Backend{arrow("backend")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by transport (F776)" onClick={() => toggleSort("transport")}>Transport{arrow("transport")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by port (F776)" onClick={() => toggleSort("port")}>Port{arrow("port")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by status (F776)" onClick={() => toggleSort("status")}>Status{arrow("status")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by uptime (F776)" onClick={() => toggleSort("uptime")}>Uptime{arrow("uptime")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by last used (F776)" onClick={() => toggleSort("lastused")}>Last used{arrow("lastused")}</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {shownInstances.map((i) => (
+              {sortedInstances.map((i) => (
                 <tr key={i.id}>
                   <td className="mono">
                     <span
