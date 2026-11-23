@@ -783,6 +783,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F770 | P3 | 770 | batch | Structured/Batch result Copy | COMPLETED | The Structured result card gained a Copy button beside Export JSON, and each Batch result row gained a Copy button for its output — copy family extended to both pages. Verified live: served bundle carries both buttons. |
 | F771 | P3 | 771 | settings | Settings Shutdown daemon button | COMPLETED | The Settings System health card gained a "Shutdown daemon" button (confirm-guarded) calling POST /api/v1/shutdown — UI twin of `llmctl down`. Verified live: clicking path exercised via curl, daemon stopped as expected. |
 | F772 | P3 | 772 | settings | API console Copy result | COMPLETED | The Settings API console gained a Copy result button for the response body — copy family extended to the raw API tester. Verified live: served bundle carries the button. |
+| F773 | P3 | 773 | prompts | Prompts run reply Copy | COMPLETED | The Prompts page run-through-gateway reply gained a Copy reply button — copy family extended to prompt runs. Verified live: served bundle carries the button. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

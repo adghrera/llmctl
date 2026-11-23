@@ -441,7 +441,8 @@ toggle for a light theme (choice remembered). Tabs:
   per-template "Render" preview that fills {{input}} and extra {{k}} vars
   live (F361), with a model picker + Run button that sends the rendered
   template through the gateway and streams the reply inline (UI counterpart
-  of `llmctl prompts run`, F596). CLI:
+  of `llmctl prompts run`, F596), with a Copy reply button under the reply
+  (F773). CLI:
    `llmctl prompts [list] [filter] [-category X] [-json] [-csv] [-stats]` (the `list`
    word is accepted as an explicit subcommand, and `--csv` exports the
    filtered list as id,category,name,description, header-only when empty, F382;

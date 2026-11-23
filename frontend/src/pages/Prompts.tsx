@@ -651,6 +651,7 @@ export default function Prompts() {
                   </button>
                 </div>
                 {runReply?.id === t.id && (runReply.text || runReply.busy) && (
+                  <>
                   <pre
                     style={{
                       margin: 0,
@@ -666,6 +667,22 @@ export default function Prompts() {
                   >
                     {runReply.text || "…"}
                   </pre>
+                  {!runReply.busy && runReply.text && (
+                    <button
+                      className="btn sm"
+                      style={{ marginTop: 6 }}
+                      title="copy the model reply to the clipboard (F773)"
+                      onClick={() => {
+                        navigator.clipboard
+                          ?.writeText(runReply.text)
+                          .then(() => ok("copied"))
+                          .catch(() => {});
+                      }}
+                    >
+                      Copy reply
+                    </button>
+                  )}
+                  </>
                 )}
               </div>
             )}
