@@ -13,6 +13,7 @@ export default function Compare() {
   const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.compare.maxtok") ?? "");
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.compare.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.compare.seed") ?? "");
+  const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.compare.topp") ?? "");
   const [sys, setSys] = useState(() => localStorage.getItem("llmctl.compare.sys") || "");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [fileId, setFileId] = useState("");
@@ -93,6 +94,7 @@ export default function Compare() {
             ...(Number(maxTok) > 0 ? { max_tokens: Number(maxTok) } : {}),
             ...(temp.trim() !== "" ? { temperature: Number(temp) } : {}),
             ...(seed.trim() !== "" ? { seed: Number(seed) } : {}),
+            ...(topP.trim() !== "" ? { top_p: Number(topP) } : {}),
           });
           const resp = await fetch("/v1/chat/completions", {
             method: "POST",
@@ -215,6 +217,20 @@ export default function Compare() {
             }}
           />
           <input
+            style={{ width: 90 }}
+            type="number"
+            step="0.05"
+            min={0}
+            max={1}
+            placeholder="top_p"
+            title="nucleus sampling top_p sent to every model (empty = model default) (F798)"
+            value={topP}
+            onChange={(e) => {
+              setTopP(e.target.value);
+              localStorage.setItem("llmctl.compare.topp", e.target.value);
+            }}
+          />
+          <input
             style={{ flex: 1, minWidth: 200 }}
             placeholder="system prompt (optional, sent to every model)"
             title="system prompt prepended to the conversation (CLI: compare -system, F668)"
@@ -330,6 +346,8 @@ export default function Compare() {
               const body: Record<string, unknown> = { model: inst.modelId, messages: history, stream: true };
               if (Number(maxTok) > 0) body.max_tokens = Number(maxTok);
               if (temp.trim() !== "") body.temperature = Number(temp);
+              if (seed.trim() !== "") body.seed = Number(seed);
+              if (topP.trim() !== "") body.top_p = Number(topP);
               const json = JSON.stringify(body);
               const q = `'${json.replace(/'/g, `'\\''`)}'`;
               const cmd =

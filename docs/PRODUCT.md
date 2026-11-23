@@ -391,7 +391,8 @@ toggle for a light theme (choice remembered). Tabs:
 - **Model comparison** — send the same prompt to multiple running instances
   simultaneously and view responses side by side on the Compare page, with
   optional max-tokens/temperature inputs (F359), also persisted in the
-  browser (F764), a seed input for a fair comparison (F794), a persisted system-prompt
+  browser (F764), a seed input for a fair comparison (F794) and a top_p
+  nucleus-sampling input (F798), a persisted system-prompt
   input matching `compare -system` (F668), an attach-file dropdown matching
   `compare -file` (F672), a "Load file" button attaching a local text file as
   context (twin of `-file`, F733) and a Results Export JSON
