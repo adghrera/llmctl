@@ -2273,6 +2273,9 @@ type settingsView struct {
 	UsageRetentionDays int    `json:"usageRetentionDays"`
 	LogLevel           string `json:"logLevel"`   // daemon verbosity; "" = info (F171)
 	BackupKeep         int    `json:"backupKeep"` // snapshots kept; 0 = default 7 (F181)
+	// Response-cache sizing; 0 = defaults 600 s / 128 entries (F851).
+	CacheTTLSeconds int `json:"cacheTTLSeconds,omitempty"`
+	CacheMaxEntries int `json:"cacheMaxEntries,omitempty"`
 }
 
 // testNotifyWebhook handles POST /api/v1/settings/notify-test — posts a
@@ -2385,6 +2388,8 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		UsageRetentionDays:  st.Settings.UsageRetentionDays,
 		LogLevel:            st.Settings.LogLevel,
 		BackupKeep:          st.Settings.BackupKeep,
+		CacheTTLSeconds:     st.Settings.CacheTTLSeconds,
+		CacheMaxEntries:     st.Settings.CacheMaxEntries,
 	})
 }
 
@@ -2403,6 +2408,8 @@ type updateSettingsReq struct {
 	UsageRetentionDays  *int      `json:"usageRetentionDays"` // rollup days kept; 0 = default 90, -1 = forever (F168)
 	LogLevel            *string   `json:"logLevel"`           // daemon verbosity: debug|info|warn|error (F171)
 	BackupKeep          *int      `json:"backupKeep"`         // snapshots kept; 0 = default 7 (F181)
+	CacheTTLSeconds     *int      `json:"cacheTTLSeconds"`    // response-cache TTL s; 0 = default 600 (F851)
+	CacheMaxEntries     *int      `json:"cacheMaxEntries"`    // response-cache max entries; 0 = default 128 (F851)
 }
 
 func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
@@ -2433,6 +2440,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.BackupKeep != nil && (*req.BackupKeep < 0 || *req.BackupKeep > 1000) {
 		writeErr(w, 400, "backupKeep must be 0 (default 7) or 1–1000")
+		return
+	}
+	if req.CacheTTLSeconds != nil && (*req.CacheTTLSeconds < 0 || *req.CacheTTLSeconds > 86400) {
+		writeErr(w, 400, "cacheTTLSeconds must be 0 (default 600) or 1–86400")
+		return
+	}
+	if req.CacheMaxEntries != nil && (*req.CacheMaxEntries < 0 || *req.CacheMaxEntries > 100000) {
+		writeErr(w, 400, "cacheMaxEntries must be 0 (default 128) or 1–100000")
 		return
 	}
 	if req.LogLevel != nil {
@@ -2491,6 +2506,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if req.BackupKeep != nil {
 			st.Settings.BackupKeep = *req.BackupKeep // snapshot retention (F181)
+		}
+		if req.CacheTTLSeconds != nil {
+			st.Settings.CacheTTLSeconds = *req.CacheTTLSeconds // response-cache TTL (F851)
+		}
+		if req.CacheMaxEntries != nil {
+			st.Settings.CacheMaxEntries = *req.CacheMaxEntries // response-cache size (F851)
 		}
 		return nil
 	})

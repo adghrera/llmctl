@@ -175,6 +175,10 @@ type Settings struct {
 	// BackupKeep is how many scheduled/on-demand snapshots are kept in
 	// ~/.llmctl/backups (0 = default 7) (F181).
 	BackupKeep int `json:"backupKeep,omitempty"`
+	// CacheTTLSeconds/CacheMaxEntries size the opt-in gateway response
+	// cache (0 = defaults 600 s / 128 entries) (F851).
+	CacheTTLSeconds int `json:"cacheTTLSeconds,omitempty"`
+	CacheMaxEntries int `json:"cacheMaxEntries,omitempty"`
 }
 
 // AutoStartSpec is a persistent "relaunch me at daemon start" declaration.

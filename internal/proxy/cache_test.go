@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // TestResponseCache exercises the opt-in gateway response cache (F841):
@@ -109,4 +110,31 @@ func TestResponseCache(t *testing.T) {
 		t.Fatal("streaming requests must not carry the cache header")
 	}
 	_ = json.Marshal // keep the import honest if the body shape changes
+}
+
+// TestResponseCacheLimits checks that a limits func overrides the default
+// TTL and max-entry count (F851).
+func TestResponseCacheLimits(t *testing.T) {
+	c := newResponseCache()
+	c.limits = func() (time.Duration, int) { return 5 * time.Second, 1 }
+
+	c.set("a", []byte(`{"x":1}`), false)
+	if _, ok := c.get("a"); !ok {
+		t.Fatal("fresh entry should hit")
+	}
+	c.set("b", []byte(`{"x":2}`), false) // evicts "a" (max 1)
+	if _, ok := c.get("a"); ok {
+		t.Fatal("entry beyond max should be evicted")
+	}
+	time.Sleep(2 * time.Millisecond)
+	c2 := newResponseCache()
+	c2.limits = func() (time.Duration, int) { return 1 * time.Nanosecond, 5 }
+	c2.set("z", []byte(`{"x":1}`), false)
+	if _, ok := c2.get("z"); ok {
+		t.Fatal("entry past the custom TTL should miss")
+	}
+	st := c.stats()
+	if st["maxEntries"] != 1 || st["ttlSeconds"] != 5 {
+		t.Fatalf("stats should reflect custom limits, got %v/%v", st["maxEntries"], st["ttlSeconds"])
+	}
 }

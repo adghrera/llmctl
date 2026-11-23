@@ -72,6 +72,9 @@ type Config struct {
 	RateRPS       float64 // sustained requests/sec per client
 	RateBurst     int
 	MaxInflight   int
+	// CacheLimits, when set, supplies live response-cache TTL and max-entry
+	// overrides from daemon settings (zero values = defaults) (F851).
+	CacheLimits func() (time.Duration, int)
 	// RequestLogPath, when set, persists the recent-request ring to a JSONL
 	// file so it survives daemon restarts (F086).
 	RequestLogPath string
@@ -109,15 +112,14 @@ func NewServer(cfg Config, router *Router) (*Server, error) {
 		getLimits = func(string) (float64, int) { return 0, 0 }
 	}
 	s := &Server{
-		addr:         cfg.Addr,
-		apiKeys:      keys,
-		keyCheck:     cfg.KeyCheck,
-		requireAuth:  &atomic.Bool{},
-		allowCORS:    &atomic.Bool{},
-		limiter:      newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
-		respCache:    newResponseCache(),
-		router:       router,
-		logger:       cfg.Logger,
+		addr:        cfg.Addr,
+		apiKeys:     keys,
+		keyCheck:    cfg.KeyCheck,
+		requireAuth: &atomic.Bool{},
+		allowCORS:   &atomic.Bool{},
+		limiter:     newRateLimiter(cfg.RateRPS, cfg.RateBurst, getLimits),
+		respCache:   func() *responseCache { c := newResponseCache(); c.limits = cfg.CacheLimits; return c }(),
+		router:      router, logger: cfg.Logger,
 		maxInflight:  int64(cfg.MaxInflight),
 		collector:    newMetricsCollector(),
 		keyInflight:  map[string]*atomic.Int64{},

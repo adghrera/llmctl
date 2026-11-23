@@ -12,6 +12,8 @@ export default function SettingsPage() {
   const [usageRetentionDays, setUsageRetentionDays] = useState(0);
   const [logLevel, setLogLevel] = useState("info");
   const [backupKeep, setBackupKeep] = useState(0);
+  const [cacheTTL, setCacheTTL] = useState(0); // response-cache TTL s, 0 = default (F851)
+  const [cacheMax, setCacheMax] = useState(0); // response-cache max entries, 0 = default (F851)
   const [rateBurst, setRateBurst] = useState(0);
   const [webhook, setWebhook] = useState("");
   const [whEvents, setWhEvents] = useState("");
@@ -100,6 +102,8 @@ export default function SettingsPage() {
       setUsageRetentionDays(s.usageRetentionDays ?? 0);
       setLogLevel(s.logLevel || "info");
       setBackupKeep(s.backupKeep ?? 0);
+      setCacheTTL(s.cacheTTLSeconds ?? 0);
+      setCacheMax(s.cacheMaxEntries ?? 0);
       setRateBurst(s.rateBurst || 0);
       setWebhook(s.notifyWebhook || "");
       setWhEvents((s.notifyEvents || []).join(", "));
@@ -191,6 +195,21 @@ export default function SettingsPage() {
             ? `usage history kept ${r.usageRetentionDays} days`
             : "usage history retention back to default (90 days)",
       );
+    } catch (e) {
+      err(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveCacheLimits = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await api.updateSettings({ cacheTTLSeconds: cacheTTL, cacheMaxEntries: cacheMax });
+      setSettings(r);
+      ok(`cache limits saved (ttl ${r.cacheTTLSeconds || 600}s, max ${r.cacheMaxEntries || 128})`);
+      loadCache();
     } catch (e) {
       err(e instanceof Error ? e.message : String(e));
     } finally {
@@ -834,6 +853,31 @@ export default function SettingsPage() {
           </button>
           <button className="btn sm danger" onClick={clearCache} title="drop every cached response (CLI: llmctl cache clear)">
             Clear cache
+          </button>
+        </div>
+        <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+          <input
+            style={{ width: 110 }}
+            type="number"
+            min={0}
+            placeholder="ttl s"
+            title="response-cache TTL in seconds (0 = default 600) — CLI: llmctl settings set -cache-ttl (F851)"
+            value={cacheTTL}
+            onChange={(e) => setCacheTTL(Number(e.target.value))}
+          />
+          <span className="muted" style={{ fontSize: 12 }}>ttl s (0 = 600)</span>
+          <input
+            style={{ width: 110 }}
+            type="number"
+            min={0}
+            placeholder="max"
+            title="response-cache max entries (0 = default 128) — CLI: llmctl settings set -cache-max (F851)"
+            value={cacheMax}
+            onChange={(e) => setCacheMax(Number(e.target.value))}
+          />
+          <span className="muted" style={{ fontSize: 12 }}>max entries (0 = 128)</span>
+          <button className="btn sm" onClick={saveCacheLimits} title="save cache TTL and size (CLI: llmctl settings set -cache-ttl N -cache-max N)">
+            Apply
           </button>
         </div>
       </div>

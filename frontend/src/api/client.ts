@@ -508,6 +508,8 @@ export interface Settings {  requireAuth: boolean;
   usageRetentionDays?: number;
   logLevel?: string;
   backupKeep?: number;
+  cacheTTLSeconds?: number; // response-cache TTL s, 0 = default 600 (F851)
+  cacheMaxEntries?: number; // response-cache max entries, 0 = default 128 (F851)
 }
 
 export class ApiError extends Error {
@@ -936,7 +938,7 @@ export const api = {
   daemonLog: (bytes = 8000) =>
     req<{ size: number; logs: string }>(`/logs/daemon?bytes=${bytes}`),
   settings: () => req<Settings>("/settings"),
-  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number; logLevel?: string; backupKeep?: number }) =>
+  updateSettings: (body: { requireAuth?: boolean; idleUnloadMin?: number; notifyWebhook?: string; notifyWebhookSecret?: string; notifyEvents?: string[]; allowCORS?: boolean; startupTimeoutSec?: number; startOnDemand?: boolean; maxBodyMB?: number; rateRPS?: number; rateBurst?: number; usageRetentionDays?: number; logLevel?: string; backupKeep?: number; cacheTTLSeconds?: number; cacheMaxEntries?: number }) =>
     req<Settings>("/settings", { method: "PATCH", body: JSON.stringify(body) }),
   testNotifyWebhook: (event?: string, message?: string) =>
     req<{ ok: boolean; error?: string }>("/settings/notify-test", {

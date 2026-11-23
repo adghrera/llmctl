@@ -12920,6 +12920,8 @@ func cmdSettings(args []string) error {
 		retentionDays := fs.Int("retention-days", -2, "usage rollup days kept, -1 = forever (-2 = leave)")
 		logLevel := fs.String("log-level", "", "daemon log level: debug|info|warn|error")
 		backupKeep := fs.Int("backup-keep", -1, "snapshots kept (-1 = leave)")
+		cacheTTL := fs.Int("cache-ttl", -1, "response-cache TTL seconds (-1 = leave, 0 = default 600) (F851)")
+		cacheMax := fs.Int("cache-max", -1, "response-cache max entries (-1 = leave, 0 = default 128) (F851)")
 		sjson := fs.Bool("json", false, "print the raw updated settings JSON (F581)")
 		fs.Parse(reorderFlags(args[1:]))
 		body := map[string]any{}
@@ -12953,6 +12955,10 @@ func cmdSettings(args []string) error {
 				body["logLevel"] = *logLevel
 			case "backup-keep":
 				body["backupKeep"] = *backupKeep
+			case "cache-ttl":
+				body["cacheTTLSeconds"] = *cacheTTL
+			case "cache-max":
+				body["cacheMaxEntries"] = *cacheMax
 			}
 		})
 		if len(body) == 0 {

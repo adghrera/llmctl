@@ -163,6 +163,7 @@ func Run(ctx context.Context, opts Options) error {
 	tokHex := hex.EncodeToString(internalTok)
 
 	gw, err := proxy.NewServer(proxy.Config{
+		CacheLimits:     router.CacheLimits,
 		Addr:          opts.Addr,
 		APIKeys:       opts.APIKeys,
 		KeyCheck:      nil, // mgmt.KeyCheck set below

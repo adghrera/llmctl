@@ -24,6 +24,8 @@ type cacheEntry struct {
 }
 
 // responseCache is a small TTL map with FIFO eviction and hit/miss counters.
+// limits, when set, supplies live TTL/max-entry overrides from daemon
+// settings; zero values fall back to the defaults (F851).
 type responseCache struct {
 	mu      sync.Mutex
 	entries map[string]cacheEntry
@@ -31,10 +33,26 @@ type responseCache struct {
 	hits    int
 	misses  int
 	stores  int
+	limits  func() (time.Duration, int)
 }
 
 func newResponseCache() *responseCache {
 	return &responseCache{entries: map[string]cacheEntry{}}
+}
+
+// curLimits returns the effective TTL and max-entry count.
+func (c *responseCache) curLimits() (time.Duration, int) {
+	ttl, max := time.Duration(0), 0
+	if c.limits != nil {
+		ttl, max = c.limits()
+	}
+	if ttl <= 0 {
+		ttl = cacheTTL
+	}
+	if max <= 0 {
+		max = cacheMaxEntry
+	}
+	return ttl, max
 }
 
 // cacheKey hashes the path plus the raw request body; identical bodies for
@@ -47,12 +65,13 @@ func cacheKey(path string, body []byte) string {
 func (c *responseCache) get(key string) ([]byte, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	ttl, _ := c.curLimits()
 	e, ok := c.entries[key]
 	if !ok {
 		c.misses++
 		return nil, false
 	}
-	if time.Since(e.created) > cacheTTL {
+	if time.Since(e.created) > ttl {
 		delete(c.entries, key)
 		c.misses++
 		return nil, false
@@ -69,7 +88,8 @@ func (c *responseCache) set(key string, body []byte, truncated bool) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if _, exists := c.entries[key]; !exists && len(c.entries) >= cacheMaxEntry {
+	_, max := c.curLimits()
+	if _, exists := c.entries[key]; !exists && len(c.entries) >= max {
 		oldest := c.order[0]
 		c.order = c.order[1:]
 		delete(c.entries, oldest)
@@ -82,13 +102,14 @@ func (c *responseCache) set(key string, body []byte, truncated bool) {
 func (c *responseCache) stats() map[string]any {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	ttl, max := c.curLimits()
 	return map[string]any{
 		"entries":    len(c.entries),
 		"hits":       c.hits,
 		"misses":     c.misses,
 		"stores":     c.stores,
-		"maxEntries": cacheMaxEntry,
-		"ttlSeconds": int(cacheTTL.Seconds()),
+		"maxEntries": max,
+		"ttlSeconds": int(ttl.Seconds()),
 	}
 }
 

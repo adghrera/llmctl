@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"llmctl/internal/backend"
 	"llmctl/internal/stdio"
@@ -66,6 +67,17 @@ func (rt *Router) state() (*store.State, error) {
 	c := rt.cached
 	rt.mu.Unlock()
 	return c, nil
+}
+
+// CacheLimits reads the response-cache sizing settings for the gateway
+// response cache; unset settings return zeros so the cache uses its
+// defaults (F851).
+func (rt *Router) CacheLimits() (time.Duration, int) {
+	s, err := rt.state()
+	if err != nil || s == nil || s.Settings == nil {
+		return 0, 0
+	}
+	return time.Duration(s.Settings.CacheTTLSeconds) * time.Second, s.Settings.CacheMaxEntries
 }
 
 // RunningInstances lists instances marked running.

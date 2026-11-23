@@ -371,7 +371,10 @@ toggle for a light theme (choice remembered). Tabs:
   Non-streaming chat calls may opt into the response cache by sending
   `X-LLMCtrl-Cache: 1`: identical requests within the 10-minute TTL are served
   from memory (128 entries, FIFO) and answered with `X-LLMCtrl-Cache: hit`;
-  hits log zero tokens so usage totals track upstream spend. REST:
+  hits log zero tokens so usage totals track upstream spend. The TTL and
+  entry cap are settings (`cacheTTLSeconds`/`cacheMaxEntries`, 0 = defaults
+  600 s / 128) applied live — `llmctl settings set -cache-ttl N -cache-max N`
+  or the Settings card inputs (F851). REST:
   GET /api/v1/cache/stats, DELETE /api/v1/cache; CLI `llmctl cache stats|clear`;
   Settings page shows the counters with a Clear button (F841).
   History persists across daemon restarts (`~/.llmctl/requests.jsonl`,
