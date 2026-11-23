@@ -2342,6 +2342,8 @@ func cmdComplete(args []string) error {
 	temp := fs.Float64("temperature", 0.7, "sampling temperature")
 	seed := fs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F801)")
 	topP := fs.Float64("top-p", -1, "nucleus sampling top_p (-1 = model default, F801)")
+	freqPen := fs.Float64("freq-penalty", -999, "frequency penalty (-999 = model default, F807)")
+	presPen := fs.Float64("pres-penalty", -999, "presence penalty (-999 = model default, F807)")
 	jsonOut := fs.Bool("json", false, "print the raw completions JSON (for scripts)")
 	outFile := fs.String("out", "", "write the completion text to this file instead of stdout (F455)")
 	fs.Parse(reorderFlags(args))
@@ -2372,6 +2374,12 @@ func cmdComplete(args []string) error {
 	}
 	if *topP >= 0 {
 		reqBody["top_p"] = *topP
+	}
+	if *freqPen > -999 {
+		reqBody["frequency_penalty"] = *freqPen
+	}
+	if *presPen > -999 {
+		reqBody["presence_penalty"] = *presPen
 	}
 	code, out, err := cc.DoKey("POST", "/v1/completions", reqBody, *keyF)
 	if err != nil {
@@ -11347,6 +11355,8 @@ func cmdPrompts(args []string) error {
 		maxTok := rfs.Int("max-tokens", 0, "max tokens to generate (0 = model default)")
 		seed := rfs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F802)")
 		topP := rfs.Float64("top-p", -1, "nucleus sampling top_p (-1 = model default, F802)")
+		freqPen := rfs.Float64("freq-penalty", -999, "frequency penalty (-999 = model default, F807)")
+		presPen := rfs.Float64("pres-penalty", -999, "presence penalty (-999 = model default, F807)")
 		saveChat := rfs.String("save", "", "save the exchange as a saved chat under this title (F583)")
 		contChat := rfs.String("chat", "", "continue this saved chat — its history is sent and the reply is appended (F584)")
 		rjson := rfs.Bool("json", false, "print the raw gateway JSON instead of the reply text")
@@ -11434,6 +11444,12 @@ func cmdPrompts(args []string) error {
 		}
 		if *topP >= 0 {
 			reqBody["top_p"] = *topP
+		}
+		if *freqPen > -999 {
+			reqBody["frequency_penalty"] = *freqPen
+		}
+		if *presPen > -999 {
+			reqBody["presence_penalty"] = *presPen
 		}
 		b, _ := json.Marshal(reqBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
@@ -13342,6 +13358,8 @@ func cmdChat(args []string) error {
 	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")
 	seed := fs.Int64("seed", -1, "with -prompt: sampling seed for reproducible replies (-1 = random, F801)")
 	topP := fs.Float64("top-p", -1, "with -prompt: nucleus sampling top_p (-1 = model default, F801)")
+	freqPen := fs.Float64("freq-penalty", -999, "with -prompt: frequency penalty (-999 = model default, F807)")
+	presPen := fs.Float64("pres-penalty", -999, "with -prompt: presence penalty (-999 = model default, F807)")
 	outFile := fs.String("out", "", "with -prompt: write the reply text to this file instead of stdout (F448)")
 	fs.Parse(reorderFlags(args))
 
@@ -13565,6 +13583,12 @@ func cmdChat(args []string) error {
 		}
 		if *topP >= 0 {
 			reqBody["top_p"] = *topP
+		}
+		if *freqPen > -999 {
+			reqBody["frequency_penalty"] = *freqPen
+		}
+		if *presPen > -999 {
+			reqBody["presence_penalty"] = *presPen
 		}
 		b, _ := json.Marshal(reqBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
