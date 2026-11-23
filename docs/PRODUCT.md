@@ -889,7 +889,7 @@ llmctl presets delete <name> [-json] | chats delete <id> [-json] | prompts delet
 llmctl kb add-doc <kb> <path> [-json] | kb update <id> … [-json] | memory update <id> … [-json] | prompts update <id> … [-json] | key update <id> … [-json] | chats pin|unpin <id> [-json]   (print the raw response JSON with -json, F539)
 llmctl kb tag <id> [a,b,c] [-json] | kb retag <old> <new> | kb retag -rm <tag> [-json]   (free-form tags on knowledge bases; retag bulk-renames or drops, F664)
 llmctl kb search-all <query> [-limit N] [-json|-csv|-out FILE]   (one query across all KBs, merged by score, F665)
-llmctl scheduler update <id> … [-json] | tools install <dir> [-json] | backups verify <name> [-json] | skills add <manifest.json> [-json]   (print the raw response JSON with -json, F540)
+llmctl scheduler update <id> … [-json] | tools install <dir> [-json] | backups verify <name> [-json] | skills add <manifest.json> [-json]   (print the raw response JSON with -json, F540; scheduler update also takes -system/-temperature/-max-tokens/-seed, F810)
 llmctl catalog install <id> [-json] | kb embed <kb> … [-json]   (print the raw response JSON with -json, F541)
 llmctl presets|scheduler|memory|mcp|prompts|autostart import <file.json> [-json]   (print {"created","skipped"} as JSON; per-item skip notices move to stderr, F542)
 llmctl chats fork|rename|prune … [-json] | prompts add <id> -name N … [-json] | prompts duplicate <id> <new-id> … [-json]   (print the raw response / result JSON with -json, F544, F638)

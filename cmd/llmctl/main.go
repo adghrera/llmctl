@@ -5183,6 +5183,10 @@ func cmdScheduler(args []string) error {
 		keep := ufs.Int("keep", -1, "snapshots to retain (backup kind)")
 		enabled := ufs.String("enabled", "", "true | false")
 		kb := ufs.String("kb", "", "knowledge base id(s), comma-separated (chat kind, F666)")
+		system := ufs.String("system", "", "system message (chat kind, F810)")
+		temp := ufs.Float64("temperature", -1, "sampling temperature (chat kind, F810)")
+		maxTok := ufs.Int("max-tokens", 0, "max tokens per reply (chat kind, F810)")
+		seed := ufs.Int64("seed", -1, "sampling seed (chat kind, F810)")
 		sujson := ufs.Bool("json", false, "print the raw response JSON (F540)")
 		ufs.Parse(reorderFlags(rest[1:]))
 		code, out, err := cc.Get("/api/v1/scheduler/" + url.PathEscape(id))
@@ -5222,6 +5226,18 @@ func cmdScheduler(args []string) error {
 		if *kb != "" {
 			rec.Spec["kb"] = *kb
 		}
+		if *system != "" {
+			rec.Spec["system"] = *system
+		}
+		if *temp >= 0 {
+			rec.Spec["temperature"] = *temp
+		}
+		if *maxTok > 0 {
+			rec.Spec["max_tokens"] = *maxTok
+		}
+		if *seed >= 0 {
+			rec.Spec["seed"] = *seed
+		}
 		switch *enabled {
 		case "":
 		case "true":
@@ -5231,7 +5247,7 @@ func cmdScheduler(args []string) error {
 		default:
 			return fmt.Errorf("-enabled must be true or false")
 		}
-		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" && *kb == "" {
+		if *name == "" && *cron == "" && *model == "" && *prompt == "" && *instance == "" && *webhook == "" && *keep < 0 && *enabled == "" && *kb == "" && *system == "" && *temp < 0 && *maxTok <= 0 && *seed < 0 {
 			return fmt.Errorf("nothing to change (pass at least one flag)")
 		}
 		delete(rec.Spec, "id")
