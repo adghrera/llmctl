@@ -365,6 +365,21 @@ export default function SettingsPage() {
             >
               Export JSON
             </button>
+            <button
+              className="btn sm danger"
+              title="stop the daemon (CLI: llmctl down) — running instances are left as they are (F771)"
+              onClick={async () => {
+                if (!confirm("Shut down the daemon? The web UI will stop responding.")) return;
+                try {
+                  await api.shutdown();
+                  ok("daemon shutting down — reload once it is back up");
+                } catch (e) {
+                  err(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              Shutdown daemon
+            </button>
             <span className="muted" style={{ fontSize: 12 }}>
               also available as <span className="mono">llmctl doctor</span>
             </span>

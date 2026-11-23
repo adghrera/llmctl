@@ -521,6 +521,7 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
 
 export const api = {
   status: () => req<Status>("/status"),
+  shutdown: () => req<{ ok: boolean; msg: string }>("/shutdown", { method: "POST" }),
   backends: () => req<Backend[]>("/backends"),
   installBackend: (id: string) =>
     req<{ job: string; status: string }>(`/backends/${encodeURIComponent(id)}/install`, { method: "POST" }),
