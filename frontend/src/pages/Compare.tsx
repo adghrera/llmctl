@@ -303,6 +303,35 @@ export default function Compare() {
               Compare
             </button>
           )}
+          <button
+            className="btn sm"
+            disabled={!prompt.trim() || selected.size === 0}
+            title="copy a curl command for the first selected model (Chat Copy cURL twin, F785)"
+            onClick={() => {
+              const inst = instances.find((i) => selected.has(i.id));
+              if (!inst) return;
+              const history: { role: string; content: string }[] = [];
+              if (sys.trim()) history.push({ role: "system", content: sys.trim() });
+              if (localFile) history.push({ role: "user", content: `File: ${localFile.name}\n\n${localFile.text}` });
+              history.push({ role: "user", content: prompt });
+              const body: Record<string, unknown> = { model: inst.modelId, messages: history, stream: true };
+              if (Number(maxTok) > 0) body.max_tokens = Number(maxTok);
+              if (temp.trim() !== "") body.temperature = Number(temp);
+              const json = JSON.stringify(body);
+              const q = `'${json.replace(/'/g, `'\\''`)}'`;
+              const cmd =
+                `curl -N ${window.location.origin}/v1/chat/completions \\\n` +
+                `  -H "Authorization: Bearer $LLMCTL_API_KEY" \\\n` +
+                `  -H "Content-Type: application/json" \\\n` +
+                `  -d ${q}\n`;
+              navigator.clipboard
+                ?.writeText(cmd)
+                .then(() => ok("copied curl command"))
+                .catch(() => err("clipboard unavailable"));
+            }}
+          >
+            Copy cURL
+          </button>
         </div>
       </div>
 
