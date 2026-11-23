@@ -68,6 +68,8 @@ type structuredRequest struct {
 	Temperature *float64       `json:"temperature,omitempty"` // nil = model default (F344)
 	Seed        *int64         `json:"seed,omitempty"`        // reproducible sampling seed (F795)
 	TopP        *float64       `json:"topP,omitempty"`        // nucleus sampling top_p (F799)
+	FreqPen     *float64       `json:"freqPenalty,omitempty"` // frequency penalty (F805)
+	PresPen     *float64       `json:"presPenalty,omitempty"` // presence penalty (F805)
 	APIKey      string         `json:"-"`
 }
 
@@ -109,7 +111,7 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	var lastErr string
 	var lastRaw string
 	for attempt := 1; attempt <= req.MaxRetries+1; attempt++ {
-		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, req.MaxTokens, req.Temperature, req.Seed, req.TopP)
+		content, err := s.gatewayChat(r.Context(), req.Model, req.APIKey, messages, chatOpts{MaxTokens: req.MaxTokens, Temp: req.Temperature, Seed: req.Seed, TopP: req.TopP, FreqPen: req.FreqPen, PresPen: req.PresPen})
 		if err != nil {
 			writeErr(w, 502, err.Error())
 			return
@@ -146,25 +148,42 @@ func (s *Server) structured(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// chatOpts are the optional sampling parameters for gatewayChat. A nil
+// pointer means "model default" (F805 generalizes the F795/F799 params).
+type chatOpts struct {
+	MaxTokens int
+	Temp      *float64
+	Seed      *int64
+	TopP      *float64
+	FreqPen   *float64
+	PresPen   *float64
+}
+
 // gatewayChat performs one non-streaming chat completion against the
 // gateway in-process. maxTokens <= 0 means backend default.
-func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []chatMsg, maxTokens int, temperature *float64, seed *int64, topP *float64) (string, error) {
+func (s *Server) gatewayChat(ctx context.Context, model, key string, messages []chatMsg, o chatOpts) (string, error) {
 	bodyMap := map[string]any{
 		"model":    model,
 		"messages": messages,
 		"stream":   false,
 	}
-	if maxTokens > 0 {
-		bodyMap["max_tokens"] = maxTokens
+	if o.MaxTokens > 0 {
+		bodyMap["max_tokens"] = o.MaxTokens
 	}
-	if temperature != nil {
-		bodyMap["temperature"] = *temperature
+	if o.Temp != nil {
+		bodyMap["temperature"] = *o.Temp
 	}
-	if seed != nil {
-		bodyMap["seed"] = *seed
+	if o.Seed != nil {
+		bodyMap["seed"] = *o.Seed
 	}
-	if topP != nil {
-		bodyMap["top_p"] = *topP
+	if o.TopP != nil {
+		bodyMap["top_p"] = *o.TopP
+	}
+	if o.FreqPen != nil {
+		bodyMap["frequency_penalty"] = *o.FreqPen
+	}
+	if o.PresPen != nil {
+		bodyMap["presence_penalty"] = *o.PresPen
 	}
 	body, _ := json.Marshal(bodyMap)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))

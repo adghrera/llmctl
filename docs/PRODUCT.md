@@ -272,7 +272,8 @@ toggle for a light theme (choice remembered). Tabs:
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
   optional max-tokens/temperature inputs (F359), a validation-retries input
   (1–5, CLI twin `-retries`, F692), a seed input for reproducible replies
-  (F795) and a top_p nucleus-sampling input (F799), all persisted in the browser (F765), a "Load schema" button that fills the
+  (F795), a top_p nucleus-sampling input (F799) and frequency/presence penalty
+  inputs (F805), all persisted in the browser (F765), a "Load schema" button that fills the
   schema box from a .json file (UI twin of `-schema`, F713), a Result Export
   JSON button (F432) with a Copy button for the JSON (F770), a Copy cURL button
   for the request (F786) and a "Save key" button that remembers the API key in the
@@ -282,7 +283,8 @@ toggle for a light theme (choice remembered). Tabs:
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional
   max-tokens/temperature inputs (F359), a concurrency input (1–8 workers,
   CLI twin `-concurrency`, F691), a seed input for reproducible replies
-  (F795) and a top_p nucleus-sampling input (F799), all persisted in the browser (F765), a "Load file" button that fills the prompts
+  (F795), a top_p nucleus-sampling input (F799) and frequency/presence penalty
+  inputs (F805), all persisted in the browser (F765), a "Load file" button that fills the prompts
   box from a text file (UI twin of `-file`, F712), Results Export CSV/JSON
   buttons (index,prompt,ok,content,error, F424, F732) with a per-row Copy
   button (F770), a Copy cURL button for the request (F786) and a "Save key" button
@@ -805,7 +807,7 @@ llmctl jobs wait <job-id> [-timeout N] [-interval N] [-json]   (block until the 
 llmctl jobs show <job-id> [-json] [-out FILE]   (one job in detail — status, progress, message/error, timestamps, F578; -out writes the raw JSON to a file, F621)
 llmctl jobs clear [-json]   (drop finished jobs from daemon memory; running jobs are kept, F585)
 llmctl search <query> [-max N] [-json] [--csv] [-out FILE]  (keyless web search; --csv exports rank,title,url,snippet, -out writes the raw JSON, F428, F274, F462)
-llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] [-seed N] [-top-p P] [-out FILE] <prompt>   (schema-validated JSON, F279, F344; -out writes it to a file, F457; -seed for reproducible replies, F795)
+llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-out FILE] <prompt>   (schema-validated JSON, F279, F344; -out writes it to a file, F457; -seed for reproducible replies, F795)
 llmctl embed -model ID [-key K] [-json] [-out FILE] <text>     (gateway embeddings, F281; -out writes the JSON to a file, F456)
 llmctl complete -model ID [-key K] [-json] [-seed N] [-top-p P] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455; -seed/-top-p sampling, F801)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-file PATH] [-json] [--csv] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454; --csv one row per model, F606; -file prepends a local file as context to every model, F670)
@@ -895,7 +897,7 @@ llmctl settings [-json] [-out FILE] | settings set -require-auth -idle-min -noti
                  -notify-secret -allow-cors -start-on-demand -max-body-mb
                  -rate-rps -rate-burst -retention-days -log-level -backup-keep
                  | settings test-webhook [-event E] [-message M] [-json] (send a test event, optionally with a custom event name/message; prints a delivery confirmation, F574, F591)
-llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-seed N] [-top-p P] [-file F|stdin|prompts…] [-json] [--csv] [-out FILE]
+llmctl batch -model ID [-system S] [-key K] [-concurrency N] [-temperature T] [-seed N] [-top-p P] [-freq-penalty F] [-pres-penalty P] [-file F|stdin|prompts…] [-json] [--csv] [-out FILE]
 llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-prompt TEXT or piped stdin: one-shot mode — send one message,
                                      print the streamed reply, exit; for scripts, F277;

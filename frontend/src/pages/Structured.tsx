@@ -24,6 +24,8 @@ export default function Structured() {
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.structured.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.structured.seed") ?? "");
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.structured.topp") ?? "");
+  const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.structured.freqpen") ?? "");
+  const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.structured.prespen") ?? "");
   const [retries, setRetries] = useState(() => localStorage.getItem("llmctl.structured.retries") ?? ""); // validation retries, CLI -retries twin (F692)
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
@@ -58,6 +60,8 @@ export default function Structured() {
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
         seed: seed.trim() !== "" ? Number(seed) : undefined,
         topP: topP.trim() !== "" ? Number(topP) : undefined,
+        freqPenalty: freqPen.trim() !== "" ? Number(freqPen) : undefined,
+        presPenalty: presPen.trim() !== "" ? Number(presPen) : undefined,
         maxRetries: Number(retries) > 0 ? Math.min(Number(retries), 5) : undefined,
       });
       if (r.ok) {
@@ -168,6 +172,34 @@ export default function Structured() {
             }}
           />
           <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="freq penalty"
+            title="frequency penalty (empty = model default) (F805)"
+            value={freqPen}
+            onChange={(e) => {
+              setFreqPen(e.target.value);
+              localStorage.setItem("llmctl.structured.freqpen", e.target.value);
+            }}
+          />
+          <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="pres penalty"
+            title="presence penalty (empty = model default) (F805)"
+            value={presPen}
+            onChange={(e) => {
+              setPresPen(e.target.value);
+              localStorage.setItem("llmctl.structured.prespen", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 130 }}
             type="number"
             min={1}
@@ -213,6 +245,8 @@ export default function Structured() {
             if (temp.trim() !== "") body.temperature = Number(temp);
             if (seed.trim() !== "") body.seed = Number(seed);
             if (topP.trim() !== "") body.topP = Number(topP);
+            if (freqPen.trim() !== "") body.freqPenalty = Number(freqPen);
+            if (presPen.trim() !== "") body.presPenalty = Number(presPen);
             if (Number(retries) > 0) body.maxRetries = Math.min(Number(retries), 5);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;

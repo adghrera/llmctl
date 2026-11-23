@@ -13,6 +13,8 @@ export default function Batch() {
   const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.batch.temp") ?? "");
   const [seed, setSeed] = useState(() => localStorage.getItem("llmctl.batch.seed") ?? "");
   const [topP, setTopP] = useState(() => localStorage.getItem("llmctl.batch.topp") ?? "");
+  const [freqPen, setFreqPen] = useState(() => localStorage.getItem("llmctl.batch.freqpen") ?? "");
+  const [presPen, setPresPen] = useState(() => localStorage.getItem("llmctl.batch.prespen") ?? "");
   const [conc, setConc] = useState(() => localStorage.getItem("llmctl.batch.conc") ?? ""); // parallel workers, CLI -concurrency twin (F691)
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,8 @@ export default function Batch() {
         temperature: temp.trim() !== "" ? Number(temp) : undefined,
         seed: seed.trim() !== "" ? Number(seed) : undefined,
         topP: topP.trim() !== "" ? Number(topP) : undefined,
+        freqPenalty: freqPen.trim() !== "" ? Number(freqPen) : undefined,
+        presPenalty: presPen.trim() !== "" ? Number(presPen) : undefined,
         concurrency: Number(conc) > 0 ? Math.min(Number(conc), 8) : undefined,
       });
       setResults(r.results);
@@ -154,6 +158,34 @@ export default function Batch() {
             }}
           />
           <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="freq penalty"
+            title="frequency penalty sent with every prompt (empty = model default) (F805)"
+            value={freqPen}
+            onChange={(e) => {
+              setFreqPen(e.target.value);
+              localStorage.setItem("llmctl.batch.freqpen", e.target.value);
+            }}
+          />
+          <input
+            style={{ width: 100 }}
+            type="number"
+            step="0.1"
+            min={-2}
+            max={2}
+            placeholder="pres penalty"
+            title="presence penalty sent with every prompt (empty = model default) (F805)"
+            value={presPen}
+            onChange={(e) => {
+              setPresPen(e.target.value);
+              localStorage.setItem("llmctl.batch.prespen", e.target.value);
+            }}
+          />
+          <input
             style={{ width: 130 }}
             type="number"
             min={1}
@@ -190,6 +222,8 @@ export default function Batch() {
             if (temp.trim() !== "") body.temperature = Number(temp);
             if (seed.trim() !== "") body.seed = Number(seed);
             if (topP.trim() !== "") body.topP = Number(topP);
+            if (freqPen.trim() !== "") body.freqPenalty = Number(freqPen);
+            if (presPen.trim() !== "") body.presPenalty = Number(presPen);
             if (Number(conc) > 0) body.concurrency = Math.min(Number(conc), 8);
             const json = JSON.stringify(body);
             const q = `'${json.replace(/'/g, `'\\''`)}'`;
