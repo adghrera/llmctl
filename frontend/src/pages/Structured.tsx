@@ -20,9 +20,9 @@ export default function Structured() {
   const [key, setKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
   const [prompt, setPrompt] = useState("Extract the movie described: 'Dune (2021), a sci-fi epic directed by Denis Villeneuve.'");
   const [schema, setSchema] = useState(EXAMPLE_SCHEMA);
-  const [maxTok, setMaxTok] = useState("");
-  const [temp, setTemp] = useState("");
-  const [retries, setRetries] = useState(""); // validation retries, CLI -retries twin (F692)
+  const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.structured.maxtok") ?? "");
+  const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.structured.temp") ?? "");
+  const [retries, setRetries] = useState(() => localStorage.getItem("llmctl.structured.retries") ?? ""); // validation retries, CLI -retries twin (F692)
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string>("");
   const [meta, setMeta] = useState<string>("");
@@ -119,7 +119,10 @@ export default function Structured() {
             placeholder="max tokens"
             title="max tokens per attempt (empty = model default)"
             value={maxTok}
-            onChange={(e) => setMaxTok(e.target.value)}
+            onChange={(e) => {
+              setMaxTok(e.target.value);
+              localStorage.setItem("llmctl.structured.maxtok", e.target.value);
+            }}
           />
           <input
             style={{ width: 130 }}
@@ -130,7 +133,10 @@ export default function Structured() {
             placeholder="temperature"
             title="sampling temperature (empty = model default)"
             value={temp}
-            onChange={(e) => setTemp(e.target.value)}
+            onChange={(e) => {
+              setTemp(e.target.value);
+              localStorage.setItem("llmctl.structured.temp", e.target.value);
+            }}
           />
           <input
             style={{ width: 130 }}
@@ -140,7 +146,10 @@ export default function Structured() {
             placeholder="retries"
             title="validation retries on bad JSON, 1–5 (CLI: llmctl structured -retries, F692)"
             value={retries}
-            onChange={(e) => setRetries(e.target.value)}
+            onChange={(e) => {
+              setRetries(e.target.value);
+              localStorage.setItem("llmctl.structured.retries", e.target.value);
+            }}
           />
         </div>
         <textarea

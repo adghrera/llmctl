@@ -775,6 +775,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F762 | P3 | 762 | chats | Chat system prompt persistence | COMPLETED | The Chat page system prompt now persists in the browser (localStorage), surviving reloads like the Compare page system prompt. Verified live: served bundle carries the read and write. |
 | F763 | P3 | 763 | chats | Chat sampling persistence | COMPLETED | The Chat page max-tokens and temperature inputs now persist in the browser (localStorage) like the system prompt (F762), surviving reloads. Verified live: served bundle carries both read/write pairs. |
 | F764 | P3 | 764 | compare | Compare sampling persistence | COMPLETED | The Compare page max-tokens and temperature inputs now persist in the browser (localStorage) like its system prompt, surviving reloads — Chat sampling twin (F763). Verified live: served bundle carries both read/write pairs. |
+| F765 | P3 | 765 | batch | Batch/Structured input persistence | COMPLETED | Batch system/max-tokens/temperature/concurrency and Structured max-tokens/temperature/retries inputs now persist in the browser (localStorage) — Chat/Compare sampling twin (F763, F764). Verified live: served bundle carries all seven read/write pairs. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

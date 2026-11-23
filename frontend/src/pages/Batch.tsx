@@ -8,10 +8,10 @@ export default function Batch() {
   const running = instances.filter((i) => i.status === "running");
   const [model, setModel] = useState("");
   const [key, setKey] = useState(() => localStorage.getItem("llmctl.chat.key") ?? "");
-  const [system, setSystem] = useState("");
-  const [maxTok, setMaxTok] = useState("");
-  const [temp, setTemp] = useState("");
-  const [conc, setConc] = useState(""); // parallel workers, CLI -concurrency twin (F691)
+  const [system, setSystem] = useState(() => localStorage.getItem("llmctl.batch.system") ?? "");
+  const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.batch.maxtok") ?? "");
+  const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.batch.temp") ?? "");
+  const [conc, setConc] = useState(() => localStorage.getItem("llmctl.batch.conc") ?? ""); // parallel workers, CLI -concurrency twin (F691)
   const [prompts, setPrompts] = useState("What is 2+2?\nCapital of France?\nLargest planet?");
   const [busy, setBusy] = useState(false);
   const [results, setResults] = useState<BatchResult[] | null>(null);
@@ -92,7 +92,10 @@ export default function Batch() {
           style={{ width: "100%", marginBottom: 8 }}
           placeholder="Optional system prompt"
           value={system}
-          onChange={(e) => setSystem(e.target.value)}
+          onChange={(e) => {
+            setSystem(e.target.value);
+            localStorage.setItem("llmctl.batch.system", e.target.value);
+          }}
         />
         <div className="row" style={{ gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
           <input
@@ -102,7 +105,10 @@ export default function Batch() {
             placeholder="max tokens"
             title="max tokens per completion (empty = model default)"
             value={maxTok}
-            onChange={(e) => setMaxTok(e.target.value)}
+            onChange={(e) => {
+              setMaxTok(e.target.value);
+              localStorage.setItem("llmctl.batch.maxtok", e.target.value);
+            }}
           />
           <input
             style={{ width: 130 }}
@@ -113,7 +119,10 @@ export default function Batch() {
             placeholder="temperature"
             title="sampling temperature (empty = model default)"
             value={temp}
-            onChange={(e) => setTemp(e.target.value)}
+            onChange={(e) => {
+              setTemp(e.target.value);
+              localStorage.setItem("llmctl.batch.temp", e.target.value);
+            }}
           />
           <input
             style={{ width: 130 }}
@@ -123,7 +132,10 @@ export default function Batch() {
             placeholder="concurrency"
             title="parallel requests, 1–8 (CLI: llmctl batch -concurrency, F691)"
             value={conc}
-            onChange={(e) => setConc(e.target.value)}
+            onChange={(e) => {
+              setConc(e.target.value);
+              localStorage.setItem("llmctl.batch.conc", e.target.value);
+            }}
           />
         </div>
         <textarea

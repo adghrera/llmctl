@@ -267,7 +267,7 @@ toggle for a light theme (choice remembered). Tabs:
   with the validation error appended until it matches (or gives up with the
   raw reply). REST: POST /api/v1/structured. Dedicated Structured page with
   optional max-tokens/temperature inputs (F359), a validation-retries input
-  (1–5, CLI twin `-retries`, F692), a "Load schema" button that fills the
+  (1–5, CLI twin `-retries`, F692), all persisted in the browser (F765), a "Load schema" button that fills the
   schema box from a .json file (UI twin of `-schema`, F713), a Result Export
   JSON button (F432) and a "Save key" button that remembers the API key in the
   browser (F734).
@@ -275,7 +275,7 @@ toggle for a light theme (choice remembered). Tabs:
   concurrently through the gateway; per-prompt results and errors in input
   order. REST: POST /api/v1/batch. Dedicated Batch page with optional
   max-tokens/temperature inputs (F359), a concurrency input (1–8 workers,
-  CLI twin `-concurrency`, F691), a "Load file" button that fills the prompts
+  CLI twin `-concurrency`, F691), all persisted in the browser (F765), a "Load file" button that fills the prompts
   box from a text file (UI twin of `-file`, F712), Results Export CSV/JSON
   buttons (index,prompt,ok,content,error, F424, F732) and a "Save key" button
   that remembers the API key in the browser (F734). CLI:
