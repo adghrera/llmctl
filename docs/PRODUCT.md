@@ -406,7 +406,8 @@ toggle for a light theme (choice remembered). Tabs:
   button matching `llmctl compare --csv` (F607), a per-reply copy button
   in each result panel header (F769) with a per-reply token/latency badge
   (F811), and a Copy cURL button for the first
-  selected model (Chat twin, F785). While running, the Compare
+  selected model (Chat twin, F785). The URL deep-links the selection
+  (`/compare?models=a,b&p=...`) so comparisons are shareable (F814). While running, the Compare
   button becomes a Stop button aborting every in-flight stream, keeping
   partial replies (F755).
   Uses the existing /v1/chat/completions SSE endpoint; no new backend API needed.

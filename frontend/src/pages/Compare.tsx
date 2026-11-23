@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, Instance, FileEntry } from "../api/client";
 import { err, ok } from "../ui/toast";
 
 export default function Compare() {
+  const [params, setParams] = useSearchParams();
   const [instances, setInstances] = useState<Instance[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [prompt, setPrompt] = useState("");
+  // Deep link: /compare?models=a,b&p=... pre-selects and prefills (F814).
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set((params.get("models") ?? "").split(",").filter(Boolean))
+  );
+  const [prompt, setPrompt] = useState(() => params.get("p") ?? "");
   const [results, setResults] = useState<Record<string, { content: string; error?: string; done: boolean; ms?: number; tok?: number }>>({});
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null); // stop all in-flight fan-out streams (F755)
@@ -34,12 +39,11 @@ export default function Compare() {
   }, []);
 
   const toggle = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+    setParams(next.size ? { models: Array.from(next).join(",") } : {}, { replace: true }); // deep-link follows selection (F814)
   };
 
   const isSelected = (id: string) => selected.has(id);
