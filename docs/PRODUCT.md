@@ -806,7 +806,7 @@ llmctl jobs clear [-json]   (drop finished jobs from daemon memory; running jobs
 llmctl search <query> [-max N] [-json] [--csv] [-out FILE]  (keyless web search; --csv exports rank,title,url,snippet, -out writes the raw JSON, F428, F274, F462)
 llmctl structured -model ID -schema f.json [-key K] [-max-tokens N] [-temperature T] [-seed N] [-top-p P] [-out FILE] <prompt>   (schema-validated JSON, F279, F344; -out writes it to a file, F457; -seed for reproducible replies, F795)
 llmctl embed -model ID [-key K] [-json] [-out FILE] <text>     (gateway embeddings, F281; -out writes the JSON to a file, F456)
-llmctl complete -model ID [-key K] [-json] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455)
+llmctl complete -model ID [-key K] [-json] [-seed N] [-top-p P] [-out FILE] <prompt>  (gateway text completions, F287; -out writes the text to a file, F455; -seed/-top-p sampling, F801)
 llmctl compare -models A,B [-system S] [-max-tokens N] [-temperature T] [-file PATH] [-json] [--csv] [-out FILE] <prompt> (CLI twin of Compare page, F301, F314, F343; -out writes the JSON array to a file, F454; --csv one row per model, F606; -file prepends a local file as context to every model, F670)
 llmctl count <text> [-file F] [-chat ID] [-model ID] [-json] [-out FILE]  (estimate tokens, ~4 chars/token; -chat sizes a saved conversation, F317, F336; -out writes the counts JSON to a file, F461)
 llmctl bench -model ID [-key K] [-n N] [-conc C] [-seed N] [-top-p P] [-json|--csv] [-out FILE]  (latency/throughput benchmark, F282; single-model also supports the JSON/CSV/-out shapes, F623; -seed for reproducible replies, F796)
@@ -906,6 +906,7 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -continue to append to the most recently updated saved chat, F312, REPL too F685;
                                      add -json to print {model, prompt, reply, chat_id} as one JSON object, F313;
                                      add -temperature/-max-tokens sampling options, F319;
+                                     add -seed N/-top-p P sampling options (reproducible + nucleus sampling, F801);
                                      add -kb ID[,ID2…] to prepend the top knowledge-base matches as context, F302, comma-separated ids merge across KBs F666, applies in the REPL too F667;
                                      add -file PATH to prepend a local file's contents as context (like the Chat UI /file, one-shot and REPL, F669);
                                      add -out FILE to write the reply text to a file instead of stdout, F448)

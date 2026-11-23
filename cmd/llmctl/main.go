@@ -2324,6 +2324,8 @@ func cmdComplete(args []string) error {
 	keyF := fs.String("key", os.Getenv("LLMCTL_API_KEY"), "gateway API key (if auth is enabled; default $LLMCTL_API_KEY)")
 	maxTok := fs.Int("max-tokens", 256, "max tokens to generate")
 	temp := fs.Float64("temperature", 0.7, "sampling temperature")
+	seed := fs.Int64("seed", -1, "sampling seed for reproducible replies (-1 = random, F801)")
+	topP := fs.Float64("top-p", -1, "nucleus sampling top_p (-1 = model default, F801)")
 	jsonOut := fs.Bool("json", false, "print the raw completions JSON (for scripts)")
 	outFile := fs.String("out", "", "write the completion text to this file instead of stdout (F455)")
 	fs.Parse(reorderFlags(args))
@@ -2343,12 +2345,19 @@ func cmdComplete(args []string) error {
 	if err != nil {
 		return err
 	}
-	code, out, err := cc.DoKey("POST", "/v1/completions", map[string]any{
+	reqBody := map[string]any{
 		"model":       *model,
 		"prompt":      prompt,
 		"max_tokens":  *maxTok,
 		"temperature": *temp,
-	}, *keyF)
+	}
+	if *seed >= 0 {
+		reqBody["seed"] = *seed
+	}
+	if *topP >= 0 {
+		reqBody["top_p"] = *topP
+	}
+	code, out, err := cc.DoKey("POST", "/v1/completions", reqBody, *keyF)
 	if err != nil {
 		return err
 	}
@@ -13299,6 +13308,8 @@ func cmdChat(args []string) error {
 	jsonOut := fs.Bool("json", false, "with -prompt: print {model, prompt, reply, chat_id} as one JSON object instead of plain text (F313)")
 	temp := fs.Float64("temperature", -1, "with -prompt: sampling temperature (-1 = model default, F319)")
 	maxTok := fs.Int("max-tokens", 0, "with -prompt: max tokens for the reply (0 = model default, F319)")
+	seed := fs.Int64("seed", -1, "with -prompt: sampling seed for reproducible replies (-1 = random, F801)")
+	topP := fs.Float64("top-p", -1, "with -prompt: nucleus sampling top_p (-1 = model default, F801)")
 	outFile := fs.String("out", "", "with -prompt: write the reply text to this file instead of stdout (F448)")
 	fs.Parse(reorderFlags(args))
 
@@ -13516,6 +13527,12 @@ func cmdChat(args []string) error {
 		}
 		if *maxTok > 0 {
 			reqBody["max_tokens"] = *maxTok
+		}
+		if *seed >= 0 {
+			reqBody["seed"] = *seed
+		}
+		if *topP >= 0 {
+			reqBody["top_p"] = *topP
 		}
 		b, _ := json.Marshal(reqBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/v1/chat/completions", strings.NewReader(string(b)))
