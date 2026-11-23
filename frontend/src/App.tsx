@@ -67,6 +67,13 @@ export default function App() {
         navigate("/search");
         return;
       }
+      // Alt+1…9 jumps to the first nine pages in sidebar order (F822).
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^[1-9]$/.test(e.key)) {
+        const pages = ["/", "/search", "/backends", "/models", "/instances", "/chat", "/tools", "/skills", "/memory"];
+        e.preventDefault();
+        navigate(pages[Number(e.key) - 1]);
+        return;
+      }
       if (e.key === "Escape") {
         setHelpOpen(false);
         return;
@@ -159,6 +166,7 @@ export default function App() {
 // ShortcutHelp lists the global keyboard shortcuts (F514).
 const SHORTCUTS: { keys: string; what: string }[] = [
   { keys: "Ctrl/⌘ + K", what: "Jump to Search" },
+  { keys: "Alt + 1…9", what: "Jump to pages: Overview, Search, Backends, Models, Instances, Chat, Tools, Skills, Memory" },
   { keys: "?", what: "Toggle this help" },
   { keys: "Esc", what: "Close dialogs and this help" },
   { keys: "Enter", what: "Send the message (Chat); run the current action in input fields" },

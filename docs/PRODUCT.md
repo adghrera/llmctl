@@ -197,7 +197,8 @@ toggle for a light theme (choice remembered). Tabs:
   (F698), each result linking to its page.
   An Export CSV or Export JSON button downloads every match as one
   kind,name,detail file
-  (F611, F718). Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439).
+  (F611, F718). Ctrl+K (Cmd+K on macOS) jumps to Search from any page (F439),
+  and Alt+1…9 jump to the first nine sidebar pages (Overview…Memory) (F822).
   Pressing `?` anywhere outside a text field opens a keyboard-shortcut
   cheat-sheet overlay; Esc or a backdrop click closes it (F514). A `?`
   button in the header opens the same overlay (F515).
