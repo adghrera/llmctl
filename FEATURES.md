@@ -773,6 +773,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F760 | P3 | 760 | logs | Log viewers Copy button | COMPLETED | The Overview daemon log card and the Instances log viewer each gained a Copy button saving the displayed (filter-aware) tail to the clipboard — companion to their Download buttons. Verified live: served bundle carries both buttons. |
 | F761 | P3 | 761 | files | File content Copy button | COMPLETED | The Files "File content" preview modal gained a Copy button copying the full text to the clipboard — companion to the View preview (F355) and per-row Download (F745). Verified live: served bundle carries the button. |
 | F762 | P3 | 762 | chats | Chat system prompt persistence | COMPLETED | The Chat page system prompt now persists in the browser (localStorage), surviving reloads like the Compare page system prompt. Verified live: served bundle carries the read and write. |
+| F763 | P3 | 763 | chats | Chat sampling persistence | COMPLETED | The Chat page max-tokens and temperature inputs now persist in the browser (localStorage) like the system prompt (F762), surviving reloads. Verified live: served bundle carries both read/write pairs. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

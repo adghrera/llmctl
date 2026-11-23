@@ -32,8 +32,8 @@ export default function Chat() {
   );
   const [pendingApproval, setPendingApproval] = useState<{ id: string; name: string; query: string } | null>(null);
   const [systemPrompt, setSystemPrompt] = useState(() => localStorage.getItem("llmctl.chat.system") ?? "");
-  const [maxTok, setMaxTok] = useState("");
-  const [temp, setTemp] = useState("");
+  const [maxTok, setMaxTok] = useState(() => localStorage.getItem("llmctl.chat.maxtok") ?? "");
+  const [temp, setTemp] = useState(() => localStorage.getItem("llmctl.chat.temp") ?? "");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -894,7 +894,10 @@ export default function Chat() {
                 placeholder="max tokens"
                 title="max tokens per reply (empty = model default)"
                 value={maxTok}
-                onChange={(e) => setMaxTok(e.target.value)}
+                onChange={(e) => {
+                  setMaxTok(e.target.value);
+                  localStorage.setItem("llmctl.chat.maxtok", e.target.value);
+                }}
               />
               <input
                 style={{ width: 130 }}
@@ -905,7 +908,10 @@ export default function Chat() {
                 placeholder="temperature"
                 title="sampling temperature (empty = model default)"
                 value={temp}
-                onChange={(e) => setTemp(e.target.value)}
+                onChange={(e) => {
+                  setTemp(e.target.value);
+                  localStorage.setItem("llmctl.chat.temp", e.target.value);
+                }}
               />
               <button
                 className="btn sm"
