@@ -831,6 +831,7 @@ and verified. Statuses: NOT-STARTED, IN-PROGRESS, COMPLETED, IGNORE.
 | F818 | P3 | 818 | chats | Chat input token estimate | COMPLETED | The Chat input shows a live "≈N tok" estimate under the textarea (~4 chars/token, same rule as `llmctl count`). Verified live: served bundle carries the hint. |
 | F819 | P3 | 819 | batch | Batch prompt-count hint | COMPLETED | The Batch prompts box shows a live "N prompt(s) · ≈M tok" count under the textarea (non-empty lines; ~4 chars/token). Verified live: served bundle carries the hint. |
 | F820 | P3 | 820 | chats | Per-chat agent tool toggles | COMPLETED | Chat agent mode gained per-tool checkboxes (search/fetch/calc/time, persisted in the browser): the agent request carries a `tools` array, the API drops the unlisted built-ins, and the system prompt is now built from the tools actually available. Verified live: with `tools:["calculator"]` the streamed (stub-echoed) prompt contains calculator and no web_search; agent/api tests pass. |
+| F821 | P3 | 821 | chats | chat -agent -tools flag | COMPLETED | `llmctl chat -agent` gained `-tools web_search,fetch_url,calculator,current_time` to restrict the agent's built-in tools — CLI twin of the Chat page checkboxes (F820). Verified live: `-tools calculator` streamed a prompt with calculator only and ran the calculator tool. |
 ## Shipped (v0.2 architecture, this iteration)
 
 | ID | Priority | Category | Title | Status | Description |

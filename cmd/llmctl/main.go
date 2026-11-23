@@ -13494,6 +13494,7 @@ func cmdChat(args []string) error {
 	system := fs.String("system", "", "system prompt prepended to the conversation (F188)")
 	prompt := fs.String("prompt", "", "one-shot mode: send this text (or pipe stdin) and print the reply, no REPL")
 	agentMode := fs.Bool("agent", false, "with -prompt: run the tool-using agent loop instead of a plain chat (F285)")
+	agentTools := fs.String("tools", "", "with -agent: comma-separated built-in tools to enable (web_search,fetch_url,calculator,current_time); empty = all (F821)")
 	saveChat := fs.String("save", "", "with -prompt: save the exchange as a saved chat under this title (F294)")
 	tagsFlag := fs.String("tags", "", "with -save: comma-separated tags for the new chat (F687)")
 	contChat := fs.String("chat", "", "continue this saved chat — its history is sent and the reply appended (one-shot and REPL; F297, REPL F685)")
@@ -13572,10 +13573,20 @@ func cmdChat(args []string) error {
 		if text == "" {
 			return fmt.Errorf("-agent: no prompt (use -prompt or pipe text to stdin)")
 		}
-		body, _ := json.Marshal(map[string]any{
+		agentBody := map[string]any{
 			"model":    model,
 			"messages": []map[string]string{{"role": "user", "content": text}},
-		})
+		}
+		if *agentTools != "" { // twin of the Chat page tool checkboxes (F821)
+			var tl []string
+			for _, t := range strings.Split(*agentTools, ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					tl = append(tl, t)
+				}
+			}
+			agentBody["tools"] = tl
+		}
+		body, _ := json.Marshal(agentBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/api/v1/chat/agent", strings.NewReader(string(body)))
 		if err != nil {
 			return err

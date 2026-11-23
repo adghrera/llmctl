@@ -941,7 +941,8 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                      add -file PATH to prepend a local file's contents as context (like the Chat UI /file, one-shot and REPL, F669);
                                      add -out FILE to write the reply text to a file instead of stdout, F448)
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
-                                     lines and step count, F285)
+                                     lines and step count, F285; -agent -tools LIST restricts the
+                                     built-in tools (web_search,fetch_url,calculator,current_time), F821)
                                     (interactive REPL: /help /clear /system TEXT /model ID
                                      /kb ID[,ID…] (/kb - detaches) /save [title] /quit, F331, F342, multi F667;
                                      /title TEXT and /tag [a,b|-] rename / tag the chat saved by /save, F683;
