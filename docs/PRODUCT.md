@@ -267,8 +267,8 @@ toggle for a light theme (choice remembered). Tabs:
   persists in the browser
   (F820, installed tools F823). A "max steps" input caps the agent's tool
   steps per reply (1–10, default 5; CLI `-max-steps`, F828), and the
-  conversation's max-tokens/temperature inputs apply in agent mode too
-  (F829). A collapsible "System prompt" editor sets a per-conversation
+  conversation's max-tokens/temperature/seed/top_p/penalty inputs all apply
+  in agent mode too (F829, F830). A collapsible "System prompt" editor sets a per-conversation
   system prompt sent with every request (F063), persisted in the browser
   across reloads (F762), and the same panel holds
   optional max-tokens/temperature inputs for the conversation (F360), also
@@ -955,7 +955,8 @@ llmctl chat [--model ID] [--key KEY] [--system TEXT]
                                     (-agent with -prompt: tool-using agent loop, prints [tool …]
                                      lines and step count, F285; -agent -tools LIST restricts the
                                      built-in tools (web_search,fetch_url,calculator,current_time), F821;
-                                     -agent -max-steps N caps tool steps per reply, 1–10, F828)
+                                     -agent -max-steps N caps tool steps per reply, 1–10, F828;
+                                     -agent honors -max-tokens/-temperature/-seed/-top-p/-freq-penalty/-pres-penalty, F829, F830)
                                     (interactive REPL: /help /clear /system TEXT /model ID
                                      /kb ID[,ID…] (/kb - detaches) /save [title] /quit, F331, F342, multi F667;
                                      /title TEXT and /tag [a,b|-] rename / tag the chat saved by /save, F683;

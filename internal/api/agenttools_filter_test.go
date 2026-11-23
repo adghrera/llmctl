@@ -137,13 +137,14 @@ func TestChatAgentToolFilter(t *testing.T) {
 	}
 }
 
-// TestChatAgentSamplingPassthrough checks that maxTokens/temperature sent by
-// the client reach the gateway request body (F829).
+// TestChatAgentSamplingPassthrough checks that maxTokens/temperature and the
+// seed/top_p/penalty extras sent by the client reach the gateway request
+// body (F829, F830).
 func TestChatAgentSamplingPassthrough(t *testing.T) {
 	be := &captureBackend{}
 	s := &Server{gw: newCaptureGW(t, be), searcher: websearch.New(), agentTool: &stubTool{}}
 	req := httptest.NewRequest("POST", "/api/v1/chat/agent",
-		strings.NewReader(`{"model":"m","messages":[{"role":"user","content":"x"}],"maxTokens":123,"temperature":0.42}`))
+		strings.NewReader(`{"model":"m","messages":[{"role":"user","content":"x"}],"maxTokens":123,"temperature":0.42,"seed":77,"top_p":0.9,"frequency_penalty":0.5,"presence_penalty":-0.5}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.chatAgent(rec, req)
@@ -155,5 +156,17 @@ func TestChatAgentSamplingPassthrough(t *testing.T) {
 	}
 	if tp, _ := be.body["temperature"].(float64); tp != 0.42 {
 		t.Fatalf("temperature = %v, want 0.42", be.body["temperature"])
+	}
+	if sd, _ := be.body["seed"].(float64); sd != 77 {
+		t.Fatalf("seed = %v, want 77", be.body["seed"])
+	}
+	if pp, _ := be.body["top_p"].(float64); pp != 0.9 {
+		t.Fatalf("top_p = %v, want 0.9", be.body["top_p"])
+	}
+	if fp, _ := be.body["frequency_penalty"].(float64); fp != 0.5 {
+		t.Fatalf("frequency_penalty = %v, want 0.5", be.body["frequency_penalty"])
+	}
+	if pp, _ := be.body["presence_penalty"].(float64); pp != -0.5 {
+		t.Fatalf("presence_penalty = %v, want -0.5", be.body["presence_penalty"])
 	}
 }

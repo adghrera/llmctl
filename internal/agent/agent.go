@@ -52,6 +52,10 @@ type Request struct {
 	MaxSteps       int       // default 5, cap 10
 	MaxTokens      int
 	Temperature    *float64
+	Seed           *int64 // forwarded to the gateway as seed (F830)
+	TopP           *float64
+	FreqPenalty    *float64
+	PresPenalty    *float64
 	APIKey         string // forwarded to the gateway as Bearer
 	ExtraToolsText string // appended to the system prompt (installed tools, F033)
 	CtxSize        int    // model context window (tokens); 0 = unknown, no compaction
@@ -732,6 +736,18 @@ func callGateway(ctx context.Context, gw http.Handler, req Request, messages []M
 	}
 	if req.Temperature != nil {
 		body["temperature"] = *req.Temperature
+	}
+	if req.Seed != nil { // sampling extras, same gateway keys as plain chat (F830)
+		body["seed"] = *req.Seed
+	}
+	if req.TopP != nil {
+		body["top_p"] = *req.TopP
+	}
+	if req.FreqPenalty != nil {
+		body["frequency_penalty"] = *req.FreqPenalty
+	}
+	if req.PresPenalty != nil {
+		body["presence_penalty"] = *req.PresPenalty
 	}
 	b, _ := json.Marshal(body)
 

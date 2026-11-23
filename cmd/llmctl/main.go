@@ -13596,6 +13596,18 @@ func cmdChat(args []string) error {
 		if *temp >= 0 {
 			agentBody["temperature"] = *temp
 		}
+		if *seed >= 0 { // sampling extras now apply in agent mode (F830)
+			agentBody["seed"] = *seed
+		}
+		if *topP >= 0 {
+			agentBody["top_p"] = *topP
+		}
+		if *freqPen > -999 {
+			agentBody["frequency_penalty"] = *freqPen
+		}
+		if *presPen > -999 {
+			agentBody["presence_penalty"] = *presPen
+		}
 		body, _ := json.Marshal(agentBody)
 		req, err := http.NewRequest(http.MethodPost, cc.Base+"/api/v1/chat/agent", strings.NewReader(string(body)))
 		if err != nil {

@@ -499,6 +499,10 @@ export default function Chat() {
           maxSteps: Number(maxSteps) > 0 ? Math.min(Number(maxSteps), 10) : undefined, // agent step cap (F828)
           maxTokens: Number(maxTok) > 0 ? Number(maxTok) : undefined, // conversation sampling now applies in agent mode (F829)
           temperature: temp.trim() !== "" ? Number(temp) : undefined,
+          seed: seed.trim() !== "" ? Number(seed) : undefined, // sampling extras in agent mode (F830)
+          top_p: topP.trim() !== "" ? Number(topP) : undefined,
+          frequency_penalty: freqPen.trim() !== "" ? Number(freqPen) : undefined,
+          presence_penalty: presPen.trim() !== "" ? Number(presPen) : undefined,
           tools: [
             ...Array.from(agentTools),
             ...installedTools.map((t) => `tool:${t.id}`).filter((n) => !agentOff.has(n)),

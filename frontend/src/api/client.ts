@@ -1026,6 +1026,10 @@ export async function* agentStream(
     maxSteps?: number;
     maxTokens?: number; // conversation max-tokens, honored in agent mode (F829)
     temperature?: number;
+    seed?: number; // sampling extras, honored in agent mode (F830)
+    top_p?: number;
+    frequency_penalty?: number;
+    presence_penalty?: number;
     requireApproval?: boolean;
     tools?: string[]; // built-in tools to enable; [] = none, omit = all (F820)
   },

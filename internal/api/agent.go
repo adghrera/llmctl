@@ -22,6 +22,10 @@ type agentChatReq struct {
 	Temperature     *float64        `json:"temperature"`
 	RequireApproval bool            `json:"requireApproval"` // ask before each tool call (F055)
 	Tools           []string        `json:"tools,omitempty"` // built-in tools to enable; omitted = all, [] = none (F820)
+	Seed            *int64          `json:"seed,omitempty"`  // sampling extras, forwarded to the gateway (F830)
+	TopP            *float64        `json:"top_p,omitempty"`
+	FreqPenalty     *float64        `json:"frequency_penalty,omitempty"`
+	PresPenalty     *float64        `json:"presence_penalty,omitempty"`
 }
 
 // agentSearchTool returns the web_search tool for the agent loop. Tests
@@ -116,6 +120,10 @@ func (s *Server) chatAgent(w http.ResponseWriter, r *http.Request) {
 		MaxTokens:   req.MaxTokens,
 		Temperature: req.Temperature,
 		APIKey:      apiKey,
+		Seed:        req.Seed, // sampling extras (F830)
+		TopP:        req.TopP,
+		FreqPenalty: req.FreqPenalty,
+		PresPenalty: req.PresPenalty,
 	}
 	// Client-provided system messages (per-conversation system prompt, F063)
 	// merge into the agent's own system prompt instead of duplicating one.
