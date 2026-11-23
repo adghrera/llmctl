@@ -587,7 +587,8 @@ toggle for a light theme (choice remembered). Tabs:
   Tasks carry free-form tags — `llmctl scheduler tag <id> a,b` (empty clears),
   bulk `scheduler retag <old> <new>` / `retag -rm <tag>`, a `scheduler list
   -tag T` filter and TAGS column (table and `--csv`), and a per-row Tag button
-  on the Scheduler page; tags survive task updates (F681).
+  on the Scheduler page; tags survive task updates (F681). The task table has
+  clickable column headers to sort (name/cron/kind/model/enabled/next/last, F779).
   `llmctl scheduler add` prints a one-line confirmation with the new task id
   (`-json` for the raw record, F563; `-tags a,b` tags at creation, F702).
   `llmctl scheduler duplicate <id>

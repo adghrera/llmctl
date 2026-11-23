@@ -17,6 +17,8 @@ export default function Scheduler() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [newTags, setNewTags] = useState(""); // tags at creation (F702)
   const [tagFilter, setTagFilter] = useState(""); // tag filter, CLI `scheduler list -tag` twin (F707)
+  const [sortKey, setSortKey] = useState(""); // column sort over the task list (F779)
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<ScheduleRun[]>([]);
   const [runTask, setRunTask] = useState(""); // Recent Runs task filter (F688)
@@ -200,6 +202,35 @@ export default function Scheduler() {
   const shownTasks = tagFilter
     ? schedules.filter((s) => (s.tags ?? []).includes(tagFilter))
     : schedules;
+  const toggleSort = (k: string) => {
+    if (sortKey === k) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(k);
+      setSortDir(k === "name" || k === "cron" || k === "kind" || k === "model" ? 1 : -1);
+    }
+  };
+  const sortedTasks = (() => {
+    if (!sortKey) return shownTasks;
+    const val = (s: ScheduleSpec): string | number => {
+      switch (sortKey) {
+        case "name": return s.name || "";
+        case "cron": return s.cron_expr || "";
+        case "kind": return s.kind || "";
+        case "model": return s.model || "";
+        case "enabled": return s.enabled ? 1 : 0;
+        case "next": return s.next_run || "";
+        case "last": return s.last_run || "";
+        default: return 0;
+      }
+    };
+    return [...shownTasks].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      const c = typeof va === "number" && typeof vb === "number" ? va - vb : String(va).localeCompare(String(vb));
+      return c * sortDir;
+    });
+  })();
+  const arrow = (k: string) => (sortKey === k ? (sortDir === 1 ? " ▲" : " ▼") : "");
 
   const dupTask = async (s: ScheduleSpec) => {
     const name = window.prompt("Name for the copy:", `${s.name} copy`);
@@ -454,19 +485,19 @@ export default function Scheduler() {
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Cron</th>
-                <th>Kind</th>
-                <th>Model</th>
+                <th style={{ cursor: "pointer" }} title="sort by name (F779)" onClick={() => toggleSort("name")}>Name{arrow("name")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by cron (F779)" onClick={() => toggleSort("cron")}>Cron{arrow("cron")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by kind (F779)" onClick={() => toggleSort("kind")}>Kind{arrow("kind")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by model (F779)" onClick={() => toggleSort("model")}>Model{arrow("model")}</th>
                 <th>Hook</th>
-                <th>Enabled</th>
-                <th>Next Run</th>
-                <th>Last Run</th>
+                <th style={{ cursor: "pointer" }} title="sort by enabled (F779)" onClick={() => toggleSort("enabled")}>Enabled{arrow("enabled")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by next run (F779)" onClick={() => toggleSort("next")}>Next Run{arrow("next")}</th>
+                <th style={{ cursor: "pointer" }} title="sort by last run (F779)" onClick={() => toggleSort("last")}>Last Run{arrow("last")}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {shownTasks.map((s) => (
+              {sortedTasks.map((s) => (
                 <tr key={s.id}>
                   <td>
                     {s.name}
